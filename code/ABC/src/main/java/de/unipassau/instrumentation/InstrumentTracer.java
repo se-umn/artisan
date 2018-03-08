@@ -95,7 +95,8 @@ public class InstrumentTracer extends BodyTransformer {
 							instanceValue = ((VirtualInvokeExpr) invokeExpr).getBase();
 						}
 						if (invokeExpr instanceof StaticInvokeExpr) {
-							invokeType = Jimple.STATICINVOKE;
+//							invokeType = Jimple.STATICINVOKE; == staticinvoke
+							invokeType = "StaticInvokeExpr";
 
 						}
 						if (invokeExpr instanceof NewInvokeExpr) {
@@ -407,6 +408,7 @@ public class InstrumentTracer extends BodyTransformer {
 				+ "InstrumentTracer.traceCall() Start Method Instructions" + tmpArgsListAndInstructions.getSecond());
 	}
 
+	// TODO Add output folder to soot options
 	public static void main(String[] args) throws URISyntaxException {
 		String phaseName = "jtp.mainInstrumentation";
 		String projectJar = args[0];
