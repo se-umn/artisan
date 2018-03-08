@@ -24,34 +24,42 @@ public class Carver {
 		long startTime = System.nanoTime();
 
 		String methodToBeCarved = args[0]; //
-		String traceFile = args[1]; // "./src/main/resources/trace.txt";
+		String traceFile = args[1];
 
+		System.out.println("Carver.main() Start parsing ");
 		// Parse the trace file into graphs
 		StackImplementation si = new StackImplementation();
 		// TODO How to handle multiple trace files ? All together or one after
 		// another?
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = si.parseTrace(traceFile);
-
-		// Carving 
+		System.out.println("Carver.main() End parsing ");
+		// Carving
+		System.out.println("Carver.main() Start carving " + methodToBeCarved);
 		// TODO Here organize, instantiate and execute the configured Carvers
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToBeCarved);
-		
+		System.out.println("Carver.main() End carving " + methodToBeCarved);
+
+		System.out.println("Carver.main() Start code generation");
 		// Test Generation
 		String projectJar = args[2];
 		TestGenerator testCaseGenerator = new TestGenerator(projectJar);
 		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests);
-		
+
+		String outputDir = "./sootOutput/carvedTests";
 		// Code Generator
-		String outputDir = args[3];
-		TestCaseFactory.generateTestFiles(new File( outputDir ), testCases);
+		if (args.length > 3) {
+			outputDir = args[3];
+		}
+		TestCaseFactory.generateTestFiles(new File(outputDir), testCases);
+		System.out.println("Carver.main() End code generation");
+
 		long endTime = System.nanoTime();
-		
-		//
+
 		logger.info("Unit Test Generation " + (endTime - startTime) / 1000000000.0 + " s");
-//
-		System.exit(0);
+		// Why is this required? Will the application hang otherwise
+		// System.exit(0);
 	}
 
 }
