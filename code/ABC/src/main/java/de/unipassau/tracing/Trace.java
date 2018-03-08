@@ -7,25 +7,12 @@ import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import soot.Scene;
-import soot.SootMethod;
-
 public class Trace {
 
 	public final static String METHOD_START_TOKEN = "[>];";
 	public final static String METHOD_END_TOKEN = "[<];";
 	public final static String METHOD_OBJECT_TOKEN = "[||];";
 
-	// Todo can we pass around REF instead of objects?
-	public static final SootMethod methodObject = Scene.v()
-			.getMethod("<org.de.Trace: void methodObject(java.lang.String,java.lang.Object)>");
-
-	public static final SootMethod methodStop = Scene.v()
-			.getMethod("<org.de.Trace: void methodStop(java.lang.String,java.lang.String,java.lang.Object)>");
-	
-	public static final SootMethod methodStart = Scene.v()
-			.getMethod("<org.de.Trace: void methodStart(java.lang.String,java.lang.String,java.lang.Object[])>");
-	
 	private static File traceFile;
 	static {
 		try {
