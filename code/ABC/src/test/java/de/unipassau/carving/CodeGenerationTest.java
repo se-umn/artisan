@@ -27,7 +27,7 @@ public class CodeGenerationTest {
 		String employeeProjectJar = "./src/test/resources/Employee.jar";
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
 
-		StackImplementationNew stackImplementation = new StackImplementationNew();
+		StackImplementation stackImplementation = new StackImplementation();
 //		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = stackImplementation
 //				.fileTransformer(traceFile.getAbsolutePath(), methodToCarve);
 
@@ -54,7 +54,7 @@ public class CodeGenerationTest {
 		String employeeProjectJar = "./src/test/resources/Employee.jar";
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
 
-		StackImplementationNew stackImplementation = new StackImplementationNew();
+		StackImplementation stackImplementation = new StackImplementation();
 //		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = stackImplementation
 //				.fileTransformer(traceFile.getAbsolutePath(), methodToCarve);
 

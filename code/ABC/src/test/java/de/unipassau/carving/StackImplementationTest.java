@@ -31,7 +31,7 @@ public class StackImplementationTest {
 	public void testTraceParseWithRealTrace() throws FileNotFoundException, IOException{
 		File traceFile = new File("./src/test/resources/trace.txt");
 		// StackImplementation stackImplementation = new StackImplementation();
-		StackImplementationNew stackImplementation = new StackImplementationNew();
+		StackImplementation stackImplementation = new StackImplementation();
 		// Parsing
 		stackImplementation.parseTraceFile(traceFile.getAbsolutePath());
 
@@ -54,7 +54,7 @@ public class StackImplementationTest {
 		}
 
 		// StackImplementation stackImplementation = new StackImplementation();
-		StackImplementationNew stackImplementation = new StackImplementationNew();
+		StackImplementation stackImplementation = new StackImplementation();
 		// Parsing
 		stackImplementation.parseTraceFile(traceFile.getAbsolutePath());
 
@@ -85,7 +85,7 @@ public class StackImplementationTest {
 
 		}
 
-		StackImplementationNew stackImplementation = new StackImplementationNew();
+		StackImplementation stackImplementation = new StackImplementation();
 
 		// Parsing
 		stackImplementation.parseTraceFile(traceFile.getAbsolutePath());
@@ -111,7 +111,7 @@ public class StackImplementationTest {
 		}
 
 //		StackImplementation stackImplementation = new StackImplementation();
-		StackImplementationNew stackImplementation = new StackImplementationNew();
+		StackImplementation stackImplementation = new StackImplementation();
 
 		// Parsing
 		stackImplementation.parseTraceFile(traceFile.getAbsolutePath());
@@ -140,7 +140,7 @@ public class StackImplementationTest {
 		}
 
 //		StackImplementation stackImplementation = new StackImplementation();
-		StackImplementationNew stackImplementation = new StackImplementationNew();
+		StackImplementation stackImplementation = new StackImplementation();
 
 		// Parsing
 		stackImplementation.parseTraceFile(traceFile.getAbsolutePath());

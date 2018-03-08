@@ -33,7 +33,7 @@ public class CarverTest {
 		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String)>";
 
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
-		StackImplementationNew stackImplementation = new StackImplementationNew();
+		StackImplementation stackImplementation = new StackImplementation();
 
 		stackImplementation.parseTrace(traceFile.getAbsolutePath());
 		//
@@ -46,7 +46,7 @@ public class CarverTest {
 		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>";
 
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
-		StackImplementationNew stackImplementation = new StackImplementationNew();
+		StackImplementation stackImplementation = new StackImplementation();
 
 		stackImplementation.parseTrace(traceFile.getAbsolutePath());
 		
@@ -89,7 +89,7 @@ public class CarverTest {
 		try (PrintStream out = new PrintStream(new FileOutputStream(traceFile))) {
 			out.print(trace);
 		}
-		StackImplementationNew stackImplementation = new StackImplementationNew();
+		StackImplementation stackImplementation = new StackImplementation();
 
 		// Parse trace and fill up Graph_Details.
 		stackImplementation.parseTraceFile(traceFile.getAbsolutePath());
@@ -108,7 +108,7 @@ public class CarverTest {
 		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String)>";
 
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
-		StackImplementationNew stackImplementation = new StackImplementationNew();
+		StackImplementation stackImplementation = new StackImplementation();
 
 		// Not sure what's this
 
@@ -150,7 +150,7 @@ public class CarverTest {
 		try (PrintStream out = new PrintStream(new FileOutputStream(traceFile))) {
 			out.print(trace);
 		}
-		StackImplementationNew stackImplementation = new StackImplementationNew();
+		StackImplementation stackImplementation = new StackImplementation();
 
 		// Not sure what's this
 
@@ -193,7 +193,7 @@ public class CarverTest {
 			out.print(trace);
 		}
 
-		StackImplementationNew stackImplementation = new StackImplementationNew();
+		StackImplementation stackImplementation = new StackImplementation();
 		stackImplementation.parseTraceFile(traceFile.getAbsolutePath());
 		//
 		// This works by updating the static class {@link Graph_Details}
@@ -220,7 +220,7 @@ public class CarverTest {
 		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String)>";
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
 
-		StackImplementationNew stackImplementation = new StackImplementationNew();
+		StackImplementation stackImplementation = new StackImplementation();
 		
 		
 //		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> testCases = stackImplementation.parseTrace(traceFile.getAbsolutePath(), methodToCarve);
@@ -241,7 +241,7 @@ public class CarverTest {
 		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>";
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
 
-		StackImplementationNew stackImplementation = new StackImplementationNew();
+		StackImplementation stackImplementation = new StackImplementation();
 //		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestCases = stackImplementation
 //				.parseTrace(traceFile.getAbsolutePath(), methodToCarve);
 

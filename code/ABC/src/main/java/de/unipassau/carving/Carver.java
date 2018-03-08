@@ -27,7 +27,7 @@ public class Carver {
 		String traceFile = args[1]; // "./src/main/resources/trace.txt";
 
 		// Parse the trace file into graphs
-		StackImplementationNew si = new StackImplementationNew();
+		StackImplementation si = new StackImplementation();
 		// TODO How to handle multiple trace files ? All together or one after
 		// another?
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = si.parseTrace(traceFile);
