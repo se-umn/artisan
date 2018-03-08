@@ -1,0 +1,138 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>de.unipassau</groupId>
+	<artifactId>carving</artifactId>
+	<packaging>jar</packaging>
+	<version>1.0-SNAPSHOT</version>
+	<name>ABC Framework for Action-Based test Carving</name>
+	<developers>
+		<developer>
+			<id>gambi</id>
+			<name>Alessio Gambi</name>
+			<email>alessio.gambi@uni-passau.de</email>
+		</developer>
+	</developers>
+
+	<repositories>
+		<repository>
+			<!-- Temporary repo to store soot -->
+			<id>project</id>
+			<url>file:///${basedir}/local-repo</url>
+		</repository>
+	</repositories>
+	
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.5.1</version>
+				<configuration>
+					<source>1.7</source>
+					<target>1.7</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>appassembler-maven-plugin</artifactId>
+				<version>1.10</version>
+				<configuration>
+					<programs>
+						<program>
+							<mainClass>de.unipassau.instrumentation.InstrumentTracer</mainClass>
+							<id>instrument</id>
+						</program>
+						<program>
+							<mainClass>de.unipassau.carving.Carver</mainClass>
+							<id>carve</id>
+						</program>
+					</programs>
+				</configuration>
+			</plugin>
+		</plugins>
+
+	</build>
+	
+	<dependencies>
+		<!-- Logging -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>1.7.20</version>
+		</dependency>
+
+		<!-- FIXME: "Install" Soot properly ... For some reason this is already 
+			packaged in the soot distribution -->
+		<!-- TODO This might break the current functionalities of ABC -->
+		<!-- <dependency> <groupId>org.slf4j</groupId> <artifactId>slf4j-simple</artifactId> 
+			<version>1.7.20</version> </dependency> -->
+
+		<!-- Soot for Instrumentation, Static Analysis and Code Generation -->
+		<dependency>
+			<groupId>sable</groupId>
+			<artifactId>soot</artifactId>
+			<version>2.6.0-SNAPSHOT</version>
+		</dependency>
+		<!-- Utility for Decompiling Class files into Java -->
+		<dependency>
+			<groupId>org.bitbucket.mstrobel</groupId>
+			<artifactId>procyon-compilertools</artifactId>
+			<version>0.5.32</version>
+		</dependency>
+		<!-- Graph Datastructures and Visualization -->
+		<!-- TODO Check if ALL those libraries are really needed -->
+		<dependency>
+			<groupId>net.sf.jung</groupId>
+			<artifactId>jung-graph-impl</artifactId>
+			<version>2.1.1</version>
+		</dependency>
+		<dependency>
+			<groupId>net.sf.jung</groupId>
+			<artifactId>jung-visualization</artifactId>
+			<version>2.1.1</version>
+		</dependency>
+		<dependency>
+			<groupId>net.sf.jung</groupId>
+			<artifactId>jung-api</artifactId>
+			<version>2.1.1</version>
+		</dependency>
+		<dependency>
+			<groupId>net.sf.jung</groupId>
+			<artifactId>jung-algorithms</artifactId>
+			<version>2.1.1</version>
+		</dependency>
+		<dependency>
+			<groupId>net.sf.jung</groupId>
+			<artifactId>jung-io</artifactId>
+			<version>2.1.1</version>
+		</dependency>
+
+		<!-- Testing -->
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.12</version>
+			<scope>test</scope>
+		</dependency>
+		<!-- Mocking -->
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-all</artifactId>
+			<version>1.9.5</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.powermock</groupId>
+			<artifactId>powermock-api-mockito</artifactId>
+			<version>1.5.6</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.powermock</groupId>
+			<artifactId>powermock-module-junit4</artifactId>
+			<version>1.5.6</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+</project>
