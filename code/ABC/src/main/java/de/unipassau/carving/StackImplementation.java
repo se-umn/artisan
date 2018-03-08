@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de.unipassau.data.Triplette;
 import de.unipassau.tracing.Trace;
 
 /**
@@ -23,9 +24,9 @@ import de.unipassau.tracing.Trace;
  *
  */
 
-public class StackImplementationNew {
+public class StackImplementation implements TraceParser {
 
-	private static final Logger logger = LoggerFactory.getLogger(StackImplementationNew.class);
+	private static final Logger logger = LoggerFactory.getLogger(StackImplementation.class);
 
 	// private Stack<String> stack;
 
@@ -87,7 +88,7 @@ public class StackImplementationNew {
 	boolean threadStartFlag = false;
 	String threadStart = "";
 
-	public StackImplementationNew() {
+	public StackImplementation() {
 		exectuionFlowGraph = new ExecutionFlowGraph();
 		dataDependencyGraph = new DataDependencyGraph();
 		// queue = new LinkedList<String>();
@@ -111,7 +112,7 @@ public class StackImplementationNew {
 	}
 
 	private int parseMethodStart(int startLine, List<String> allLines) {
-		logger.trace("StackImplementationNew.parseMethodStart()" + allLines.get(startLine));
+		logger.trace("StackImplementation.parseMethodStart()" + allLines.get(startLine));
 		// This is global counter to distinguish all the invocations
 
 		// Assuming that there's no ";" inside any of those elements !!!
@@ -180,7 +181,7 @@ public class StackImplementationNew {
 	// This is called at the end of the invocation, right before methodEnd
 	// So invocationCount is wrong. We need to rely on the Stack for this !
 	private int parseMethodThis(int startLine, List<String> allLines) {
-		logger.trace("StackImplementationNew.parseMethodThis() " + allLines.get(startLine));
+		logger.trace("StackImplementation.parseMethodThis() " + allLines.get(startLine));
 		// FIXME First line tokens - Assuming that there's no ";" inside any of
 		// those elements !!!
 		// Probably we should move to something structured, that is which encode
@@ -211,7 +212,7 @@ public class StackImplementationNew {
 	}
 
 	private int parseMethodEnd(int startLine, List<String> allLines) {
-		logger.trace("StackImplementationNew.parseMethodEnd() " + allLines.get(startLine));
+		logger.trace("StackImplementation.parseMethodEnd() " + allLines.get(startLine));
 		String[] tokens = allLines.get(startLine).split(";");
 		// tokens[0] is METHOD_END_TOKEN
 		String jimpleMethod = tokens[1];
@@ -469,11 +470,11 @@ public class StackImplementationNew {
 	// // peekValue = stack.peek();
 	// //
 	// // String actualReturnValue = sgv.returnGraphVertice(returnValue);
-	// // logger.debug("StackImplementationNew.popImplementation() Actual
+	// // logger.debug("StackImplementation.popImplementation() Actual
 	// // Return Value : " + actualReturnValue);
 	// //
 	// // String actualPeekValue = sgv.returnGraphVertice(peekValue);
-	// // logger.debug("StackImplementationNew.popImplementation() Actual Peek
+	// // logger.debug("StackImplementation.popImplementation() Actual Peek
 	// // Value : " + actualPeekValue);
 	// //
 	// // if (actualPeekValue != null && actualReturnValue != null)
@@ -1052,13 +1053,13 @@ public class StackImplementationNew {
 	//
 	// List<String> allMethod = Graph_Details.instancesHashId.get(objectId);
 	//
-	// System.out.println("StackImplementationNew.carveHelperMethod() " +
+	// System.out.println("StackImplementation.carveHelperMethod() " +
 	// allMethod);
 	// // Probably this shall skip Constructors ?
 	// for (String method : allMethod) {
 	//
 	// if (method.contains("<init>")) {
-	// logger.debug("StackImplementationNew.carveHelperMethod() Skip constructor
+	// logger.debug("StackImplementation.carveHelperMethod() Skip constructor
 	// : " + method);
 	// continue;
 	// }

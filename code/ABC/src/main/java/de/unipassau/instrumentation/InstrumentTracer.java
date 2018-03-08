@@ -1,5 +1,7 @@
 package de.unipassau.instrumentation;
 
+import java.io.File;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -8,7 +10,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import de.unipassau.tracing.Trace;
+import de.unipassau.data.Pair;
 import soot.Body;
 import soot.BodyTransformer;
 import soot.PackManager;
@@ -288,6 +290,9 @@ public class InstrumentTracer extends BodyTransformer {
 	}
 
 	private void addTraceObject(Value instanceValue, SootMethod method, final PatchingChain<Unit> units, Unit u) {
+		final SootMethod methodObject = Scene.v()
+				.getMethod("<de.unipassau.tracing.Trace: void methodObject(java.lang.String,java.lang.Object)>");
+
 		// StickType ?
 		// If the method is not Static, i.e., instance is not null - maybe
 		// there's a better heuristic to identify static methods ?
@@ -303,8 +308,8 @@ public class InstrumentTracer extends BodyTransformer {
 			methodObjectParameters.add(instanceValue);
 
 			// Generate the invocation to Trace.traceObject
-			final Stmt callTracerMethodObject = Jimple.v().newInvokeStmt(
-					Jimple.v().newStaticInvokeExpr(Trace.methodObject.makeRef(), methodObjectParameters));
+			final Stmt callTracerMethodObject = Jimple.v()
+					.newInvokeStmt(Jimple.v().newStaticInvokeExpr(methodObject.makeRef(), methodObjectParameters));
 
 			units.insertAfter(callTracerMethodObject, u);
 		}
@@ -312,6 +317,9 @@ public class InstrumentTracer extends BodyTransformer {
 
 	private void addTraceStop(SootMethod method, Value returnValue, boolean isRead, Body body,
 			final PatchingChain<Unit> units, Unit u) {
+
+		final SootMethod methodStop = Scene.v().getMethod(
+				"<de.unipassau.tracing.Trace: void methodStop(java.lang.String,java.lang.String,java.lang.Object)>");
 
 		// Trace.methodStop requires
 		// String -> methodName
@@ -325,7 +333,6 @@ public class InstrumentTracer extends BodyTransformer {
 		methodStopParameters.add(StringConstant.v(Boolean.valueOf(isRead).toString()));
 
 		// This box return value or null or void constants
-		System.out.println("InstrumentTracer.traceMethodCall() " + method.getReturnType());
 		Pair<Value, List<Unit>> tmpReturnValueAndInstructions = null;
 		if (method.getReturnType() instanceof VoidType || method.getReturnType().toString().equals("void")) {
 			// This is a dummy placeholder ! isRead is false anyway
@@ -334,10 +341,10 @@ public class InstrumentTracer extends BodyTransformer {
 			// b);
 			tmpReturnValueAndInstructions = new Pair<Value, List<Unit>>(StringConstant.v("void"),
 					new ArrayList<Unit>());
-			logger.info("After void/init");
+			logger.debug("After void/init");
 
 		} else if (returnValue == null) {
-			System.out.println("InstrumentTracer.traceMethodCall() 	or " + method + " is read " + isRead);
+			logger.trace("InstrumentTracer.traceMethodCall() 	or " + method + " is read " + isRead);
 			tmpReturnValueAndInstructions = new Pair<Value, List<Unit>>(StringConstant.v("not-read"),
 					new ArrayList<Unit>());
 		} else {
@@ -347,7 +354,7 @@ public class InstrumentTracer extends BodyTransformer {
 		// Append to the array the possibly Boxed return value
 		methodStopParameters.add(tmpReturnValueAndInstructions.getFirst());
 		final Stmt callStmtMethodStop = Jimple.v()
-				.newInvokeStmt(Jimple.v().newStaticInvokeExpr(Trace.methodStop.makeRef(), methodStopParameters));
+				.newInvokeStmt(Jimple.v().newStaticInvokeExpr(methodStop.makeRef(), methodStopParameters));
 		// Append the instructions to units.
 		tmpReturnValueAndInstructions.getSecond().add(callStmtMethodStop);
 
@@ -357,6 +364,9 @@ public class InstrumentTracer extends BodyTransformer {
 
 	private void addTraceStart(String invokeType, String methodSignature, List<Value> parameterList, Body body,
 			final PatchingChain<Unit> units, Unit u) {
+
+		final SootMethod methodStart = Scene.v().getMethod(
+				"<de.unipassau.tracing.Trace: void methodStart(java.lang.String,java.lang.String,java.lang.Object[])>");
 
 		// Trace.methodStart requires
 		// String -> methodType
@@ -384,7 +394,7 @@ public class InstrumentTracer extends BodyTransformer {
 
 		// Create the invocation object
 		final Stmt callTracerMethodStart = Jimple.v()
-				.newInvokeStmt(Jimple.v().newStaticInvokeExpr(Trace.methodStart.makeRef(), methodStartParameters));
+				.newInvokeStmt(Jimple.v().newStaticInvokeExpr(methodStart.makeRef(), methodStartParameters));
 
 		// Append the trace start call as last after the instructions to prepare
 		// its parameters
@@ -397,7 +407,7 @@ public class InstrumentTracer extends BodyTransformer {
 				+ "InstrumentTracer.traceCall() Start Method Instructions" + tmpArgsListAndInstructions.getSecond());
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws URISyntaxException {
 		String phaseName = "jtp.mainInstrumentation";
 		String projectJar = args[0];
 
@@ -434,22 +444,32 @@ public class InstrumentTracer extends BodyTransformer {
 		// Supporting jars are Xstream and trace
 		// TODO HardCoded !
 		// String xStreamJar = "./src/main/resources/xstream-1.4.9.jar";
-		// String traceJar = "./src/main/resources/trace-0.0.1-SNAPSHOT.jar";
+		// AT THE MOMENT I CANNOT FIND A WAY TO HAVE SOOT USING THE SINGLE TRACE
+		// CLASS
+
+		String traceJar = "./libs/trace.jar"; // Eclipse testing
+
+		if (!new File(traceJar).exists()) {
+			traceJar = "../libs/trace.jar"; // Actual usage ...
+			if (!new File(traceJar).exists()) {
+				throw new RuntimeException(new File(traceJar).getAbsolutePath() + "file is missing");
+			}
+		}
 
 		// This is the application under analysis. 1 jar -> 1 entry
 		ArrayList<String> list = new ArrayList<String>();
 		list.add(projectJar);
+		list.add(traceJar);
 		Options.v().set_process_dir(list);
 
-		// Instruct soot where to find Trace
-		// TODO This might not work !
-		Scene.v().loadClassAndSupport(Trace.class.getName());
-
-		// Patch for Mac OS. 
-		// TODO This might be fixed for other OSes
+		// Patch for Mac OS.
 		System.setProperty("os.name", "Whatever");
 		Scene.v().loadNecessaryClasses();
 		System.setProperty("os.name", "Mac OS X");
+
+		// Instruct soot where to find Trace
+		// TODO This might not work !
+		// Scene.v().loadClassAndSupport(Trace.class.getName());
 
 		// Output should be in .class format unless specified otherwise
 		// Declare "jimple" for debug instrumented code

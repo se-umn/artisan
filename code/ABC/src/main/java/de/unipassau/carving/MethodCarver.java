@@ -2,7 +2,7 @@ package de.unipassau.carving;
 
 import java.util.List;
 
-import de.unipassau.instrumentation.Pair;
+import de.unipassau.data.Pair;
 
 public interface MethodCarver {
 

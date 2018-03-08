@@ -1,4 +1,4 @@
-package de.unipassau.carving;
+package de.unipassau.generation;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -15,7 +15,12 @@ import org.jboss.util.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import de.unipassau.instrumentation.Pair;
+import de.unipassau.carving.DataDependencyGraph;
+import de.unipassau.carving.ExecutionFlowGraph;
+import de.unipassau.carving.MethodInvocation;
+import de.unipassau.carving.ObjectInstance;
+import de.unipassau.data.Pair;
+import de.unipassau.utils.JimpleUtils;
 import soot.ArrayType;
 import soot.Local;
 import soot.Modifier;

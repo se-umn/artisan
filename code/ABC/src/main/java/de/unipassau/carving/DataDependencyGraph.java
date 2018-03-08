@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 
+import de.unipassau.utils.JimpleUtils;
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
 import edu.uci.ics.jung.graph.Graph;
 import edu.uci.ics.jung.graph.SparseMultigraph;

@@ -1,6 +1,6 @@
 package de.unipassau.instrumentation;
 
-import static org.junit.Assert.fail;
+import java.net.URISyntaxException;
 
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -11,8 +11,7 @@ public class InstrumentTracerTest {
 
 	@Test
 	@Category(SystemTest.class)
-	public void instrumentAndTrace(){
-		fail("Not implemented! ");
+	public void instrumentAndTrace() throws URISyntaxException{
 		InstrumentTracer tracer = new InstrumentTracer();
 		tracer.main( new String[]{"./src/test/resources/Employee.jar"});
 	}
