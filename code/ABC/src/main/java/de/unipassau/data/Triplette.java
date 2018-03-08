@@ -1,4 +1,4 @@
-package de.unipassau.carving;
+package de.unipassau.data;
 
 import java.io.Serializable;
 

@@ -8,7 +8,11 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import de.unipassau.instrumentation.Pair;
+import de.unipassau.carving.carvers.Level_0_MethodCarver;
+import de.unipassau.data.Pair;
+import de.unipassau.data.Triplette;
+import de.unipassau.generation.TestCaseFactory;
+import de.unipassau.generation.TestGenerator;
 import soot.SootClass;
 
 // TODO Use some sort of CLI/JewelCLI

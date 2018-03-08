@@ -14,7 +14,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
-import de.unipassau.instrumentation.Pair;
+import de.unipassau.data.Pair;
 import de.unipassau.tracing.Trace;
 import de.unipassau.utils.Slf4jSimpleLoggerRule;
 
