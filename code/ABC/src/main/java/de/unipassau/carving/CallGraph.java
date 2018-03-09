@@ -1,12 +1,16 @@
 package de.unipassau.carving;
 
+import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Paint;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.JFrame;
+
+import com.google.common.base.Function;
 
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
 import edu.uci.ics.jung.graph.Graph;
@@ -58,6 +62,22 @@ public class CallGraph {
 					return ((MethodInvocation) node).getJimpleMethod();
 				} else {
 					return super.apply(node);
+				}
+			}
+		});
+		vv.getRenderContext().setVertexFillPaintTransformer(new Function<GraphNode, Paint>() {
+			@Override
+			public Paint apply(GraphNode node) {
+				if (node instanceof ValueNode) {
+					// TODO Not sure we can skip the visualization at all...
+					return Color.YELLOW;
+				} else if (node instanceof ObjectInstance) {
+					return Color.GREEN;
+				} else if (node instanceof MethodInvocation) {
+					MethodInvocation methodInvocation = (MethodInvocation) node;
+					return (methodInvocation.getInvocationType().equals("StaticInvokeExpr")) ? Color.ORANGE : Color.RED;
+				} else {
+					return Color.BLUE;
 				}
 			}
 		});

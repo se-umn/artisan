@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
@@ -15,9 +16,11 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
-import com.google.common.io.Files;
-
-import de.unipassau.testsubject.DummySystemTest;
+import de.unipassau.testsubject.DummySystemTestGetDoubleModifiedWithDelegate;
+import de.unipassau.testsubject.DummySystemTestGetModified;
+import de.unipassau.testsubject.DummySystemTestGetModifiedWithDelegate;
+import de.unipassau.testsubject.DummySystemTestGetSimple;
+import de.unipassau.testsubject.DummySystemTestGetSimpleWithDelegate;
 import de.unipassau.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.utils.SystemTest;
 
@@ -28,18 +31,6 @@ public class InstrumentTracerTest {
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-	private String getJUnitCP() {
-		String junitCp = "";
-		for (String cpEntry : SystemUtils.JAVA_CLASS_PATH.split(File.pathSeparator)) {
-			if (cpEntry.contains("junit-4.12.jar") || cpEntry.contains("hamcrest-core-1.3.jar")) {
-				junitCp += cpEntry + File.pathSeparator;
-			}
-		}
-		junitCp = junitCp.substring(0, junitCp.length());
-		System.out.println("InstrumentTracerTest.getJUnitCP() " + junitCp);
-		return junitCp;
-	}
 
 	@Test
 	@Category(SystemTest.class)
@@ -52,14 +43,12 @@ public class InstrumentTracerTest {
 	@Test
 	@Category(SystemTest.class)
 	public void instrumentAndTraceTestSubjects() throws URISyntaxException, IOException, InterruptedException {
-		// File outputDir = temporaryFolder.newFolder();
-		// File traceOutput = temporaryFolder.newFile("trace.txt");
+		 File outputDir = temporaryFolder.newFolder();
 
-		File outputDir = Files.createTempDir();
-		File traceOutput = File.createTempFile("trace", ".txt");
+		 // Use this if you want to inspect the traces afterwards
+//		File outputDir = com.google.common.io.Files.createTempDir();
+//		File traceOutput = File.createTempFile("trace", ".txt");
 		
-		System.out.println("InstrumentTracerTest.instrumentAndTraceTestSubjects() " + traceOutput);
-
 		File traceJar = new File("./libs/trace.jar"); // Eclipse testing
 		if (!traceJar.exists()) {
 			traceJar = new File("../libs/trace.jar"); // Actual usage ...
@@ -69,29 +58,32 @@ public class InstrumentTracerTest {
 		}
 
 		File testsubjectJar = new File("./libs/testsubject-tests.jar");
-
 		
 		InstrumentTracer tracer = new InstrumentTracer();
 		tracer.main(new String[] { testsubjectJar.getAbsolutePath(), outputDir.getAbsolutePath(), "class" });
 
-		// Assert ?
+		// At this point we have the instrumented classes and we can start system tests
+		runSystemTestFromClass(DummySystemTestGetSimple.class, outputDir, testsubjectJar, traceJar);
+		runSystemTestFromClass(DummySystemTestGetModified.class, outputDir, testsubjectJar, traceJar);
+		runSystemTestFromClass(DummySystemTestGetSimpleWithDelegate.class, outputDir, testsubjectJar, traceJar);
+		runSystemTestFromClass(DummySystemTestGetModifiedWithDelegate.class, outputDir, testsubjectJar, traceJar);
+		runSystemTestFromClass(DummySystemTestGetDoubleModifiedWithDelegate.class, outputDir, testsubjectJar, traceJar);
+	}
+	
+	private void runSystemTestFromClass(Class systemTestClass, File outputDir, File testsubjectJar, File traceJar) throws IOException, URISyntaxException, InterruptedException{
+		String systemTestClassName = systemTestClass.getName();
 
-		String systemTestClass = DummySystemTest.class.getName();
-
+		File traceOutput = temporaryFolder.newFile(systemTestClassName+"trace.txt");
+		
 		// Run the tests for collecting the traces using a second JVM
-		File systemTestClassClassFile = new File(
-				DummySystemTest.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath());
-
-		// String jUnitClassPath = getJUnitCP();
-		// + File.pathSeparator + jUnitClassPath;
-		// JUnitCore.class.getName(),
+		File systemTestClassClassFile = new File(systemTestClass.getProtectionDomain().getCodeSource().getLocation().toURI().getPath());
 
 		String classpath = outputDir + File.pathSeparator + testsubjectJar + File.pathSeparator
 				+ systemTestClassClassFile + File.pathSeparator + traceJar.getAbsolutePath();
 
 		String javaPath = SystemUtils.JAVA_HOME + File.separator + "bin" + File.separator + "java";
 
-		ProcessBuilder processBuilder = new ProcessBuilder(javaPath, "-cp", classpath, systemTestClass);
+		ProcessBuilder processBuilder = new ProcessBuilder(javaPath, "-cp", classpath, systemTestClassName);
 		processBuilder.environment().put("trace.output", traceOutput.getAbsolutePath());
 		System.out.println("InstrumentTracerTest.instrumentAndTraceTestSubjects()" + processBuilder.command());
 
@@ -105,6 +97,16 @@ public class InstrumentTracerTest {
 		// This creates the trace in trace.output
 		assertTrue("No trace output", traceOutput.exists());
 		assertNotEquals("Empty trace  output", 0, traceOutput.length());
+		
+		// Printout the file since temporary folder will delete it !!!
+		System.out.println("=====================================");
+		System.out.println("Trace for " + systemTestClassName);
+		System.out.println("=====================================");
+		for(String line : java.nio.file.Files.readAllLines( traceOutput.toPath(), Charset.defaultCharset())){
+			System.out.println( line );
+		}
+		System.out.println("=====================================");
+		
 	}
 
 }

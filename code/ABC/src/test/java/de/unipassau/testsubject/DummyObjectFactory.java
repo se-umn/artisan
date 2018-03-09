@@ -3,9 +3,7 @@ package de.unipassau.testsubject;
 public class DummyObjectFactory {
 
 	public static DummyObject getSimple() {
-		
 		System.out.println("DummyObjectFactory.getSimple()");
-		
 		return new DummyObject();
 	}
 

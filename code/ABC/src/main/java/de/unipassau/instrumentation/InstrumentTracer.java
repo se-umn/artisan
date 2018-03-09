@@ -72,6 +72,7 @@ public class InstrumentTracer extends BodyTransformer {
 		final PatchingChain<Unit> units = body.getUnits();
 		for (final Iterator<Unit> iter = units.snapshotIterator(); iter.hasNext();) {
 			final Unit u = iter.next();
+
 			u.apply(new AbstractStmtSwitch() {
 
 				public void caseAssignStmt(AssignStmt stmt) {
@@ -79,9 +80,21 @@ public class InstrumentTracer extends BodyTransformer {
 					logger.trace("Inside method " + containerMethod + " caseAssignStmt() " + stmt);
 					boolean containsInvokeExpr = stmt.containsInvokeExpr();
 					if (containsInvokeExpr) {
+
 						InvokeExpr invokeExpr = stmt.getInvokeExpr();
+
 						String invokeType = "";
 						Value instanceValue = null;
+
+						// TODO Some methods like, string builder and string
+						// operations are not tracked at the moment
+						SootMethod m = invokeExpr.getMethod();
+
+						if (doNotTraceCallsTo(m)) {
+							logger.info("Do not trace calls to " + m);
+							return;
+						}
+
 						if (invokeExpr instanceof InstanceInvokeExpr) {
 							invokeType = "InstanceInvokeExpr";
 							instanceValue = ((InstanceInvokeExpr) invokeExpr).getBase();
@@ -95,7 +108,7 @@ public class InstrumentTracer extends BodyTransformer {
 							instanceValue = ((VirtualInvokeExpr) invokeExpr).getBase();
 						}
 						if (invokeExpr instanceof StaticInvokeExpr) {
-//							invokeType = Jimple.STATICINVOKE; == staticinvoke
+							// invokeType = Jimple.STATICINVOKE; == staticinvoke
 							invokeType = "StaticInvokeExpr";
 
 						}
@@ -112,7 +125,6 @@ public class InstrumentTracer extends BodyTransformer {
 							invokeType = "DynamicInvokeExpr";
 
 						}
-						SootMethod m = invokeExpr.getMethod();
 
 						logger.trace(
 								"New assignment invoke of :" + m.getSignature() + " instanceValue " + instanceValue);
@@ -141,6 +153,13 @@ public class InstrumentTracer extends BodyTransformer {
 					logger.trace("Inside method " + containerMethod + " caseInvokeStmt() " + stmt);
 
 					InvokeExpr invokeExpr = stmt.getInvokeExpr();
+					SootMethod m = invokeExpr.getMethod();
+
+					if (doNotTraceCallsTo(m)) {
+						logger.info("Do not trace calls to " + m);
+						return;
+					}
+
 					String invokeType = "";
 					Value instanceValue = null;
 					if (invokeExpr instanceof InstanceInvokeExpr) {
@@ -173,23 +192,19 @@ public class InstrumentTracer extends BodyTransformer {
 
 					}
 
-					SootMethod m = invokeExpr.getMethod();
+					// Why the hell we pass null as returnValue ?! Because
+					// it is hard to get that value from
+					// the invoke expression
+					Value returnValue = null;
+					// This creates many problems if the return type is
+					// primitive... !
+					logger.debug("TODO: How do we get the value resulting from this call ? " + invokeExpr
+							+ " Maybe we can match this to a return statement somewhere ?");
 
-					if (!filterMethod(m)) {
-						// Why the hell we pass null as returnValue ?! Because
-						// it is hard to get that value from
-						// the invoke expression
-						Value returnValue = null;
-						// This creates many problems if the return type is
-						// primitive... !
-						logger.debug("TODO: How do we get the value resulting from this call ? " + invokeExpr
-								+ " Maybe we can match this to a return statement somewhere ?");
+					// The following method it HUGE !!!
+					instrumentInvokeExpression(body, units, u, invokeExpr.getMethod(), invokeExpr.getArgs(),
+							returnValue, instanceValue, invokeType, false);
 
-						// The following method it HUGE !!!
-						instrumentInvokeExpression(body, units, u, invokeExpr.getMethod(), invokeExpr.getArgs(),
-								returnValue, instanceValue, invokeType, false);
-
-					}
 				}
 
 			});
@@ -414,8 +429,8 @@ public class InstrumentTracer extends BodyTransformer {
 		String projectJar = args[0];
 		if (args.length >= 2) {
 			String outputDir = args[1];
-			System.out.println("InstrumentTracer.main() Output to " + outputDir );
-			Options.v().set_output_dir( outputDir );
+			System.out.println("InstrumentTracer.main() Output to " + outputDir);
+			Options.v().set_output_dir(outputDir);
 		}
 		String[] sootArguments = new String[] { "-f", "class" };
 		// Output should be in .class format unless specified otherwise
@@ -423,9 +438,7 @@ public class InstrumentTracer extends BodyTransformer {
 		if (args.length >= 3) {
 			sootArguments = new String[] { "-f", args[2] };
 		}
-		
-		
-		
+
 		long startTime = System.nanoTime();
 		// Setup the Soot settings
 		Options.v().set_allow_phantom_refs(true);
@@ -452,9 +465,9 @@ public class InstrumentTracer extends BodyTransformer {
 		Options.v().set_exclude(excludeList);
 		// THIS IS ONLY FOR TESTING
 		List<String> includeList = new ArrayList<>();
-		includeList.add( "de.unipassau.testsubject.*" );
-		Options.v().set_include( includeList );
-		
+		includeList.add("de.unipassau.testsubject.*");
+		Options.v().set_include(includeList);
+
 		Options.v().set_no_bodies_for_excluded(true);
 
 		InstrumentTracer it = new InstrumentTracer();
@@ -510,6 +523,14 @@ public class InstrumentTracer extends BodyTransformer {
 				m.getSignature().contains("de.unipassau.tracing.Trace") || // ABC
 																			// instrastructre
 				//
+				false;
+	}
+
+	private boolean doNotTraceCallsTo(SootMethod m) {
+		return m.getDeclaringClass().getName().equals("java.lang.StringBuilder") || //
+				m.getDeclaringClass().getName().equals("java.io.PrintStream") || //
+				// Is this ok ?!
+				m.getDeclaringClass().getName().equals("java.lang.Object") || //
 				false;
 	}
 

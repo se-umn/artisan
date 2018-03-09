@@ -273,7 +273,7 @@ public class TestGenerator {
 			// !
 
 			// Look at the parameterCheck(m) method !
-			List<Value> parametersValues = dataDependencyGraph.getParametersFor(methodInvocation);
+			List<Value> parametersValues = dataDependencyGraph.getParametersSootValueFor(methodInvocation);
 
 			// Where to store the return value... if needed
 			Local returnObjLocal = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);

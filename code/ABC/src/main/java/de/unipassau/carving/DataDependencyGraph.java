@@ -194,9 +194,11 @@ public class DataDependencyGraph {
 				} else if (node instanceof ObjectInstance) {
 					return Color.GREEN;
 				} else if (node instanceof MethodInvocation) {
-					return Color.RED;
-				} else
+					MethodInvocation methodInvocation = (MethodInvocation) node;
+					return (methodInvocation.getInvocationType().equals("StaticInvokeExpr")) ? Color.ORANGE : Color.RED;
+				} else {
 					return Color.BLUE;
+				}
 			}
 		});
 
@@ -342,7 +344,7 @@ public class DataDependencyGraph {
 
 	// Find the Local or Value nodes required for this method invocation...
 	// order them by position (which is on the edge)
-	public List<Value> getParametersFor(MethodInvocation methodInvocation) {
+	public List<Value> getParametersSootValueFor(MethodInvocation methodInvocation) {
 
 		int parameterCount = JimpleUtils.getParameterList(methodInvocation.getJimpleMethod()).length;
 
@@ -456,6 +458,48 @@ public class DataDependencyGraph {
 
 	public Value getValueFor(DataNode node) {
 		return additionalData.get(node);
+	}
+
+	public Set<ObjectInstance> getParametersOf(MethodInvocation methodInvocation) {
+
+		HashSet<ObjectInstance> parametersOf = new HashSet<>();
+
+		for (String incomingEdge : g.getInEdges(methodInvocation)) {
+			if (incomingEdge.startsWith(DATA_DEPENDENCY_PREFIX)) {
+				if (g.getOpposite(methodInvocation, incomingEdge) instanceof ObjectInstance) {
+					parametersOf.add(((ObjectInstance) g.getOpposite(methodInvocation, incomingEdge)));
+				}
+			}
+		}
+
+		return parametersOf;
+	}
+
+	public Set<MethodInvocation> getMethodInvocationsWhichReturn(ObjectInstance objectInstance) {
+		Set<MethodInvocation> returningMethodInvocations = new HashSet<>();
+
+		for (String incomingEdge : g.getInEdges(objectInstance)) {
+			// There should be only this kind nevertheless
+			if (incomingEdge.startsWith(RETURN_DEPENDENCY_PREFIX)) {
+				// This should be the only possible case
+				if (g.getOpposite(objectInstance, incomingEdge) instanceof MethodInvocation) {
+					returningMethodInvocations.add(((MethodInvocation) g.getOpposite(objectInstance, incomingEdge)));
+				}
+			}
+		}
+		// include the init call
+		for (String outgoingEdge : g.getOutEdges(objectInstance)) {
+			if (outgoingEdge.startsWith(OWNERSHIP_DEPENDENCY_PREFIX)) {
+				if (g.getOpposite(objectInstance, outgoingEdge) instanceof MethodInvocation) {
+					MethodInvocation methodInvocation = (MethodInvocation) g.getOpposite(objectInstance, outgoingEdge);
+					if (methodInvocation.getJimpleMethod().contains("<init>")) {
+						returningMethodInvocations
+								.add(((MethodInvocation) g.getOpposite(objectInstance, outgoingEdge)));
+					}
+				}
+			}
+		}
+		return returningMethodInvocations;
 	}
 
 	// public void setLocalFor(ObjectInstance node, Local localVariable) {

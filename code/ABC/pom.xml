@@ -83,6 +83,15 @@
 			<artifactId>procyon-compilertools</artifactId>
 			<version>0.5.32</version>
 		</dependency>
+		<!-- Sets operators. TODO I am afraid that guava would be overkilling -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>23.0</version>
+		</dependency>
+
+
+
 		<!-- Graph Datastructures and Visualization -->
 		<!-- TODO Check if ALL those libraries are really needed -->
 		<dependency>
