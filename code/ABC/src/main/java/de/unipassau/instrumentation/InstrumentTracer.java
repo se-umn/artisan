@@ -412,7 +412,20 @@ public class InstrumentTracer extends BodyTransformer {
 	public static void main(String[] args) throws URISyntaxException {
 		String phaseName = "jtp.mainInstrumentation";
 		String projectJar = args[0];
-
+		if (args.length >= 2) {
+			String outputDir = args[1];
+			System.out.println("InstrumentTracer.main() Output to " + outputDir );
+			Options.v().set_output_dir( outputDir );
+		}
+		String[] sootArguments = new String[] { "-f", "class" };
+		// Output should be in .class format unless specified otherwise
+		// Declare "jimple" for debug instrumented code
+		if (args.length >= 3) {
+			sootArguments = new String[] { "-f", args[2] };
+		}
+		
+		
+		
 		long startTime = System.nanoTime();
 		// Setup the Soot settings
 		Options.v().set_allow_phantom_refs(true);
@@ -437,6 +450,11 @@ public class InstrumentTracer extends BodyTransformer {
 		excludeList.add("de.unipassau.*");
 
 		Options.v().set_exclude(excludeList);
+		// THIS IS ONLY FOR TESTING
+		List<String> includeList = new ArrayList<>();
+		includeList.add( "de.unipassau.testsubject.*" );
+		Options.v().set_include( includeList );
+		
 		Options.v().set_no_bodies_for_excluded(true);
 
 		InstrumentTracer it = new InstrumentTracer();
@@ -469,16 +487,6 @@ public class InstrumentTracer extends BodyTransformer {
 		Scene.v().loadNecessaryClasses();
 		System.setProperty("os.name", "Mac OS X");
 
-		// Instruct soot where to find Trace
-		// TODO This might not work !
-		// Scene.v().loadClassAndSupport(Trace.class.getName());
-
-		// Output should be in .class format unless specified otherwise
-		// Declare "jimple" for debug instrumented code
-		String[] sootArguments = new String[] { "-f", "class" };
-		if (args.length > 1) {
-			sootArguments = new String[] { "-f", args[1] };
-		}
 		// Run Soot
 		soot.Main.main(sootArguments);
 

@@ -69,20 +69,21 @@ public class CarvingTest {
 			// method
 			assertEquals(1, carvedTest.getFirst().getOrderedMethodInvocations().size());
 		}
-		
+
 		String employeeProjectJar = "./src/test/resources/Employee.jar";
 		TestGenerator testGenerator = new TestGenerator(employeeProjectJar);
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 
-		for( SootClass testCase : testCases ){
+		for (SootClass testCase : testCases) {
 			JimpleUtils.prettyPrint(testCase);
 		}
 	}
 
 	@Test
-	public void testCarveMethodWhichDependsOnFactoryStaticMethod() throws FileNotFoundException, IOException, InterruptedException {
-		// This method gets a dummy object which is created via static factory 
+	public void testCarveMethodWhichDependsOnFactoryStaticMethod()
+			throws FileNotFoundException, IOException, InterruptedException {
+		// This method gets a dummy object which is created via static factory
 		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>";
 		File traceFile = new File("./src/test/resources/Employee-trace-with-static.txt");
 		StackImplementation stackImplementation = new StackImplementation();
@@ -92,19 +93,36 @@ public class CarvingTest {
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarve);
-//		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
-//			carvedTest.getFirst().visualize();
-//			carvedTest.getSecond().visualize();
-//		}
-		// The trace contains 2 executions. start -> exit, start -> register user -> exit
+
+		// The trace contains 2 executions. start -> exit, start -> register
+		// user -> exit
 		assertEquals(8, carvedTests.size());
-		
+		//
+		String staticJimpleMethodProvidingObjects = "<org.employee.DummyObjectFactory: org.employee.DummyObjectToPassAsParameter createNewDummyObject()>";
+		// Two of those tests MUST include two invocations to
+		// DummyObjectFactory.
+		// TODO Maybe define a Matcher on those graphs ?
+		int matchCount = 0;
+		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
+			ExecutionFlowGraph carvedExecutionFlowGraph = carvedTest.getFirst();
+			// carvedTest.getSecond().visualize();
+			for (MethodInvocation methodInvocation : carvedExecutionFlowGraph.getOrderedMethodInvocations()) {
+				if (staticJimpleMethodProvidingObjects.equals(methodInvocation.getJimpleMethod())) {
+					System.out.println("CarvingTest.testCarveMethodWhichDependsOnFactoryStaticMethod() Found "
+							+ methodInvocation.getJimpleMethod());
+					matchCount++;
+				}
+			}
+		}
+
+		assertEquals("Missing invocations of " + staticJimpleMethodProvidingObjects, 4, matchCount);
+
 		String employeeProjectJar = "./src/test/resources/Employee.jar";
 		TestGenerator testGenerator = new TestGenerator(employeeProjectJar);
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 
-		for( SootClass testCase : testCases ){
+		for (SootClass testCase : testCases) {
 			JimpleUtils.prettyPrint(testCase);
 		}
 	}

@@ -346,7 +346,7 @@ public class DataDependencyGraph {
 
 		int parameterCount = JimpleUtils.getParameterList(methodInvocation.getJimpleMethod()).length;
 
-		logger.trace("DataDependencyGraph.getParametersFor() " + methodInvocation + " with " + parameterCount
+		logger.debug("DataDependencyGraph.getParametersFor() " + methodInvocation + " with " + parameterCount
 				+ " formal parameters and " + (g.getInEdges(methodInvocation).size() - 1) + " actual parameters");
 
 		if (parameterCount == 0) {

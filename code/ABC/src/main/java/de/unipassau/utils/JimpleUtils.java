@@ -24,6 +24,9 @@ public class JimpleUtils {
 		Matcher matchPattern = params.matcher(jimpleMethod);
 		if (matchPattern.find()) {
 			String t = matchPattern.group(1);
+			if( t.length() == 0 ){
+				return new String[] {};
+			}
 			return t.split(",");
 		}
 		return new String[] {};

@@ -6,7 +6,9 @@ public class MethodInvocation implements GraphNode {
 
 	private String invocationType;
 	private String jimpleMethod;
+	
 	private int invocationCount;
+	private int distanceFromMain;
 	
 	public MethodInvocation(String jimpleMethod, int invocationCount){
 		this.jimpleMethod = jimpleMethod;

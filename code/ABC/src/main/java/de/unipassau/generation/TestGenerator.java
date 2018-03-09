@@ -47,19 +47,6 @@ public class TestGenerator {
 
 	private static final Logger logger = LoggerFactory.getLogger(TestGenerator.class);
 
-	// private HashSet<String> typesOfMethod = new HashSet<String>();
-	// private HashMap<String, Local> typesAndLocals = new HashMap<String,
-	// Local>();
-	// private static AtomicInteger countOfLocal = new AtomicInteger(1);
-	// private HashMap<String, Local> objectAndValue = new HashMap<String,
-	// Local>();
-	// Soot Classes. We need a local variable in each test
-	// private List<Local> localVariables = new ArrayList<Local>();
-	// This is the resulting list of statements which make the test body
-	// private List<Unit> statements = new ArrayList<Unit>();
-	//
-	String m = "";
-
 	// Point to jar of target project. This is the original code, not the
 	// instrumented one
 	private String projectLib;
@@ -72,12 +59,12 @@ public class TestGenerator {
 		// System Settings Begin
 		// Options.v().set_allow_phantom_refs(true);
 		Options.v().set_whole_program(true);
+		// This would set soot cp as the current running app cp
 		// Options.v().set_soot_classpath(System.getProperty("java.path"));
 
 		ArrayList<String> necessaryJar = new ArrayList<String>();
 		necessaryJar.add(this.projectLib);
-		// Shall I include JUnit for its annotation ?!
-		// necessaryJar.add("/Users/gambi/.m2/repository/junit/junit/4.12/junit-4.12.jar");
+		// This might be needed for the EVALUATION and Level+1 Carved tests 
 		// necessaryJar.add("./src/main/resources/Assertion.jar");
 
 		/*
