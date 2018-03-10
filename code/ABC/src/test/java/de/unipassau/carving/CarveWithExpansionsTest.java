@@ -258,6 +258,52 @@ public class CarveWithExpansionsTest {
 		printJavaClasses( outputDir );
 
 	}
+	
+	@Test
+	public void testExpansionWithDoubleSimpleWithParameter() throws FileNotFoundException, IOException, InterruptedException {
+		File traceFile = new File("./src/test/resources/DummySystemTestGetSimpleWithParameter-trace.txt");
+		
+		StackImplementation stackImplementation = new StackImplementation();
+		// Parsing
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
+				.parseTrace(traceFile.getAbsolutePath());
+
+		 visualize(parsedTrace);
+
+		// Carving
+		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
+				parsedTrace.getThird());
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(staticMethodToCarve);
+
+		// DEBUG MOSTLY
+		 visualize(carvedTests);
+		/*
+		 * We expect 2 carved test for this method because 1 is the expanded and
+		 * 1 is with the method which returns the parameter
+		 * TODO Does 3 correspond to nesting level? Or distance from <init> -> MUT
+		 */
+		assertEquals(3, carvedTests.size());
+
+		String testSubjectJar = "./libs/testsubject-tests.jar";
+		TestGenerator testGenerator = new TestGenerator(testSubjectJar);
+		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
+		assertEquals(1, testCases.size());
+
+		// Visual debug
+		// for (SootClass testCase : testCases) {
+		// JimpleUtils.prettyPrint(testCase);
+		// }
+
+		// Generate code
+		File outputDir = temporaryFolder.newFolder();
+		TestCaseFactory.generateTestFiles(outputDir, testCases);
+		
+		// TODO Assertion: 1 .class, 1 .java
+		assertEquals( 2, outputDir.listFiles().length);
+		
+		printJavaClasses( outputDir );
+
+	}
 
 	private final FilenameFilter javaFileNameFilter = new FilenameFilter() {
 		

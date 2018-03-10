@@ -5,6 +5,19 @@ public class DummyObject {
 	private boolean bar = false;
 	private boolean foo = false;
 
+	private Fluffy fluffy;
+
+	public DummyObject(Fluffy fluffy) {
+		this.fluffy = fluffy;
+	}
+
+	public DummyObject() {
+	}
+
+	public Fluffy getFluffy() {
+		return fluffy;
+	}
+
 	public boolean isBar() {
 		return bar;
 	}

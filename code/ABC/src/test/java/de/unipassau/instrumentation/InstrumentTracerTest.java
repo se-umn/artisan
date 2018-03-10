@@ -21,6 +21,8 @@ import de.unipassau.testsubject.DummySystemTestGetModified;
 import de.unipassau.testsubject.DummySystemTestGetModifiedWithDelegate;
 import de.unipassau.testsubject.DummySystemTestGetSimple;
 import de.unipassau.testsubject.DummySystemTestGetSimpleWithDelegate;
+import de.unipassau.testsubject.DummySystemTestGetSimpleWithNonRequiredParameter;
+import de.unipassau.testsubject.DummySystemTestGetSimpleWithParameter;
 import de.unipassau.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.utils.SystemTest;
 
@@ -63,11 +65,13 @@ public class InstrumentTracerTest {
 		tracer.main(new String[] { testsubjectJar.getAbsolutePath(), outputDir.getAbsolutePath(), "class" });
 
 		// At this point we have the instrumented classes and we can start system tests
-		runSystemTestFromClass(DummySystemTestGetSimple.class, outputDir, testsubjectJar, traceJar);
-		runSystemTestFromClass(DummySystemTestGetModified.class, outputDir, testsubjectJar, traceJar);
-		runSystemTestFromClass(DummySystemTestGetSimpleWithDelegate.class, outputDir, testsubjectJar, traceJar);
-		runSystemTestFromClass(DummySystemTestGetModifiedWithDelegate.class, outputDir, testsubjectJar, traceJar);
-		runSystemTestFromClass(DummySystemTestGetDoubleModifiedWithDelegate.class, outputDir, testsubjectJar, traceJar);
+//		runSystemTestFromClass(DummySystemTestGetSimple.class, outputDir, testsubjectJar, traceJar);
+//		runSystemTestFromClass(DummySystemTestGetModified.class, outputDir, testsubjectJar, traceJar);
+//		runSystemTestFromClass(DummySystemTestGetSimpleWithDelegate.class, outputDir, testsubjectJar, traceJar);
+//		runSystemTestFromClass(DummySystemTestGetModifiedWithDelegate.class, outputDir, testsubjectJar, traceJar);
+//		runSystemTestFromClass(DummySystemTestGetDoubleModifiedWithDelegate.class, outputDir, testsubjectJar, traceJar);
+		runSystemTestFromClass(DummySystemTestGetSimpleWithParameter.class, outputDir, testsubjectJar, traceJar);
+		runSystemTestFromClass(DummySystemTestGetSimpleWithNonRequiredParameter.class, outputDir, testsubjectJar, traceJar);
 	}
 	
 	private void runSystemTestFromClass(Class systemTestClass, File outputDir, File testsubjectJar, File traceJar) throws IOException, URISyntaxException, InterruptedException{
