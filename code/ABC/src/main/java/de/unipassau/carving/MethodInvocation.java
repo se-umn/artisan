@@ -64,6 +64,10 @@ public class MethodInvocation implements GraphNode {
 	public String toString() {
 		return jimpleMethod + "_" + invocationCount;
 	}
+
+	public boolean isStatic() {
+		return "StaticInvokeExpr".equals( invocationType );
+	}
 	
 	
 }

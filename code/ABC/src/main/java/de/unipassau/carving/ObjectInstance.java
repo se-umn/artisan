@@ -41,10 +41,10 @@ public class ObjectInstance implements DataNode {
 		return objectId.split("@")[0];
 	}
 	
-//	@Override
-//	public String toString() {
-//		return objectId;
-//	}
+	@Override
+	public String toString() {
+		return objectId;
+	}
 	
 	
 }

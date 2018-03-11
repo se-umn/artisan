@@ -257,7 +257,10 @@ public class DataDependencyGraph {
 				// Here we take both predecessors (i.e., the method which
 				// returns this instance), and successors (i.e, the methods
 				// which use this instance)
-				workList.addAll(g.getSuccessors(node));
+
+				/// TODO WE MUST FOLLOW ONLY OWNESRSHIP SUCCESSORS ?
+
+				workList.addAll(getMethodInvocationsForOwner((ObjectInstance) node));
 			} else if (node instanceof MethodInvocation) {
 				dataDependent.add((MethodInvocation) node);
 				// Add all the preconditions
@@ -345,37 +348,52 @@ public class DataDependencyGraph {
 	// Find the Local or Value nodes required for this method invocation...
 	// order them by position (which is on the edge)
 	public List<Value> getParametersSootValueFor(MethodInvocation methodInvocation) {
+		try {
+			int parameterCount = JimpleUtils.getParameterList(methodInvocation.getJimpleMethod()).length;
 
-		int parameterCount = JimpleUtils.getParameterList(methodInvocation.getJimpleMethod()).length;
-
-		logger.debug("DataDependencyGraph.getParametersFor() " + methodInvocation + " with " + parameterCount
-				+ " formal parameters and " + (g.getInEdges(methodInvocation).size() - 1) + " actual parameters");
-
-		if (parameterCount == 0) {
-			return new ArrayList<Value>();
-		}
-
-		// Account for dependencies but exclude "this", so -1
-		Value[] parameters = new Value[g.getInEdges(methodInvocation).size() - 1];
-
-		for (String incomingEdge : g.getInEdges(methodInvocation)) {
-			if (incomingEdge.startsWith(DATA_DEPENDENCY_PREFIX)) {
-				int position = Integer.parseInt(incomingEdge.replace(DATA_DEPENDENCY_PREFIX + "_", "").split("_")[0]);
-
-				// Extract either the Value or the Local for the nodes which set
-				// the preconditions/parameters to this method invocation
-				DataNode dn = (DataNode) (g.getOpposite(methodInvocation, incomingEdge));
-
-				parameters[position] = getValueFor(dn);
-
-				// System.out.println("DataDependencyGraph.getParametersFor()
-				// Processing inEdge " + incomingEdge
-				// + " position " + position + " corresponds to " +
-				// g.getOpposite(methodInvocation, incomingEdge)
-				// + " which has value " + getValueFor(dn));
+			int dataDependencyCount = g.getInEdges(methodInvocation).size();
+			if (!methodInvocation.isStatic()) {
+				// Remove the owner from the dependencies of this method
+				dataDependencyCount = dataDependencyCount - 1;
 			}
+
+			System.out.println("DataDependencyGraph.getParametersFor() " + methodInvocation + " with " + parameterCount
+					+ " formal parameters and " + (dataDependencyCount) + " actual parameters");
+
+			if (parameterCount == 0) {
+				return new ArrayList<Value>();
+			}
+
+			// Parameters must be ordered in the right order...
+			Value[] parameters = new Value[dataDependencyCount];
+
+			for (String incomingEdge : g.getInEdges(methodInvocation)) {
+				if (incomingEdge.startsWith(DATA_DEPENDENCY_PREFIX)) {
+					int position = Integer
+							.parseInt(incomingEdge.replace(DATA_DEPENDENCY_PREFIX + "_", "").split("_")[0]);
+
+					// Extract either the Value or the Local for the nodes which
+					// set
+					// the preconditions/parameters to this method invocation
+					DataNode dn = (DataNode) (g.getOpposite(methodInvocation, incomingEdge));
+
+					parameters[position] = getValueFor(dn);
+
+					// System.out.println("DataDependencyGraph.getParametersFor()
+					// Processing inEdge " + incomingEdge
+					// + " position " + position + " corresponds to " +
+					// g.getOpposite(methodInvocation, incomingEdge)
+					// + " which has value " + getValueFor(dn));
+				}
+			}
+			return Arrays.asList(parameters);
+		} catch (Throwable e) {
+			e.printStackTrace();
+			System.out.println("DataDependencyGraph.getParametersSootValueFor() In Edges for " + methodInvocation + " "
+					+ g.getInEdges(methodInvocation));
+			System.out.println("DataDependencyGraph.getParametersSootValueFor() " + g);
+			throw e;
 		}
-		return Arrays.asList(parameters);
 	}
 
 	/**
@@ -401,13 +419,13 @@ public class DataDependencyGraph {
 			}
 
 			// Precondition edges
-
 			if (g.getInEdges(methodInvocation) != null) {
 				for (String incomingEdge : g.getInEdges(methodInvocation)) {
 					if (!subGraph.g.containsVertex(g.getOpposite(methodInvocation, incomingEdge))) {
 						subGraph.g.addVertex(g.getOpposite(methodInvocation, incomingEdge));
+
 						subGraph.additionalData.put((DataNode) g.getOpposite(methodInvocation, incomingEdge),
-								additionalData.get(g.getOpposite(methodInvocation, incomingEdge)));
+								additionalData.get(((DataNode) g.getOpposite(methodInvocation, incomingEdge))));
 
 					}
 					subGraph.g.addEdge(incomingEdge, g.getOpposite(methodInvocation, incomingEdge), methodInvocation,
@@ -415,12 +433,13 @@ public class DataDependencyGraph {
 				}
 			}
 
+			// Returns
 			if (g.getOutEdges(methodInvocation) != null) {
 				for (String outgoingEdge : g.getOutEdges(methodInvocation)) {
 					if (!subGraph.g.containsVertex(g.getOpposite(methodInvocation, outgoingEdge))) {
 						subGraph.g.addVertex(g.getOpposite(methodInvocation, outgoingEdge));
 						subGraph.additionalData.put((DataNode) g.getOpposite(methodInvocation, outgoingEdge),
-								additionalData.get(g.getOpposite(methodInvocation, outgoingEdge)));
+								additionalData.get((DataNode) g.getOpposite(methodInvocation, outgoingEdge)));
 					}
 
 					subGraph.g.addEdge(outgoingEdge, methodInvocation, g.getOpposite(methodInvocation, outgoingEdge),
@@ -428,6 +447,7 @@ public class DataDependencyGraph {
 				}
 			}
 		}
+
 		return subGraph;
 	}
 
@@ -453,6 +473,7 @@ public class DataDependencyGraph {
 	}
 
 	public void setValueFor(DataNode node, Value localVariable) {
+		System.out.println("DataDependencyGraph.setValueFor() " + node + " -> " + localVariable);
 		additionalData.put(node, localVariable);
 	}
 
@@ -460,9 +481,10 @@ public class DataDependencyGraph {
 		return additionalData.get(node);
 	}
 
-	public Set<ObjectInstance> getParametersOf(MethodInvocation methodInvocation) {
+	///
+	public List<ObjectInstance> getObjectInstancesAsParametersOf(MethodInvocation methodInvocation) {
 
-		HashSet<ObjectInstance> parametersOf = new HashSet<>();
+		List<ObjectInstance> parametersOf = new ArrayList<>();
 
 		for (String incomingEdge : g.getInEdges(methodInvocation)) {
 			if (incomingEdge.startsWith(DATA_DEPENDENCY_PREFIX)) {
@@ -475,6 +497,27 @@ public class DataDependencyGraph {
 		return parametersOf;
 	}
 
+	public MethodInvocation getInitMethodInvocationFor(ObjectInstance objectInstance) {
+		try {
+			// include the init call
+			for (String outgoingEdge : g.getOutEdges(objectInstance)) {
+				if (outgoingEdge.startsWith(OWNERSHIP_DEPENDENCY_PREFIX)) {
+					if (g.getOpposite(objectInstance, outgoingEdge) instanceof MethodInvocation) {
+						MethodInvocation methodInvocation = (MethodInvocation) g.getOpposite(objectInstance,
+								outgoingEdge);
+						if (methodInvocation.getJimpleMethod().contains("<init>")) {
+							return ((MethodInvocation) g.getOpposite(objectInstance, outgoingEdge));
+						}
+					}
+				}
+			}
+		} catch (Exception e) {
+			System.out.println("DataDependencyGraph.getInitMethodInvocationFor() " + objectInstance);
+			e.printStackTrace();
+		}
+		throw new RuntimeException("Cannot find INIT call for " + objectInstance);
+	}
+
 	public Set<MethodInvocation> getMethodInvocationsWhichReturn(ObjectInstance objectInstance) {
 		Set<MethodInvocation> returningMethodInvocations = new HashSet<>();
 
@@ -484,18 +527,6 @@ public class DataDependencyGraph {
 				// This should be the only possible case
 				if (g.getOpposite(objectInstance, incomingEdge) instanceof MethodInvocation) {
 					returningMethodInvocations.add(((MethodInvocation) g.getOpposite(objectInstance, incomingEdge)));
-				}
-			}
-		}
-		// include the init call
-		for (String outgoingEdge : g.getOutEdges(objectInstance)) {
-			if (outgoingEdge.startsWith(OWNERSHIP_DEPENDENCY_PREFIX)) {
-				if (g.getOpposite(objectInstance, outgoingEdge) instanceof MethodInvocation) {
-					MethodInvocation methodInvocation = (MethodInvocation) g.getOpposite(objectInstance, outgoingEdge);
-					if (methodInvocation.getJimpleMethod().contains("<init>")) {
-						returningMethodInvocations
-								.add(((MethodInvocation) g.getOpposite(objectInstance, outgoingEdge)));
-					}
 				}
 			}
 		}

@@ -107,6 +107,9 @@ public class TestGenerator {
 		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
 			// Get the mut, which by definition is the last invocation executed
 			MethodInvocation mut = carvedTest.getFirst().getLastMethodInvocation();
+			
+			System.out.println("TestGenerator.generateTestCases() GENERATE " + carvedTest.getFirst().getOrderedMethodInvocations() );
+			
 			String classUnderTest = JimpleUtils.getClassNameForMethod(mut.getJimpleMethod());
 
 			// TODO Not sure this works !

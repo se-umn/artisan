@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.Sets;
 
 import de.unipassau.carving.CallGraph;
@@ -21,6 +24,8 @@ import de.unipassau.data.Pair;
 
 public class Level_0_MethodCarver implements MethodCarver {
 
+	private final Logger logger = LoggerFactory.getLogger(Level_0_MethodCarver.class );
+	
 	private ExecutionFlowGraph executionFlowGraph;
 	private DataDependencyGraph dataDependencyGraph;
 	private CallGraph callGraph;
@@ -62,7 +67,13 @@ public class Level_0_MethodCarver implements MethodCarver {
 	 */
 
 	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> level0TestCarving(
-			MethodInvocation methodInvocationToCarve) {
+			MethodInvocation methodInvocationToCarve, boolean minimalCarve) { // Not
+																				// sure
+																				// "minimal"
+																				// is
+																				// the
+																				// right
+																				// term
 
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestsForMethodInvocation = new ArrayList<>();
 		// CArving: start from MUT
@@ -100,27 +111,65 @@ public class Level_0_MethodCarver implements MethodCarver {
 		Set<MethodInvocation> backwardSlice = new HashSet<>(executioneBefore);
 		backwardSlice.retainAll(subGraphFromPastExecution.getMethodInvocationsRecheableFrom(methodInvocationToCarve));
 
-		// Accumulate all the calls which return the owner instance of MUT and
-		// its parameters
-		// TODO This shall be extended to recursively include the others.
-		Map<ObjectInstance, Set<MethodInvocation>> returningCalls = new HashMap<>();
-		// This include "this" and all the parameters of MUT
-		// But does not yet include transitive data dependencies to create
-		// them..
-		returningCalls.put(
-				dataDependencyGraph.getOwnerFor( methodInvocationToCarve), 
-				dataDependencyGraph.getMethodInvocationsWhichReturn(dataDependencyGraph.getOwnerFor( methodInvocationToCarve)));
-		//
-		for (ObjectInstance dataDependency : dataDependencyGraph.getParametersOf(methodInvocationToCarve)) {
-			returningCalls.put(dataDependency, dataDependencyGraph.getMethodInvocationsWhichReturn(dataDependency));
+		// The backwardSlice is the slice which contains the MUT-centric view of
+		// the execution. It disregards the location of methods which have
+		// potential impact on the CUT.
+
+		// The first carved tests considers only the direct constructors
+		// It ENSURES that one test is carved !
+		List<MethodInvocation> constructors = new ArrayList<>();
+		// THIS - Unless is a static call
+		if (!methodInvocationToCarve.isStatic()) {
+			constructors.add(dataDependencyGraph
+					.getInitMethodInvocationFor(dataDependencyGraph.getOwnerFor(methodInvocationToCarve)));
+		}
+		// DIRECT PARAMETERS
+		for (ObjectInstance dataDependency : dataDependencyGraph.getObjectInstancesAsParametersOf(methodInvocationToCarve)) {
+			constructors.add(dataDependencyGraph.getInitMethodInvocationFor(dataDependency));
 		}
 
-		// Compute the Cartesian Product of those calss per
-		// ObjectInstance/DataDependency
-		/// FIXME Ideally, for every new call we need to include its necessary preconditions !!!
+		// Generate ONLY the first carved test
+		Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTestFromConstructors = generateSingleTestCaseFromSlice(
+				backwardSlice, constructors);
 		//
-		for (List<MethodInvocation> combinations : Sets.cartesianProduct(new ArrayList<>(returningCalls.values()))) {
-			carvedTestsForMethodInvocation.add(generateSingleTestCaseFromSlice(backwardSlice, combinations));
+		if (minimalCarve) {
+			carvedTestsForMethodInvocation.add(carvedTestFromConstructors);			
+			return carvedTestsForMethodInvocation;
+		}
+
+		Map<ObjectInstance, Set<MethodInvocation>> returningCalls = new HashMap<>();
+
+		// Now find all the calls which returns any of the objectInstances
+		// in the data dependency graph
+		for (ObjectInstance objectInstance : subGraphFromPastExecution.getObjectInstances()) {
+
+			//
+			Set<MethodInvocation> returningCallsForObjectInstance = dataDependencyGraph
+					.getMethodInvocationsWhichReturn(objectInstance);
+			// Here we need to include the constructors as well to create the
+			// cross products
+			returningCallsForObjectInstance.add(dataDependencyGraph.getInitMethodInvocationFor(objectInstance));
+
+			if (returningCallsForObjectInstance.isEmpty()) {
+				throw new RuntimeException("Object Instance " + objectInstance + " has no returning calls !");
+			}
+
+			returningCalls.put(objectInstance, returningCallsForObjectInstance);
+
+		}
+
+		// Here backward slice or first carved test ?!
+		System.out.println( " Back Ward SLICE " + backwardSlice );
+		System.out.println("Level_0_MethodCarver.level0TestCarving() carvedTestFromConstructors " + carvedTestFromConstructors.getFirst().getOrderedMethodInvocations());
+		// System.out.println( " Cartesian P: " + Sets.cartesianProduct();
+		// And generate the possible combinations by computing the Cartesian
+		// Product of those calls per. For each call generate a new carvedTest
+
+		Set<List<MethodInvocation>> fullCartesianProduct = Sets
+				.cartesianProduct(new ArrayList<>(returningCalls.values()));
+
+		for (List<MethodInvocation> combination : fullCartesianProduct) {
+			carvedTestsForMethodInvocation.add(generateSingleTestCaseFromSlice(backwardSlice, combination));
 		}
 
 		return carvedTestsForMethodInvocation;
@@ -129,9 +178,49 @@ public class Level_0_MethodCarver implements MethodCarver {
 	private Pair<ExecutionFlowGraph, DataDependencyGraph> generateSingleTestCaseFromSlice(
 			Set<MethodInvocation> backwardSlice, List<MethodInvocation> dataReturningCalls) {
 
+		System.out.println("\n\n\n Level_0_MethodCarver.generateSingleTestCaseFromSlice() From " + dataReturningCalls );
+		
 		// Create a local copy of the backwardSlide. This is the "minimal slice"
 		Set<MethodInvocation> _backwardSlice = new HashSet<>(backwardSlice);
 		// Explicitly Include the returning calls
+
+		// At ANY POINT (THIS IS THE TRICKY PART) if a call was not yet included
+		/// in original backwardSlide we carve with minimal carve of that call !
+		// This way we ensure that all the preconditions for that call are
+		/// included as well...
+		// We adopt the naive solution of calling carve for each, every time.
+		/// This of course can be improved by caching the carved test for those
+		/// calls as well.
+		// Another possibility might be to define carved test as carve(of carve(
+		/// of carve())) for each method invocation encountered in the first
+		/// test carved
+		// TODO This probably should be called OUTSIDE !!! TO AVOID USELESS
+		// COMPUTATION FOR THE FIRST TEST CASE?
+		// Ensure preconditions
+		for (MethodInvocation returnCall : dataReturningCalls) {
+			if (!backwardSlice.contains(returnCall)) {
+				System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Must Ensure preconditions of "
+								+ returnCall);
+
+				if (dataDependencyGraph.getOwnerFor(returnCall) != null || //
+						!dataDependencyGraph.getObjectInstancesAsParametersOf(returnCall).isEmpty()) {
+
+					Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPreconditions = level0TestCarving(returnCall,
+							true).get(0);
+					// Here we do not really care about data dep, since the
+					// later
+					// call should include them as well !
+					System.out.println( "Level_0_MethodCarver.generateSingleTestCaseFromSlice() Preconditions are : "
+							+ carvedPreconditions.getFirst().getOrderedMethodInvocations());
+					// At this point we need to recompute the dataDependencyGraph to include any deps on preconditions
+					// Which basically consist on carving them ?
+					_backwardSlice.addAll(carvedPreconditions.getFirst().getOrderedMethodInvocations());
+				} else {
+					System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Method " + returnCall
+							+ " has no preconditions");
+				}
+			}
+		}
 
 		// FIXME This might require to recursively call carve method on them ?
 		// because they might require
@@ -160,8 +249,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 			carvedExecutionGraph.enqueueMethodInvocations(mi);
 		}
 
+		// This is the original graph
 		DataDependencyGraph carvedDataDependencyGraph = dataDependencyGraph.getSubGraph(carvedExecutionGraph);
-
+		
 		return new Pair<ExecutionFlowGraph, DataDependencyGraph>(carvedExecutionGraph, carvedDataDependencyGraph);
 	}
 
@@ -178,7 +268,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 		for (MethodInvocation methodInvocationUnderTest : executionFlowGraph
 				.getMethodInvocationsFor(methodToBeCarved)) {
-			carvedTests.addAll(level0TestCarving(methodInvocationUnderTest));
+			carvedTests.addAll(level0TestCarving(methodInvocationUnderTest, false));
 		}
 		return carvedTests;
 	}
