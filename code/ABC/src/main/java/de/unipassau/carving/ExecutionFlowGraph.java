@@ -1,6 +1,8 @@
 package de.unipassau.carving;
 
+import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Paint;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -10,6 +12,10 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.JFrame;
+
+import org.mockito.internal.stubbing.answers.ThrowsException;
+
+import com.google.common.base.Function;
 
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
 import edu.uci.ics.jung.graph.Graph;
@@ -75,7 +81,22 @@ public class ExecutionFlowGraph {
 				}
 			}
 		});
-
+		vv.getRenderContext().setVertexFillPaintTransformer(new Function<GraphNode, Paint>() {
+			@Override
+			public Paint apply(GraphNode node) {
+				if (node instanceof ValueNode) {
+					// TODO Not sure we can skip the visualization at all...
+					return Color.YELLOW;
+				} else if (node instanceof ObjectInstance) {
+					return Color.GREEN;
+				} else if (node instanceof MethodInvocation) {
+					MethodInvocation methodInvocation = (MethodInvocation) node;
+					return (methodInvocation.getInvocationType().equals("StaticInvokeExpr")) ? Color.ORANGE : Color.RED;
+				} else {
+					return Color.BLUE;
+				}
+			}
+		});
 		JFrame frame = new JFrame("Execution Flow Graph View");
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.getContentPane().add(vv);
@@ -181,14 +202,20 @@ public class ExecutionFlowGraph {
 	}
 
 	public List<MethodInvocation> getOrderedMethodInvocationsAfter(MethodInvocation methodInvocation) {
-		List<MethodInvocation> successorsOf = new ArrayList<>();
-		// Add the actual one
-		successorsOf.add(methodInvocation);
-		for (MethodInvocation mi : g.getSuccessors(methodInvocation)) {
-			// Add the one reach from this one
-			successorsOf.addAll(getOrderedMethodInvocationsAfter(mi));
+		try {
+			List<MethodInvocation> successorsOf = new ArrayList<>();
+			// Add the actual one
+			successorsOf.add(methodInvocation);
+			// g.getSuccessors(methodInvocation) can return null !? !
+			for (MethodInvocation mi : g.getSuccessors(methodInvocation)) {
+				// Add the one reach from this one
+				successorsOf.addAll(getOrderedMethodInvocationsAfter(mi));
+			}
+			return successorsOf;
+		} catch (Throwable e) {
+			e.printStackTrace();
+			throw e;
 		}
-		return successorsOf;
 	}
 
 	public MethodInvocation getLastMethodInvocation() {
@@ -198,6 +225,79 @@ public class ExecutionFlowGraph {
 
 	public List<MethodInvocation> getOrderedMethodInvocations() {
 		return getOrderedMethodInvocationsAfter(firstMethodInvocation);
+	}
+
+	/*
+	 * Keep only the invocations that can be found in the provide set
+	 */
+	public void refine(Set<MethodInvocation> connectedMethodInvocations) {
+		Set<MethodInvocation> unconnected = new HashSet<>();
+		for (MethodInvocation node : g.getVertices()) {
+			if (!connectedMethodInvocations.contains(node)) {
+				// NOTE: since we are iterating and removing at the same time,
+				// this might create problems
+				unconnected.add(node);
+			}
+		}
+		//
+		for (MethodInvocation mi : unconnected) {
+			System.out.println("ExecutionFlowGraph.refine() Remove " + mi + " as unconnected");
+			// We need to connect predecessor and successor before removing this
+			// vertex
+			Collection<MethodInvocation> predecessors = g.getPredecessors(mi);
+			Collection<MethodInvocation> successors = g.getSuccessors(mi);
+
+			if (predecessors == null || predecessors.isEmpty()) {
+				// This is the FIRST METHOD INVOCATION - update the reference
+				if (successors == null || successors.isEmpty()) {
+					// This was als the last one
+					firstMethodInvocation = null;
+				} else {
+					// At least one element (actually, only one)
+					firstMethodInvocation = successors.iterator().next();
+				}
+				System.out.println(
+						"ExecutionFlowGraph.refine() Updated firstMethodInvocation to " + firstMethodInvocation);
+			}
+
+			if (successors == null || successors.isEmpty()) {
+				// This is the last element
+				if (predecessors == null || predecessors.isEmpty()) {
+					// This is the only element
+					lastMethodInvocation = null;
+				} else {
+					// At least one element (actually, only one)
+					lastMethodInvocation = predecessors.iterator().next();
+				}
+				System.out
+						.println("ExecutionFlowGraph.refine() Updated lastMethodInvocation to " + lastMethodInvocation);
+
+			}
+
+			// TODO first and last element can definitively be computed
+			// afterwards by following the flow relations
+
+			Collection<String> flowEdges = new HashSet<>(g.getInEdges(mi));
+			flowEdges.addAll(g.getOutEdges(mi));
+
+			for (String flowEdge : flowEdges) {
+				System.out.println("ExecutionFlowGraph.refine() Removing Edge " + flowEdge);
+				g.removeEdge(flowEdge);
+			}
+			// Really its just one
+			for (MethodInvocation predecessor : predecessors) {
+				for (MethodInvocation successor : successors) {
+					int edgeID = id.getAndIncrement();
+					String edgeLabel = "ExecutionDependency-" + edgeID;
+					boolean added = g.addEdge(edgeLabel, predecessor, successor, EdgeType.DIRECTED);
+					System.out.println("ExecutionFlowGraph.refine() Introducing replacemente edge "
+							+ g.getEndpoints(edgeLabel) + " added  " + added);
+				}
+			}
+
+			g.removeVertex(mi);
+			System.out.println("ExecutionFlowGraph.refine() Removed " + mi);
+		}
 	}
 
 	// public void showPredecessors(String data) {

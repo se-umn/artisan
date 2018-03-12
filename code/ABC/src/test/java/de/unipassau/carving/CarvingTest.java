@@ -1,5 +1,6 @@
 package de.unipassau.carving;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
@@ -8,14 +9,22 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Collection;
+import java.util.List;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
+import de.unipassau.carving.carvers.Level_0_MethodCarver;
+import de.unipassau.data.Pair;
+import de.unipassau.data.Triplette;
+import de.unipassau.generation.TestGenerator;
 import de.unipassau.tracing.Trace;
+import de.unipassau.utils.JimpleUtils;
 import de.unipassau.utils.Slf4jSimpleLoggerRule;
+import soot.SootClass;
 
 public class CarvingTest {
 
@@ -38,6 +47,86 @@ public class CarvingTest {
 		//
 		fail("Not implemented! ");
 	}
+
+	@Test
+	public void testCarveStaticMethod() throws FileNotFoundException, IOException, InterruptedException {
+		// StaticInvokeExpr;
+		String staticMethodToCarve = "<org.employee.DummyObjectFactory: org.employee.DummyObjectToPassAsParameter createNewDummyObject()>";
+		File traceFile = new File("./src/test/resources/Employee-trace-with-static.txt");
+		StackImplementation stackImplementation = new StackImplementation();
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
+				.parseTrace(traceFile.getAbsolutePath());
+
+		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
+				parsedTrace.getThird());
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(staticMethodToCarve);
+
+		// System tests contains 2 executions
+		assertEquals(2, carvedTests.size());
+
+		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
+			// The only invocation in the test is the static invocation of the
+			// method
+			assertEquals(1, carvedTest.getFirst().getOrderedMethodInvocations().size());
+		}
+
+		String employeeProjectJar = "./src/test/resources/Employee.jar";
+		TestGenerator testGenerator = new TestGenerator(employeeProjectJar);
+		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
+		assertEquals(1, testCases.size());
+
+		for (SootClass testCase : testCases) {
+			JimpleUtils.prettyPrint(testCase);
+		}
+	}
+
+	@Test
+	public void testCarveMethodWhichDependsOnFactoryStaticMethod()
+			throws FileNotFoundException, IOException, InterruptedException {
+		// This method gets a dummy object which is created via static factory
+		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>";
+		File traceFile = new File("./src/test/resources/Employee-trace-with-static.txt");
+		StackImplementation stackImplementation = new StackImplementation();
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
+				.parseTrace(traceFile.getAbsolutePath());
+
+		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
+				parsedTrace.getThird());
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarve);
+
+		// The trace contains 2 executions. start -> exit, start -> register
+		// user -> exit
+		assertEquals(8, carvedTests.size());
+		//
+		String staticJimpleMethodProvidingObjects = "<org.employee.DummyObjectFactory: org.employee.DummyObjectToPassAsParameter createNewDummyObject()>";
+		// Two of those tests MUST include two invocations to
+		// DummyObjectFactory.
+		// TODO Maybe define a Matcher on those graphs ?
+		int matchCount = 0;
+		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
+			ExecutionFlowGraph carvedExecutionFlowGraph = carvedTest.getFirst();
+			// carvedTest.getSecond().visualize();
+			for (MethodInvocation methodInvocation : carvedExecutionFlowGraph.getOrderedMethodInvocations()) {
+				if (staticJimpleMethodProvidingObjects.equals(methodInvocation.getJimpleMethod())) {
+					System.out.println("CarvingTest.testCarveMethodWhichDependsOnFactoryStaticMethod() Found "
+							+ methodInvocation.getJimpleMethod());
+					matchCount++;
+				}
+			}
+		}
+
+		assertEquals("Missing invocations of " + staticJimpleMethodProvidingObjects, 4, matchCount);
+
+		String employeeProjectJar = "./src/test/resources/Employee.jar";
+		TestGenerator testGenerator = new TestGenerator(employeeProjectJar);
+		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
+		assertEquals(1, testCases.size());
+
+		for (SootClass testCase : testCases) {
+			JimpleUtils.prettyPrint(testCase);
+		}
+	}
+
 	@Test
 	public void testCarveMethodWithDependencies() throws FileNotFoundException, IOException {
 		// System.setProperty("debug", "true");
@@ -48,7 +137,7 @@ public class CarvingTest {
 		StackImplementation stackImplementation = new StackImplementation();
 
 		stackImplementation.parseTrace(traceFile.getAbsolutePath());
-		
+
 		fail("Not implemented! ");
 
 	}
@@ -96,7 +185,7 @@ public class CarvingTest {
 		stackImplementation.getCallGraph().visualize();
 
 		assertNotNull(stackImplementation.getCallGraph());
-		
+
 		fail("Not implemented! ");
 
 	}
@@ -116,12 +205,12 @@ public class CarvingTest {
 		//
 		// stackImplementation.buildExecutionFlowGraph();
 		// stackImplementation.executionGraphView();
-//		stackImplementation.getExectuionFlowGraph().visualize();
+		// stackImplementation.getExectuionFlowGraph().visualize();
 		//
 		assertNotNull(stackImplementation.getExectuionFlowGraph());
-		
+
 		fail("Not implemented! ");
-		
+
 	}
 
 	@Test
@@ -160,7 +249,7 @@ public class CarvingTest {
 
 		//
 		assertNotNull(stackImplementation.getDataDependencyGraph());
-		
+
 		fail("Not implemented! ");
 
 	}
@@ -200,16 +289,18 @@ public class CarvingTest {
 		stackImplementation.getDataDependencyGraph().visualize();
 		stackImplementation.getCallGraph().visualize();
 
-//		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestCases = stackImplementation
-//				.methodCarving(jimpleMethod);
-		
-//		assertEquals(1, carvedTestCases.size());
+		// List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestCases =
+		// stackImplementation
+		// .methodCarving(jimpleMethod);
+
+		// assertEquals(1, carvedTestCases.size());
 
 		// TODO Make assertions here
-//		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTestCase : carvedTestCases) {
-//			carvedTestCase.getFirst().visualize();
-//			carvedTestCase.getSecond().visualize();
-//		}
+		// for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTestCase :
+		// carvedTestCases) {
+		// carvedTestCase.getFirst().visualize();
+		// carvedTestCase.getSecond().visualize();
+		// }
 		fail("Not implemented! ");
 	}
 
@@ -220,17 +311,18 @@ public class CarvingTest {
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
 
 		StackImplementation stackImplementation = new StackImplementation();
-		
-		
-//		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> testCases = stackImplementation.parseTrace(traceFile.getAbsolutePath(), methodToCarve);
+
+		// List<Pair<ExecutionFlowGraph, DataDependencyGraph>> testCases =
+		// stackImplementation.parseTrace(traceFile.getAbsolutePath(),
+		// methodToCarve);
 
 		// This works by updating the static class {@link Graph_Details}
 		stackImplementation.getExectuionFlowGraph().visualize();
 		stackImplementation.getDataDependencyGraph().visualize();
 		stackImplementation.getCallGraph().visualize();
 
-//		assertEquals(1, testCases.size());
-//		System.out.println("CarvingTest.testCarving() " + testCases.get(0));
+		// assertEquals(1, testCases.size());
+		// System.out.println("CarvingTest.testCarving() " + testCases.get(0));
 		fail("Not implemented! ");
 	}
 
@@ -241,22 +333,24 @@ public class CarvingTest {
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
 
 		StackImplementation stackImplementation = new StackImplementation();
-//		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestCases = stackImplementation
-//				.parseTrace(traceFile.getAbsolutePath(), methodToCarve);
+		// List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestCases =
+		// stackImplementation
+		// .parseTrace(traceFile.getAbsolutePath(), methodToCarve);
 
 		// This works by updating the static class {@link Graph_Details}
 		stackImplementation.getExectuionFlowGraph().visualize();
 		stackImplementation.getDataDependencyGraph().visualize();
 		stackImplementation.getCallGraph().visualize();
 
-//		assertEquals(2, carvedTestCases.size());
+		// assertEquals(2, carvedTestCases.size());
 
 		// TODO Make assertions here
-//		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTestCase : carvedTestCases) {
-//			carvedTestCase.getFirst().visualize();
-//			carvedTestCase.getSecond().visualize();
-//			assertEquals(2, carvedTestCases.size());
-//		}
+		// for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTestCase :
+		// carvedTestCases) {
+		// carvedTestCase.getFirst().visualize();
+		// carvedTestCase.getSecond().visualize();
+		// assertEquals(2, carvedTestCases.size());
+		// }
 		fail("Not implemented! ");
 	}
 

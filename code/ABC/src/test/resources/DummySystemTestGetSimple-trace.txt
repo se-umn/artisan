@@ -1,0 +1,8 @@
+[>];StaticInvokeExpr;<de.unipassau.testsubject.DummyObjectFactory: de.unipassau.testsubject.DummyObject getSimple()>
+[>];SpecialInvokeExpr;<de.unipassau.testsubject.DummyObject: void <init>()>
+[||];<de.unipassau.testsubject.DummyObject: void <init>()>;de.unipassau.testsubject.DummyObject@386555905
+[<];<de.unipassau.testsubject.DummyObject: void <init>()>
+[<];<de.unipassau.testsubject.DummyObjectFactory: de.unipassau.testsubject.DummyObject getSimple()>;de.unipassau.testsubject.DummyObject@386555905
+[>];VirtualInvokeExpr;<de.unipassau.testsubject.DummyObject: void end()>
+[||];<de.unipassau.testsubject.DummyObject: void end()>;de.unipassau.testsubject.DummyObject@386555905
+[<];<de.unipassau.testsubject.DummyObject: void end()>

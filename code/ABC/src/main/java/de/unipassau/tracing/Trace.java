@@ -16,7 +16,15 @@ public class Trace {
 	private static File traceFile;
 	static {
 		try {
-			traceFile = File.createTempFile("temp-trace", ".txt");
+
+			// USE A CONSTANT FOR THIS !
+			if (System.getProperty("trace.output") != null) {
+				traceFile = new File(System.getProperty("trace.output"));
+			} else if (System.getenv("trace.output") != null) {
+				traceFile = new File(System.getenv("trace.output"));
+			} else {
+				traceFile = File.createTempFile("temp-trace", ".txt");
+			}
 			System.out.println("**** Trace() Output to " + traceFile);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -36,7 +44,7 @@ public class Trace {
 	 */
 	public static void methodStart(String typeOfMethod, String method, Object... objects) {
 
-//		System.out.println("Trace.methodStart() " + method);
+		// System.out.println("Trace.methodStart() " + method);
 
 		String content = METHOD_START_TOKEN + typeOfMethod + ";" + method;
 
@@ -82,7 +90,8 @@ public class Trace {
 		if (matchPattern.find()) {
 			return matchPattern.group(1).split(",");
 		}
-//		System.out.println("Trace.extractParameterTypes() WARNING NO PARAMETERS ?!!");
+		// System.out.println("Trace.extractParameterTypes() WARNING NO
+		// PARAMETERS ?!!");
 		return new String[] {};
 	}
 
@@ -93,7 +102,7 @@ public class Trace {
 	 *            - the Id of the object
 	 */
 	public static void methodObject(String method, Object o) {
-//		System.out.println("Trace.methodObject() " + method);
+		// System.out.println("Trace.methodObject() " + method);
 		String content = METHOD_OBJECT_TOKEN + method + ";" + o.getClass().getName() + "@" + System.identityHashCode(o);
 		appendToTraceFile(content + "\n");
 	}
@@ -116,7 +125,8 @@ public class Trace {
 
 	// This is for primitives values
 	private static void methodStopForPrimitive(String method, String returnValue) {
-//		System.out.println("Trace.methodStopForPrimitives() " + method + " returnValue " + returnValue.getClass());
+		// System.out.println("Trace.methodStopForPrimitives() " + method + "
+		// returnValue " + returnValue.getClass());
 		appendToTraceFile(METHOD_END_TOKEN + method + ";" + returnValue + "\n");
 	}
 
@@ -154,14 +164,16 @@ public class Trace {
 	}
 
 	private static void methodStopPrimitiveNotRead(String methodName) {
-//		System.out.println("Trace.methodStop() " + methodName + " Primitive return value not used");
+		// System.out.println("Trace.methodStop() " + methodName + " Primitive
+		// return value not used");
 		appendToTraceFile(METHOD_END_TOKEN + methodName + "\n");
 
 	}
 
 	private static void methodStopForObject(String methodName, Object returnValue) {
-//		System.out.println("Trace.methodStop() " + methodName + " objRef " + returnValue.getClass().getName() + "@"
-//				+ System.identityHashCode(returnValue));
+		// System.out.println("Trace.methodStop() " + methodName + " objRef " +
+		// returnValue.getClass().getName() + "@"
+		// + System.identityHashCode(returnValue));
 
 		appendToTraceFile(METHOD_END_TOKEN + methodName + ";" + returnValue.getClass().getName() + "@"
 				+ System.identityHashCode(returnValue) + "\n");
@@ -169,7 +181,7 @@ public class Trace {
 	}
 
 	private static void methodStopForVoid(String methodName) {
-//		System.out.println("Trace.methodStop() " + methodName);
+		// System.out.println("Trace.methodStop() " + methodName);
 
 		appendToTraceFile(METHOD_END_TOKEN + methodName + "\n");
 	}
