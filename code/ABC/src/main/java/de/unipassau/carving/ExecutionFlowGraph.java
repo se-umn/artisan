@@ -13,8 +13,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.JFrame;
 
-import org.mockito.internal.stubbing.answers.ThrowsException;
-
 import com.google.common.base.Function;
 
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
@@ -23,7 +21,6 @@ import edu.uci.ics.jung.graph.SparseMultigraph;
 import edu.uci.ics.jung.graph.util.EdgeType;
 import edu.uci.ics.jung.visualization.VisualizationViewer;
 import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
-import jas.Method;
 
 public class ExecutionFlowGraph {
 
@@ -155,11 +152,16 @@ public class ExecutionFlowGraph {
 		return hs;
 	}
 
-	// Find all the method invocations that match the given JImp
-	public Collection<MethodInvocation> getMethodInvocationsFor(String jimpleMethod) {
+	/**
+	 * Return the calls in the Execution Flow Graph which match the given Matcher
+	 * 
+	 * @param methodToBeCarved
+	 * @return
+	 */
+	public Collection<MethodInvocation> getMethodInvocationsFor(MethodInvocationMatcher methodToBeCarved) {
 		ArrayList<MethodInvocation> matching = new ArrayList<>();
 		for (MethodInvocation mi : g.getVertices()) {
-			if (mi.getJimpleMethod().equals(jimpleMethod)) {
+			if( methodToBeCarved.match( mi ) ){
 				matching.add(mi);
 			}
 		}

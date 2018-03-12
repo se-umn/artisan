@@ -14,37 +14,37 @@ public class MethodInvocationMatcherTest {
 	
 	@Test
 	public void testExactMatch() {
-		MethodInvationMatcher mim = new MethodInvationMatcher("org.employee.Validation", "int", "numberValidation", "java.lang.String", "org.employee.DummyObjectToPassAsParameter");
+		MethodInvocationMatcher mim = new MethodInvocationMatcher("org.employee.Validation", "int", "numberValidation", "java.lang.String", "org.employee.DummyObjectToPassAsParameter");
 		assertTrue( mim.match(methodInvocation) );
 	}
 	
 	@Test
 	public void testDoesNotExactMatch() {
-		MethodInvationMatcher mim = new MethodInvationMatcher("org.employee.Validation", "int2", "numberValidation", "java.lang.String", "org.employee.DummyObjectToPassAsParameter");
+		MethodInvocationMatcher mim = new MethodInvocationMatcher("org.employee.Validation", "int2", "numberValidation", "java.lang.String", "org.employee.DummyObjectToPassAsParameter");
 		assertFalse( mim.match(methodInvocation) );
 	}
 
 	@Test
 	public void testMatchByClass() {
-		MethodInvationMatcher mim = new MethodInvationMatcher("org.employee.Validation");
+		MethodInvocationMatcher mim = new MethodInvocationMatcher("org.employee.Validation");
 		assertTrue(mim.match(methodInvocation));
 	}
 	
 	@Test
 	public void testDoesNotMatchByClass() {
-		MethodInvationMatcher mim = new MethodInvationMatcher("org.employee.DummyObjectToPassAsParameter");
+		MethodInvocationMatcher mim = new MethodInvocationMatcher("org.employee.DummyObjectToPassAsParameter");
 		assertFalse(mim.match(methodInvocation));
 	}
 
 	@Test
 	public void testMatchByPackage() {
-		MethodInvationMatcher mim = new MethodInvationMatcher("org.employee.*");
+		MethodInvocationMatcher mim = new MethodInvocationMatcher("org.employee.*");
 		assertTrue( mim.match(methodInvocation) );
 	}
 	
 	@Test
 	public void testDoesNotMatchByPackage() {
-		MethodInvationMatcher mim = new MethodInvationMatcher("com.employee.*");
+		MethodInvocationMatcher mim = new MethodInvocationMatcher("com.employee.*");
 		assertFalse( mim.match(methodInvocation) );
 	}
 }

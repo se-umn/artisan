@@ -249,7 +249,10 @@ public class DataDependencyGraph {
 
 			if (node instanceof ObjectInstance && !bookeeping.contains(node)) {
 				bookeeping.add((ObjectInstance) node);
+				// Get the calls which are made on this object
 				workList.addAll(getMethodInvocationsForOwner((ObjectInstance) node));
+				// Get the calls which return this object
+				workList.addAll( getMethodInvocationsWhichReturn((ObjectInstance) node));
 			} else if (node instanceof MethodInvocation) {
 				dataDependent.add((MethodInvocation) node);
 				// Add all the preconditions
@@ -396,8 +399,8 @@ public class DataDependencyGraph {
 				dataDependencyCount = dataDependencyCount - 1;
 			}
 
-			System.out.println("DataDependencyGraph.getParametersFor() " + methodInvocation + " with " + parameterCount
-					+ " formal parameters and " + (dataDependencyCount) + " actual parameters");
+//			System.out.println("DataDependencyGraph.getParametersFor() " + methodInvocation + " with " + parameterCount
+//					+ " formal parameters and " + (dataDependencyCount) + " actual parameters");
 
 			if (parameterCount == 0) {
 				return new ArrayList<Value>();

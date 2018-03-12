@@ -8,11 +8,16 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.lexicalscope.jewel.cli.ArgumentValidationException;
+import com.lexicalscope.jewel.cli.CliFactory;
+import com.lexicalscope.jewel.cli.Option;
+
 import de.unipassau.carving.carvers.Level_0_MethodCarver;
 import de.unipassau.data.Pair;
 import de.unipassau.data.Triplette;
 import de.unipassau.generation.TestCaseFactory;
 import de.unipassau.generation.TestGenerator;
+import de.unipassau.utils.JimpleUtils;
 import soot.SootClass;
 
 // TODO Use some sort of CLI/JewelCLI
@@ -20,39 +25,77 @@ public class Carver {
 
 	private static final Logger logger = LoggerFactory.getLogger(Carver.class);
 
+	public interface CarverCLI {
+		@Option
+		File getTraceFile();
+
+		@Option
+		File getProjectJar();
+
+		@Option(defaultToNull = true)
+		File getOutputDir();
+
+		@Option // This can be refined as package=regex, class=regex,
+				// method="full jimple method"
+		String getCarveBy();
+
+	}
+
 	public static void main(String[] args) throws IOException, InterruptedException {
 		long startTime = System.nanoTime();
 
-		String methodToBeCarved = args[0]; //
-		String traceFile = args[1];
+		File traceFile = null;
+		File projectJar = null;
+		File outputDir = null;
+		MethodInvocationMatcher carveBy = null;
+
+		try {
+			CarverCLI result = CliFactory.parseArguments(CarverCLI.class, args);
+			traceFile = result.getTraceFile();
+			outputDir = result.getOutputDir();
+			projectJar = result.getProjectJar();
+
+			// TODO This can be moved inside CLI parsing using an instance strategy
+			String[] carveByTokens = result.getCarveBy().split("=");
+			if ("package".equals(carveByTokens[0]) || "class".equals(carveByTokens[0])) {
+				carveBy = new MethodInvocationMatcher(carveByTokens[1]);
+			} else if ("method".equals(carveByTokens[0])){
+				String jimpleMethod = carveByTokens[1];
+				carveBy = MethodInvocationMatcher.fromJimpleMethod( jimpleMethod );
+			} else {
+				throw new ArgumentValidationException("Wrong carve by !");
+			}
+
+		} catch (ArgumentValidationException e) {
+		}
 
 		System.out.println("Carver.main() Start parsing ");
 		// Parse the trace file into graphs
 		StackImplementation si = new StackImplementation();
 		// TODO How to handle multiple trace files ? All together or one after
 		// another?
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = si.parseTrace(traceFile);
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = si
+				.parseTrace(traceFile.getAbsolutePath());
 		System.out.println("Carver.main() End parsing ");
 		// Carving
-		System.out.println("Carver.main() Start carving " + methodToBeCarved);
+		System.out.println("Carver.main() Start carving by " + carveBy);
 		// TODO Here organize, instantiate and execute the configured Carvers
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToBeCarved);
-		System.out.println("Carver.main() End carving " + methodToBeCarved);
+		// TODO Instantiate a matcher and pass it along to Carver !
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(carveBy);
+		System.out.println("Carver.main() End carving by " + carveBy);
 
 		System.out.println("Carver.main() Start code generation");
 		// Test Generation
-		String projectJar = args[2];
-		TestGenerator testCaseGenerator = new TestGenerator(projectJar);
+		TestGenerator testCaseGenerator = new TestGenerator(projectJar.getAbsolutePath());
 		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests);
 
-		String outputDir = "./sootOutput/carvedTests";
-		// Code Generator
-		if (args.length > 3) {
-			outputDir = args[3];
+		if (outputDir == null) {
+			// Use default
+			outputDir = new File("./sootOutput/carvedTests");
 		}
-		TestCaseFactory.generateTestFiles(new File(outputDir), testCases);
+		TestCaseFactory.generateTestFiles(outputDir, testCases);
 		System.out.println("Carver.main() End code generation");
 
 		long endTime = System.nanoTime();

@@ -19,6 +19,7 @@ import de.unipassau.carving.DataDependencyGraph;
 import de.unipassau.carving.ExecutionFlowGraph;
 import de.unipassau.carving.MethodCarver;
 import de.unipassau.carving.MethodInvocation;
+import de.unipassau.carving.MethodInvocationMatcher;
 import de.unipassau.carving.ObjectInstance;
 import de.unipassau.data.Pair;
 
@@ -256,29 +257,24 @@ public class Level_0_MethodCarver implements MethodCarver {
 	/**
 	 * methodToBeCarved in Jimple format
 	 * 
-	 * @param methodToBeCarved
+	 * @param methodInvocationMatcher
 	 * @return
 	 */
-	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carve(String methodToBeCarved) {
+	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carve(MethodInvocationMatcher methodInvocationMatcher) {
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
 
 		// TODO: handle here the reg exp or use the execution Flow Graph instead
 
 		for (MethodInvocation methodInvocationUnderTest : executionFlowGraph
-				.getMethodInvocationsFor(methodToBeCarved)) {
+				.getMethodInvocationsFor(methodInvocationMatcher)) {
 
 			carvedTests.addAll(level0TestCarving(methodInvocationUnderTest, false));
 
-			// Simplify the carved tests. Following the data dependencies we
-			// might
-			// take into tests, invocations that are there but are independent
-			// from
-			// the CUT/MUT. We identify them as NON connected by means of data
-			// dependencies.
-			// The caveut is: if ANY of those involves calls to "external"
-			// libraries, we must keep them.
-
-			// FIXME RHandle external libraries
+			// Simplify the carved tests: Following the data dependencies we
+			// might take into tests, invocations that are included but independent
+			// from the CUT/MUT. We identify them as NON connected by means of data
+			// dependencies unless those are (or contains?) calls to external libraries.
+			// FIXME Handle external libraries
 			simplify(methodInvocationUnderTest, carvedTests);
 		}
 
