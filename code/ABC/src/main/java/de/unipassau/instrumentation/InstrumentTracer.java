@@ -71,6 +71,8 @@ public class InstrumentTracer extends BodyTransformer {
 
 		final PatchingChain<Unit> units = body.getUnits();
 		for (final Iterator<Unit> iter = units.snapshotIterator(); iter.hasNext();) {
+			
+			
 			final Unit u = iter.next();
 
 			u.apply(new AbstractStmtSwitch() {
@@ -424,6 +426,7 @@ public class InstrumentTracer extends BodyTransformer {
 	}
 
 	// TODO Add output folder to soot options
+	// TODO Define CLI
 	public static void main(String[] args) throws URISyntaxException {
 		String phaseName = "jtp.mainInstrumentation";
 		String projectJar = args[0];
@@ -526,9 +529,13 @@ public class InstrumentTracer extends BodyTransformer {
 				false;
 	}
 
+	/*
+	 * TODO : We pretend those calls never happened 
+	 */
 	private boolean doNotTraceCallsTo(SootMethod m) {
 		return m.getDeclaringClass().getName().equals("java.lang.StringBuilder") || //
 				m.getDeclaringClass().getName().equals("java.io.PrintStream") || //
+				m.getDeclaringClass().getName().equals("java.util.Scanner") || //
 				// Is this ok ?!
 				m.getDeclaringClass().getName().equals("java.lang.Object") || //
 				false;

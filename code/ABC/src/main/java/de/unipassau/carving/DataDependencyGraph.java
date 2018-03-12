@@ -176,10 +176,10 @@ public class DataDependencyGraph {
 				if (node instanceof ValueNode) {
 					// TODO Not sure we can skip the visualization at all...
 					return "VALUE NODE";
-				} else if (node instanceof ObjectInstance) {
-					return ((ObjectInstance) node).getObjectId();
-				} else if (node instanceof MethodInvocation) {
-					return ((MethodInvocation) node).getJimpleMethod();
+//				} else if (node instanceof ObjectInstance) {
+//					return ((ObjectInstance) node).getObjectId();
+//				} else if (node instanceof MethodInvocation) {
+//					return ((MethodInvocation) node).getJimpleMethod();
 				} else {
 					return super.apply(node);
 				}
@@ -205,7 +205,7 @@ public class DataDependencyGraph {
 
 		JFrame frame = new JFrame("DataNode Dependency View");
 		// frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		frame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 		frame.getContentPane().add(vv);
 		frame.pack();
 		frame.setVisible(true);
@@ -256,12 +256,17 @@ public class DataDependencyGraph {
 			} else if (node instanceof MethodInvocation) {
 				dataDependent.add((MethodInvocation) node);
 				// Add all the preconditions
-				workList.addAll(g.getPredecessors(node));
-				workList.addAll(g.getSuccessors(node));
+				workList.addAll(getPredecessors(node));
+				workList.addAll(getSuccessors(node));
 			}
 		}
 
 		return dataDependent;
+	}
+
+	public Collection<GraphNode> getSuccessors(GraphNode node) {
+		Collection<GraphNode> successors = g.getSuccessors(node);
+		return (Collection<GraphNode>)( successors != null ? successors : new HashSet<>());
 	}
 
 	public Set<MethodInvocation> getMethodInvocationsRecheableFrom(MethodInvocation methodInvocation) {
@@ -306,12 +311,17 @@ public class DataDependencyGraph {
 			} else if (node instanceof MethodInvocation) {
 				dataDependent.add((MethodInvocation) node);
 				// Add all the preconditions
-				Collection<GraphNode> nodes = g.getPredecessors(node);
+				Collection<GraphNode> nodes = getPredecessors(node);
 				workList.addAll(nodes);
 			}
 		}
 
 		return dataDependent;
+	}
+
+	public Collection<GraphNode> getPredecessors(GraphNode node) {
+		Collection<GraphNode> predecessors= g.getPredecessors(node); 
+		return (Collection<GraphNode>) (predecessors != null ? predecessors : new HashSet<>());
 	}
 
 	public Collection<ObjectInstance> getObjectInstances() {

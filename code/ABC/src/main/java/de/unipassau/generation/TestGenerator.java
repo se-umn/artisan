@@ -105,11 +105,17 @@ public class TestGenerator {
 		setupSoot();
 
 		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
+
+			System.out.println("TestGenerator.generateTestCases()");
+			System.out.println( carvedTest.getFirst().getOrderedMethodInvocations() );
+			System.out.println( carvedTest.getSecond() );
+			
+			
 			// Get the mut, which by definition is the last invocation executed
 			MethodInvocation mut = carvedTest.getFirst().getLastMethodInvocation();
 			
 			// Somehow this does include the executions we removed ?!
-			logger.debug("TestGenerator.generateTestCases() GENERATE " + carvedTest.getFirst().getOrderedMethodInvocations() );
+			logger.info("TestGenerator.generateTestCases() Generate test case for MUT :  " + mut + " from " + carvedTest.getFirst().getOrderedMethodInvocations() );
 			
 			String classUnderTest = JimpleUtils.getClassNameForMethod(mut.getJimpleMethod());
 

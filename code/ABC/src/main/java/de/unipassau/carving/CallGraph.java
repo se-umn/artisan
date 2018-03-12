@@ -83,7 +83,8 @@ public class CallGraph {
 		});
 
 		JFrame frame = new JFrame("Call Graph View");
-		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 		frame.getContentPane().add(vv);
 		frame.pack();
 		frame.setVisible(true);

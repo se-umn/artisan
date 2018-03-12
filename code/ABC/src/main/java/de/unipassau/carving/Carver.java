@@ -17,7 +17,6 @@ import de.unipassau.data.Pair;
 import de.unipassau.data.Triplette;
 import de.unipassau.generation.TestCaseFactory;
 import de.unipassau.generation.TestGenerator;
-import de.unipassau.utils.JimpleUtils;
 import soot.SootClass;
 
 // TODO Use some sort of CLI/JewelCLI
@@ -55,13 +54,14 @@ public class Carver {
 			outputDir = result.getOutputDir();
 			projectJar = result.getProjectJar();
 
-			// TODO This can be moved inside CLI parsing using an instance strategy
+			// TODO This can be moved inside CLI parsing using an instance
+			// strategy
 			String[] carveByTokens = result.getCarveBy().split("=");
 			if ("package".equals(carveByTokens[0]) || "class".equals(carveByTokens[0])) {
 				carveBy = new MethodInvocationMatcher(carveByTokens[1]);
-			} else if ("method".equals(carveByTokens[0])){
+			} else if ("method".equals(carveByTokens[0])) {
 				String jimpleMethod = carveByTokens[1];
-				carveBy = MethodInvocationMatcher.fromJimpleMethod( jimpleMethod );
+				carveBy = MethodInvocationMatcher.fromJimpleMethod(jimpleMethod);
 			} else {
 				throw new ArgumentValidationException("Wrong carve by !");
 			}
@@ -71,20 +71,30 @@ public class Carver {
 
 		System.out.println("Carver.main() Start parsing ");
 		// Parse the trace file into graphs
-		StackImplementation si = new StackImplementation();
+		StackImplementation traceParser = new StackImplementation();
 		// TODO How to handle multiple trace files ? All together or one after
 		// another?
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = si
+
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = traceParser
 				.parseTrace(traceFile.getAbsolutePath());
 		System.out.println("Carver.main() End parsing ");
 		// Carving
-		System.out.println("Carver.main() Start carving by " + carveBy);
+		System.out.println("Carver.main() Start carving");
 		// TODO Here organize, instantiate and execute the configured Carvers
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
+
 		// TODO Instantiate a matcher and pass it along to Carver !
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(carveBy);
-		System.out.println("Carver.main() End carving by " + carveBy);
+		System.out.println("Carver.main() End carving");
+
+		// Verify
+		// VERIFY THAT NO CARVED TEST IS EMPTY !
+		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
+			if (! carvedTest.getFirst().verify() ) {
+				throw new RuntimeException("Failed verification");
+			} 
+		}
 
 		System.out.println("Carver.main() Start code generation");
 		// Test Generation

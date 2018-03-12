@@ -69,6 +69,11 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> level0TestCarving(
 			MethodInvocation methodInvocationToCarve, boolean minimalCarve) {
+
+		if (!minimalCarve) {
+			logger.info("Carving " + methodInvocationToCarve);
+		}
+
 		/*
 		 * Not sure "minimal" is the right term
 		 * 
@@ -127,31 +132,32 @@ public class Level_0_MethodCarver implements MethodCarver {
 			constructors.add(dataDependencyGraph.getInitMethodInvocationFor(dataDependency));
 		}
 
-		// Generate ONLY the first carved test
-		Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTestFromConstructors = generateSingleTestCaseFromSlice(
-				backwardSlice, constructors);
-		//
 		if (minimalCarve) {
+			// Generate ONLY the first carved test
+			Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTestFromConstructors = generateSingleTestCaseFromSlice(
+					backwardSlice, constructors);
+
 			carvedTestsForMethodInvocation.add(carvedTestFromConstructors);
 			return carvedTestsForMethodInvocation;
 		}
 
+		// Can this recreate the carvedTestFromConstructors test case ?
+
 		Map<ObjectInstance, Set<MethodInvocation>> returningCalls = new HashMap<>();
 
 		// Now find all the calls which returns any of the objectInstances
-		// in the data dependency graph
+		// in the data dependency graph. This one is odd, if we consider plenty
+		// of objects we get a huge number of possibilities
+		// which then we filter away... On the other size, if we do not consider
+		// this, how do we include calls to external libraries, maybe simply by
+		// looking into the exec graph ?
 		for (ObjectInstance objectInstance : subGraphFromPastExecution.getObjectInstances()) {
 
-			//
-			Set<MethodInvocation> returningCallsForObjectInstance = dataDependencyGraph
-					.getMethodInvocationsWhichReturn(objectInstance);
+			Set<MethodInvocation> returningCallsForObjectInstance = dataDependencyGraph.getMethodInvocationsWhichReturn(objectInstance);
+			
 			// Here we need to include the constructors as well to create the
 			// cross products
 			returningCallsForObjectInstance.add(dataDependencyGraph.getInitMethodInvocationFor(objectInstance));
-
-			if (returningCallsForObjectInstance.isEmpty()) {
-				throw new RuntimeException("Object Instance " + objectInstance + " has no returning calls !");
-			}
 
 			returningCalls.put(objectInstance, returningCallsForObjectInstance);
 
@@ -173,9 +179,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 	private Pair<ExecutionFlowGraph, DataDependencyGraph> generateSingleTestCaseFromSlice(
 			Set<MethodInvocation> backwardSlice, List<MethodInvocation> dataReturningCalls) {
 
-		// System.out.println("\n\n\n
-		// Level_0_MethodCarver.generateSingleTestCaseFromSlice() From " +
-		// dataReturningCalls);
+		System.out.println("\n\n\n Level_0_MethodCarver.generateSingleTestCaseFromSlice() for " + dataReturningCalls
+				+ " from backward slice " + backwardSlice);
 
 		// Create a local copy of the backwardSlide. This is the "minimal slice"
 		Set<MethodInvocation> _backwardSlice = new HashSet<>(backwardSlice);
@@ -196,29 +201,23 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// Ensure preconditions
 		for (MethodInvocation returnCall : dataReturningCalls) {
 			if (!backwardSlice.contains(returnCall)) {
-				// System.out
-				// .println("Level_0_MethodCarver.generateSingleTestCaseFromSlice()
-				// Must Ensure preconditions of "
-				// + returnCall);
+				 
+				System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Must Ensure preconditions of " + returnCall);
 
 				if (dataDependencyGraph.getOwnerFor(returnCall) != null || //
 						!dataDependencyGraph.getObjectInstancesAsParametersOf(returnCall).isEmpty()) {
 
-					Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPreconditions = level0TestCarving(returnCall,
-							true).get(0);
+					Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPreconditions = level0TestCarving(returnCall, true).get(0);
 					// Here we do not really care about data dep, since the
 					// later
 					// call should include them as well !
-					// System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSlice()
-					// Preconditions are : "
-					// +
-					// carvedPreconditions.getFirst().getOrderedMethodInvocations());
+					 System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Preconditions are : " +  carvedPreconditions.getFirst().getOrderedMethodInvocations());
 					// At this point we need to recompute the
 					// dataDependencyGraph to include any deps on preconditions
 					// Which basically consist on carving them ?
 					_backwardSlice.addAll(carvedPreconditions.getFirst().getOrderedMethodInvocations());
 				} else {
-					logger.debug("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Method " + returnCall
+					System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Method " + returnCall
 							+ " has no preconditions");
 				}
 			}
@@ -232,6 +231,11 @@ public class Level_0_MethodCarver implements MethodCarver {
 			// Filter out the calls that are subsumed by the call graph
 			subsumedCalls.addAll(callGraph.getMethodInvocationsSubsumedBy(mi));
 		}
+		
+		System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Subsumed Calls " + subsumedCalls );
+		
+		// TODO Check if the subsumedCalls contain the 111 in that case, we lose it in spite of the call returning it... ?
+		
 		// Delete from the slice all those calls that will be done nevertheless
 		_backwardSlice.removeAll(subsumedCalls);
 		List<MethodInvocation> carvedTestCase = new ArrayList<>(_backwardSlice);
@@ -262,20 +266,36 @@ public class Level_0_MethodCarver implements MethodCarver {
 	 */
 	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carve(MethodInvocationMatcher methodInvocationMatcher) {
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
+		
 
-		// TODO: handle here the reg exp or use the execution Flow Graph instead
-
-		for (MethodInvocation methodInvocationUnderTest : executionFlowGraph
-				.getMethodInvocationsFor(methodInvocationMatcher)) {
-
-			carvedTests.addAll(level0TestCarving(methodInvocationUnderTest, false));
+		for (MethodInvocation methodInvocationUnderTest : executionFlowGraph.getMethodInvocationsFor(methodInvocationMatcher)) {
+			
+			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestsPetMethodInvocation = new ArrayList<>();
+			System.out.println("\n\n\n");
+			
+			carvedTestsPetMethodInvocation.addAll(level0TestCarving(methodInvocationUnderTest, false));
 
 			// Simplify the carved tests: Following the data dependencies we
-			// might take into tests, invocations that are included but independent
-			// from the CUT/MUT. We identify them as NON connected by means of data
-			// dependencies unless those are (or contains?) calls to external libraries.
+			// might take into tests, invocations that are included but
+			// independent
+			// from the CUT/MUT. We identify them as NON connected by means of
+			// data
+			// dependencies unless those are (or contains?) calls to external
+			// libraries.
 			// FIXME Handle external libraries
-			simplify(methodInvocationUnderTest, carvedTests);
+			
+			for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTestsPetMethodInvocation) {
+				System.out.println("Level_0_MethodCarver.carve() Carved Test (Before) " + methodInvocationUnderTest + " --> " + carvedTest.getFirst().getOrderedMethodInvocations() );
+			}
+			
+			simplify(methodInvocationUnderTest, carvedTestsPetMethodInvocation);
+
+			for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTestsPetMethodInvocation) {
+				System.out.println("Level_0_MethodCarver.carve() Carved Test (After) " + methodInvocationUnderTest + " --> " + carvedTest.getFirst().getOrderedMethodInvocations() );
+			}
+			
+			// Add to big list
+			carvedTests.addAll( carvedTestsPetMethodInvocation );
 		}
 
 		return carvedTests;
@@ -283,12 +303,21 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 	private void simplify(MethodInvocation methodInvocationUnderTest,
 			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests) {
+
+		logger.info("Simplify for " + methodInvocationUnderTest);
+
 		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
+
+			// How is possible that some invocations are in the data dep graph
+			// both not in the execution before refinement ?
 			Set<MethodInvocation> connectedMethodInvocations = carvedTest.getSecond()
 					.getWeaklyConnectedComponentContaining(methodInvocationUnderTest);
+
+			logger.info(" Connected invocations  " + connectedMethodInvocations);
 			// Remove from the execution graph and data dependency graph all the
 			// invocations and object instances that are not connected in any
-			// way to methodInvocation, unless they below (or contain?) calls to external libraries?
+			// way to methodInvocation, unless they below (or contain?) calls to
+			// external libraries?
 			carvedTest.getFirst().refine(connectedMethodInvocations);
 			carvedTest.getSecond().refine(connectedMethodInvocations);
 		}
