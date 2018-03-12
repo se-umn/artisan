@@ -5,6 +5,7 @@ INSTRUMENT_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=TRACE"
 CARVING_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=INFO"
 # -Ddebug=true"
 
+DEFAULT_INSTRUMENT_OUTPUT_DIR="./sootOutput"
 DEFAULT_INSTRUMENT_OUTPUT_FORMAT="class" # "jimple"
 
 BIN_FOLDER="../target/appassembler/bin"
@@ -23,7 +24,7 @@ function instrument(){
 	export JAVA_OPTS=${INSTRUMENT_JAVA_OPTS}
 	
 	${BIN_FOLDER}/instrument \
-		 ${PROJECT_JAR} ${DEFAULT_INSTRUMENT_OUTPUT_FORMAT} 2>&1 | \
+		 ${PROJECT_JAR} ${DEFAULT_INSTRUMENT_OUTPUT_DIR} ${DEFAULT_INSTRUMENT_OUTPUT_FORMAT} 2>&1 | \
 			tee instrument.log
 }
 
