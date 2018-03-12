@@ -71,4 +71,8 @@ public class JimpleUtils {
 		 }
 		
 	}
+
+	public static CharSequence getMethodName(String jimpleMethod) {
+		return jimpleMethod.replaceFirst("<","").split(" ")[2];
+	}
 }
