@@ -106,10 +106,9 @@ public class TestGenerator {
 
 		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
 
-			System.out.println("TestGenerator.generateTestCases()");
-			System.out.println( carvedTest.getFirst().getOrderedMethodInvocations() );
-			System.out.println( carvedTest.getSecond() );
-			
+//			System.out.println("TestGenerator.generateTestCases()");
+//			System.out.println( carvedTest.getFirst().getOrderedMethodInvocations() );
+//			System.out.println( carvedTest.getSecond() );
 			
 			// Get the mut, which by definition is the last invocation executed
 			MethodInvocation mut = carvedTest.getFirst().getLastMethodInvocation();

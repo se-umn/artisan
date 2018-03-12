@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,6 +23,7 @@ import de.unipassau.carving.MethodInvocation;
 import de.unipassau.carving.MethodInvocationMatcher;
 import de.unipassau.carving.ObjectInstance;
 import de.unipassau.data.Pair;
+import polyglot.ast.Return;
 
 public class Level_0_MethodCarver implements MethodCarver {
 
@@ -153,8 +155,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// looking into the exec graph ?
 		for (ObjectInstance objectInstance : subGraphFromPastExecution.getObjectInstances()) {
 
-			Set<MethodInvocation> returningCallsForObjectInstance = dataDependencyGraph.getMethodInvocationsWhichReturn(objectInstance);
-			
+			Set<MethodInvocation> returningCallsForObjectInstance = dataDependencyGraph
+					.getMethodInvocationsWhichReturn(objectInstance);
+
 			// Here we need to include the constructors as well to create the
 			// cross products
 			returningCallsForObjectInstance.add(dataDependencyGraph.getInitMethodInvocationFor(objectInstance));
@@ -173,13 +176,19 @@ public class Level_0_MethodCarver implements MethodCarver {
 			carvedTestsForMethodInvocation.add(generateSingleTestCaseFromSlice(backwardSlice, combination));
 		}
 
+		if (!minimalCarve) {
+			for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTestsForMethodInvocation) {
+				logger.info("\t Test : " + carvedTest.getFirst().getOrderedMethodInvocations());
+			}
+		}
+
 		return carvedTestsForMethodInvocation;
 	}
 
 	private Pair<ExecutionFlowGraph, DataDependencyGraph> generateSingleTestCaseFromSlice(
 			Set<MethodInvocation> backwardSlice, List<MethodInvocation> dataReturningCalls) {
 
-		System.out.println("\n\n\n Level_0_MethodCarver.generateSingleTestCaseFromSlice() for " + dataReturningCalls
+		logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() for " + dataReturningCalls
 				+ " from backward slice " + backwardSlice);
 
 		// Create a local copy of the backwardSlide. This is the "minimal slice"
@@ -201,23 +210,26 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// Ensure preconditions
 		for (MethodInvocation returnCall : dataReturningCalls) {
 			if (!backwardSlice.contains(returnCall)) {
-				 
-				System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Must Ensure preconditions of " + returnCall);
+
+				logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Must Ensure preconditions of "
+						+ returnCall);
 
 				if (dataDependencyGraph.getOwnerFor(returnCall) != null || //
 						!dataDependencyGraph.getObjectInstancesAsParametersOf(returnCall).isEmpty()) {
 
-					Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPreconditions = level0TestCarving(returnCall, true).get(0);
+					Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPreconditions = level0TestCarving(returnCall,
+							true).get(0);
 					// Here we do not really care about data dep, since the
 					// later
 					// call should include them as well !
-					 System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Preconditions are : " +  carvedPreconditions.getFirst().getOrderedMethodInvocations());
+					logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Preconditions are : "
+							+ carvedPreconditions.getFirst().getOrderedMethodInvocations());
 					// At this point we need to recompute the
 					// dataDependencyGraph to include any deps on preconditions
 					// Which basically consist on carving them ?
 					_backwardSlice.addAll(carvedPreconditions.getFirst().getOrderedMethodInvocations());
 				} else {
-					System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Method " + returnCall
+					logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Method " + returnCall
 							+ " has no preconditions");
 				}
 			}
@@ -231,11 +243,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 			// Filter out the calls that are subsumed by the call graph
 			subsumedCalls.addAll(callGraph.getMethodInvocationsSubsumedBy(mi));
 		}
-		
-		System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Subsumed Calls " + subsumedCalls );
-		
-		// TODO Check if the subsumedCalls contain the 111 in that case, we lose it in spite of the call returning it... ?
-		
+
 		// Delete from the slice all those calls that will be done nevertheless
 		_backwardSlice.removeAll(subsumedCalls);
 		List<MethodInvocation> carvedTestCase = new ArrayList<>(_backwardSlice);
@@ -266,13 +274,11 @@ public class Level_0_MethodCarver implements MethodCarver {
 	 */
 	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carve(MethodInvocationMatcher methodInvocationMatcher) {
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
-		
 
-		for (MethodInvocation methodInvocationUnderTest : executionFlowGraph.getMethodInvocationsFor(methodInvocationMatcher)) {
-			
+		for (MethodInvocation methodInvocationUnderTest : executionFlowGraph
+				.getMethodInvocationsFor(methodInvocationMatcher)) {
 			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestsPetMethodInvocation = new ArrayList<>();
-			System.out.println("\n\n\n");
-			
+
 			carvedTestsPetMethodInvocation.addAll(level0TestCarving(methodInvocationUnderTest, false));
 
 			// Simplify the carved tests: Following the data dependencies we
@@ -283,28 +289,36 @@ public class Level_0_MethodCarver implements MethodCarver {
 			// dependencies unless those are (or contains?) calls to external
 			// libraries.
 			// FIXME Handle external libraries
-			
-			for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTestsPetMethodInvocation) {
-				System.out.println("Level_0_MethodCarver.carve() Carved Test (Before) " + methodInvocationUnderTest + " --> " + carvedTest.getFirst().getOrderedMethodInvocations() );
-			}
-			
+
 			simplify(methodInvocationUnderTest, carvedTestsPetMethodInvocation);
 
-			for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTestsPetMethodInvocation) {
-				System.out.println("Level_0_MethodCarver.carve() Carved Test (After) " + methodInvocationUnderTest + " --> " + carvedTest.getFirst().getOrderedMethodInvocations() );
-			}
-			
 			// Add to big list
-			carvedTests.addAll( carvedTestsPetMethodInvocation );
+			carvedTests.addAll(carvedTestsPetMethodInvocation);
 		}
 
-		return carvedTests;
+		// Here we need to remove the duplicated tests. After simplify they
+		// might end up implementing the same functionalities
+		// HashSet is difficult to ues since graph do not implements proper
+		// hashCode. Better use equals
+		// Set<Pair<ExecutionFlowGraph, DataDependencyGraph>> uniqueCarvedTests
+		// = new HashSet<>(carvedTests);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> uniqueCarvedTests = new ArrayList<>();
+		
+		for( Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests ){
+			if( ! uniqueCarvedTests.contains( carvedTest ) ){
+				uniqueCarvedTests.add( carvedTest );
+			} else {
+				logger.info(" Duplicate carved test found " + carvedTest.getFirst().getOrderedMethodInvocations());
+			}
+		}
+
+		return uniqueCarvedTests;
 	}
 
 	private void simplify(MethodInvocation methodInvocationUnderTest,
 			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests) {
 
-		logger.info("Simplify for " + methodInvocationUnderTest);
+		logger.debug("Simplify for " + methodInvocationUnderTest);
 
 		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
 
@@ -313,7 +327,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 			Set<MethodInvocation> connectedMethodInvocations = carvedTest.getSecond()
 					.getWeaklyConnectedComponentContaining(methodInvocationUnderTest);
 
-			logger.info(" Connected invocations  " + connectedMethodInvocations);
+			logger.trace(" Connected invocations  " + connectedMethodInvocations);
 			// Remove from the execution graph and data dependency graph all the
 			// invocations and object instances that are not connected in any
 			// way to methodInvocation, unless they below (or contain?) calls to

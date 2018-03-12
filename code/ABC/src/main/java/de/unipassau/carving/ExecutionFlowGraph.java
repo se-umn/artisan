@@ -6,7 +6,6 @@ import java.awt.Paint;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -18,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 
+import de.unipassau.utils.GraphUtility;
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
 import edu.uci.ics.jung.graph.Graph;
 import edu.uci.ics.jung.graph.SparseMultigraph;
@@ -30,33 +30,23 @@ public class ExecutionFlowGraph {
 	private final Logger logger = LoggerFactory.getLogger(ExecutionFlowGraph.class);
 
 	private final AtomicInteger id = new AtomicInteger(0);
-	private Graph<MethodInvocation, String> g;
 
+	private Graph<MethodInvocation, String> graph;
 	private MethodInvocation lastMethodInvocation = null;
 	private MethodInvocation firstMethodInvocation = null;
 
-	Collection<String> c;
-	// Why private variables ?!
-	// HashSet<String> hs;
-	HashSet<String> hsForSuccessors;
-	HashSet<String> hsForEnhancement;
-	LinkedList<String> hsForPredecessors;
-	private static AtomicInteger countOfMethod = new AtomicInteger(1);
-
 	public ExecutionFlowGraph() {
-		g = new SparseMultigraph<MethodInvocation, String>();
-		hsForPredecessors = new LinkedList<String>();
-
+		graph = new SparseMultigraph<MethodInvocation, String>();
 	}
 
 	public void enqueueMethodInvocations(MethodInvocation methodInvocation) {
 		// MethodInvocation mi = new MethodInvocation(methodInvocation);
-		if (!g.containsVertex(methodInvocation)) {
-			g.addVertex(methodInvocation);
+		if (!graph.containsVertex(methodInvocation)) {
+			graph.addVertex(methodInvocation);
 		}
 
 		if (lastMethodInvocation != null) {
-			g.addEdge("ExecutionDependency-" + id.getAndIncrement(), lastMethodInvocation, methodInvocation,
+			graph.addEdge("ExecutionDependency-" + id.getAndIncrement(), lastMethodInvocation, methodInvocation,
 					EdgeType.DIRECTED);
 		}
 		lastMethodInvocation = methodInvocation;
@@ -68,22 +58,23 @@ public class ExecutionFlowGraph {
 
 	public void visualize() {
 		VisualizationViewer<MethodInvocation, String> vv = new VisualizationViewer<MethodInvocation, String>(
-				new KKLayout<MethodInvocation, String>(g));
+				new KKLayout<MethodInvocation, String>(graph));
 
 		vv.setPreferredSize(new Dimension(1000, 800));
 		vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller());
-//		vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller() {
-//			@Override
-//			public String apply(Object node) {
-//				if (node instanceof ObjectInstance) {
-//					return ((ObjectInstance) node).getObjectId();
-//				} else if (node instanceof MethodInvocation) {
-//					return ((MethodInvocation) node).getJimpleMethod();
-//				} else {
-//					return super.apply(node);
-//				}
-//			}
-//		});
+		// vv.getRenderContext().setVertexLabelTransformer(new
+		// ToStringLabeller() {
+		// @Override
+		// public String apply(Object node) {
+		// if (node instanceof ObjectInstance) {
+		// return ((ObjectInstance) node).getObjectId();
+		// } else if (node instanceof MethodInvocation) {
+		// return ((MethodInvocation) node).getJimpleMethod();
+		// } else {
+		// return super.apply(node);
+		// }
+		// }
+		// });
 		vv.getRenderContext().setVertexFillPaintTransformer(new Function<GraphNode, Paint>() {
 			@Override
 			public Paint apply(GraphNode node) {
@@ -109,58 +100,8 @@ public class ExecutionFlowGraph {
 
 	}
 
-	// public boolean isPresent(String data) {
-	// if (g.containsVertex(data))
-	// return true;
-	// return false;
-	// }
-
-	// /**
-	// *
-	// * @param nameOfEdge
-	// * @param vertex1
-	// * @param vertex2
-	// */
-	// public void edgeAdd(String nameOfEdge, String vertex1, String vertex2) {
-	//// System.out.println("ExecutionFlowGraph.edgeAdd() " + nameOfEdge + " " +
-	// vertex1 + " " + vertex2 );
-	// g.addEdge(nameOfEdge, vertex1, vertex2, EdgeType.DIRECTED);
-	// ArrayList<String> v = new ArrayList<String>();
-	// v.add(vertex1);
-	// v.add(vertex2);
-	//
-	// }
-
-	// public void printGraph() {
-	// System.out.println("The graph g = " + g.toString());
-	// }
-
-	// TODO No idea what is this for...
-	public Set<String> getParents(MethodInvocation mi) {
-
-		Set<String> hs = new HashSet<String>();
-		System.out.println("The vertex is " + mi.getJimpleMethod());
-
-		if (g.containsVertex(mi)) {
-
-			for (MethodInvocation m : getPredecessors(mi)) {
-				hs.add(m.getJimpleMethod());
-			}
-
-			// for(String each:hs)
-			// {
-			// System.out.println("The predeccessor is " + each);
-			// hsForPredecessors.add(each);
-			// getParents(each);
-			//
-			// }
-
-		}
-		return hs;
-	}
-
 	private Collection<MethodInvocation> getPredecessors(MethodInvocation mi) {
-		Collection<MethodInvocation> predecessors = g.getPredecessors(mi);
+		Collection<MethodInvocation> predecessors = graph.getPredecessors(mi);
 		return (Collection<MethodInvocation>) (predecessors != null ? predecessors : new HashSet<>());
 	}
 
@@ -173,7 +114,7 @@ public class ExecutionFlowGraph {
 	 */
 	public Collection<MethodInvocation> getMethodInvocationsFor(MethodInvocationMatcher methodToBeCarved) {
 		ArrayList<MethodInvocation> matching = new ArrayList<>();
-		for (MethodInvocation mi : g.getVertices()) {
+		for (MethodInvocation mi : graph.getVertices()) {
 			if (methodToBeCarved.match(mi)) {
 				matching.add(mi);
 			}
@@ -234,7 +175,7 @@ public class ExecutionFlowGraph {
 	}
 
 	public Collection<MethodInvocation> getSuccessors(MethodInvocation methodInvocation) {
-		Collection<MethodInvocation> successors = g.getSuccessors(methodInvocation);
+		Collection<MethodInvocation> successors = graph.getSuccessors(methodInvocation);
 		return (Collection<MethodInvocation>) (successors != null ? successors : new HashSet<>());
 	}
 
@@ -251,15 +192,16 @@ public class ExecutionFlowGraph {
 	 * Keep only the invocations that can be found in the provide set
 	 */
 	public void refine(Set<MethodInvocation> connectedMethodInvocations) {
-		
+
 		// VERIFY. Does this graph contains the connectedMethodInvocation
-		if( ! g.getVertices().containsAll( connectedMethodInvocations ) ){
+		if (!graph.getVertices().containsAll(connectedMethodInvocations)) {
 			visualize();
-			throw new RuntimeException(" Connected Method invocations " + connectedMethodInvocations + " are not in the graph ?!" + g);
+			throw new RuntimeException(
+					" Connected Method invocations " + connectedMethodInvocations + " are not in the graph ?!" + graph);
 		}
-		
+
 		Set<MethodInvocation> unconnected = new HashSet<>();
-		for (MethodInvocation node : g.getVertices()) {
+		for (MethodInvocation node : graph.getVertices()) {
 			if (!connectedMethodInvocations.contains(node)) {
 				// NOTE: since we are iterating and removing at the same time,
 				// this might create problems
@@ -302,31 +244,31 @@ public class ExecutionFlowGraph {
 			// TODO first and last element can definitively be computed
 			// afterwards by following the flow relations
 
-			Collection<String> flowEdges = new HashSet<>(g.getInEdges(mi));
-			flowEdges.addAll(g.getOutEdges(mi));
+			Collection<String> flowEdges = new HashSet<>(graph.getInEdges(mi));
+			flowEdges.addAll(graph.getOutEdges(mi));
 
 			for (String flowEdge : flowEdges) {
 				logger.debug("ExecutionFlowGraph.refine() Removing Edge " + flowEdge);
-				g.removeEdge(flowEdge);
+				graph.removeEdge(flowEdge);
 			}
 			// Really its just one
 			for (MethodInvocation predecessor : predecessors) {
 				for (MethodInvocation successor : successors) {
 					int edgeID = id.getAndIncrement();
 					String edgeLabel = "ExecutionDependency-" + edgeID;
-					boolean added = g.addEdge(edgeLabel, predecessor, successor, EdgeType.DIRECTED);
+					boolean added = graph.addEdge(edgeLabel, predecessor, successor, EdgeType.DIRECTED);
 					logger.debug("ExecutionFlowGraph.refine() Introducing replacemente edge "
-							+ g.getEndpoints(edgeLabel) + " added  " + added);
+							+ graph.getEndpoints(edgeLabel) + " added  " + added);
 				}
 			}
 
-			g.removeVertex(mi);
+			graph.removeVertex(mi);
 			logger.debug("ExecutionFlowGraph.refine() Removed " + mi);
 		}
 	}
 
 	public boolean verify() {
-		if (g.getVertices().isEmpty()) {
+		if (graph.getVertices().isEmpty()) {
 			logger.error("ExecutionFlowGraph.verify() Empty nodes !");
 			return false;
 		}
@@ -341,104 +283,42 @@ public class ExecutionFlowGraph {
 		return true;
 	}
 
-	// public void showPredecessors(String data) {
-	// hsForPredecessors.addFirst(data);
-	// for (String s : hsForPredecessors) {
-	// System.out.println("The predeccessor cvxcvxcv is " + s);
-	// }
-	// }
-	//
-	// public void getSuccessors(String data) {
-	// if (verticesExists(data)) {
-	// hsForSuccessors = new HashSet<String>(getSuccessors(data));
-	// for (String each : hsForSuccessors) {
-	//
-	// hsForSuccessors.addAll(getSuccessors(each));
-	//
-	// }
-	// for (String each : hsForSuccessors) {
-	// System.out.println("The successor is " + each);
-	//
-	// }
-	// }
-	//
-	// }
-	//
-	// public void enhanceMethods() {
-	// System.out.println("ExecutionFlowGraph.enhanceMethods()");
-	// hsForEnhancement = new HashSet<String>(g.getVertices());
-	// // vertexAdd("MAIN");
-	// for (String each : hsForEnhancement) {
-	// if (!each.contains("init")) {
-	// if (getPredecessors(each).isEmpty()) {
-	// System.out.println("ExecutionFlowGraph.enhanceMethods() The vertices are
-	// " + each);
-	// g.addEdge("init" + countOfMethod.getAndIncrement(), "MAIN", each,
-	// EdgeType.DIRECTED);
-	// // edgeAdd("init"+countOfMethod.getAndIncrement(), "MAIN",
-	// // each,EdgeType.DIRECTED);
-	// }
-	// } else {
-	// if (getPredecessors(each).isEmpty()) {
-	// // g.addVertex("MAIN");
-	// g.addEdge("main" + countOfMethod.getAndIncrement(), each, "MAIN",
-	// EdgeType.DIRECTED);
-	// }
-	// }
-	//
-	// }
-	//
-	// }
-	//
-	// // public String initVertex(String vertex){
-	// // System.out.println("initVertex "+vertex);
-	// // HashSet<String> vertexSet=new HashSet<String>(g.getVertices());
-	// //
-	// //
-	// //
-	// // if(Graph_Details.hashIdDuplicate.containsKey(vertex)){
-	// // String idOfVertex=Graph_Details.hashIdDuplicate.get(vertex);
-	// // System.out.println("vertex "+idOfVertex);
-	// // for(String each : vertexSet){
-	// // if(each.contains("init")){
-	// // String idOfInit=Graph_Details.hashIdDuplicate.get(each);
-	// // if(idOfVertex.equals(idOfInit))
-	// // return each;
-	// // }
-	// //
-	// // }
-	// // }
-	// // else
-	// // { System.out.println("In else");
-	// // if(Graph_Details.hashIdForSameNameVertices.containsKey(vertex)){
-	// // String idOfVertex=Graph_Details.hashIdForSameNameVertices.get(vertex);
-	// // System.out.println("vertex "+idOfVertex);
-	// // String idInDuplicate=Graph_Details.hashIdDuplicate.get(idOfVertex);
-	// // for(String each : vertexSet){
-	// // if(each.contains("init")){
-	// // String idOfInit=Graph_Details.hashIdDuplicate.get(each);
-	// // if(idInDuplicate.equals(idOfInit))
-	// // return each;
-	// // }
-	// // }
-	// // }
-	// // }
-	// // return vertex;
-	// //
-	// // }
-	// public boolean verticesExists(String vertex) {
-	// if (g.containsVertex(vertex))
-	// return true;
-	// else {
-	// System.out.println("Wrong Vertex " + vertex);
-	// return false;
-	// }
-	// }
-	//
-	// public boolean edgeExists(String vertex1, String vertex2) {
-	// if (g.findEdge(vertex1, vertex2) != null)
-	// return true;
-	// return false;
-	// }
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((firstMethodInvocation == null) ? 0 : firstMethodInvocation.hashCode());
+		result = prime * result + ((graph == null) ? 0 : GraphUtility.getHashCodeFor( getOrderedMethodInvocations() ));
+		result = prime * result + ((lastMethodInvocation == null) ? 0 : lastMethodInvocation.hashCode());
+		return result;
+	}
 
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		ExecutionFlowGraph other = (ExecutionFlowGraph) obj;
+		
+		if (firstMethodInvocation == null) {
+			if (other.firstMethodInvocation != null)
+				return false;
+		} else if (!firstMethodInvocation.equals(other.firstMethodInvocation))
+			return false;
+		//
+		if (lastMethodInvocation == null) {
+			if (other.lastMethodInvocation != null)
+				return false;
+		} else if (!lastMethodInvocation.equals(other.lastMethodInvocation))
+			return false;
+		//
+		return GraphUtility.areExecutionGraphsEqual(graph, other.graph);
+	}
+
+	
+	
+	
 }
