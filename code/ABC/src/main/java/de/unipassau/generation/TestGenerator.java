@@ -108,7 +108,8 @@ public class TestGenerator {
 			// Get the mut, which by definition is the last invocation executed
 			MethodInvocation mut = carvedTest.getFirst().getLastMethodInvocation();
 			
-			System.out.println("TestGenerator.generateTestCases() GENERATE " + carvedTest.getFirst().getOrderedMethodInvocations() );
+			// Somehow this does include the executions we removed ?!
+			logger.debug("TestGenerator.generateTestCases() GENERATE " + carvedTest.getFirst().getOrderedMethodInvocations() );
 			
 			String classUnderTest = JimpleUtils.getClassNameForMethod(mut.getJimpleMethod());
 

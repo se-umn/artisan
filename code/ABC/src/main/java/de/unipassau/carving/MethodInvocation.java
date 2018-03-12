@@ -8,7 +8,11 @@ public class MethodInvocation implements GraphNode {
 	private String jimpleMethod;
 	
 	private int invocationCount;
+	// This is to include comments in the final
 	private int distanceFromMain;
+	
+	// Todo TAG this method invocation as being part of external libraries instead of applications
+	private boolean belongToExternalLibrary;
 	
 	public MethodInvocation(String jimpleMethod, int invocationCount){
 		this.jimpleMethod = jimpleMethod;
