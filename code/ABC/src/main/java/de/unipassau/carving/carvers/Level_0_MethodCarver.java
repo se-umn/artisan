@@ -21,7 +21,9 @@ import de.unipassau.carving.MethodCarver;
 import de.unipassau.carving.MethodInvocation;
 import de.unipassau.carving.MethodInvocationMatcher;
 import de.unipassau.carving.ObjectInstance;
+import de.unipassau.carving.exceptions.NotALevel0TestCaseException;
 import de.unipassau.data.Pair;
+import jas.Method;
 
 public class Level_0_MethodCarver implements MethodCarver {
 
@@ -133,12 +135,18 @@ public class Level_0_MethodCarver implements MethodCarver {
 		}
 
 		if (minimalCarve) {
-			// Generate ONLY the first carved test
-			Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTestFromConstructors = generateSingleTestCaseFromSlice(
-					backwardSlice, constructors);
+			try {
+				// Generate ONLY the first carved test. This raises an
+				// exceptions if the test cannot be created
+				Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTestFromConstructors = generateSingleTestCaseFromSliceFor(
+						methodInvocationToCarve, backwardSlice, constructors);
 
-			carvedTestsForMethodInvocation.add(carvedTestFromConstructors);
-			return carvedTestsForMethodInvocation;
+				carvedTestsForMethodInvocation.add(carvedTestFromConstructors);
+				return carvedTestsForMethodInvocation;
+			} catch (NotALevel0TestCaseException e) {
+				// This should never happen, the basic test shall be there.
+				throw new RuntimeException(e);
+			}
 		}
 
 		// Can this recreate the carvedTestFromConstructors test case ?
@@ -171,7 +179,23 @@ public class Level_0_MethodCarver implements MethodCarver {
 				.cartesianProduct(new ArrayList<>(returningCalls.values()));
 
 		for (List<MethodInvocation> combination : fullCartesianProduct) {
-			carvedTestsForMethodInvocation.add(generateSingleTestCaseFromSlice(backwardSlice, combination));
+			try {
+				carvedTestsForMethodInvocation
+						.add(generateSingleTestCaseFromSliceFor(methodInvocationToCarve, backwardSlice, combination));
+			} catch (NotALevel0TestCaseException e) {
+				// This might happen as consequence of including calls which
+				// subsume methodInvocationToCarve
+				// Note that this might be a call required as precondition by
+				// any of the returning calls which
+				// compose this combination. TODO We can make it more specific
+				// by cross checkig the subsuming calls in callGraph and the one
+				// in the generated test case
+				assert methodInvocationToCarve.equals( e.getSubsumedMethodInvocation() );
+				if( !  methodInvocationToCarve.equals( e.getSubsumedMethodInvocation() ) ){
+					logger.warn(" The subsumed call " + e.getSubsumedMethodInvocation() + " is not the one under carving " + methodInvocationToCarve );
+				}
+				logger.info("Invalid test case for " + e.getSubsumedMethodInvocation() + " which is subsumed by " + e.getSubsumingMethodInvocation() + " via " + e.getSubsumingPath());
+			}
 		}
 
 		if (!minimalCarve) {
@@ -183,8 +207,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 		return carvedTestsForMethodInvocation;
 	}
 
-	private Pair<ExecutionFlowGraph, DataDependencyGraph> generateSingleTestCaseFromSlice(
-			Set<MethodInvocation> backwardSlice, List<MethodInvocation> dataReturningCalls) {
+	private Pair<ExecutionFlowGraph, DataDependencyGraph> generateSingleTestCaseFromSliceFor(
+			MethodInvocation methodInvocationToCarve, Set<MethodInvocation> backwardSlice,
+			List<MethodInvocation> dataReturningCalls) throws NotALevel0TestCaseException {
 
 		logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() for " + dataReturningCalls
 				+ " from backward slice " + backwardSlice);
@@ -240,6 +265,32 @@ public class Level_0_MethodCarver implements MethodCarver {
 		for (MethodInvocation mi : _backwardSlice) {
 			// Filter out the calls that are subsumed by the call graph
 			subsumedCalls.addAll(callGraph.getMethodInvocationsSubsumedBy(mi));
+		}
+
+		/*
+		 * If the subsumed call is also the method under carving, the resulting
+		 * test case cannot be defined as Level_0. So we stop its generation
+		 * directly here. Not that we could simply return null, or something,
+		 * but this way its clear what did happen.
+		 * 
+		 */
+		if (subsumedCalls.contains(methodInvocationToCarve)) {
+			List<MethodInvocation> subsumingCalls = callGraph
+					.getOrderedSubsumingMethodInvocationsFor(methodInvocationToCarve);
+			
+			subsumingCalls.retainAll(_backwardSlice);
+			
+			
+			// This should be only 1
+			assert subsumingCalls.size() == 1;
+			if (subsumingCalls.size() != 1) {
+				logger.warn("Wrong subsumingCalls count " + subsumingCalls.size() + " instead of 1");
+			}
+			MethodInvocation subsumingMethodInvocation = subsumedCalls.iterator().next();
+			List<MethodInvocation> subsumingPath= callGraph
+					.getSubsumingPathFor(subsumingMethodInvocation , methodInvocationToCarve);
+			
+			throw new NotALevel0TestCaseException(methodInvocationToCarve, subsumingMethodInvocation, subsumingPath);
 		}
 
 		// Delete from the slice all those calls that will be done nevertheless
@@ -313,7 +364,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 			if (!uniqueCarvedTests.contains(carvedTest)) {
 				uniqueCarvedTests.add(carvedTest);
 			} else {
-				logger.debug("Found duplicate test" +  carvedTest.getFirst().getOrderedMethodInvocations() );
+				logger.debug("Found duplicate test" + carvedTest.getFirst().getOrderedMethodInvocations());
 			}
 		}
 
