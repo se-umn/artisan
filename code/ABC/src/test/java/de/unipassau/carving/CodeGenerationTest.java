@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -29,6 +30,7 @@ public class CodeGenerationTest {
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
+	@Ignore
 	@Test
 	public void generateTestCasesForEmployeeProject() throws FileNotFoundException, IOException, InterruptedException {
 		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>";
@@ -59,6 +61,7 @@ public class CodeGenerationTest {
 
 	}
 
+	@Ignore
 	@Test
 	public void generateTestCode() throws FileNotFoundException, IOException, InterruptedException {
 		String jimpleMethod = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>";
@@ -77,13 +80,14 @@ public class CodeGenerationTest {
 		File projectJar = new File("./src/test/resources/Employee.jar");
 		TestGenerator testCaseGenerator = new TestGenerator(projectJar.getAbsolutePath());
 		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests);
-		
+
 		assertEquals(1, testCases.size());
 		SootClass testCase = testCases.iterator().next();
-		
-		JimpleUtils.prettyPrint( testCase );
+
+		JimpleUtils.prettyPrint(testCase);
 	}
 
+	@Ignore
 	@Test
 	public void generateTestCodeForEmployeeProject() throws FileNotFoundException, IOException, InterruptedException {
 		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>";
