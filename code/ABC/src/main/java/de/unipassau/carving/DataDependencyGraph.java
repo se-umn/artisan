@@ -177,10 +177,10 @@ public class DataDependencyGraph {
 				if (node instanceof ValueNode) {
 					// TODO Not sure we can skip the visualization at all...
 					return "VALUE NODE";
-//				} else if (node instanceof ObjectInstance) {
-//					return ((ObjectInstance) node).getObjectId();
-//				} else if (node instanceof MethodInvocation) {
-//					return ((MethodInvocation) node).getJimpleMethod();
+					// } else if (node instanceof ObjectInstance) {
+					// return ((ObjectInstance) node).getObjectId();
+					// } else if (node instanceof MethodInvocation) {
+					// return ((MethodInvocation) node).getJimpleMethod();
 				} else {
 					return super.apply(node);
 				}
@@ -213,7 +213,8 @@ public class DataDependencyGraph {
 
 	}
 	// public boolean addEdges(String v1, String v2) {
-	// return graph.addEdge("Edge" + Math.random(), v2, v1, EdgeType.UNDIRECTED);
+	// return graph.addEdge("Edge" + Math.random(), v2, v1,
+	// EdgeType.UNDIRECTED);
 	// }
 
 	public boolean vertexExists(ObjectInstance oi) {
@@ -253,7 +254,7 @@ public class DataDependencyGraph {
 				// Get the calls which are made on this object
 				workList.addAll(getMethodInvocationsForOwner((ObjectInstance) node));
 				// Get the calls which return this object
-				workList.addAll( getMethodInvocationsWhichReturn((ObjectInstance) node));
+				workList.addAll(getMethodInvocationsWhichReturn((ObjectInstance) node));
 			} else if (node instanceof MethodInvocation) {
 				dataDependent.add((MethodInvocation) node);
 				// Add all the preconditions
@@ -267,7 +268,7 @@ public class DataDependencyGraph {
 
 	public Collection<GraphNode> getSuccessors(GraphNode node) {
 		Collection<GraphNode> successors = graph.getSuccessors(node);
-		return (Collection<GraphNode>)( successors != null ? successors : new HashSet<>());
+		return (Collection<GraphNode>) (successors != null ? successors : new HashSet<>());
 	}
 
 	public Set<MethodInvocation> getMethodInvocationsRecheableFrom(MethodInvocation methodInvocation) {
@@ -321,7 +322,7 @@ public class DataDependencyGraph {
 	}
 
 	public Collection<GraphNode> getPredecessors(GraphNode node) {
-		Collection<GraphNode> predecessors= graph.getPredecessors(node); 
+		Collection<GraphNode> predecessors = graph.getPredecessors(node);
 		return (Collection<GraphNode>) (predecessors != null ? predecessors : new HashSet<>());
 	}
 
@@ -410,8 +411,10 @@ public class DataDependencyGraph {
 				dataDependencyCount = dataDependencyCount - 1;
 			}
 
-//			System.out.println("DataDependencyGraph.getParametersFor() " + methodInvocation + " with " + parameterCount
-//					+ " formal parameters and " + (dataDependencyCount) + " actual parameters");
+			// System.out.println("DataDependencyGraph.getParametersFor() " +
+			// methodInvocation + " with " + parameterCount
+			// + " formal parameters and " + (dataDependencyCount) + " actual
+			// parameters");
 
 			if (parameterCount == 0) {
 				return new ArrayList<Value>();
@@ -481,8 +484,8 @@ public class DataDependencyGraph {
 								additionalData.get(((DataNode) graph.getOpposite(methodInvocation, incomingEdge))));
 
 					}
-					subGraph.graph.addEdge(incomingEdge, graph.getOpposite(methodInvocation, incomingEdge), methodInvocation,
-							EdgeType.DIRECTED);
+					subGraph.graph.addEdge(incomingEdge, graph.getOpposite(methodInvocation, incomingEdge),
+							methodInvocation, EdgeType.DIRECTED);
 				}
 			}
 
@@ -495,8 +498,8 @@ public class DataDependencyGraph {
 								additionalData.get((DataNode) graph.getOpposite(methodInvocation, outgoingEdge)));
 					}
 
-					subGraph.graph.addEdge(outgoingEdge, methodInvocation, graph.getOpposite(methodInvocation, outgoingEdge),
-							EdgeType.DIRECTED);
+					subGraph.graph.addEdge(outgoingEdge, methodInvocation,
+							graph.getOpposite(methodInvocation, outgoingEdge), EdgeType.DIRECTED);
 				}
 			}
 		}
@@ -554,7 +557,8 @@ public class DataDependencyGraph {
 		for (String outgoingEdge : graph.getOutEdges(objectInstance)) {
 			if (outgoingEdge.startsWith(OWNERSHIP_DEPENDENCY_PREFIX)) {
 				if (graph.getOpposite(objectInstance, outgoingEdge) instanceof MethodInvocation) {
-					MethodInvocation methodInvocation = (MethodInvocation) graph.getOpposite(objectInstance, outgoingEdge);
+					MethodInvocation methodInvocation = (MethodInvocation) graph.getOpposite(objectInstance,
+							outgoingEdge);
 					if (methodInvocation.getJimpleMethod().contains("<init>")) {
 						return ((MethodInvocation) graph.getOpposite(objectInstance, outgoingEdge));
 					}
@@ -572,7 +576,8 @@ public class DataDependencyGraph {
 			if (incomingEdge.startsWith(RETURN_DEPENDENCY_PREFIX)) {
 				// This should be the only possible case
 				if (graph.getOpposite(objectInstance, incomingEdge) instanceof MethodInvocation) {
-					returningMethodInvocations.add(((MethodInvocation) graph.getOpposite(objectInstance, incomingEdge)));
+					returningMethodInvocations
+							.add(((MethodInvocation) graph.getOpposite(objectInstance, incomingEdge)));
 				}
 			}
 		}
@@ -586,16 +591,32 @@ public class DataDependencyGraph {
 			if (node instanceof MethodInvocation) {
 				MethodInvocation mi = (MethodInvocation) node;
 				if (!connectedMethodInvocations.contains(node)) {
-					// NOTE: since we are iterating and removing at the same time, this might create proble,s
-					unconnected.add( mi );
+					// NOTE: since we are iterating and removing at the same
+					// time, this might create proble,s
+					unconnected.add(mi);
 				}
 			}
 		}
-		//
-		for( MethodInvocation mi : unconnected ){
+		// This remove the node and the corresponding edges
+		for (MethodInvocation mi : unconnected) {
 			logger.trace("DataDependencyGraph.refine() Removing " + mi + " as unconnected ");
-			graph.removeVertex( mi );
+			graph.removeVertex(mi);
 		}
+		// Eventually remove data nodes that are unconnected, i.e., invoke no
+		// methods.
+		Set<DataNode> unconnectedData = new HashSet<>();
+		for (GraphNode node : graph.getVertices()) {
+			if (node instanceof DataNode) {
+				if (graph.getInEdges(node).isEmpty() && graph.getOutEdges(node).isEmpty()) {
+					unconnectedData.add((DataNode) node);
+				}
+			}
+		}
+		for (DataNode dataNode : unconnectedData) {
+			logger.trace("DataDependencyGraph.refine() Removing " + dataNode + " as unconnected ");
+			graph.removeVertex(dataNode);
+		}
+
 	}
 
 	@Override
@@ -603,7 +624,8 @@ public class DataDependencyGraph {
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + ((additionalData == null) ? 0 : additionalData.hashCode());
-		// TODO This is not accurate since graph does not implment propert hash and equals
+		// TODO This is not accurate since graph does not implment propert hash
+		// and equals
 		result = prime * result + ((graph == null) ? 0 : graph.hashCode());
 		return result;
 	}
@@ -622,12 +644,8 @@ public class DataDependencyGraph {
 				return false;
 		} else if (!additionalData.equals(other.additionalData))
 			return false;
-		
+
 		return GraphUtility.areDataDependencyGraphsEqual(graph, other.graph);
 	}
 
-	
-	
-	
-	
 }

@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,7 +22,6 @@ import de.unipassau.carving.MethodInvocation;
 import de.unipassau.carving.MethodInvocationMatcher;
 import de.unipassau.carving.ObjectInstance;
 import de.unipassau.data.Pair;
-import polyglot.ast.Return;
 
 public class Level_0_MethodCarver implements MethodCarver {
 
@@ -303,14 +301,33 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// Set<Pair<ExecutionFlowGraph, DataDependencyGraph>> uniqueCarvedTests
 		// = new HashSet<>(carvedTests);
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> uniqueCarvedTests = new ArrayList<>();
-		
-		for( Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests ){
-			if( ! uniqueCarvedTests.contains( carvedTest ) ){
-				uniqueCarvedTests.add( carvedTest );
+
+		// Here I need to check if there are test cases which have the SAME
+		// jimple calls or equivalent calls not exactly carving the same
+		// invocations !
+		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
+			// This is a simplistic check, it cannot rule out the code which is
+			// generated from different method invocations, which implement the
+			// same functionalities, however is SIMPLE to implement. We check
+			// for equivalence later, at JIMPLE level.
+			if (!uniqueCarvedTests.contains(carvedTest)) {
+				uniqueCarvedTests.add(carvedTest);
 			} else {
-				logger.info(" Duplicate carved test found " + carvedTest.getFirst().getOrderedMethodInvocations());
+				logger.info("Found duplicate test");
 			}
 		}
+
+		// Order by size (in jimple statements)
+		Collections.sort(uniqueCarvedTests, new Comparator<Pair<ExecutionFlowGraph, DataDependencyGraph>>() {
+
+			@Override
+			public int compare(Pair<ExecutionFlowGraph, DataDependencyGraph> o1,
+					Pair<ExecutionFlowGraph, DataDependencyGraph> o2) {
+				return o1.getFirst().getOrderedMethodInvocations().size()
+						- o2.getFirst().getOrderedMethodInvocations().size();
+			}
+
+		});
 
 		return uniqueCarvedTests;
 	}

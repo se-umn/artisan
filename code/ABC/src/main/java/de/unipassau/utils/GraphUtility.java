@@ -4,13 +4,16 @@ import java.util.List;
 
 import com.google.common.hash.HashCode;
 
+import de.unipassau.carving.DataDependencyGraph;
+import de.unipassau.carving.ExecutionFlowGraph;
 import de.unipassau.carving.GraphNode;
 import de.unipassau.carving.MethodInvocation;
 import edu.uci.ics.jung.graph.Graph;
 
 public class GraphUtility {
 
-	public static boolean areDataDependencyGraphsEqual(Graph<GraphNode, String> graph, Graph<GraphNode, String> graph2) {
+	public static boolean areDataDependencyGraphsEqual(Graph<GraphNode, String> graph,
+			Graph<GraphNode, String> graph2) {
 
 		if (graph == null && graph2 == null) {
 			return true;
@@ -28,9 +31,7 @@ public class GraphUtility {
 
 	public static boolean areExecutionGraphsEqual(Graph<MethodInvocation, String> graph,
 			Graph<MethodInvocation, String> graph2) {
-		System.out.println("GraphUtility.areExecutionGraphsEqual() \n"
-				+ "1: " + graph + "\n"
-				+ "2: " + graph2 );
+		System.out.println("GraphUtility.areExecutionGraphsEqual() \n" + "1: " + graph + "\n" + "2: " + graph2);
 		if (graph == null && graph2 == null) {
 			return true;
 		} else if (graph == null && graph2 != null) {
@@ -45,14 +46,39 @@ public class GraphUtility {
 				graph2.getEdges().containsAll(graph.getEdges());
 	}
 
-
 	public static int getHashCodeFor(List<MethodInvocation> orderedMethodInvocation) {
-		System.out.println("GraphUtility.getHashCodeFor() " + orderedMethodInvocation );
+		System.out.println("GraphUtility.getHashCodeFor() " + orderedMethodInvocation);
 		StringBuffer sb = new StringBuffer();
-		for( MethodInvocation mi : orderedMethodInvocation){
+		for (MethodInvocation mi : orderedMethodInvocation) {
 			sb.append(mi.hashCode());
 		}
-		return HashCode.fromString( sb.toString() ).asInt();
+		return HashCode.fromString(sb.toString()).asInt();
+	}
+
+	// The Jimple sequence is the same, but not necessary the ID of the
+	// invocation
+	public static boolean areExecutionGraphsEquivalent(ExecutionFlowGraph first, ExecutionFlowGraph first2) {
+		// They must have the same amount
+		List<MethodInvocation> orderedMethodInvocation = first.getOrderedMethodInvocations();
+		List<MethodInvocation> orderedMethodInvocation2 = first2.getOrderedMethodInvocations();
+
+		if (orderedMethodInvocation.size() != orderedMethodInvocation2.size()) {
+			return false;
+		}
+
+		for (int index = 0; index < orderedMethodInvocation.size(); index++) {
+			if ( ! orderedMethodInvocation.get(index).getJimpleMethod()
+					.equals(orderedMethodInvocation2.get(index).getJimpleMethod())) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	public static boolean areDataDependencyGraphsEquivalent(DataDependencyGraph second, DataDependencyGraph second2) {
+		// TODO This way only exec graph matter
+		return true;
 	}
 
 }

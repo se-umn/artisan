@@ -17,6 +17,7 @@ import de.unipassau.data.Pair;
 import de.unipassau.data.Triplette;
 import de.unipassau.generation.TestCaseFactory;
 import de.unipassau.generation.TestGenerator;
+import de.unipassau.utils.JimpleUtils;
 import soot.SootClass;
 
 // TODO Use some sort of CLI/JewelCLI
@@ -57,7 +58,9 @@ public class Carver {
 			// TODO This can be moved inside CLI parsing using an instance
 			// strategy
 			String[] carveByTokens = result.getCarveBy().split("=");
-			if ("package".equals(carveByTokens[0]) || "class".equals(carveByTokens[0])) {
+			if ("package".equals(carveByTokens[0])) {
+				carveBy = new MethodInvocationMatcher(carveByTokens[1] + ".*");
+			} else if ("class".equals(carveByTokens[0])) {
 				carveBy = new MethodInvocationMatcher(carveByTokens[1]);
 			} else if ("method".equals(carveByTokens[0])) {
 				String jimpleMethod = carveByTokens[1];
@@ -91,15 +94,19 @@ public class Carver {
 		// Verify
 		// VERIFY THAT NO CARVED TEST IS EMPTY !
 		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
-			if (! carvedTest.getFirst().verify() ) {
+			if (!carvedTest.getFirst().verify()) {
 				throw new RuntimeException("Failed verification");
-			} 
+			}
 		}
 
 		System.out.println("Carver.main() Start code generation");
 		// Test Generation
 		TestGenerator testCaseGenerator = new TestGenerator(projectJar.getAbsolutePath());
 		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests);
+
+		for (SootClass testCase : testCases){
+			JimpleUtils.prettyPrint(testCase);
+		}
 
 		if (outputDir == null) {
 			// Use default
