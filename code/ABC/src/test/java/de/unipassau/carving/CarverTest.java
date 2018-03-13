@@ -81,6 +81,32 @@ public class CarverTest {
 			e.printStackTrace();
 			fail("Exception raised");
 		}
+	}
+	
+	@Test
+	@Category(SystemTest.class)
+	public void testCarvingByPackage() throws IOException, InterruptedException {
+		try {
+			Carver carver = new Carver();
+			File outputDirectory = temporaryFolderRule.newFolder();
+			String[] args = new String[] { "--carveBy",
+					"package=org.employee",
+					// String traceFile =
+					"--traceFile", "./src/test/resources/Employee-trace.txt",
+					// String projectJar =
+					"--projectJar", "./src/test/resources/Employee.jar",
+					// String outputDir =
+					"--outputDir", outputDirectory.getAbsolutePath() };
+			//
+			carver.main(args);
+			//
+			assertEquals(2, outputDirectory.listFiles().length);
+
+			ABCTestUtils.printJavaClasses(outputDirectory);
+		} catch (Throwable e) {
+			e.printStackTrace();
+			fail("Exception raised");
+		}
 
 	}
 }
