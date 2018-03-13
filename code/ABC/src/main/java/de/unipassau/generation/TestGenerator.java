@@ -41,8 +41,8 @@ import soot.util.Chain;
 
 public class TestGenerator {
 	// Per Method
-//	private static final AtomicInteger localId = new AtomicInteger(0);
-	
+	// private static final AtomicInteger localId = new AtomicInteger(0);
+
 	private static final Logger logger = LoggerFactory.getLogger(TestGenerator.class);
 
 	// Point to jar of target project. This is the original code, not the
@@ -62,7 +62,7 @@ public class TestGenerator {
 
 		ArrayList<String> necessaryJar = new ArrayList<String>();
 		necessaryJar.add(this.projectLib);
-		// This might be needed for the EVALUATION and Level+1 Carved tests 
+		// This might be needed for the EVALUATION and Level+1 Carved tests
 		// necessaryJar.add("./src/main/resources/Assertion.jar");
 
 		/*
@@ -86,7 +86,9 @@ public class TestGenerator {
 	 * 
 	 * We generate one test class for each CUT and one test for each MUT
 	 * 
-	 * TODO If we reset the count for the local, HERE we can easily find duplicate test cases...
+	 * TODO If we reset the count for the local, HERE we can easily find
+	 * duplicate test cases...
+	 * 
 	 * @param carvedTests
 	 * @return
 	 * @throws IOException
@@ -107,10 +109,10 @@ public class TestGenerator {
 
 			// Get the mut, which by definition is the last invocation executed
 			MethodInvocation mut = carvedTest.getFirst().getLastMethodInvocation();
-			
+
 			// Somehow this does include the executions we removed ?!
-			logger.info("Generate Test: " + mut );
-			
+			logger.info("Generate Test: " + mut);
+
 			String classUnderTest = JimpleUtils.getClassNameForMethod(mut.getJimpleMethod());
 
 			// TODO Not sure this works !
@@ -148,7 +150,7 @@ public class TestGenerator {
 
 		SootMethod testMethod = new SootMethod(testMethodName, Collections.<Type>emptyList(), VoidType.v(),
 				Modifier.PUBLIC);
-		
+
 		SootClass e = Scene.v().loadClassAndSupport("java.lang.Exception");
 		testMethod.addExceptionIfAbsent(e);
 
@@ -161,23 +163,27 @@ public class TestGenerator {
 
 		// Keep track of local per type per method
 		Map<String, AtomicInteger> localMap = new HashMap<>();
-		
+
 		// Generate the Local Variables for the Method
 		for (ObjectInstance node : dataDependencyGraph.getObjectInstances()) {
 			String type = node.getType();
 
-			if( ! localMap.containsKey(type)){
-				localMap.put( type,  new AtomicInteger(0));
+			if (!localMap.containsKey(type)) {
+				localMap.put(type, new AtomicInteger(0));
 			}
-			int localId = localMap.get( type ).getAndIncrement();
+			int localId = localMap.get(type).getAndIncrement();
 			
-			Local localVariable = Jimple.v().newLocal("local" + localId, RefType.v(type));
+			String localName = RefType.v(type).getClassName();
+			localName = localName.substring(localName.lastIndexOf('.') + 1);
+			// Apply code conventions
+			localName = localName.replaceFirst( localName.substring(0, 1), localName.substring(0, 1).toLowerCase());
+			//
+			Local localVariable = Jimple.v().newLocal(localName + localId, RefType.v(type));
 			body.getLocals().add(localVariable);
 
 			// Debug
-			// logger.info("Create a new local variable " + localVariable + " of
-			// type " + type + " and node " + node + " "
-			// + node.hashCode());
+			logger.info("  >>>> Create a new local variable " + localVariable + " of type " + type + " and node " + node + " "
+					+ node.hashCode());
 			//
 			dataDependencyGraph.setValueFor(node, localVariable);
 		}
@@ -209,11 +215,11 @@ public class TestGenerator {
 		// if (index != 1)
 		// addNewAssertionToJunit4TestCase(testClass, localVariables,
 		// testStatements, s, testMethodName, times, index);
-		
-		
-		// TODO Method naming might be fixed using tentativeMethod ID vs actual method id
+
+		// TODO Method naming might be fixed using tentativeMethod ID vs actual
+		// method id
 		// Check if there's an equivalent method in the class already:
-		if( ! JimpleUtils.classContainsEquivalentMethod( testClass, testMethod ) ){
+		if (!JimpleUtils.classContainsEquivalentMethod(testClass, testMethod)) {
 			// Associate the method with the class (i.e., reference to this).
 			// Required since the method is not static
 			testClass.addMethod(testMethod);
@@ -222,8 +228,6 @@ public class TestGenerator {
 		} else {
 			logger.debug("Found duplicate method " + testMethodName);
 		}
-		
-		
 
 	}
 

@@ -33,9 +33,12 @@ public class MethodInvocationMatcher {
 	private final Pattern returnPattern;
 	private final Pattern methodPattern;
 	private final Pattern[] parameterPatterns;
+	//
+	private int invocationID;
 
-	public MethodInvocationMatcher(String classRegEx, String returnRegEx, String methodNameRegEx,
-			String... parameterRegExs) {
+	// Avoid this to be called from outside
+	protected MethodInvocationMatcher(String classRegEx, String returnRegEx, String methodNameRegEx,
+			String[] parameterRegExs, int invocationID) {
 		classPattern = Pattern.compile(classRegEx);
 		returnPattern = returnRegEx != null ? Pattern.compile(returnRegEx) : null;
 		methodPattern = methodNameRegEx != null ? Pattern.compile(methodNameRegEx) : null;
@@ -49,12 +52,16 @@ public class MethodInvocationMatcher {
 		} else {
 			parameterPatterns = new Pattern[]{};
 		}
+		this.invocationID = invocationID;
 	}
 
-	
+	public MethodInvocationMatcher(String classRegEx, String returnRegEx, String methodNameRegEx,
+			String... parameterRegExs) {
+		this(classRegEx, returnRegEx, methodNameRegEx, parameterRegExs, -1);
+	}
 	// Probably better to use a Builder pattern here...
 	public MethodInvocationMatcher(String classRegEx) {
-		this(classRegEx, null, null);
+		this(classRegEx, null, null, null, -1);
 	}
 
 	// TODO This might be simplified by merging together the varoius regex
@@ -105,6 +112,12 @@ public class MethodInvocationMatcher {
 			}
 		}
 
+		if( invocationID != -1 ){
+			if( methodInvocation.getInvocationCount() != this.invocationID ){
+				logger.trace( methodInvocation + " does not match invocationCount for " + this.invocationID);
+				return false;
+			}
+		}
 		return true;
 	}
 
@@ -114,5 +127,16 @@ public class MethodInvocationMatcher {
 				JimpleUtils.getReturnType(jimpleMethod), //
 				JimpleUtils.getMethodName(jimpleMethod), //
 				JimpleUtils.getParameterList(jimpleMethod));
+	}
+
+
+	public static MethodInvocationMatcher fromMethodInvocation(MethodInvocation methodInvocation) {
+		String jimpleMethod = methodInvocation.getJimpleMethod();
+		return new MethodInvocationMatcher(//
+				JimpleUtils.getClassNameForMethod(jimpleMethod), //
+				JimpleUtils.getReturnType(jimpleMethod), //
+				JimpleUtils.getMethodName(jimpleMethod), //
+				JimpleUtils.getParameterList(jimpleMethod), 
+				methodInvocation.getInvocationCount());
 	}
 }

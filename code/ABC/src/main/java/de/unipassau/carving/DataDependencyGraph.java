@@ -337,8 +337,13 @@ public class DataDependencyGraph {
 		return objectInstances;
 	}
 
-	// Return the local corresponding to the owner of this invocation
+	// Return the local corresponding to the owner of this invocation unless
+	// this invocation is static
 	public Local getObjectLocalFor(MethodInvocation methodInvocation) {
+		if (methodInvocation.isStatic()) {
+			return null;
+		}
+
 		for (GraphNode node : graph.getVertices()) {
 			if (node instanceof DataNode) {
 				continue;
@@ -347,7 +352,7 @@ public class DataDependencyGraph {
 					Set<String> dataDependencyEdges = new HashSet<String>(graph.getInEdges(node));
 					for (String edge : dataDependencyEdges) {
 						if (edge.startsWith(OWNERSHIP_DEPENDENCY_PREFIX)) {
-							graph.getIncidentVertices(edge);
+							// graph.getIncidentVertices(edge);
 							return (Local) getValueFor((ObjectInstance) graph.getOpposite(node, edge));
 						}
 					}
@@ -362,6 +367,11 @@ public class DataDependencyGraph {
 		return null;
 	}
 
+	/*
+	 * If the return type is a Primitive or an Object which is not used in the
+	 * then this does not find it, because we did not tracked it !
+	 * 
+	 */
 	public Local getReturnObjectLocalFor(MethodInvocation methodInvocation) {
 		if (JimpleUtils.hasVoidReturnType(methodInvocation.getJimpleMethod())) {
 			return null;
@@ -394,8 +404,8 @@ public class DataDependencyGraph {
 			}
 
 		}
-		// Can this be a null value ?
-		logger.warn("Cannot find ObjectLocal for " + methodInvocation.getJimpleMethod());
+		// Can this be a null value, it's a value that we did not tracked (from invokeStmts that do not have an assignment) 
+		logger.info("Cannot find ReturnObjectLocalFor for " + methodInvocation.getJimpleMethod());
 		return null;
 	}
 

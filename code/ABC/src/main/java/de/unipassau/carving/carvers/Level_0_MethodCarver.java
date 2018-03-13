@@ -268,10 +268,10 @@ public class Level_0_MethodCarver implements MethodCarver {
 			// Filter out the calls that are subsumed by the call graph
 
 			Set<MethodInvocation> subsumedBy = callGraph.getMethodInvocationsSubsumedBy(mi);
-			if (subsumedBy.contains(methodInvocationToCarve)) {
-				System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSliceFor() FOUND "
-						+ methodInvocationToCarve + " inside subsumed set by " + mi);
-			}
+//			if (subsumedBy.contains(methodInvocationToCarve)) {
+//				System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSliceFor() FOUND "
+//						+ methodInvocationToCarve + " inside subsumed set by " + mi);
+//			}
 
 			subsumedCalls.addAll(subsumedBy);
 		}
@@ -290,8 +290,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 			List<MethodInvocation> subsumingCalls = callGraph
 					.getOrderedSubsumingMethodInvocationsFor(methodInvocationToCarve);
 
-			System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSliceFor()subsumingCalls for "
+			logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSliceFor() SubsumingCalls for "
 					+ methodInvocationToCarve + " --> " + subsumingCalls);
+			
 			subsumingCalls.retainAll(_backwardSlice);
 
 			// This should be only 1
