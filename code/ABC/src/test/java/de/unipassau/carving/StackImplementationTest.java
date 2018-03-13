@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Hashtable;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -27,8 +28,9 @@ public class StackImplementationTest {
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevel = new Slf4jSimpleLoggerRule(Level.TRACE);
 
+	@Ignore
 	@Test
-	public void testTraceParseWithRealTrace() throws FileNotFoundException, IOException{
+	public void testTraceParseWithRealTrace() throws FileNotFoundException, IOException {
 		File traceFile = new File("./src/test/resources/trace.txt");
 		// StackImplementation stackImplementation = new StackImplementation();
 		StackImplementation stackImplementation = new StackImplementation();
@@ -37,7 +39,8 @@ public class StackImplementationTest {
 
 		fail("Not implemented! ");
 	}
-	
+
+	@Ignore
 	@Test
 	public void testTraceParserWithFormalParameters() throws IOException {
 		// Trace file
@@ -63,10 +66,11 @@ public class StackImplementationTest {
 		hashParams.put(
 				"<jpass.util.Configuration: java.lang.Object getValue(java.lang.String,java.lang.Object,java.lang.Class)>",
 				"system.look.and.feel.enabled,true,class java.lang.Boolean");
-		
+
 		fail("Not implemented! ");
 	}
 
+	@Ignore
 	@Test
 	public void testTraceParser() throws IOException {
 		// Trace file
@@ -93,6 +97,7 @@ public class StackImplementationTest {
 		fail("Not implemented! ");
 	}
 
+	@Ignore
 	@Test
 	public void testTraceParserWithMultilineStringsInObjectToken() throws IOException {
 		// Trace file
@@ -110,19 +115,18 @@ public class StackImplementationTest {
 
 		}
 
-//		StackImplementation stackImplementation = new StackImplementation();
+		// StackImplementation stackImplementation = new StackImplementation();
 		StackImplementation stackImplementation = new StackImplementation();
 
 		// Parsing
 		stackImplementation.parseTraceFile(traceFile.getAbsolutePath());
 
-		Hashtable<String, String> hashId= new Hashtable<String, String>();
-		hashId.put(
-				"<jpass.ui.action.TextComponentActionType: java.lang.String getName()>",
-				"SELECT_ALL\n\nB\n");
+		Hashtable<String, String> hashId = new Hashtable<String, String>();
+		hashId.put("<jpass.ui.action.TextComponentActionType: java.lang.String getName()>", "SELECT_ALL\n\nB\n");
 		fail("Not implemented! ");
 	}
 
+	@Ignore
 	@Test
 	public void testTraceParserWithMultilineStringsInParameter() throws IOException {
 		// Trace file
@@ -139,7 +143,7 @@ public class StackImplementationTest {
 
 		}
 
-//		StackImplementation stackImplementation = new StackImplementation();
+		// StackImplementation stackImplementation = new StackImplementation();
 		StackImplementation stackImplementation = new StackImplementation();
 
 		// Parsing

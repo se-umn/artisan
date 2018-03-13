@@ -12,6 +12,7 @@ import java.io.PrintStream;
 import java.util.Collection;
 import java.util.List;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -34,6 +35,7 @@ public class CarvingTest {
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
 
+	@Ignore
 	@Test
 	public void testFileTransformer() throws FileNotFoundException, IOException {
 		System.setProperty("debug", "true");
@@ -46,6 +48,7 @@ public class CarvingTest {
 		fail("Not implemented! ");
 	}
 
+	@Ignore
 	@Test
 	public void testCarveStaticMethod() throws FileNotFoundException, IOException, InterruptedException {
 		// StaticInvokeExpr;
@@ -80,6 +83,7 @@ public class CarvingTest {
 		}
 	}
 
+	@Ignore
 	@Test
 	public void testCarveMethodWhichDependsOnFactoryStaticMethod()
 			throws FileNotFoundException, IOException, InterruptedException {
@@ -129,6 +133,7 @@ public class CarvingTest {
 		}
 	}
 
+	@Ignore
 	@Test
 	public void testCarveMethodWithDependencies() throws FileNotFoundException, IOException {
 		// System.setProperty("debug", "true");
@@ -144,6 +149,7 @@ public class CarvingTest {
 
 	}
 
+	@Ignore
 	@Test
 	public void testCallGraphGeneration() throws FileNotFoundException, IOException {
 		System.setProperty("debug", "true");
@@ -192,6 +198,7 @@ public class CarvingTest {
 
 	}
 
+	@Ignore
 	@Test
 	public void testExecutionGraphGeneration() throws FileNotFoundException, IOException {
 		System.setProperty("debug", "true");
@@ -215,6 +222,7 @@ public class CarvingTest {
 
 	}
 
+	@Ignore
 	@Test
 	public void testDependencyGraphGeneration() throws FileNotFoundException, IOException {
 		// Parse trace and fill up Graph_Details.
@@ -256,6 +264,7 @@ public class CarvingTest {
 
 	}
 
+	@Ignore
 	@Test
 	public void testCarvingShort() throws IOException {
 		// Parse trace and fill up Graph_Details.
@@ -306,6 +315,7 @@ public class CarvingTest {
 		fail("Not implemented! ");
 	}
 
+	@Ignore
 	@Test
 	public void testCarving() throws FileNotFoundException, IOException {
 		//
@@ -328,6 +338,7 @@ public class CarvingTest {
 		fail("Not implemented! ");
 	}
 
+	@Ignore
 	@Test
 	public void testCarvingMethodWithDependencey() throws FileNotFoundException, IOException {
 		//
