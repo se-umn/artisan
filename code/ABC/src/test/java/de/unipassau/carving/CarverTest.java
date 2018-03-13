@@ -1,6 +1,7 @@
 package de.unipassau.carving;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,6 +38,33 @@ public class CarverTest {
 			File outputDirectory = temporaryFolderRule.newFolder();
 			String[] args = new String[] { "--carveBy",
 					"method=<org.employee.Validation: int numberValidation(java.lang.String)>",
+					// String traceFile =
+					"--traceFile", "./src/test/resources/Employee-trace.txt",
+					// String projectJar =
+					"--projectJar", "./src/test/resources/Employee.jar",
+					// String outputDir =
+					"--outputDir", outputDirectory.getAbsolutePath() };
+			//
+			carver.main(args);
+			//
+			assertEquals(2, outputDirectory.listFiles().length);
+
+			ABCTestUtils.printJavaClasses(outputDirectory);
+		} catch (Throwable e) {
+			e.printStackTrace();
+			fail("Exception raised");
+		}
+
+	}
+
+	@Test
+	@Category(SystemTest.class)
+	public void testCarvingByClass() throws IOException, InterruptedException {
+		try {
+			Carver carver = new Carver();
+			File outputDirectory = temporaryFolderRule.newFolder();
+			String[] args = new String[] { "--carveBy",
+					"class=org.employee.Validation",
 					// String traceFile =
 					"--traceFile", "./src/test/resources/Employee-trace.txt",
 					// String projectJar =

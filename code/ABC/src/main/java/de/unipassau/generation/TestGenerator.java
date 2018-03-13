@@ -128,63 +128,8 @@ public class TestGenerator {
 			generateAndAddTestMethodToTestClass(testClass, carvedTest);
 		}
 
-		// // THIS IS ONLY FOR DEBUG
-		// for (SootClass testClass : testClasses.values()) {
-		// generateMainMethod(testClass);
-		// }
-
 		return testClasses.values();
 	}
-
-//	private void generateMainMethod(SootClass testClass) {
-//		SootMethod method = new SootMethod("main",
-//				Arrays.asList(new Type[] { ArrayType.v(RefType.v("java.lang.String"), 1) }), VoidType.v(),
-//				Modifier.PUBLIC | Modifier.STATIC);
-//
-//		testClass.addMethod(method);
-//		// Create the method body
-//		{
-//			// create empty body
-//			JimpleBody body = Jimple.v().newBody(method);
-//
-//			body.insertIdentityStmts();
-//
-//			method.setActiveBody(body);
-//
-//			Chain units = body.getUnits();
-//			Local arg, tmpRef;
-//
-//			// Add some locals, java.lang.String l0
-//			// arg = Jimple.v().newLocal("l0",
-//			// ArrayType.v(RefType.v("java.lang.String"), 1));
-//			// body.getLocals().add(arg);
-//
-//			// Add locals, java.io.printStream tmpRef
-//			tmpRef = Jimple.v().newLocal("tmpRef", RefType.v("java.io.PrintStream"));
-//			body.getLocals().add(tmpRef);
-//
-//			// add "l0 = @parameter0"
-//			// units.add(Jimple.v().newIdentityStmt(arg,
-//			// Jimple.v().newParameterRef(ArrayType.v(RefType.v("java.lang.String"),
-//			// 1), 0)));
-//
-//			// add "tmpRef = java.lang.System.out"
-//			units.add(Jimple.v().newAssignStmt(tmpRef, Jimple.v()
-//					.newStaticFieldRef(Scene.v().getField("<java.lang.System: java.io.PrintStream out>").makeRef())));
-//
-//			// insert "tmpRef.println("Hello world!")"
-//			{
-//				SootMethod toCall = Scene.v().getMethod("<java.io.PrintStream: void println(java.lang.String)>");
-//				units.add(Jimple.v().newInvokeStmt(
-//						Jimple.v().newVirtualInvokeExpr(tmpRef, toCall.makeRef(), StringConstant.v("Hello world!"))));
-//			}
-//
-//			// insert "return"
-//			units.add(Jimple.v().newReturnVoidStmt());
-//
-//		}
-//
-//	}
 
 	// THIS IS MOSTLY TAKEN FROM TEST CASE FACTORY
 	// REFACTOR !!
@@ -205,24 +150,18 @@ public class TestGenerator {
 		String testMethodName = "test_" + generatedTestCases.incrementAndGet();
 		logger.debug("Generating test method " + testMethodName + " for class " + testClass.getName());
 
-		SootMethod method = new SootMethod(testMethodName, Collections.<Type>emptyList(), VoidType.v(),
+		SootMethod testMethod = new SootMethod(testMethodName, Collections.<Type>emptyList(), VoidType.v(),
 				Modifier.PUBLIC);
-		testClass.addMethod(method);
-
+		
 		SootClass e = Scene.v().loadClassAndSupport("java.lang.Exception");
-		method.addExceptionIfAbsent(e);
+		testMethod.addExceptionIfAbsent(e);
 
 		// Annotate the method with org.junit.Test
-		AnnotationGenerator.v().annotate(method, org.junit.Test.class);
+		AnnotationGenerator.v().annotate(testMethod, org.junit.Test.class);
 
 		// Build the body from the input list of statements
-		JimpleBody body = Jimple.v().newBody(method);
-		method.setActiveBody(body);
-		// Associate the method with the class (i.e., reference to this).
-		// Required since the method is not static
-
-		// This identifies static methods
-		body.insertIdentityStmts();
+		JimpleBody body = Jimple.v().newBody(testMethod);
+		testMethod.setActiveBody(body);
 
 		// Keep track of local per type per method
 		Map<String, AtomicInteger> localMap = new HashMap<>();
@@ -273,6 +212,20 @@ public class TestGenerator {
 		// if (index != 1)
 		// addNewAssertionToJunit4TestCase(testClass, localVariables,
 		// testStatements, s, testMethodName, times, index);
+		
+		
+		// Check if there's an equivalent method in the class already:
+		if( ! JimpleUtils.classContainsEquivalentMethod( testClass, testMethod ) ){
+			// Associate the method with the class (i.e., reference to this).
+			// Required since the method is not static
+			testClass.addMethod(testMethod);
+			// This identifies static methods
+			body.insertIdentityStmts();
+		} else {
+			logger.info("Found duplicate method " + testMethodName);
+		}
+		
+		
 
 	}
 
