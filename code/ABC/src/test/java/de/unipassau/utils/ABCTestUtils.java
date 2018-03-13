@@ -23,6 +23,8 @@ public class ABCTestUtils {
 	};
 	
 	public static void printJavaClasses(File outputDir) throws IOException {
+		System.out.println("PRINTING CONTENT OF FILE " + outputDir );
+		System.out.println("========================================");
 		for (File javaFile : outputDir.listFiles(javaFileNameFilter)) {
 			System.out.println("File: " + javaFile.getAbsolutePath());
 			for (String line : Files.readAllLines(javaFile.toPath(), Charset.defaultCharset())) {

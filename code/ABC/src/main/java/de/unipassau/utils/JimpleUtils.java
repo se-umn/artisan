@@ -92,16 +92,13 @@ public class JimpleUtils {
 	 */
 	public static boolean classContainsEquivalentMethod(SootClass testClass, SootMethod testMethod) {
 		String fakeIdentityStmts = String.format("this := @this: %s", testClass.getName());
+		// Patch: add the "this := @this: <ClassName>" entry
 		final String testMethodBody = fakeIdentityStmts + "\n" + prettyPrint(testMethod.getActiveBody());
-		// Patch: add the this := @this: <ClassName> entry
 		
-		System.out.println("JimpleUtils.classContainsEquivalentMethod() This:\n" + testMethodBody);
 		for (SootMethod method : testClass.getMethods()) {
 			String methoBody = prettyPrint(method.getActiveBody());
 			if (testMethodBody.equals(methoBody)) {
 				return true;
-			} else {
-				System.out.println("JimpleUtils.classContainsEquivalentMethod() is not equals to : \n" + methoBody);
 			}
 		}
 		return false;

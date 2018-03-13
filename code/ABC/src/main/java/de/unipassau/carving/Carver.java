@@ -104,9 +104,10 @@ public class Carver {
 		TestGenerator testCaseGenerator = new TestGenerator(projectJar.getAbsolutePath());
 		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests);
 
-		for (SootClass testCase : testCases){
-			JimpleUtils.prettyPrint(testCase);
-		}
+		// FOR VISUAL DEBUG
+		// for (SootClass testCase : testCases){
+		// JimpleUtils.prettyPrint(testCase);
+		// }
 
 		if (outputDir == null) {
 			// Use default

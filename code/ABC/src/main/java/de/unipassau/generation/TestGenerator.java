@@ -105,15 +105,11 @@ public class TestGenerator {
 
 		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
 
-//			System.out.println("TestGenerator.generateTestCases()");
-//			System.out.println( carvedTest.getFirst().getOrderedMethodInvocations() );
-//			System.out.println( carvedTest.getSecond() );
-			
 			// Get the mut, which by definition is the last invocation executed
 			MethodInvocation mut = carvedTest.getFirst().getLastMethodInvocation();
 			
 			// Somehow this does include the executions we removed ?!
-			logger.info("TestGenerator.generateTestCases() Generate test case " + mut );
+			logger.info("Generate Test: " + mut );
 			
 			String classUnderTest = JimpleUtils.getClassNameForMethod(mut.getJimpleMethod());
 
@@ -179,8 +175,9 @@ public class TestGenerator {
 			body.getLocals().add(localVariable);
 
 			// Debug
-			logger.info("Create a new local variable " + localVariable + " of type " + type + " and node " + node + " "
-					+ node.hashCode());
+			// logger.info("Create a new local variable " + localVariable + " of
+			// type " + type + " and node " + node + " "
+			// + node.hashCode());
 			//
 			dataDependencyGraph.setValueFor(node, localVariable);
 		}
@@ -214,6 +211,7 @@ public class TestGenerator {
 		// testStatements, s, testMethodName, times, index);
 		
 		
+		// TODO Method naming might be fixed using tentativeMethod ID vs actual method id
 		// Check if there's an equivalent method in the class already:
 		if( ! JimpleUtils.classContainsEquivalentMethod( testClass, testMethod ) ){
 			// Associate the method with the class (i.e., reference to this).
@@ -222,7 +220,7 @@ public class TestGenerator {
 			// This identifies static methods
 			body.insertIdentityStmts();
 		} else {
-			logger.info("Found duplicate method " + testMethodName);
+			logger.debug("Found duplicate method " + testMethodName);
 		}
 		
 		

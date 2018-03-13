@@ -313,7 +313,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 			if (!uniqueCarvedTests.contains(carvedTest)) {
 				uniqueCarvedTests.add(carvedTest);
 			} else {
-				logger.info("Found duplicate test");
+				logger.debug("Found duplicate test" +  carvedTest.getFirst().getOrderedMethodInvocations() );
 			}
 		}
 

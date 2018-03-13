@@ -288,7 +288,7 @@ public class ExecutionFlowGraph {
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + ((firstMethodInvocation == null) ? 0 : firstMethodInvocation.hashCode());
-		result = prime * result + ((graph == null) ? 0 : GraphUtility.getHashCodeFor( getOrderedMethodInvocations() ));
+		result = prime * result + ((graph == null) ? 0 : graph.hashCode());
 		result = prime * result + ((lastMethodInvocation == null) ? 0 : lastMethodInvocation.hashCode());
 		return result;
 	}
@@ -302,7 +302,7 @@ public class ExecutionFlowGraph {
 		if (getClass() != obj.getClass())
 			return false;
 		ExecutionFlowGraph other = (ExecutionFlowGraph) obj;
-		
+
 		if (firstMethodInvocation == null) {
 			if (other.firstMethodInvocation != null)
 				return false;
@@ -318,7 +318,4 @@ public class ExecutionFlowGraph {
 		return GraphUtility.areExecutionGraphsEqual(graph, other.graph);
 	}
 
-	
-	
-	
 }
