@@ -130,8 +130,10 @@ public class CarverTest {
 					"--outputDir", outputDirectory.getAbsolutePath() };
 			//
 			carver.main(args);
-			//
-			assertEquals(2, outputDirectory.listFiles().length);
+			// TODO This can be derived by grepping, sorting, and filtering in the trace.
+			// CLASSES IN PACKAGE : cat src/test/resources/Employee-trace.txt | grep "<org.employee." | grep "\[>\]" | tr ";" " " | awk '{print $3}' | sort | uniq | wc -l
+			// 2 * CLASSES IN PACKAGE 
+			assertEquals(12, outputDirectory.listFiles().length);
 
 			ABCTestUtils.printJavaClasses(outputDirectory);
 		} catch (Throwable e) {
