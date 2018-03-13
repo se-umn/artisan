@@ -38,8 +38,6 @@ public class CarvingTest {
 	public void testFileTransformer() throws FileNotFoundException, IOException {
 		System.setProperty("debug", "true");
 
-		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String)>";
-
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
 		StackImplementation stackImplementation = new StackImplementation();
 
@@ -51,7 +49,9 @@ public class CarvingTest {
 	@Test
 	public void testCarveStaticMethod() throws FileNotFoundException, IOException, InterruptedException {
 		// StaticInvokeExpr;
-		String staticMethodToCarve = "<org.employee.DummyObjectFactory: org.employee.DummyObjectToPassAsParameter createNewDummyObject()>";
+		MethodInvocationMatcher staticMethodToCarve = MethodInvocationMatcher.fromJimpleMethod(
+				"<org.employee.DummyObjectFactory: org.employee.DummyObjectToPassAsParameter createNewDummyObject()>");
+
 		File traceFile = new File("./src/test/resources/Employee-trace-with-static.txt");
 		StackImplementation stackImplementation = new StackImplementation();
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
@@ -84,7 +84,9 @@ public class CarvingTest {
 	public void testCarveMethodWhichDependsOnFactoryStaticMethod()
 			throws FileNotFoundException, IOException, InterruptedException {
 		// This method gets a dummy object which is created via static factory
-		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>";
+		MethodInvocationMatcher methodToCarve = MethodInvocationMatcher.fromJimpleMethod(
+				"<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>");
+		//
 		File traceFile = new File("./src/test/resources/Employee-trace-with-static.txt");
 		StackImplementation stackImplementation = new StackImplementation();
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation

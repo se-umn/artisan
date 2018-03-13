@@ -8,8 +8,8 @@ public interface MethodCarver {
 
 	/**
 	 * methodRegExp follows Jimple format with 
-	 * @param methodRegExp
+	 * @param methodInvocationMatcher
 	 * @return
 	 */
-	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carve(String methodRegExp);
+	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carve(MethodInvocationMatcher methodInvocationMatcher);
 }

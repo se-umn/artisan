@@ -49,9 +49,10 @@ public class TestCaseFactory {
 
 		for (SootClass testClass : testClasses) {
 
-			logger.info("Generating Test Class :::: " + testClass.getName());
+			logger.info("TestCaseFactory.generateTestFiles() " + testClass.getName());
 
-			// Since we set the Soot set_output_dir, the following returns exactly the class file we
+			// Since we set the Soot set_output_dir, the following returns
+			// exactly the class file we
 			// need
 			String classFileName = SourceLocator.v().getFileNameFor(testClass, Options.output_format_class);
 			// Generate a the .class File from jimple

@@ -2,6 +2,7 @@
 
 if [ ! -d ./sootOutput ]; then
 	(>&2 echo "Instrumented Files are not available !")
+	exit 1
 fi
 
 rm employee-system-test.log

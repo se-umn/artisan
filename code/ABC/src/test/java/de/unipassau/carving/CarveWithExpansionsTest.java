@@ -21,9 +21,11 @@ import de.unipassau.data.Pair;
 import de.unipassau.data.Triplette;
 import de.unipassau.generation.TestCaseFactory;
 import de.unipassau.generation.TestGenerator;
+import de.unipassau.utils.ABCTestUtils;
 import de.unipassau.utils.JimpleUtils;
 import de.unipassau.utils.Slf4jSimpleLoggerRule;
 import soot.SootClass;
+import soot.coffi.method_info;
 
 public class CarveWithExpansionsTest {
 
@@ -33,9 +35,8 @@ public class CarveWithExpansionsTest {
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLeverRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
 	
-	// This method is commonly invoked as last in any system test on the created
-	// DummyInstance
-	private final String methodToCarve = "<de.unipassau.testsubject.DummyObject: void end()>";
+	private final String methodToCarveString = "<de.unipassau.testsubject.DummyObject: void end()>";
+	private final MethodInvocationMatcher methodToCarveMatcher = MethodInvocationMatcher.fromJimpleMethod( methodToCarveString );
 
 	@Test
 	public void testExpansionWithSimpleStatic() throws FileNotFoundException, IOException, InterruptedException {
@@ -51,7 +52,7 @@ public class CarveWithExpansionsTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarve);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -78,7 +79,7 @@ public class CarveWithExpansionsTest {
 		// TODO Assertion: 1 .class, 1 .java
 		assertEquals(2, outputDir.listFiles().length);
 
-		printJavaClasses(outputDir);
+		ABCTestUtils.printJavaClasses(outputDir);
 
 	}
 
@@ -95,7 +96,7 @@ public class CarveWithExpansionsTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarve);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -122,7 +123,7 @@ public class CarveWithExpansionsTest {
 		// TODO Assertion: 1 .class, 1 .java
 		assertEquals(2, outputDir.listFiles().length);
 
-		printJavaClasses(outputDir);
+		ABCTestUtils.printJavaClasses(outputDir);
 
 	}
 
@@ -140,7 +141,7 @@ public class CarveWithExpansionsTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarve);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -167,7 +168,7 @@ public class CarveWithExpansionsTest {
 		// TODO Assertion: 1 .class, 1 .java
 		assertEquals(2, outputDir.listFiles().length);
 
-		printJavaClasses(outputDir);
+		ABCTestUtils.printJavaClasses(outputDir);
 
 	}
 
@@ -186,7 +187,7 @@ public class CarveWithExpansionsTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarve);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -213,7 +214,7 @@ public class CarveWithExpansionsTest {
 		// TODO Assertion: 1 .class, 1 .java
 		assertEquals(2, outputDir.listFiles().length);
 
-		printJavaClasses(outputDir);
+		ABCTestUtils.printJavaClasses(outputDir);
 
 	}
 
@@ -232,7 +233,7 @@ public class CarveWithExpansionsTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarve);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -260,7 +261,7 @@ public class CarveWithExpansionsTest {
 		// TODO Assertion: 1 .class, 1 .java
 		assertEquals(2, outputDir.listFiles().length);
 
-		printJavaClasses(outputDir);
+		ABCTestUtils.printJavaClasses(outputDir);
 
 	}
 
@@ -278,7 +279,7 @@ public class CarveWithExpansionsTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarve);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -307,7 +308,7 @@ public class CarveWithExpansionsTest {
 		// TODO Assertion: 1 .class, 1 .java
 		assertEquals(2, outputDir.listFiles().length);
 
-		printJavaClasses(outputDir);
+		ABCTestUtils.printJavaClasses(outputDir);
 
 	}
 	
@@ -325,7 +326,7 @@ public class CarveWithExpansionsTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarve);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher);
 
 		// DEBUG MOSTLY
 //		 visualize(carvedTests);
@@ -349,39 +350,8 @@ public class CarveWithExpansionsTest {
 		// TODO Assertion: 1 .class, 1 .java
 		assertEquals(2, outputDir.listFiles().length);
 
-		printJavaClasses(outputDir);
+		ABCTestUtils.printJavaClasses(outputDir);
 
 	}
 
-	private final FilenameFilter javaFileNameFilter = new FilenameFilter() {
-
-		@Override
-		public boolean accept(File dir, String name) {
-			return name.endsWith(".java");
-		}
-	};
-
-	private void printJavaClasses(File outputDir) throws IOException {
-		for (File javaFile : outputDir.listFiles(javaFileNameFilter)) {
-			System.out.println("File: " + javaFile.getAbsolutePath());
-			for (String line : Files.readAllLines(javaFile.toPath(), Charset.defaultCharset())) {
-				System.out.println(line);
-			}
-		}
-
-	}
-
-	private void visualize(Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace) {
-		parsedTrace.getFirst().visualize();
-		parsedTrace.getSecond().visualize();
-		parsedTrace.getThird().visualize();
-	}
-
-	private void visualize(List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests) {
-		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
-			carvedTest.getFirst().visualize();
-			carvedTest.getSecond().visualize();
-		}
-
-	}
 }

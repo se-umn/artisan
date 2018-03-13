@@ -21,7 +21,6 @@ import de.unipassau.carving.MethodInvocation;
 import de.unipassau.carving.ObjectInstance;
 import de.unipassau.data.Pair;
 import de.unipassau.utils.JimpleUtils;
-import soot.ArrayType;
 import soot.Local;
 import soot.Modifier;
 import soot.RefType;
@@ -36,15 +35,14 @@ import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
 import soot.jimple.JimpleBody;
 import soot.jimple.Stmt;
-import soot.jimple.StringConstant;
 import soot.jimple.toolkits.annotation.j5anno.AnnotationGenerator;
 import soot.options.Options;
 import soot.util.Chain;
 
 public class TestGenerator {
-
-	private static final AtomicInteger id = new AtomicInteger(0);
-
+	// Per Method
+//	private static final AtomicInteger localId = new AtomicInteger(0);
+	
 	private static final Logger logger = LoggerFactory.getLogger(TestGenerator.class);
 
 	// Point to jar of target project. This is the original code, not the
@@ -88,6 +86,7 @@ public class TestGenerator {
 	 * 
 	 * We generate one test class for each CUT and one test for each MUT
 	 * 
+	 * TODO If we reset the count for the local, HERE we can easily find duplicate test cases...
 	 * @param carvedTests
 	 * @return
 	 * @throws IOException
@@ -105,11 +104,12 @@ public class TestGenerator {
 		setupSoot();
 
 		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
+
 			// Get the mut, which by definition is the last invocation executed
 			MethodInvocation mut = carvedTest.getFirst().getLastMethodInvocation();
 			
 			// Somehow this does include the executions we removed ?!
-			logger.debug("TestGenerator.generateTestCases() GENERATE " + carvedTest.getFirst().getOrderedMethodInvocations() );
+			logger.info("Generate Test: " + mut );
 			
 			String classUnderTest = JimpleUtils.getClassNameForMethod(mut.getJimpleMethod());
 
@@ -124,93 +124,7 @@ public class TestGenerator {
 			generateAndAddTestMethodToTestClass(testClass, carvedTest);
 		}
 
-		// // THIS IS ONLY FOR DEBUG
-		// for (SootClass testClass : testClasses.values()) {
-		// generateMainMethod(testClass);
-		// }
-
 		return testClasses.values();
-		// THIS relies on keySet to be ordered integers !?
-		// Set<Integer> keySet = Graph_Details.testCases.keySet();
-		// for (int i : keySet) {
-		//
-		// logger.debug("Creating test case for first TC" +
-		// Graph_Details.testCases.get(i));
-		//
-		// createTestCaseForEach(Graph_Details.testCases.get(i), 0, i);
-		//
-		// TODO FIXME Check what those methods do... guess it is the ones
-		// using the assertion framework
-		// ?
-		// createTestCaseForMultipleCalls(Graph_Details.testCases.get(i), 0, i);
-		//
-		// // logger.debug(Graph_Details.parentAndNumberOfMUTChildren);
-		// if (i != 1) {
-		// if (Graph_Details.parentAndNumberOfMUTChildren.containsKey(i)) {
-		// int times = Graph_Details.parentAndNumberOfMUTChildren.get(i);
-		// if (times != 0) {
-		// times = times - 1;
-		// }
-		// while (times != 0) {
-		// createTestCaseForEach(Graph_Details.testCases.get(i), times, i);
-		// createTestCaseForMultipleCalls(Graph_Details.testCases.get(i),
-		// times, i);
-		// times = times - 1;
-		// }
-		// }
-		// }
-		// }
-
-	}
-
-	private void generateMainMethod(SootClass testClass) {
-		SootMethod method = new SootMethod("main",
-				Arrays.asList(new Type[] { ArrayType.v(RefType.v("java.lang.String"), 1) }), VoidType.v(),
-				Modifier.PUBLIC | Modifier.STATIC);
-
-		testClass.addMethod(method);
-		// Create the method body
-		{
-			// create empty body
-			JimpleBody body = Jimple.v().newBody(method);
-
-			body.insertIdentityStmts();
-
-			method.setActiveBody(body);
-
-			Chain units = body.getUnits();
-			Local arg, tmpRef;
-
-			// Add some locals, java.lang.String l0
-			// arg = Jimple.v().newLocal("l0",
-			// ArrayType.v(RefType.v("java.lang.String"), 1));
-			// body.getLocals().add(arg);
-
-			// Add locals, java.io.printStream tmpRef
-			tmpRef = Jimple.v().newLocal("tmpRef", RefType.v("java.io.PrintStream"));
-			body.getLocals().add(tmpRef);
-
-			// add "l0 = @parameter0"
-			// units.add(Jimple.v().newIdentityStmt(arg,
-			// Jimple.v().newParameterRef(ArrayType.v(RefType.v("java.lang.String"),
-			// 1), 0)));
-
-			// add "tmpRef = java.lang.System.out"
-			units.add(Jimple.v().newAssignStmt(tmpRef, Jimple.v()
-					.newStaticFieldRef(Scene.v().getField("<java.lang.System: java.io.PrintStream out>").makeRef())));
-
-			// insert "tmpRef.println("Hello world!")"
-			{
-				SootMethod toCall = Scene.v().getMethod("<java.io.PrintStream: void println(java.lang.String)>");
-				units.add(Jimple.v().newInvokeStmt(
-						Jimple.v().newVirtualInvokeExpr(tmpRef, toCall.makeRef(), StringConstant.v("Hello world!"))));
-			}
-
-			// insert "return"
-			units.add(Jimple.v().newReturnVoidStmt());
-
-		}
-
 	}
 
 	// THIS IS MOSTLY TAKEN FROM TEST CASE FACTORY
@@ -232,36 +146,38 @@ public class TestGenerator {
 		String testMethodName = "test_" + generatedTestCases.incrementAndGet();
 		logger.debug("Generating test method " + testMethodName + " for class " + testClass.getName());
 
-		SootMethod method = new SootMethod(testMethodName, Collections.<Type>emptyList(), VoidType.v(),
+		SootMethod testMethod = new SootMethod(testMethodName, Collections.<Type>emptyList(), VoidType.v(),
 				Modifier.PUBLIC);
-		testClass.addMethod(method);
-
+		
 		SootClass e = Scene.v().loadClassAndSupport("java.lang.Exception");
-		method.addExceptionIfAbsent(e);
+		testMethod.addExceptionIfAbsent(e);
 
 		// Annotate the method with org.junit.Test
-		AnnotationGenerator.v().annotate(method, org.junit.Test.class);
+		AnnotationGenerator.v().annotate(testMethod, org.junit.Test.class);
 
 		// Build the body from the input list of statements
-		JimpleBody body = Jimple.v().newBody(method);
-		method.setActiveBody(body);
-		// Associate the method with the class (i.e., reference to this).
-		// Required since the method is not static
+		JimpleBody body = Jimple.v().newBody(testMethod);
+		testMethod.setActiveBody(body);
 
-		// This identifies static methods
-		body.insertIdentityStmts();
-
+		// Keep track of local per type per method
+		Map<String, AtomicInteger> localMap = new HashMap<>();
+		
 		// Generate the Local Variables for the Method
 		for (ObjectInstance node : dataDependencyGraph.getObjectInstances()) {
 			String type = node.getType();
 
-			// Local localVariable = UtilInstrumenter.generateFreshLocal(body,
-			// RefType.v(type));
-			Local localVariable = Jimple.v().newLocal("local" + id.incrementAndGet(), RefType.v(type));
+			if( ! localMap.containsKey(type)){
+				localMap.put( type,  new AtomicInteger(0));
+			}
+			int localId = localMap.get( type ).getAndIncrement();
+			
+			Local localVariable = Jimple.v().newLocal("local" + localId, RefType.v(type));
 			body.getLocals().add(localVariable);
 
-			logger.trace("Create a new local variable " + localVariable + " of type " + type + " and node " + node + " "
-					+ node.hashCode());
+			// Debug
+			// logger.info("Create a new local variable " + localVariable + " of
+			// type " + type + " and node " + node + " "
+			// + node.hashCode());
 			//
 			dataDependencyGraph.setValueFor(node, localVariable);
 		}
@@ -293,6 +209,21 @@ public class TestGenerator {
 		// if (index != 1)
 		// addNewAssertionToJunit4TestCase(testClass, localVariables,
 		// testStatements, s, testMethodName, times, index);
+		
+		
+		// TODO Method naming might be fixed using tentativeMethod ID vs actual method id
+		// Check if there's an equivalent method in the class already:
+		if( ! JimpleUtils.classContainsEquivalentMethod( testClass, testMethod ) ){
+			// Associate the method with the class (i.e., reference to this).
+			// Required since the method is not static
+			testClass.addMethod(testMethod);
+			// This identifies static methods
+			body.insertIdentityStmts();
+		} else {
+			logger.debug("Found duplicate method " + testMethodName);
+		}
+		
+		
 
 	}
 
