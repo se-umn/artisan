@@ -55,7 +55,7 @@ public class TestGenerator {
 
 	private void setupSoot() {
 		// System Settings Begin
-		// Options.v().set_allow_phantom_refs(true);
+		Options.v().set_allow_phantom_refs(true);
 		Options.v().set_whole_program(true);
 		// This would set soot cp as the current running app cp
 		// Options.v().set_soot_classpath(System.getProperty("java.path"));
@@ -74,10 +74,6 @@ public class TestGenerator {
 		System.setProperty("os.name", "Whatever");
 		Scene.v().loadNecessaryClasses();
 		System.setProperty("os.name", "Mac OS X");
-
-		// Generation
-		// Scene.v().loadClassAndSupport("java.lang.Object");
-		// Scene.v().loadClassAndSupport("java.lang.System");
 	}
 
 	/**
@@ -172,25 +168,28 @@ public class TestGenerator {
 				localMap.put(type, new AtomicInteger(0));
 			}
 			int localId = localMap.get(type).getAndIncrement();
-			
+
 			String localName = RefType.v(type).getClassName();
 			localName = localName.substring(localName.lastIndexOf('.') + 1);
 			// Apply code conventions
-			localName = localName.replaceFirst( localName.substring(0, 1), localName.substring(0, 1).toLowerCase());
+			localName = localName.replaceFirst(localName.substring(0, 1), localName.substring(0, 1).toLowerCase());
 			//
 			Local localVariable = Jimple.v().newLocal(localName + localId, RefType.v(type));
 			body.getLocals().add(localVariable);
 
 			// Debug
-			logger.info("  >>>> Create a new local variable " + localVariable + " of type " + type + " and node " + node + " "
-					+ node.hashCode());
+			logger.trace("  >>>> Create a new local variable " + localVariable + " of type " + type + " and node "
+					+ node + " " + node.hashCode());
 			//
 			dataDependencyGraph.setValueFor(node, localVariable);
 		}
 
 		// Generating method body
 		Chain<Unit> units = body.getUnits();
-		for (MethodInvocation methodInvocation : executionFlowGraph.getOrderedMethodInvocations()) {
+		List<MethodInvocation> orderedMethodInvocations = executionFlowGraph.getOrderedMethodInvocations();
+		// By definition the MUT is the last invoked
+		MethodInvocation methodInvocationToCarve = executionFlowGraph.getLastMethodInvocation();
+		for (MethodInvocation methodInvocation : orderedMethodInvocations) {
 
 			// Get the object upon which we invoke the method
 			Local objLocal = dataDependencyGraph.getObjectLocalFor(methodInvocation);
@@ -201,15 +200,41 @@ public class TestGenerator {
 			// Look at the parameterCheck(m) method !
 			List<Value> parametersValues = dataDependencyGraph.getParametersSootValueFor(methodInvocation);
 
-			// Where to store the return value... if needed
+			// Store the return value to build the data dependencies
 			Local returnObjLocal = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
-			// We need to use add beacause some method invocations are actually
+
+			// When we process the methodInvocationToCarve, we also generate a
+			// final assignment that enable regression testing
+			boolean captureReturnValue = methodInvocation.equals(methodInvocationToCarve)
+					&& !JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()));
+			Stmt returnStmt = null;
+			if (captureReturnValue) {
+				String type = JimpleUtils.getReturnType(methodInvocation.getJimpleMethod());
+				// This shall be null at this point, since we do not use the
+				// return value ?
+				returnObjLocal = Jimple.v().newLocal("returnValue", RefType.v(type));
+				body.getLocals().add(returnObjLocal);
+
+				// Debug
+				logger.trace("  >>>> Create a new local variable " + returnObjLocal + " of type " + type
+						+ " to store the output of " + methodInvocationToCarve);
+				// FIXME: I have no idea of what a RetStmt is, but it does the trick, which is it results in an actual java assignment
+				returnStmt =Jimple.v().newRetStmt(returnObjLocal);
+			}
+			// We need to use add because some method invocations are actually
 			// more than 1 unit !
 			addUnitFor(units, methodInvocation, objLocal, parametersValues, returnObjLocal);
+			//
+			if( returnStmt != null ){
+				units.add( returnStmt );
+			}
 		}
 
-		// Insert final void Return
+		// Capture the return value of the MUT if that return something
+
+		// Insert final void return
 		units.add(Jimple.v().newReturnVoidStmt());
+
 		// This is to handle the assertion of Level +1 test cases
 		// lastsavedMethod = methodName;
 		// if (index != 1)
@@ -235,16 +260,17 @@ public class TestGenerator {
 	// Generate the right InvokeStmt based on the data inside MethodInvocation
 	// FIXME At the moment we do not really have a nice way to track primitive
 	// types, so if there's a data dep involving any of them we simply cut that
-	// away and use the concrete value instead. This might make the resulting
-	// tests less readable
-	// but also simpler. The awkward case is the one like this:
+	// away and use the concrete values instead. This might make the resulting
+	// test code less readable but also simpler. The awkward case is the one
+	// like this:
 	//
 	/*
 	 * int x = A.get(); x=x+1; A.set(x);
 	 * 
-	 * in this case we take A.get() while carving A.set beacuse of A not x
+	 * in this case we take A.get() while carving A.set because of A not because
+	 * of the data dependency x
 	 * 
-	 * the carved test will be: int x = A.get(); A.set(X); where X is the actual
+	 * The carved test will be: int x = A.get(); A.set(X); where X is the actual
 	 * value we observed at runtime.
 	 * 
 	 */
@@ -261,40 +287,25 @@ public class TestGenerator {
 
 		switch (methodInvocation.getInvocationType()) {
 		case "SpecialInvokeExpr":
-			// logger.debug("Processing SpecialInvoke : " +
-			// methodInvocation.getJimpleMethod());
-			// [>];SpecialInvokeExpr;<org.employee.Validation: void <init>()>
 			// This is a constructor so I need to call new and then <init> with
 			// the right parameteres
 			RefType cType = RefType.v(JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod()));
 			// Call "new"
 			Stmt assignToNew = jimple.newAssignStmt(objLocal, jimple.newNewExpr(cType));
 			// Call init + parameters
-
-			//
 			InvokeStmt invokeStmt = jimple
 					.newInvokeStmt(jimple.newSpecialInvokeExpr(objLocal, method.makeRef(), parametersValues));
-			// IF the constructor takes no parameters cant' we simply use an
-			// empty list ?
-			// invokeStmt =
-			// jimple.newInvokeStmt(jimple.newSpecialInvokeExpr(objLocal,
-			// constructor.makeRef()));
-			//
+
+			// This automatically captures the return value of <init> in case we
+			// need it for regression assertions
 			units.add(assignToNew);
 			units.add(invokeStmt);
 			break;
 		case "VirtualInvokeExpr":
-			// TODO Refactor: If the result must be used, we need an Assignment
-			// Statement Otherwise we simply call it
-			// logger.debug("Processing VirtualInvoke : " +
-			// methodInvocation.getJimpleMethod() + " on object " + objLocal
-			// + " with parameters " + parametersValues);
-
 			if (returnObjLocal != null) {
 				Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
 						jimple.newVirtualInvokeExpr(objLocal, method.makeRef(), parametersValues));
 				units.add(assignStmt);
-
 			} else {
 				Stmt callStmt = jimple
 						.newInvokeStmt(jimple.newVirtualInvokeExpr(objLocal, method.makeRef(), parametersValues));
@@ -303,8 +314,6 @@ public class TestGenerator {
 			break;
 
 		case "StaticInvokeExpr":
-			// logger.debug("Processing StaticInvoke : " +
-			// methodInvocation.getJimpleMethod());
 			if (returnObjLocal != null) {
 				final Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
 						jimple.newStaticInvokeExpr(method.makeRef(), parametersValues));

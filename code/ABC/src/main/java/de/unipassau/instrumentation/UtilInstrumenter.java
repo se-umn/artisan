@@ -26,21 +26,12 @@ import soot.Value;
 import soot.javaToJimple.LocalGenerator;
 import soot.jimple.ArrayRef;
 import soot.jimple.IntConstant;
-import soot.jimple.InvokeExpr;
 import soot.jimple.Jimple;
 import soot.jimple.NewArrayExpr;
 import soot.jimple.StaticInvokeExpr;
 
 // Taken from FuzzDroid
 public class UtilInstrumenter {
-
-	public static boolean isApiCall(InvokeExpr invokeExpr) {
-		if (invokeExpr.getMethod().getDeclaringClass().isLibraryClass()
-				|| invokeExpr.getMethod().getDeclaringClass().isJavaLibraryClass())
-			return true;
-		else
-			return false;
-	}
 
 	public static Pair<Value, List<Unit>> generateParameterArray(List<Value> parameterList, Body body) {
 		List<Unit> generated = new ArrayList<Unit>();
