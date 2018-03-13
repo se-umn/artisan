@@ -190,11 +190,13 @@ public class Level_0_MethodCarver implements MethodCarver {
 				// compose this combination. TODO We can make it more specific
 				// by cross checkig the subsuming calls in callGraph and the one
 				// in the generated test case
-				assert methodInvocationToCarve.equals( e.getSubsumedMethodInvocation() );
-				if( !  methodInvocationToCarve.equals( e.getSubsumedMethodInvocation() ) ){
-					logger.warn(" The subsumed call " + e.getSubsumedMethodInvocation() + " is not the one under carving " + methodInvocationToCarve );
+				assert methodInvocationToCarve.equals(e.getSubsumedMethodInvocation());
+				if (!methodInvocationToCarve.equals(e.getSubsumedMethodInvocation())) {
+					logger.warn(" The subsumed call " + e.getSubsumedMethodInvocation()
+							+ " is not the one under carving " + methodInvocationToCarve);
 				}
-				logger.info("Invalid test case for " + e.getSubsumedMethodInvocation() + " which is subsumed by " + e.getSubsumingMethodInvocation() + " via " + e.getSubsumingPath());
+				logger.info("Invalid test case for " + e.getSubsumedMethodInvocation() + " which is subsumed by "
+						+ e.getSubsumingMethodInvocation() + " via " + e.getSubsumingPath());
 			}
 		}
 
@@ -264,7 +266,14 @@ public class Level_0_MethodCarver implements MethodCarver {
 		Set<MethodInvocation> subsumedCalls = new HashSet<>();
 		for (MethodInvocation mi : _backwardSlice) {
 			// Filter out the calls that are subsumed by the call graph
-			subsumedCalls.addAll(callGraph.getMethodInvocationsSubsumedBy(mi));
+
+			Set<MethodInvocation> subsumedBy = callGraph.getMethodInvocationsSubsumedBy(mi);
+			if (subsumedBy.contains(methodInvocationToCarve)) {
+				System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSliceFor() FOUND "
+						+ methodInvocationToCarve + " inside subsumed set by " + mi);
+			}
+
+			subsumedCalls.addAll(subsumedBy);
 		}
 
 		/*
@@ -275,22 +284,27 @@ public class Level_0_MethodCarver implements MethodCarver {
 		 * 
 		 */
 		if (subsumedCalls.contains(methodInvocationToCarve)) {
+			// If this happens, the methodInvocation to carve will be removed
+			// from the test... which is wrong...
+
 			List<MethodInvocation> subsumingCalls = callGraph
 					.getOrderedSubsumingMethodInvocationsFor(methodInvocationToCarve);
-			
+
+			System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSliceFor()subsumingCalls for "
+					+ methodInvocationToCarve + " --> " + subsumingCalls);
 			subsumingCalls.retainAll(_backwardSlice);
-			
-			
+
 			// This should be only 1
 			assert subsumingCalls.size() == 1;
 			if (subsumingCalls.size() != 1) {
 				logger.warn("Wrong subsumingCalls count " + subsumingCalls.size() + " instead of 1");
 			}
-			MethodInvocation subsumingMethodInvocation = subsumedCalls.iterator().next();
-			List<MethodInvocation> subsumingPath= callGraph
-					.getSubsumingPathFor(subsumingMethodInvocation , methodInvocationToCarve);
-			
+			MethodInvocation subsumingMethodInvocation = subsumingCalls.iterator().next();
+			List<MethodInvocation> subsumingPath = callGraph.getSubsumingPathFor(subsumingMethodInvocation,
+					methodInvocationToCarve);
+
 			throw new NotALevel0TestCaseException(methodInvocationToCarve, subsumingMethodInvocation, subsumingPath);
+
 		}
 
 		// Delete from the slice all those calls that will be done nevertheless
