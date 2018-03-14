@@ -5,6 +5,8 @@ public class ObjectInstance implements DataNode {
 	private String objectId;
 	
 	public ObjectInstance(String objectId) {
+		if( objectId == null)
+			throw new IllegalArgumentException("ObjectInstance cannot have null objectId");
 		this.objectId = objectId;
 	}
 	

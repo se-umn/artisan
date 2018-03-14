@@ -5,8 +5,10 @@ import java.awt.Dimension;
 import java.awt.Paint;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -39,7 +41,63 @@ public class ExecutionFlowGraph {
 		graph = new SparseMultigraph<MethodInvocation, String>();
 	}
 
+	// TODO Maybe change the name...
+	public void addOwnerToMethodInvocation(MethodInvocation methodInvocation, String objectId) {
+		if (graph.containsVertex(methodInvocation)) {
+			// No need to look for it really, as we replace the node
+
+			// Store data on in and out edges from this node
+			Map<String, MethodInvocation> inEdges = new HashMap<>();
+			Map<String, MethodInvocation> outEdges = new HashMap<>();
+			for (String inEdge : graph.getInEdges(methodInvocation)) {
+				inEdges.put(inEdge, graph.getOpposite(methodInvocation, inEdge));
+			}
+			for (String outEdge : graph.getOutEdges(methodInvocation)) {
+				outEdges.put(outEdge, graph.getOpposite(methodInvocation, outEdge));
+			}
+			// Remove the original node - this also removes the edges... I hope
+			graph.removeVertex(methodInvocation);
+
+			// Updated the node
+			methodInvocation.setOwner(new ObjectInstance(objectId));
+
+			// Put the node back
+			graph.addVertex(methodInvocation);
+
+			// Put back the edges
+			for (String inEdge : inEdges.keySet()) {
+				graph.addEdge(inEdge, inEdges.get(inEdge), methodInvocation, EdgeType.DIRECTED);
+			}
+
+			for (String outEdge : outEdges.keySet()) {
+				graph.addEdge(outEdge, methodInvocation, outEdges.get(outEdge), EdgeType.DIRECTED);
+			}
+			
+			/// 
+			
+		}
+		
+//		if (graph.containsVertex(methodInvocation)) {
+//			for( MethodInvocation mi : graph.getVertices()){
+//				if( mi.equals( methodInvocation ) ){
+//					System.out.println( methodInvocation + " ==> " + methodInvocation.getOwner() );
+//					System.out.println( mi + " ==> " + mi.getOwner() );
+//				}
+//			}
+//		}
+
+		// Check that the information is really there !
+		
+	}
+
 	public void enqueueMethodInvocations(MethodInvocation methodInvocation) {
+
+		// At this point we do not have access to instance information !
+		// System.out.println("ExecutionFlowGraph.enqueueMethodInvocations() " +
+		// methodInvocation +
+		// ( methodInvocation.isStatic() ? "" : " with owner " +
+		// methodInvocation.getOwner() ));
+
 		// MethodInvocation mi = new MethodInvocation(methodInvocation);
 		if (!graph.containsVertex(methodInvocation)) {
 			graph.addVertex(methodInvocation);

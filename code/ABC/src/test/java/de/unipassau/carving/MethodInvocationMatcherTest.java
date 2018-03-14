@@ -10,41 +10,88 @@ public class MethodInvocationMatcherTest {
 	// Exact method
 	// match by class
 	// match by package
-	private MethodInvocation methodInvocation = new MethodInvocation("<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>", 1);
+	private MethodInvocation sampleMethodInvocation = new MethodInvocation("<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>", 1);
 	
 	@Test
 	public void testExactMatch() {
 		MethodInvocationMatcher mim = new MethodInvocationMatcher("org.employee.Validation", "int", "numberValidation", "java.lang.String", "org.employee.DummyObjectToPassAsParameter");
-		assertTrue( mim.match(methodInvocation) );
+		assertTrue( mim.match(sampleMethodInvocation) );
 	}
 	
 	@Test
 	public void testDoesNotExactMatch() {
 		MethodInvocationMatcher mim = new MethodInvocationMatcher("org.employee.Validation", "int2", "numberValidation", "java.lang.String", "org.employee.DummyObjectToPassAsParameter");
-		assertFalse( mim.match(methodInvocation) );
+		assertFalse( mim.match(sampleMethodInvocation) );
 	}
 
 	@Test
 	public void testMatchByClass() {
-		MethodInvocationMatcher mim = new MethodInvocationMatcher("org.employee.Validation");
-		assertTrue(mim.match(methodInvocation));
+		MethodInvocationMatcher mim = MethodInvocationMatcher.byClass("org.employee.Validation");
+		assertTrue(mim.match(sampleMethodInvocation));
 	}
 	
 	@Test
 	public void testDoesNotMatchByClass() {
-		MethodInvocationMatcher mim = new MethodInvocationMatcher("org.employee.DummyObjectToPassAsParameter");
-		assertFalse(mim.match(methodInvocation));
+		MethodInvocationMatcher mim = MethodInvocationMatcher.byClass("org.employee.DummyObjectToPassAsParameter");
+		assertFalse(mim.match(sampleMethodInvocation));
 	}
 
 	@Test
 	public void testMatchByPackage() {
-		MethodInvocationMatcher mim = new MethodInvocationMatcher("org.employee.*");
-		assertTrue( mim.match(methodInvocation) );
+		MethodInvocationMatcher mim = MethodInvocationMatcher.byPackage("org.employee.*");
+		assertTrue( mim.match(sampleMethodInvocation) );
 	}
 	
 	@Test
 	public void testDoesNotMatchByPackage() {
-		MethodInvocationMatcher mim = new MethodInvocationMatcher("com.employee.*");
-		assertFalse( mim.match(methodInvocation) );
+		MethodInvocationMatcher mim = MethodInvocationMatcher.byPackage("com.foo.*");
+		assertFalse( mim.match(sampleMethodInvocation) );
 	}
+	
+	@Test
+	public void testMatchByReturn(){
+		MethodInvocationMatcher mim = MethodInvocationMatcher.byReturnType("int");
+		assertTrue( mim.match(sampleMethodInvocation) );
+	}
+	
+	@Test
+	public void testDoesNotMatchByReturnWithPrimitive(){
+		MethodInvocationMatcher mim = MethodInvocationMatcher.byReturnType("float");
+		assertFalse( mim.match(sampleMethodInvocation) );
+	}
+	
+	@Test
+	public void testDoesNotMatchByReturnWithObject(){
+		MethodInvocationMatcher mim = MethodInvocationMatcher.byReturnType("org.employee.DummyObjectToPassAsParameter");
+		assertFalse( mim.match(sampleMethodInvocation) );
+	}
+	
+	
+	@Test
+	public void testMatchByInstance(){
+		// Add Instance Information on sampleMethodInvocation
+		ObjectInstance objectInstance = new ObjectInstance("org.employee.Validation@195600860");
+		sampleMethodInvocation.setOwner( objectInstance );
+		MethodInvocationMatcher mim = MethodInvocationMatcher.byInstance(objectInstance);
+		assertTrue( mim.match(sampleMethodInvocation) );
+	}
+	
+	@Test
+	public void testDoesNotMatchByInstanceOfSameType(){
+		ObjectInstance objectInstance = new ObjectInstance("org.employee.Validation@195600860");
+		ObjectInstance anotherInstance = new ObjectInstance("org.employee.Validation@1365202186");
+		sampleMethodInvocation.setOwner( objectInstance );
+		MethodInvocationMatcher mim = MethodInvocationMatcher.byInstance(anotherInstance );
+		assertFalse( mim.match(sampleMethodInvocation) );
+	}
+	
+	@Test
+	public void testDoesNotMatchByInstanceOfDifferentType(){
+		ObjectInstance objectInstance = new ObjectInstance("org.employee.Validation@195600860");
+		ObjectInstance anotherInstance = new ObjectInstance("org.employee.DummyObjectToPassAsParameter@1694819250");
+		sampleMethodInvocation.setOwner( objectInstance );
+		MethodInvocationMatcher mim = MethodInvocationMatcher.byInstance(anotherInstance );
+		assertFalse( mim.match(sampleMethodInvocation) );
+	}
+	
 }
