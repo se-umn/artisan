@@ -30,6 +30,8 @@ public class CodeGenerationTest {
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
+	private final MethodInvocationMatcher excludeNoMethodInvocationsMatcher = MethodInvocationMatcher.noMatch();
+
 	@Ignore
 	@Test
 	public void generateTestCasesForEmployeeProject() throws FileNotFoundException, IOException, InterruptedException {
@@ -74,8 +76,9 @@ public class CodeGenerationTest {
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
 
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver
-				.carve(MethodInvocationMatcher.fromMethodInvocation(new MethodInvocation(jimpleMethod, invocationID)));
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(
+				MethodInvocationMatcher.fromMethodInvocation(new MethodInvocation(jimpleMethod, invocationID)),
+				excludeNoMethodInvocationsMatcher);
 
 		File projectJar = new File("./src/test/resources/Employee.jar");
 		TestGenerator testCaseGenerator = new TestGenerator(projectJar.getAbsolutePath());

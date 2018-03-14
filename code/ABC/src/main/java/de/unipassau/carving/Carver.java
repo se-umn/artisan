@@ -38,6 +38,34 @@ public class Carver {
 				// method=<jimple method>, return=<regex>, instance=<Object@ID>
 		String getCarveBy();
 
+		// This works like carveBy but we use it to exclude method invocations
+		// that are in the trace
+		// but we do not want in the carving. For example, I can carve by return
+		// type int, and got all the methods
+		// like: <java.lang.Integer: int Integer.parse(java.lang.String)>
+		// Probably we can also exclude java.lang by default inside Carving,
+		// nota this simply tell the system to NOT carve tests for those method
+		@Option(defaultToNull = true)
+		String getExcludeBy();
+
+	}
+
+	private static MethodInvocationMatcher getMatcherFor(final String type, final String regEx) {
+		switch (type) {
+		case "package":
+			return MethodInvocationMatcher.byPackage(regEx);
+		case "class":
+			return MethodInvocationMatcher.byClass(regEx);
+		case "method":
+			return MethodInvocationMatcher.byMethod(regEx);
+		case "return":
+			return MethodInvocationMatcher.byReturnType(regEx);
+		case "instance":
+			// TODO how to rule out primitive, null, and possibly Strings ?
+			return MethodInvocationMatcher.byInstance(new ObjectInstance(regEx));
+		default:
+			throw new ArgumentValidationException("Unknown matcher specification " + type + "=" + regEx);
+		}
 	}
 
 	public static void main(String[] args) throws IOException, InterruptedException {
@@ -47,6 +75,7 @@ public class Carver {
 		File projectJar = null;
 		File outputDir = null;
 		MethodInvocationMatcher carveBy = null;
+		MethodInvocationMatcher excludeBy = null;
 
 		try {
 			CarverCLI result = CliFactory.parseArguments(CarverCLI.class, args);
@@ -57,19 +86,13 @@ public class Carver {
 			// TODO This can be moved inside CLI parsing using an instance
 			// strategy
 			String[] carveByTokens = result.getCarveBy().split("=");
-			if ("package".equals(carveByTokens[0])) {
-				carveBy = MethodInvocationMatcher.byPackage(carveByTokens[1]);
-			} else if ("class".equals(carveByTokens[0])) {
-				carveBy = MethodInvocationMatcher.byClass(carveByTokens[1]);
-			} else if ("method".equals(carveByTokens[0])) {
-				carveBy = MethodInvocationMatcher.byMethod(carveByTokens[1]);
-			} else if ("return".equals(carveByTokens[0])) {
-				carveBy = MethodInvocationMatcher.byReturnType(carveByTokens[1]);
-			} else if ("instance".equals(carveByTokens[0]))
-				// TODO how to rule out primitive, null, and possibly Strings ?
-				carveBy = MethodInvocationMatcher.byInstance(new ObjectInstance(carveByTokens[1]));
-			else {
-				throw new ArgumentValidationException("Wrong carve by !");
+			carveBy = getMatcherFor(carveByTokens[0], carveByTokens[1]);
+
+			if (result.getExcludeBy() != null) {
+				String[] excludeByTokens = result.getExcludeBy().split("=");
+				excludeBy = getMatcherFor(excludeByTokens[0], excludeByTokens[1]);
+			} else {
+				excludeBy = MethodInvocationMatcher.noMatch();
 			}
 
 		} catch (ArgumentValidationException e) {
@@ -91,7 +114,7 @@ public class Carver {
 				parsedTrace.getThird());
 
 		// TODO Instantiate a matcher and pass it along to Carver !
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(carveBy);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(carveBy, excludeBy);
 		System.out.println("Carver.main() End carving");
 
 		// Verify

@@ -47,7 +47,8 @@ public class CarverTest {
 		try {
 			Carver carver = new Carver();
 			File outputDirectory = temporaryFolderRule.newFolder();
-			String[] args = new String[] { "--carveBy", "method=" + jimpleMethodToCarve,
+			String[] args = new String[] {
+					"--carveBy", "method=" + jimpleMethodToCarve,
 					// String traceFile =
 					"--traceFile", "./src/test/resources/Employee-trace.txt",
 					// String projectJar =

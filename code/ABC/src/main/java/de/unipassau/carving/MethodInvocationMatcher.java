@@ -12,6 +12,18 @@ import de.unipassau.utils.JimpleUtils;
 
 public class MethodInvocationMatcher {
 
+	static class NoMatchMethodInvocationMatcher extends MethodInvocationMatcher {
+
+		protected NoMatchMethodInvocationMatcher() {
+			super();
+		}
+
+		@Override
+		public boolean match(MethodInvocation methodInvocation) {
+			return false;
+		}
+	}
+
 	private final static Logger logger = LoggerFactory.getLogger(MethodInvocationMatcher.class);
 	// Jimple methods: <org.employee.Validation: int
 	// numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>
@@ -78,6 +90,16 @@ public class MethodInvocationMatcher {
 				JimpleUtils.getReturnType(jimpleMethod), //
 				JimpleUtils.getMethodName(jimpleMethod), //
 				JimpleUtils.getParameterList(jimpleMethod), methodInvocation.getInvocationCount(), null);
+	}
+
+	// This is only for the SubClasses
+	protected MethodInvocationMatcher() {
+		classPattern = null;
+		returnPattern = null;
+		methodPattern = null;
+		parameterPatterns = null;
+		invocationID = -1;
+		instancePattern = null;
 	}
 
 	// Avoid this to be called from outside
@@ -190,6 +212,12 @@ public class MethodInvocationMatcher {
 			}
 		}
 		return true;
+	}
+
+	// Return a Matcher that do not match anything, this is mostly to avoid
+	// having around null objects
+	public static MethodInvocationMatcher noMatch() {
+		return new NoMatchMethodInvocationMatcher();
 	}
 
 }

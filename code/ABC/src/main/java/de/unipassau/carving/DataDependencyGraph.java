@@ -552,7 +552,7 @@ public class DataDependencyGraph {
 
 		List<ObjectInstance> parametersOf = new ArrayList<>();
 
-		for (String incomingEdge : graph.getInEdges(methodInvocation)) {
+		for (String incomingEdge : getIncomingEdges(methodInvocation)) {
 			if (incomingEdge.startsWith(DATA_DEPENDENCY_PREFIX)) {
 				if (graph.getOpposite(methodInvocation, incomingEdge) instanceof ObjectInstance) {
 					parametersOf.add(((ObjectInstance) graph.getOpposite(methodInvocation, incomingEdge)));
@@ -561,6 +561,11 @@ public class DataDependencyGraph {
 		}
 
 		return parametersOf;
+	}
+
+	private Collection<String> getIncomingEdges(MethodInvocation methodInvocation) {
+		Collection<String> incomingEdges = graph.getInEdges(methodInvocation);
+		return ( incomingEdges != null ) ? incomingEdges : new HashSet<String>(); 
 	}
 
 	public MethodInvocation getInitMethodInvocationFor(ObjectInstance objectInstance) {

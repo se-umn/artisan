@@ -35,6 +35,8 @@ public class CarvingTest {
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
 
+	private final MethodInvocationMatcher excludeNoMethodInvocationsMatcher = MethodInvocationMatcher.noMatch();
+	
 	@Ignore
 	@Test
 	public void testFileTransformer() throws FileNotFoundException, IOException {
@@ -62,7 +64,7 @@ public class CarvingTest {
 
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(staticMethodToCarve);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(staticMethodToCarve, excludeNoMethodInvocationsMatcher);
 
 		// System tests contains 2 executions
 		assertEquals(2, carvedTests.size());
@@ -98,7 +100,7 @@ public class CarvingTest {
 
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarve);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarve, excludeNoMethodInvocationsMatcher);
 
 		// The trace contains 2 executions. start -> exit, start -> register
 		// user -> exit

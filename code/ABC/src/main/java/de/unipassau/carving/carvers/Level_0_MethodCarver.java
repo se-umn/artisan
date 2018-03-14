@@ -23,7 +23,6 @@ import de.unipassau.carving.MethodInvocationMatcher;
 import de.unipassau.carving.ObjectInstance;
 import de.unipassau.carving.exceptions.NotALevel0TestCaseException;
 import de.unipassau.data.Pair;
-import jas.Method;
 
 public class Level_0_MethodCarver implements MethodCarver {
 
@@ -333,13 +332,16 @@ public class Level_0_MethodCarver implements MethodCarver {
 	/**
 	 * methodToBeCarved in Jimple format
 	 * 
-	 * @param methodInvocationMatcher
+	 * @param carveBy
 	 * @return
 	 */
-	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carve(MethodInvocationMatcher methodInvocationMatcher) {
+	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carve(
+			MethodInvocationMatcher carveBy,
+			MethodInvocationMatcher excludeBy
+			) {
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
 
-		for (MethodInvocation methodInvocationUnderTest : executionFlowGraph.getMethodInvocationsFor(methodInvocationMatcher)) {
+		for (MethodInvocation methodInvocationUnderTest : executionFlowGraph.getMethodInvocationsFor(carveBy, excludeBy)) {
 			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestsPetMethodInvocation = new ArrayList<>();
 
 			carvedTestsPetMethodInvocation.addAll(level0TestCarving(methodInvocationUnderTest, false));

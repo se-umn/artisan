@@ -164,16 +164,16 @@ public class ExecutionFlowGraph {
 	}
 
 	/**
-	 * Return the calls in the Execution Flow Graph which match the given
-	 * Matcher
+	 * Return the calls in the Execution Flow Graph which match carveBy (include) but not excludeBy (exclude)
 	 * 
-	 * @param methodToBeCarved
+	 * @param carveBy
+	 * @param excludeBy 
 	 * @return
 	 */
-	public Collection<MethodInvocation> getMethodInvocationsFor(MethodInvocationMatcher methodToBeCarved) {
+	public Collection<MethodInvocation> getMethodInvocationsFor(MethodInvocationMatcher carveBy, MethodInvocationMatcher excludeBy) {
 		ArrayList<MethodInvocation> matching = new ArrayList<>();
 		for (MethodInvocation mi : graph.getVertices()) {
-			if (methodToBeCarved.match(mi)) {
+			if (carveBy.match(mi) && ! excludeBy.match(mi)) {
 				matching.add(mi);
 			}
 		}

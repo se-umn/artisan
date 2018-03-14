@@ -4,10 +4,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FilenameFilter;
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
 import java.util.Collection;
 import java.util.List;
 
@@ -25,7 +22,6 @@ import de.unipassau.utils.ABCTestUtils;
 import de.unipassau.utils.JimpleUtils;
 import de.unipassau.utils.Slf4jSimpleLoggerRule;
 import soot.SootClass;
-import soot.coffi.method_info;
 
 public class CarveWithExpansionsTest {
 
@@ -37,6 +33,8 @@ public class CarveWithExpansionsTest {
 	
 	private final String methodToCarveString = "<de.unipassau.testsubject.DummyObject: void end()>";
 	private final MethodInvocationMatcher methodToCarveMatcher = MethodInvocationMatcher.fromJimpleMethod( methodToCarveString );
+	// This matcher returns always false
+	private final MethodInvocationMatcher excludeNoMethodInvocationsMatcher = MethodInvocationMatcher.noMatch();
 
 	@Test
 	public void testExpansionWithSimpleStatic() throws FileNotFoundException, IOException, InterruptedException {
@@ -52,7 +50,7 @@ public class CarveWithExpansionsTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher, excludeNoMethodInvocationsMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -96,7 +94,7 @@ public class CarveWithExpansionsTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher, excludeNoMethodInvocationsMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -141,7 +139,7 @@ public class CarveWithExpansionsTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher, excludeNoMethodInvocationsMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -187,7 +185,7 @@ public class CarveWithExpansionsTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher, excludeNoMethodInvocationsMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -233,7 +231,7 @@ public class CarveWithExpansionsTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher, excludeNoMethodInvocationsMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -279,7 +277,7 @@ public class CarveWithExpansionsTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher, excludeNoMethodInvocationsMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -326,7 +324,7 @@ public class CarveWithExpansionsTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher, excludeNoMethodInvocationsMatcher);
 
 		// DEBUG MOSTLY
 //		 visualize(carvedTests);
