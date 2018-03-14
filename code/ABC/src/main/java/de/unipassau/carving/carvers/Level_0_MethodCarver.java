@@ -32,8 +32,10 @@ public class Level_0_MethodCarver implements MethodCarver {
 	private DataDependencyGraph dataDependencyGraph;
 	private CallGraph callGraph;
 
+	// Default exclusion patterns
 	// This is to avoid to carve the fake method that we create.
 	private final MethodInvocationMatcher excludeMain = MethodInvocationMatcher.byMethod("<ABC: int MAIN()>");
+	private final MethodInvocationMatcher excludeJavaLang = MethodInvocationMatcher.byPackage("java");
 
 	/**
 	 * 
@@ -344,7 +346,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
 
 		for (MethodInvocation methodInvocationUnderTest : executionFlowGraph.getMethodInvocationsFor(carveBy,
-				excludeMain, excludeBy)) {
+				excludeMain, excludeJavaLang, excludeBy)) {
 			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestsPetMethodInvocation = new ArrayList<>();
 
 			carvedTestsPetMethodInvocation.addAll(level0TestCarving(methodInvocationUnderTest, false));

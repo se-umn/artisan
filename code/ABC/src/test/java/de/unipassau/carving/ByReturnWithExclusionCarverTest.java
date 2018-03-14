@@ -34,16 +34,17 @@ public class ByReturnWithExclusionCarverTest {
 
 	@Test
 	@Category(SystemTest.class)
-	public void testCarvingByReturn() throws IOException, InterruptedException {
+	public void testCarvingByReturnWithExclusion() throws IOException, InterruptedException {
 		try {
 			Carver carver = new Carver();
 			File outputDirectory = temporaryFolderRule.newFolder();
 			String carveBy = "return=int";
-			String excludeBy = "package=java.*";
+			String excludeBy = "method=<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)";
 			String[] args = new String[] { //
 					"--carveBy", carveBy,
 					//
-					"--excludeBy", excludeBy, // This shall get rid of the Integer.parseInt
+					"--excludeBy", excludeBy, // Refine the carving by including
+												// not all the methods
 					// String traceFile =
 					"--traceFile", "./src/test/resources/Employee-trace.txt",
 					// String projectJar =
@@ -55,6 +56,9 @@ public class ByReturnWithExclusionCarverTest {
 
 			assertEquals(2, outputDirectory.listFiles().length);
 
+			// TODO Make assertion on Java classes, for example, can they be
+			// compiled ? Can they be executed? Do they produce a green test
+			// suite?
 			ABCTestUtils.printJavaClasses(outputDirectory);
 		} catch (Throwable e) {
 			e.printStackTrace();
