@@ -1,7 +1,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>de.unipassau</groupId>
+	<groupId>de.unipassau.abc.abc</groupId>
 	<artifactId>carving</artifactId>
 	<packaging>jar</packaging>
 	<version>1.0-SNAPSHOT</version>
@@ -40,11 +40,11 @@
 				<configuration>
 					<programs>
 						<program>
-							<mainClass>de.unipassau.instrumentation.InstrumentTracer</mainClass>
+							<mainClass>de.unipassau.abc.instrumentation.InstrumentTracer</mainClass>
 							<id>instrument</id>
 						</program>
 						<program>
-							<mainClass>de.unipassau.carving.Carver</mainClass>
+							<mainClass>de.unipassau.abc.carving.Carver</mainClass>
 							<id>carve</id>
 						</program>
 					</programs>
@@ -177,7 +177,7 @@
 						<version>3.0.2</version>
 						<configuration>
 							<includes>
-								<include>**/de/unipassau/tracing/*</include>
+								<include>**/de/unipassau/abc/tracing/*</include>
 							</includes>
 							<outputDirectory>./libs</outputDirectory>
 						</configuration>
@@ -205,7 +205,7 @@
 						</executions>
 						<configuration>
 							<includes>
-								<include>**/de/unipassau/testsubject/*</include>
+								<include>**/de/unipassau/abc/testsubject/*</include>
 							</includes>
 							<outputDirectory>./libs</outputDirectory>
 						</configuration>
@@ -240,7 +240,7 @@
 							<!-- <includes>
 								<include>**/*.class</include>
 							</includes> -->
-							<excludedGroups>de.unipassau.utils.SystemTest</excludedGroups>
+							<excludedGroups>de.unipassau.abc.utils.SystemTest</excludedGroups>
 							<!-- Exclude resources for integration tests. Note that those are 
 								actual java and class files for mutants and tests -->
 							<!-- <excludes> <exclude>itests/**/*.*</exclude> </excludes> -->
@@ -276,7 +276,7 @@
 							<forkCount>1</forkCount>
 							<reuseForks>false</reuseForks>
 							<!-- Only consider tests marked as IntegrationTest -->
-							<groups>de.unipassau.utils.SystemTest</groups>
+							<groups>de.unipassau.abc.utils.SystemTest</groups>
 							<!-- Do not clog the console but write to output files -->
 							<redirectTestOutputToFile>true</redirectTestOutputToFile>
 						</configuration>
