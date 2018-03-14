@@ -32,6 +32,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 	private DataDependencyGraph dataDependencyGraph;
 	private CallGraph callGraph;
 
+	// This is to avoid to carve the fake method that we create.
+	private final MethodInvocationMatcher excludeMain = MethodInvocationMatcher.byMethod("<ABC: int MAIN()>");
+
 	/**
 	 * 
 	 * @param executionFlowGraph
@@ -267,10 +270,11 @@ public class Level_0_MethodCarver implements MethodCarver {
 			// Filter out the calls that are subsumed by the call graph
 
 			Set<MethodInvocation> subsumedBy = callGraph.getMethodInvocationsSubsumedBy(mi);
-//			if (subsumedBy.contains(methodInvocationToCarve)) {
-//				System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSliceFor() FOUND "
-//						+ methodInvocationToCarve + " inside subsumed set by " + mi);
-//			}
+			// if (subsumedBy.contains(methodInvocationToCarve)) {
+			// System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSliceFor()
+			// FOUND "
+			// + methodInvocationToCarve + " inside subsumed set by " + mi);
+			// }
 
 			subsumedCalls.addAll(subsumedBy);
 		}
@@ -291,7 +295,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 			logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSliceFor() SubsumingCalls for "
 					+ methodInvocationToCarve + " --> " + subsumingCalls);
-			
+
 			subsumingCalls.retainAll(_backwardSlice);
 
 			// This should be only 1
@@ -335,13 +339,12 @@ public class Level_0_MethodCarver implements MethodCarver {
 	 * @param carveBy
 	 * @return
 	 */
-	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carve(
-			MethodInvocationMatcher carveBy,
-			MethodInvocationMatcher excludeBy
-			) {
+	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carve(MethodInvocationMatcher carveBy,
+			MethodInvocationMatcher excludeBy) {
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
 
-		for (MethodInvocation methodInvocationUnderTest : executionFlowGraph.getMethodInvocationsFor(carveBy, excludeBy)) {
+		for (MethodInvocation methodInvocationUnderTest : executionFlowGraph.getMethodInvocationsFor(carveBy,
+				excludeMain, excludeBy)) {
 			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestsPetMethodInvocation = new ArrayList<>();
 
 			carvedTestsPetMethodInvocation.addAll(level0TestCarving(methodInvocationUnderTest, false));

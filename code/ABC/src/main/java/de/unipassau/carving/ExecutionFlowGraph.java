@@ -72,22 +72,23 @@ public class ExecutionFlowGraph {
 			for (String outEdge : outEdges.keySet()) {
 				graph.addEdge(outEdge, methodInvocation, outEdges.get(outEdge), EdgeType.DIRECTED);
 			}
-			
-			/// 
-			
+
+			///
+
 		}
-		
-//		if (graph.containsVertex(methodInvocation)) {
-//			for( MethodInvocation mi : graph.getVertices()){
-//				if( mi.equals( methodInvocation ) ){
-//					System.out.println( methodInvocation + " ==> " + methodInvocation.getOwner() );
-//					System.out.println( mi + " ==> " + mi.getOwner() );
-//				}
-//			}
-//		}
+
+		// if (graph.containsVertex(methodInvocation)) {
+		// for( MethodInvocation mi : graph.getVertices()){
+		// if( mi.equals( methodInvocation ) ){
+		// System.out.println( methodInvocation + " ==> " +
+		// methodInvocation.getOwner() );
+		// System.out.println( mi + " ==> " + mi.getOwner() );
+		// }
+		// }
+		// }
 
 		// Check that the information is really there !
-		
+
 	}
 
 	public void enqueueMethodInvocations(MethodInvocation methodInvocation) {
@@ -164,17 +165,31 @@ public class ExecutionFlowGraph {
 	}
 
 	/**
-	 * Return the calls in the Execution Flow Graph which match carveBy (include) but not excludeBy (exclude)
+	 * Return the calls in the Execution Flow Graph which match carveBy
+	 * (include) but not excludeBy (exclude)
 	 * 
 	 * @param carveBy
-	 * @param excludeBy 
+	 * @param excludeBy
 	 * @return
 	 */
-	public Collection<MethodInvocation> getMethodInvocationsFor(MethodInvocationMatcher carveBy, MethodInvocationMatcher excludeBy) {
+	public Collection<MethodInvocation> getMethodInvocationsFor(MethodInvocationMatcher carveBy,
+			MethodInvocationMatcher... excludeBy) {
 		ArrayList<MethodInvocation> matching = new ArrayList<>();
 		for (MethodInvocation mi : graph.getVertices()) {
-			if (carveBy.match(mi) && ! excludeBy.match(mi)) {
-				matching.add(mi);
+			if (carveBy.match(mi)) {
+				// TODO Refactor with an AND matcher? not really want to go
+				// there...
+				boolean excluded = false;
+				for (MethodInvocationMatcher exclude : excludeBy) {
+					if (exclude.match(mi)) {
+						excluded = true;
+						break;
+					}
+				}
+
+				if (!excluded) {
+					matching.add(mi);
+				}
 			}
 		}
 		return matching;
