@@ -10,6 +10,11 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.lexicalscope.jewel.cli.ArgumentValidationException;
+import com.lexicalscope.jewel.cli.CliFactory;
+import com.lexicalscope.jewel.cli.Option;
+
+import de.unipassau.carving.Carver.CarverCLI;
 import de.unipassau.data.Pair;
 import soot.Body;
 import soot.BodyTransformer;
@@ -71,8 +76,7 @@ public class InstrumentTracer extends BodyTransformer {
 
 		final PatchingChain<Unit> units = body.getUnits();
 		for (final Iterator<Unit> iter = units.snapshotIterator(); iter.hasNext();) {
-			
-			
+
 			final Unit u = iter.next();
 
 			u.apply(new AbstractStmtSwitch() {
@@ -425,22 +429,48 @@ public class InstrumentTracer extends BodyTransformer {
 				+ "InstrumentTracer.traceCall() Start Method Instructions" + tmpArgsListAndInstructions.getSecond());
 	}
 
+	public interface InstrumentTracerCLI {
+		@Option(longName = "project-jar")
+		File getProjectJar();
+
+		@Option(longName = "output-to", defaultValue = "./sootOutput")
+		File getOutputDir();
+
+		@Option(longName = "output-type", defaultValue = "class") // class, jimple
+		String getOutputType();
+
+	}
+
 	// TODO Add output folder to soot options
 	// TODO Define CLI
 	public static void main(String[] args) throws URISyntaxException {
 		String phaseName = "jtp.mainInstrumentation";
-		String projectJar = args[0];
-		if (args.length >= 2) {
-			String outputDir = args[1];
-			System.out.println("InstrumentTracer.main() Output to " + outputDir);
-			Options.v().set_output_dir(outputDir);
+
+		File projectJar = null;
+		File outputDir = null;
+		String outputType = null;
+
+		try {
+			InstrumentTracerCLI commandLineOptions = CliFactory.parseArguments(InstrumentTracerCLI.class, args);
+			projectJar = commandLineOptions.getProjectJar();
+			outputDir = commandLineOptions.getOutputDir();
+			outputType = commandLineOptions.getOutputType();
+
+		} catch (ArgumentValidationException e) {
+			throw e;
 		}
-		String[] sootArguments = new String[] { "-f", "class" };
-		// Output should be in .class format unless specified otherwise
-		// Declare "jimple" for debug instrumented code
-		if (args.length >= 3) {
-			sootArguments = new String[] { "-f", args[2] };
-		}
+
+		// String projectJar = args[0];
+		// if (args.length >= 2) {
+		// String outputDir = args[1];
+		// System.out.println("InstrumentTracer.main() Output to " + outputDir);
+		// }
+		String[] sootArguments = new String[] { "-f", outputType };
+		// // Output should be in .class format unless specified otherwise
+		// // Declare "jimple" for debug instrumented code
+		// if (args.length >= 3) {
+		// sootArguments = new String[] { "-f", args[2] };
+		// }
 
 		long startTime = System.nanoTime();
 		// Setup the Soot settings
@@ -448,6 +478,7 @@ public class InstrumentTracer extends BodyTransformer {
 		Options.v().set_whole_program(true);
 		Options.v().set_soot_classpath(System.getProperty("java.path"));
 		//
+		Options.v().set_output_dir(outputDir.getAbsolutePath());
 
 		// TODO Get this from input
 		// Maybe use some sort of CLI/JewelCLI ?
@@ -494,7 +525,7 @@ public class InstrumentTracer extends BodyTransformer {
 
 		// This is the application under analysis. 1 jar -> 1 entry
 		ArrayList<String> list = new ArrayList<String>();
-		list.add(projectJar);
+		list.add(projectJar.getAbsolutePath());
 		list.add(traceJar);
 		Options.v().set_process_dir(list);
 
@@ -503,7 +534,7 @@ public class InstrumentTracer extends BodyTransformer {
 		Scene.v().loadNecessaryClasses();
 		System.setProperty("os.name", "Mac OS X");
 
-		// Run Soot
+		// Run Soot - Probablu we can also execut Packs().run or something.
 		soot.Main.main(sootArguments);
 
 		long endTime = System.nanoTime();
@@ -530,7 +561,7 @@ public class InstrumentTracer extends BodyTransformer {
 	}
 
 	/*
-	 * TODO : We pretend those calls never happened 
+	 * TODO : We pretend those calls never happened
 	 */
 	private boolean doNotTraceCallsTo(SootMethod m) {
 		return m.getDeclaringClass().getName().equals("java.lang.StringBuilder") || //

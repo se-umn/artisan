@@ -5,12 +5,20 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
+import java.nio.file.FileVisitResult;
+import java.nio.file.FileVisitor;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.lang3.SystemUtils;
-import org.junit.Ignore;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -27,7 +35,7 @@ import de.unipassau.testsubject.DummySystemTestGetSimpleWithParameter;
 import de.unipassau.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.utils.SystemTest;
 
-public class InstrumentTracerTest {
+public class InstrumentDummyProjectTest {
 
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
@@ -35,54 +43,59 @@ public class InstrumentTracerTest {
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	// @Ignore as long as system test setup is working
-	@Ignore
-	@Test
-	@Category(SystemTest.class)
-	public void instrumentAndTrace() throws URISyntaxException, IOException {
-		String outputDir = temporaryFolder.newFolder().getAbsolutePath();
-		InstrumentTracer tracer = new InstrumentTracer();
-		tracer.main(new String[] { "./src/test/resources/Employee.jar", outputDir });
-	}
+	private static File traceJar;
 
-	@Ignore
-	@Test
-	@Category(SystemTest.class)
-	public void instrumentAndTraceTestSubjects() throws URISyntaxException, IOException, InterruptedException {
-		File outputDir = temporaryFolder.newFolder();
-
+	@BeforeClass
+	public static void setupTraceJar() {
 		// Use this if you want to inspect the traces afterwards
 		// File outputDir = com.google.common.io.Files.createTempDir();
 		// File traceOutput = File.createTempFile("trace", ".txt");
 
-		File traceJar = new File("./libs/trace.jar"); // Eclipse testing
+		traceJar = new File("./libs/trace.jar"); // Eclipse testing
 		if (!traceJar.exists()) {
 			traceJar = new File("../libs/trace.jar"); // Actual usage ...
 			if (!traceJar.exists()) {
 				throw new RuntimeException("trace.jar file is missing");
 			}
 		}
+	}
+
+	@Test
+	@Category(SystemTest.class)
+	public void instrumentAndTraceTestSubjects() throws URISyntaxException, IOException, InterruptedException {
+		File outputDir = temporaryFolder.newFolder();
 
 		File testsubjectJar = new File("./libs/testsubject-tests.jar");
 
 		InstrumentTracer tracer = new InstrumentTracer();
-		tracer.main(new String[] { testsubjectJar.getAbsolutePath(), outputDir.getAbsolutePath(), "class" });
+		tracer.main(new String[] { "--project-jar", testsubjectJar.getAbsolutePath(), //
+				"--output-to", outputDir.getAbsolutePath(), //
+				"--output-type", "class" });
+		//
+		final AtomicInteger count = new AtomicInteger(0);
+		Files.walkFileTree(outputDir.toPath(), new SimpleFileVisitor<Path>() {
+			@Override
+			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+				if (file.toString().endsWith(".class")) {
+					count.incrementAndGet();
+				}
+				return super.visitFile(file, attrs);
+			}
+		});
+		// TODO Maybe a Hamcrest matcher here?
+		assertEquals(13, count.get());
 
 		// At this point we have the instrumented classes and we can start
-		// system tests
-		// runSystemTestFromClass(DummySystemTestGetSimple.class, outputDir,
-		// testsubjectJar, traceJar);
-		// runSystemTestFromClass(DummySystemTestGetModified.class, outputDir,
-		// testsubjectJar, traceJar);
-		// runSystemTestFromClass(DummySystemTestGetSimpleWithDelegate.class,
-		// outputDir, testsubjectJar, traceJar);
-		// runSystemTestFromClass(DummySystemTestGetModifiedWithDelegate.class,
-		// outputDir, testsubjectJar, traceJar);
-		// runSystemTestFromClass(DummySystemTestGetDoubleModifiedWithDelegate.class,
-		// outputDir, testsubjectJar, traceJar);
+		// system tests and make assertions on the resulting traces.
+		runSystemTestFromClass(DummySystemTestGetSimple.class, outputDir, testsubjectJar, traceJar);
+		runSystemTestFromClass(DummySystemTestGetModified.class, outputDir, testsubjectJar, traceJar);
+		runSystemTestFromClass(DummySystemTestGetSimpleWithDelegate.class, outputDir, testsubjectJar, traceJar);
+		runSystemTestFromClass(DummySystemTestGetModifiedWithDelegate.class, outputDir, testsubjectJar, traceJar);
+		runSystemTestFromClass(DummySystemTestGetDoubleModifiedWithDelegate.class, outputDir, testsubjectJar, traceJar);
 		runSystemTestFromClass(DummySystemTestGetSimpleWithParameter.class, outputDir, testsubjectJar, traceJar);
 		runSystemTestFromClass(DummySystemTestGetSimpleWithNonRequiredParameter.class, outputDir, testsubjectJar,
 				traceJar);
+
 	}
 
 	private void runSystemTestFromClass(Class systemTestClass, File outputDir, File testsubjectJar, File traceJar)
@@ -102,7 +115,7 @@ public class InstrumentTracerTest {
 
 		ProcessBuilder processBuilder = new ProcessBuilder(javaPath, "-cp", classpath, systemTestClassName);
 		processBuilder.environment().put("trace.output", traceOutput.getAbsolutePath());
-		System.out.println("InstrumentTracerTest.instrumentAndTraceTestSubjects()" + processBuilder.command());
+		System.out.println("InstrumentEmployeeTest.instrumentAndTraceTestSubjects()" + processBuilder.command());
 
 		processBuilder.inheritIO();
 
