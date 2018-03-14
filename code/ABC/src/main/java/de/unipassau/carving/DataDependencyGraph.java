@@ -150,12 +150,12 @@ public class DataDependencyGraph {
 
 	// This will not work for static methods
 	public void addDataDependencyOnOwner(MethodInvocation methodInvocation, String objectInstanceId) {
-
 		if (!graph.containsVertex(methodInvocation)) {
 			graph.addVertex(methodInvocation);
 		}
 
 		ObjectInstance oi = new ObjectInstance(objectInstanceId);
+		methodInvocation.setOwner(oi);
 
 		if (!graph.containsVertex(oi)) {
 			graph.addVertex(oi);
@@ -404,7 +404,8 @@ public class DataDependencyGraph {
 			}
 
 		}
-		// Can this be a null value, it's a value that we did not tracked (from invokeStmts that do not have an assignment) 
+		// Can this be a null value, it's a value that we did not tracked (from
+		// invokeStmts that do not have an assignment)
 		logger.info("Cannot find ReturnObjectLocalFor for " + methodInvocation.getJimpleMethod());
 		return null;
 	}

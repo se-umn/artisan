@@ -17,7 +17,6 @@ import de.unipassau.data.Pair;
 import de.unipassau.data.Triplette;
 import de.unipassau.generation.TestCaseFactory;
 import de.unipassau.generation.TestGenerator;
-import de.unipassau.utils.JimpleUtils;
 import soot.SootClass;
 
 // TODO Use some sort of CLI/JewelCLI
@@ -35,8 +34,8 @@ public class Carver {
 		@Option(defaultToNull = true)
 		File getOutputDir();
 
-		@Option // This can be refined as package=regex, class=regex,
-				// method="full jimple method"
+		@Option // This can be refined as package=<regex>, class=<regex>,
+				// method=<jimple method>, return=<regex>, instance=<Object@ID>
 		String getCarveBy();
 
 	}
@@ -59,13 +58,17 @@ public class Carver {
 			// strategy
 			String[] carveByTokens = result.getCarveBy().split("=");
 			if ("package".equals(carveByTokens[0])) {
-				carveBy = new MethodInvocationMatcher(carveByTokens[1] + ".*");
+				carveBy = MethodInvocationMatcher.byPackage(carveByTokens[1]);
 			} else if ("class".equals(carveByTokens[0])) {
-				carveBy = new MethodInvocationMatcher(carveByTokens[1]);
+				carveBy = MethodInvocationMatcher.byClass(carveByTokens[1]);
 			} else if ("method".equals(carveByTokens[0])) {
-				String jimpleMethod = carveByTokens[1];
-				carveBy = MethodInvocationMatcher.fromJimpleMethod(jimpleMethod);
-			} else {
+				carveBy = MethodInvocationMatcher.byMethod(carveByTokens[1]);
+			} else if ("return".equals(carveByTokens[0])) {
+				carveBy = MethodInvocationMatcher.byReturnType(carveByTokens[1]);
+			} else if ("instance".equals(carveByTokens[0]))
+				// TODO how to rule out primitive, null, and possibly Strings ?
+				carveBy = MethodInvocationMatcher.byInstance(new ObjectInstance(carveByTokens[1]));
+			else {
 				throw new ArgumentValidationException("Wrong carve by !");
 			}
 

@@ -203,9 +203,13 @@ public class StackImplementation implements TraceParser {
 			peekIndex++;
 		}
 
-		// This associate the jimpleMethod to the onbjecti instance
+		// Static methods are automatically skipped
+		
+		// TODO This shall be placed inside callGraph
+		methodInvocation.setOwner( new ObjectInstance(thisObject.toString()));
+		//
 		dataDependencyGraph.addDataDependencyOnOwner(methodInvocation, thisObject.toString());
-
+		exectuionFlowGraph.addOwnerToMethodInvocation(methodInvocation, thisObject.toString());
 //		graphAssigningID(jimpleMethod + ";" + thisObject);
 		//
 		return peekIndex - 1;
@@ -260,9 +264,11 @@ public class StackImplementation implements TraceParser {
 
 		List<String> lines = new ArrayList<String>();
 		// TODO This shall be handled somehow... especially the return value..
-		lines.add(Trace.METHOD_START_TOKEN + "MainInvoke;<Foo: int MAIN()>");
+		// There should be in soot a way to understand if we are inside the static MAIN
+		// There should be a value to capture the System.exit value as well instead of keeping 0 hardcoded
+		lines.add(Trace.METHOD_START_TOKEN + "StaticInvokeExpr;<ABC: int MAIN()>");
 		lines.addAll(Files.readAllLines(Paths.get(traceFilePath), Charset.defaultCharset()));
-		lines.add(Trace.METHOD_END_TOKEN + "<Foo: int MAIN()>;0");
+		lines.add(Trace.METHOD_END_TOKEN + "<ABC: int MAIN()>;0");
 		// Since we need to peek we use the line index in the trace...
 		// Hopefully, int is big enough...
 
