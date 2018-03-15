@@ -88,25 +88,27 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 		jarFiles.add(testsubjectJar);
 		jarFiles.add(testsubjectTestsJar);
 		jarFiles.add(traceJar);
-		// This is a link to ~/.m2/repository/com/github/stefanbirkner/system-rules/1.17.0/system-rules-1.17.0.jar
-		jarFiles.add( new File("./src/test/resources/system-rules-1.17.0.jar"));
+		// This is a link to
+		// ~/.m2/repository/com/github/stefanbirkner/system-rules/1.17.0/system-rules-1.17.0.jar
+		jarFiles.add(new File("./src/test/resources/system-rules-1.17.0.jar"));
 		//
 		runSystemTest("org.employee.SystemTest", outputDir, jarFiles);
 	}
 
-	private void runSystemTest(String systemTestClassName, File outputDir, List<File> jarFiles) throws IOException, URISyntaxException, InterruptedException {
+	private void runSystemTest(String systemTestClassName, File outputDir, List<File> jarFiles)
+			throws IOException, URISyntaxException, InterruptedException {
 
 		File traceOutput = temporaryFolder.newFile(systemTestClassName + "trace.txt");
 
 		///
 		StringBuilder cpBuilder = new StringBuilder();
-		for( File jarFile : jarFiles ){
+		for (File jarFile : jarFiles) {
 			cpBuilder.append(jarFile.getAbsolutePath()).append(File.pathSeparator);
 		}
-		cpBuilder.append( ABCTestUtils.buildJUnit4Classpath() );
+		cpBuilder.append(ABCTestUtils.buildJUnit4Classpath());
 		///
 
-		String classpath = outputDir + File.pathSeparator+ cpBuilder.toString();
+		String classpath = outputDir + File.pathSeparator + cpBuilder.toString();
 
 		String javaPath = SystemUtils.JAVA_HOME + File.separator + "bin" + File.separator + "java";
 
@@ -116,8 +118,8 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 
 		System.out.println("InstrumentEmployeeTest.instrumentAndTraceTestSubjects()" + processBuilder.command());
 
-		// This causes problems
-		processBuilder.inheritIO();
+		// This causes problems wher run on command line
+		// processBuilder.inheritIO();
 
 		Process process = processBuilder.start();
 
