@@ -36,7 +36,7 @@ public class CarveWithExpansionsTest {
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLeverRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
 	
-	private final String methodToCarveString = "<de.unipassau.abc.abc.testsubject.DummyObject: void end()>";
+	private final String methodToCarveString = "<de.unipassau.abc.testsubject.DummyObject: void end()>";
 	private final MethodInvocationMatcher methodToCarveMatcher = MethodInvocationMatcher.fromJimpleMethod( methodToCarveString );
 	// This matcher returns always false
 	private final MethodInvocationMatcher excludeNoMethodInvocationsMatcher = MethodInvocationMatcher.noMatch();

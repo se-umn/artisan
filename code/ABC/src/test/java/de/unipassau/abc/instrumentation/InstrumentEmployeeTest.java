@@ -9,6 +9,9 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+
+import javax.swing.plaf.synth.SynthSeparatorUI;
 
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.BeforeClass;
@@ -18,14 +21,13 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
-import de.unipassau.abc.instrumentation.InstrumentTracer;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.abc.utils.SystemTest;
 
 public class InstrumentEmployeeTest {
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -65,48 +67,25 @@ public class InstrumentEmployeeTest {
 				return name.endsWith(".jimple");
 			}
 		}).length);
+		
+		// TODO Separate methos call; Visualize the JIMPLE Files
+		for( File jimpleFile : outputDir.listFiles(new FilenameFilter() {
 
-	}
-
-	private void runSystemTestFromClass(Class systemTestClass, File outputDir, File testsubjectJar, File traceJar)
-			throws IOException, URISyntaxException, InterruptedException {
-		String systemTestClassName = systemTestClass.getName();
-
-		File traceOutput = temporaryFolder.newFile(systemTestClassName + "trace.txt");
-
-		// Run the tests for collecting the traces using a second JVM
-		File systemTestClassClassFile = new File(
-				systemTestClass.getProtectionDomain().getCodeSource().getLocation().toURI().getPath());
-
-		String classpath = outputDir + File.pathSeparator + testsubjectJar + File.pathSeparator
-				+ systemTestClassClassFile + File.pathSeparator + traceJar.getAbsolutePath();
-
-		String javaPath = SystemUtils.JAVA_HOME + File.separator + "bin" + File.separator + "java";
-
-		ProcessBuilder processBuilder = new ProcessBuilder(javaPath, "-cp", classpath, systemTestClassName);
-		processBuilder.environment().put("trace.output", traceOutput.getAbsolutePath());
-		System.out.println("InstrumentEmployeeTest.instrumentAndTraceTestSubjects()" + processBuilder.command());
-
-		processBuilder.inheritIO();
-
-		Process process = processBuilder.start();
-
-		int result = process.waitFor();
-
-		assertEquals("System tests fail", 0, result);
-		// This creates the trace in trace.output
-		assertTrue("No trace output", traceOutput.exists());
-		assertNotEquals("Empty trace  output", 0, traceOutput.length());
-
-		// Printout the file since temporary folder will delete it !!!
-		System.out.println("=====================================");
-		System.out.println("Trace for " + systemTestClassName);
-		System.out.println("=====================================");
-		for (String line : java.nio.file.Files.readAllLines(traceOutput.toPath(), Charset.defaultCharset())) {
-			System.out.println(line);
+			@Override
+			public boolean accept(File dir, String name) {
+				return name.endsWith(".jimple");
+			}
+		})){
+			System.out.println("==================================");
+			System.out.println(" " + jimpleFile.getAbsolutePath());
+			System.out.println("==================================");
+			for( String line : Files.readAllLines( jimpleFile.toPath(), Charset.defaultCharset() ) ){
+				System.out.println( line );
+			}
+			System.out.println("==================================");
 		}
-		System.out.println("=====================================");
 
 	}
 
+	
 }

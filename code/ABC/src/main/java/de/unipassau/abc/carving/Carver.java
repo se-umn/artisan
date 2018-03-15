@@ -2,6 +2,7 @@ package de.unipassau.abc.carving;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -48,6 +49,12 @@ public class Carver {
 		@Option(defaultToNull = true)
 		String getExcludeBy();
 
+		// List the external interfaces, this can be packages or classes, but
+		// for the moment we JUST use packages
+		// since most of the time, thos interfaces are organized in some way
+		@Option(longName = "external", defaultToNull = true)
+		List<String> getExternalInterfaces();
+
 	}
 
 	private static MethodInvocationMatcher getMatcherFor(final String type, final String regEx) {
@@ -76,6 +83,11 @@ public class Carver {
 		File outputDir = null;
 		MethodInvocationMatcher carveBy = null;
 		MethodInvocationMatcher excludeBy = null;
+		List<String> externalInterfaces = new ArrayList<>();
+		{
+			// Default external interfaces, for example FILE, NIo, NET, etc.. List here some of them. 
+			
+		}
 
 		try {
 			CarverCLI result = CliFactory.parseArguments(CarverCLI.class, args);

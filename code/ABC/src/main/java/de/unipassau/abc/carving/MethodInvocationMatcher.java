@@ -27,7 +27,7 @@ public class MethodInvocationMatcher {
 	private final static Logger logger = LoggerFactory.getLogger(MethodInvocationMatcher.class);
 	// Jimple methods: <org.employee.Validation: int
 	// numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>
-	private final Pattern jimpleMethodInvocationPattern = Pattern.compile("<" // Opening
+	public final static Pattern jimpleMethodInvocationPattern = Pattern.compile("<" // Opening
 																				// Tag
 			+ "[a-zA_Z_][\\.\\w]*" //
 			+ ":\\s" //

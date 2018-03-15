@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ import com.lexicalscope.jewel.cli.ArgumentValidationException;
 import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
 
+import de.unipassau.abc.carving.MethodInvocationMatcher;
 import de.unipassau.abc.data.Pair;
 import soot.Body;
 import soot.BodyTransformer;
@@ -96,7 +98,7 @@ public class InstrumentTracer extends BodyTransformer {
 						SootMethod m = invokeExpr.getMethod();
 
 						if (doNotTraceCallsTo(m)) {
-							logger.info("Do not trace calls to " + m);
+							logger.trace("Do not trace calls to " + m);
 							return;
 						}
 
@@ -165,8 +167,10 @@ public class InstrumentTracer extends BodyTransformer {
 						return;
 					}
 
-					String invokeType = "";
+					String invokeType = null;
 					Value instanceValue = null;
+					Value returnValue = null;
+
 					if (invokeExpr instanceof InstanceInvokeExpr) {
 						invokeType = "InstanceInvokeExpr";
 						instanceValue = ((InstanceInvokeExpr) invokeExpr).getBase();
@@ -200,13 +204,14 @@ public class InstrumentTracer extends BodyTransformer {
 					// Why the hell we pass null as returnValue ?! Because
 					// it is hard to get that value from
 					// the invoke expression
-					Value returnValue = null;
+
 					// This creates many problems if the return type is
 					// primitive... !
-					logger.debug("TODO: How do we get the value resulting from this call ? " + invokeExpr
-							+ " Maybe we can match this to a return statement somewhere ?");
+					if (!(invokeExpr.getMethod().getReturnType() instanceof VoidType)) {
+						logger.debug("TODO: How do we get the value resulting from this call ? " + invokeExpr
+								+ " Maybe we can match this to a return statement somewhere ?");
+					}
 
-					// The following method it HUGE !!!
 					instrumentInvokeExpression(body, units, u, invokeExpr.getMethod(), invokeExpr.getArgs(),
 							returnValue, instanceValue, invokeType, false);
 
@@ -311,8 +316,8 @@ public class InstrumentTracer extends BodyTransformer {
 	}
 
 	private void addTraceObject(Value instanceValue, SootMethod method, final PatchingChain<Unit> units, Unit u) {
-		final SootMethod methodObject = Scene.v().getMethod(
-				"<de.unipassau.abc.tracing.Trace: void methodObject(java.lang.String,java.lang.Object)>");
+		final SootMethod methodObject = Scene.v()
+				.getMethod("<de.unipassau.abc.tracing.Trace: void methodObject(java.lang.String,java.lang.Object)>");
 
 		// StickType ?
 		// If the method is not Static, i.e., instance is not null - maybe
@@ -356,13 +361,8 @@ public class InstrumentTracer extends BodyTransformer {
 		// This box return value or null or void constants
 		Pair<Value, List<Unit>> tmpReturnValueAndInstructions = null;
 		if (method.getReturnType() instanceof VoidType || method.getReturnType().toString().equals("void")) {
-			// This is a dummy placeholder ! isRead is false anyway
-			// tmpReturnValueAndInstructions =
-			// UtilInstrumenter.generateReturnValue(StringConstant.v("void"),
-			// b);
 			tmpReturnValueAndInstructions = new Pair<Value, List<Unit>>(StringConstant.v("void"),
 					new ArrayList<Unit>());
-			logger.debug("After void/init");
 
 		} else if (returnValue == null) {
 			logger.trace("InstrumentTracer.traceMethodCall() 	or " + method + " is read " + isRead);
@@ -449,13 +449,19 @@ public class InstrumentTracer extends BodyTransformer {
 		// This identifies the classes/packages that define the boundary of the
 		// carving. Methods in this list
 		// will be not instrumented, i.e., soot will not go inside them.
+		// What do we need external for here ?
 		@Option(longName = "external", defaultToNull = true)
 		List<String> getExternalInterfaces();
 
+		// Some calls can be omitted by the tracing since are considered not to
+		// have side effects
+		@Option(longName = "pure-methods", defaultToNull = true)
+		List<String> getPureMethods();
+
 	}
 
-	// TODO Add output folder to soot options
-	// TODO Define CLI
+	private static final List<Pattern> pureMethods = new ArrayList<Pattern>();
+
 	public static void main(String[] args) throws URISyntaxException {
 		String phaseName = "jtp.mainInstrumentation";
 
@@ -472,11 +478,37 @@ public class InstrumentTracer extends BodyTransformer {
 			sootExclude.add("de.unipassau.abc.*");
 			// TODO Shall we also exclude loggers and such ? Again Shaded deps ?
 			// NOTE THAT SOOT COMES WITH ITS OWN DEPS IN THE JAR !
+			sootExclude.add("java.io.*");
+			sootExclude.add("java.nio.*");
 		}
 		List<String> sootInclude = new ArrayList<>();
 		{
+			// No default include
 		}
 		List<String> externalInterfaces = new ArrayList<>();
+		{
+			// Default Interfaces are the one for Files, Network, etc. ?
+			// TODO this list is not complete !
+			externalInterfaces.add("java.util.Scanner");
+		}
+
+		// Default pure methods
+		{
+			// m.getDeclaringClass().getName().equals("java.lang.StringBuilder")
+			// ||
+			// m.getDeclaringClass().getName().equals("java.util.Scanner") || //
+
+			pureMethods.add(Pattern.compile(Pattern.quote("<java.lang.Object: void <init>()>")));
+			pureMethods.add(Pattern.compile("<java.io.PrintStream: void println\\(.*>"));
+			// We treat Strings as primitives, i.e., we pass around them by
+			// value. This means that we can omit to track calls to to
+			// StringBuilder ... (I hope so! -> not really, the moment those are
+			// parameters of any carved invocation this will fail !
+			pureMethods.add(Pattern.compile("<java.lang.StringBuilder: .*"));
+			// Similarly for boxed type
+			pureMethods.add(Pattern.compile("<java.lang.Integer: .*"));
+		}
+
 		try {
 			InstrumentTracerCLI commandLineOptions = CliFactory.parseArguments(InstrumentTracerCLI.class, args);
 			projectJar = commandLineOptions.getProjectJar();
@@ -493,6 +525,18 @@ public class InstrumentTracer extends BodyTransformer {
 			//
 			sootInclude.addAll((commandLineOptions.getIncludes() != null) ? commandLineOptions.getIncludes()
 					: new ArrayList<String>());
+			//
+			if (commandLineOptions.getPureMethods() != null) {
+				for (String pure : commandLineOptions.getPureMethods()) {
+					if (MethodInvocationMatcher.jimpleMethodInvocationPattern.matcher(pure).matches()) {
+						// Literal matching for the methods
+						pureMethods.add(Pattern.compile(Pattern.quote(pure)));
+					} else {
+						// RegEx for the others
+						pureMethods.add(Pattern.compile(pure));
+					}
+				}
+			}
 
 		} catch (ArgumentValidationException e) {
 			throw e;
@@ -505,8 +549,10 @@ public class InstrumentTracer extends BodyTransformer {
 		// Setup the Soot settings
 		Options.v().set_allow_phantom_refs(true);
 		Options.v().set_whole_program(true);
-		// Is this ok ?
-		Options.v().set_soot_classpath(System.getProperty("java.path"));
+
+		// TODO: the problem with this one is that soot tries to instrument java
+		// as well ?
+		// Options.v().set_soot_classpath(System.getProperty("java.path"));
 		//
 		Options.v().set_output_dir(outputDir.getAbsolutePath());
 
@@ -517,12 +563,12 @@ public class InstrumentTracer extends BodyTransformer {
 		// The more we remove, the faster the analysis gets.
 		// For example, we can include here all the external interfaces already
 		// !
-		logger.info("Excluding: " + sootExclude );
+		logger.info("Excluding: " + sootExclude);
 		Options.v().set_exclude(sootExclude);
-		logger.info("Including: " + sootInclude );
-		Options.v().set_include(sootInclude);
-
 		Options.v().set_no_bodies_for_excluded(true);
+
+		logger.info("Including: " + sootInclude);
+		Options.v().set_include(sootInclude);
 
 		InstrumentTracer it = new InstrumentTracer();
 
@@ -589,12 +635,13 @@ public class InstrumentTracer extends BodyTransformer {
 	 * TODO : We pretend those calls never happened
 	 */
 	private boolean doNotTraceCallsTo(SootMethod m) {
-		return m.getDeclaringClass().getName().equals("java.lang.StringBuilder") || //
-				m.getDeclaringClass().getName().equals("java.io.PrintStream") || //
-				m.getDeclaringClass().getName().equals("java.util.Scanner") || //
-				// Is this ok ?!
-				m.getDeclaringClass().getName().equals("java.lang.Object") || //
-				false;
+		for (Pattern purePattern : pureMethods) {
+			if (purePattern.matcher(m.toString()).matches()) {
+				logger.trace(m + " is declared PURE. Do not trace this call");
+				return true;
+			}
+		}
+		return false;
 	}
 
 }

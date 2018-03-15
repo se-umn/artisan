@@ -36,7 +36,7 @@ import de.unipassau.abc.utils.SystemTest;
 public class InstrumentDummyProjectTest {
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -63,13 +63,14 @@ public class InstrumentDummyProjectTest {
 	public void instrumentAndTraceTestSubjects() throws URISyntaxException, IOException, InterruptedException {
 		File outputDir = temporaryFolder.newFolder();
 
+		// Note that this includes both SUT and its test. If we do not trace
+		// test cases, then we might miss information for carving
 		File testsubjectJar = new File("./libs/testsubject-tests.jar");
 
 		InstrumentTracer tracer = new InstrumentTracer();
 		tracer.main(new String[] { "--project-jar", testsubjectJar.getAbsolutePath(), //
 				"--output-to", outputDir.getAbsolutePath(), //
-				"--output-type", "class",
-				"--include", "de.unipassau.abc.testsubject.*"});
+				"--output-type", "class", "--include", "de.unipassau.abc.testsubject.*" });
 		//
 		final AtomicInteger count = new AtomicInteger(0);
 		Files.walkFileTree(outputDir.toPath(), new SimpleFileVisitor<Path>() {
@@ -116,7 +117,8 @@ public class InstrumentDummyProjectTest {
 		processBuilder.environment().put("trace.output", traceOutput.getAbsolutePath());
 		System.out.println("InstrumentEmployeeTest.instrumentAndTraceTestSubjects()" + processBuilder.command());
 
-		processBuilder.inheritIO();
+		// This causes problems
+		// processBuilder.inheritIO();
 
 		Process process = processBuilder.start();
 
