@@ -83,10 +83,12 @@ public class Carver {
 		File outputDir = null;
 		MethodInvocationMatcher carveBy = null;
 		MethodInvocationMatcher excludeBy = null;
+		// TODO Code duplicate with InstrumentTracer
 		List<String> externalInterfaces = new ArrayList<>();
 		{
-			// Default external interfaces, for example FILE, NIo, NET, etc.. List here some of them. 
-			
+			// Default Interfaces are the one for Files, Network, etc. ?
+			// TODO this list is not complete !
+			externalInterfaces.add("java.util.Scanner");
 		}
 
 		try {
@@ -107,9 +109,20 @@ public class Carver {
 				excludeBy = MethodInvocationMatcher.noMatch();
 			}
 
+			externalInterfaces.addAll( (result.getExternalInterfaces() != null) ? result.getExternalInterfaces() : new ArrayList<String>());
+			
+			
 		} catch (ArgumentValidationException e) {
 		}
 
+		// Build the externalInterfaceMatchers, during parsers those will mark corresponding method invocation with the flag
+		List<MethodInvocationMatcher> externalInterfaceMatchers = new ArrayList<MethodInvocationMatcher>();
+		for( String externalInterface: externalInterfaces){
+			// By default those are class matchers !
+			externalInterfaceMatchers.add( MethodInvocationMatcher.byClass( externalInterface ) );
+		}
+		
+		
 		System.out.println("Carver.main() Start parsing ");
 		// Parse the trace file into graphs
 		StackImplementation traceParser = new StackImplementation();
@@ -117,7 +130,7 @@ public class Carver {
 		// another?
 
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = traceParser
-				.parseTrace(traceFile.getAbsolutePath());
+				.parseTrace(traceFile.getAbsolutePath(), externalInterfaceMatchers);
 		System.out.println("Carver.main() End parsing ");
 		// Carving
 		System.out.println("Carver.main() Start carving");

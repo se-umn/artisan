@@ -44,8 +44,8 @@ public class StackImplementation implements TraceParser {
 	private ExecutionFlowGraph exectuionFlowGraph;
 
 	/*
-	 * I suspect this is the DataNode Dependency graph, that is Object 1 used inside
-	 * Objcte 2 Dependency in what sense? Call graph ?
+	 * I suspect this is the DataNode Dependency graph, that is Object 1 used
+	 * inside Objcte 2 Dependency in what sense? Call graph ?
 	 * 
 	 * 
 	 * FIXME: either this is broken or there's no DataDependencies
@@ -111,7 +111,8 @@ public class StackImplementation implements TraceParser {
 		// externalDependencyList.add("org.employee.fileread3");
 	}
 
-	private int parseMethodStart(int startLine, List<String> allLines) {
+	private int parseMethodStart(int startLine, List<String> allLines,
+			List<MethodInvocationMatcher> externalInterfaceMatchers) {
 		logger.trace("StackImplementation.parseMethodStart()" + allLines.get(startLine));
 		// This is global counter to distinguish all the invocations
 
@@ -126,6 +127,12 @@ public class StackImplementation implements TraceParser {
 
 		MethodInvocation methodInvocation = new MethodInvocation(jimpleMethod, invocationCount.incrementAndGet());
 		methodInvocation.setInvocationType(typeOfInvocation);
+		// Check if this method belongs to an external interface
+		for (MethodInvocationMatcher externalInterfaceMatcher : externalInterfaceMatchers) {
+			if (externalInterfaceMatcher.match(methodInvocation)) {
+				methodInvocation.setBelongsToExternalInterface(true);
+			}
+		}
 
 		logger.trace("InvocationType for " + jimpleMethod + " is " + typeOfInvocation);
 
@@ -190,7 +197,9 @@ public class StackImplementation implements TraceParser {
 		// tokens[0] is METHOD_OBJECT_TOKEN
 		String jimpleMethod = tokens[1];
 
-		MethodInvocation methodInvocation = callGraph.peek();//new MethodInvocation(jimpleMethod, invocationCount.get());
+		MethodInvocation methodInvocation = callGraph.peek();// new
+																// MethodInvocation(jimpleMethod,
+																// invocationCount.get());
 
 		StringBuffer thisObject = new StringBuffer(tokens[2]);
 		int peekIndex = startLine + 1;
@@ -204,13 +213,13 @@ public class StackImplementation implements TraceParser {
 		}
 
 		// Static methods are automatically skipped
-		
+
 		// TODO This shall be placed inside callGraph
-		methodInvocation.setOwner( new ObjectInstance(thisObject.toString()));
+		methodInvocation.setOwner(new ObjectInstance(thisObject.toString()));
 		//
 		dataDependencyGraph.addDataDependencyOnOwner(methodInvocation, thisObject.toString());
 		exectuionFlowGraph.addOwnerToMethodInvocation(methodInvocation, thisObject.toString());
-//		graphAssigningID(jimpleMethod + ";" + thisObject);
+		// graphAssigningID(jimpleMethod + ";" + thisObject);
 		//
 		return peekIndex - 1;
 	}
@@ -221,7 +230,9 @@ public class StackImplementation implements TraceParser {
 		// tokens[0] is METHOD_END_TOKEN
 		String jimpleMethod = tokens[1];
 
-		MethodInvocation methodInvocation = callGraph.pop(); //new MethodInvocation(jimpleMethod, invocationCount.get());
+		MethodInvocation methodInvocation = callGraph.pop(); // new
+																// MethodInvocation(jimpleMethod,
+																// invocationCount.get());
 
 		// Void methods are not reported...
 		StringBuffer returnValue = new StringBuffer();
@@ -237,18 +248,19 @@ public class StackImplementation implements TraceParser {
 				returnValue.append(allLines.get(peekIndex));
 				peekIndex++;
 			}
-			logger.trace("Return value " + returnValue + " " + returnValue.length() );
-			
+			logger.trace("Return value " + returnValue + " " + returnValue.length());
+
 		}
 
 		// TODO This is tricky: one might actually encode the string null !!!
-		dataDependencyGraph.addDataDependencyOnReturn(methodInvocation, 
-				(returnValue.length() != 0 ) ? returnValue.toString() : null);
-		
-//		if (returnValue.toString().equals("null") || returnValue.length() == 0) {
-//		} else {
-//			Graph_Details.returnValues.put(jimpleMethod, returnValue.toString());
-//		}
+		dataDependencyGraph.addDataDependencyOnReturn(methodInvocation,
+				(returnValue.length() != 0) ? returnValue.toString() : null);
+
+		// if (returnValue.toString().equals("null") || returnValue.length() ==
+		// 0) {
+		// } else {
+		// Graph_Details.returnValues.put(jimpleMethod, returnValue.toString());
+		// }
 
 		// Note that we might have data dependencies on the return value ?!
 		// TODO Shall this be double checked that we did not miss anything ?
@@ -260,12 +272,15 @@ public class StackImplementation implements TraceParser {
 	}
 
 	// TODO Probably this method shall be moved in the Trace project
-	public void parseTraceFile(String traceFilePath) throws FileNotFoundException, IOException {
+	public void parseTraceFile(String traceFilePath, List<MethodInvocationMatcher> externalInterfaceMatchers)
+			throws FileNotFoundException, IOException {
 
 		List<String> lines = new ArrayList<String>();
 		// TODO This shall be handled somehow... especially the return value..
-		// There should be in soot a way to understand if we are inside the static MAIN
-		// There should be a value to capture the System.exit value as well instead of keeping 0 hardcoded
+		// There should be in soot a way to understand if we are inside the
+		// static MAIN
+		// There should be a value to capture the System.exit value as well
+		// instead of keeping 0 hardcoded
 		lines.add(Trace.METHOD_START_TOKEN + "StaticInvokeExpr;<ABC: int MAIN()>");
 		lines.addAll(Files.readAllLines(Paths.get(traceFilePath), Charset.defaultCharset()));
 		lines.add(Trace.METHOD_END_TOKEN + "<ABC: int MAIN()>;0");
@@ -282,7 +297,7 @@ public class StackImplementation implements TraceParser {
 			}
 
 			if (each.startsWith(Trace.METHOD_START_TOKEN)) {
-				i = parseMethodStart(i, lines);
+				i = parseMethodStart(i, lines, externalInterfaceMatchers);
 			} else if (each.startsWith(Trace.METHOD_OBJECT_TOKEN)) {
 				i = parseMethodThis(i, lines);
 			} else if (each.startsWith(Trace.METHOD_END_TOKEN)) {
@@ -305,10 +320,10 @@ public class StackImplementation implements TraceParser {
 
 	}
 
-	public Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>  parseTrace(String traceFilePath)
-			throws FileNotFoundException, IOException {
+	public Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parseTrace(String traceFilePath,
+			List<MethodInvocationMatcher> externalInterfaceMatchers) throws FileNotFoundException, IOException {
 
-		parseTraceFile(traceFilePath);
+		parseTraceFile(traceFilePath, externalInterfaceMatchers);
 
 		if (System.getProperty("debug") != null) {
 			callGraph.visualize();
@@ -316,7 +331,8 @@ public class StackImplementation implements TraceParser {
 			dataDependencyGraph.visualize();
 		}
 
-		return new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> (exectuionFlowGraph, dataDependencyGraph, callGraph);
+		return new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(exectuionFlowGraph,
+				dataDependencyGraph, callGraph);
 	}
 
 	// Method name and parameters
@@ -354,30 +370,35 @@ public class StackImplementation implements TraceParser {
 	// }
 
 	// Register the object which called the method
-//	public void graphAssigningID(String subs) {
-//		String tokens[] = subs.split(";");
-//
-//		String jimpleMethod = tokens[0];
-//		// FIXME Hash of the object must be a proper hash not the default
-//		// toString of it...
-//		// System.identityHashCode(yourObject)
-//		String stringRepresentationOfTheObject = subs.substring(subs.indexOf(';') + 1, subs.length());
-//
-//		Graph_Details.hashIdDuplicate.put(jimpleMethod, stringRepresentationOfTheObject);
-//		ArrayList<String> list;
-//
-//		if (Graph_Details.instancesHashId.containsKey(stringRepresentationOfTheObject)) {
-//			list = Graph_Details.instancesHashId.get(stringRepresentationOfTheObject);
-//
-//			list.add(jimpleMethod);
-//			Graph_Details.instancesHashId.put(stringRepresentationOfTheObject, list);
-//		} else {
-//			list = new ArrayList<String>();
-//			list.add(jimpleMethod);
-//			Graph_Details.instancesHashId.put(stringRepresentationOfTheObject, list);
-//		}
-//
-//	}
+	// public void graphAssigningID(String subs) {
+	// String tokens[] = subs.split(";");
+	//
+	// String jimpleMethod = tokens[0];
+	// // FIXME Hash of the object must be a proper hash not the default
+	// // toString of it...
+	// // System.identityHashCode(yourObject)
+	// String stringRepresentationOfTheObject = subs.substring(subs.indexOf(';')
+	// + 1, subs.length());
+	//
+	// Graph_Details.hashIdDuplicate.put(jimpleMethod,
+	// stringRepresentationOfTheObject);
+	// ArrayList<String> list;
+	//
+	// if
+	// (Graph_Details.instancesHashId.containsKey(stringRepresentationOfTheObject))
+	// {
+	// list =
+	// Graph_Details.instancesHashId.get(stringRepresentationOfTheObject);
+	//
+	// list.add(jimpleMethod);
+	// Graph_Details.instancesHashId.put(stringRepresentationOfTheObject, list);
+	// } else {
+	// list = new ArrayList<String>();
+	// list.add(jimpleMethod);
+	// Graph_Details.instancesHashId.put(stringRepresentationOfTheObject, list);
+	// }
+	//
+	// }
 
 	/*
 	 * Push on top of the stack the current method. This will match the
@@ -606,42 +627,40 @@ public class StackImplementation implements TraceParser {
 		return exectuionFlowGraph;
 	}
 
-//	public boolean checkParamIsAObject(String param) {
-//		logger.debug("checkParamIsAObject : The parameter is " + param);
-//		return Graph_Details.instancesHashId.containsKey(param);
-//	}
+	// public boolean checkParamIsAObject(String param) {
+	// logger.debug("checkParamIsAObject : The parameter is " + param);
+	// return Graph_Details.instancesHashId.containsKey(param);
+	// }
 
-//	public void paramEdgeCreation(String param) {
-//		Iterator<Map.Entry<String, ArrayList<String>>> it = Graph_Details.instancesHashId.entrySet().iterator();
-//
-//		while (it.hasNext()) {
-//			Map.Entry<String, ArrayList<String>> entry = it.next();
-//			String key = entry.getKey();
-//			if (key.equals(param)) {
-//				ArrayList<String> list = entry.getValue();
-//				for (String s : list)
-//					if (s.contains("<init()>")) {
-//
-//					}
-//			}
-//		}
-//	}
-//
-//	/**
-//	 * Gives the parameter values for a method if parameter is present
-//	 * 
-//	 * @param methodName
-//	 *            - Full name of the method for which parameters are needed
-//	 * @return the parameter values
-//	 */
-//	public String paramOfMethod(String methodName) {
-//		if (Graph_Details.hashParam.containsKey(methodName))
-//			return Graph_Details.hashParam.get(methodName);
-//		return null;
-//	}
-
-	
-
+	// public void paramEdgeCreation(String param) {
+	// Iterator<Map.Entry<String, ArrayList<String>>> it =
+	// Graph_Details.instancesHashId.entrySet().iterator();
+	//
+	// while (it.hasNext()) {
+	// Map.Entry<String, ArrayList<String>> entry = it.next();
+	// String key = entry.getKey();
+	// if (key.equals(param)) {
+	// ArrayList<String> list = entry.getValue();
+	// for (String s : list)
+	// if (s.contains("<init()>")) {
+	//
+	// }
+	// }
+	// }
+	// }
+	//
+	// /**
+	// * Gives the parameter values for a method if parameter is present
+	// *
+	// * @param methodName
+	// * - Full name of the method for which parameters are needed
+	// * @return the parameter values
+	// */
+	// public String paramOfMethod(String methodName) {
+	// if (Graph_Details.hashParam.containsKey(methodName))
+	// return Graph_Details.hashParam.get(methodName);
+	// return null;
+	// }
 
 	// // Why we need a differnt method here ?/
 	// public void parentsCarve(String methodName, String objectOfMUT) {
@@ -701,61 +720,63 @@ public class StackImplementation implements TraceParser {
 	//
 	// }
 
-//	public int numberOfMUTChildren(String parent) {
-//		HashSet<String> allChildren = null;// duplicateGraph.getChildren(parent);
-//
-//		int countOfMUTChildren = 0;
-//		for (String each : allChildren) {
-//			if (each.contains(Graph_Details.carvingMethod))
-//				countOfMUTChildren++;
-//		}
-//		return countOfMUTChildren;
-//	}
+	// public int numberOfMUTChildren(String parent) {
+	// HashSet<String> allChildren = null;// duplicateGraph.getChildren(parent);
+	//
+	// int countOfMUTChildren = 0;
+	// for (String each : allChildren) {
+	// if (each.contains(Graph_Details.carvingMethod))
+	// countOfMUTChildren++;
+	// }
+	// return countOfMUTChildren;
+	// }
 
-//	// Not sure we still need this...
-//	public void returnCountOfMUTBeforeParent(String parent) {
-//		MethodInvocation wrongParent = new MethodInvocation(parent, parent, -1);
-//		Set<String> previousMethods = exectuionFlowGraph.getParents(wrongParent);
-//		for (String eachMethod : previousMethods) {
-//			// logger.debug("The parents are :"+eachMethod);
-//			if (eachMethod.contains(Graph_Details.carvingMethod)) {
-//				String count = eachMethod.substring(eachMethod.lastIndexOf('>') + 1);
-//				if (!count.isEmpty()) {
-//
-//					Graph_Details.parentMethodAndMUTStartCount.put(parent, Integer.parseInt(count));
-//				} else
-//					Graph_Details.parentMethodAndMUTStartCount.put(parent, 0);
-//				// logger.debug("The edgeCount is : "+edgeCount);
-//			} else {
-//				Graph_Details.parentMethodAndMUTStartCount.put(parent, 0);
-//			}
-//		}
-//
-//	}
+	// // Not sure we still need this...
+	// public void returnCountOfMUTBeforeParent(String parent) {
+	// MethodInvocation wrongParent = new MethodInvocation(parent, parent, -1);
+	// Set<String> previousMethods = exectuionFlowGraph.getParents(wrongParent);
+	// for (String eachMethod : previousMethods) {
+	// // logger.debug("The parents are :"+eachMethod);
+	// if (eachMethod.contains(Graph_Details.carvingMethod)) {
+	// String count = eachMethod.substring(eachMethod.lastIndexOf('>') + 1);
+	// if (!count.isEmpty()) {
+	//
+	// Graph_Details.parentMethodAndMUTStartCount.put(parent,
+	// Integer.parseInt(count));
+	// } else
+	// Graph_Details.parentMethodAndMUTStartCount.put(parent, 0);
+	// // logger.debug("The edgeCount is : "+edgeCount);
+	// } else {
+	// Graph_Details.parentMethodAndMUTStartCount.put(parent, 0);
+	// }
+	// }
+	//
+	// }
 
-//	public List<String> getObjectInstanceIdsForMethod(String jimpleMethod) {
-//		List<String> methodTargetInstances = new ArrayList<>();
-//		// TODO WHy this uses this data structure since we build the graph ?!
-//		// Can we
-//		// simply lookup the graph, find the nodes, and such ?
-//		// We might use a cache and a lookup table, but shall go and point
-//		// directly to the right instances/nodes
-//		Iterator<Map.Entry<String, ArrayList<String>>> it = Graph_Details.instancesHashId.entrySet().iterator();
-//		while (it.hasNext()) {
-//			Map.Entry<String, ArrayList<String>> entry = it.next();
-//			ArrayList<String> list = entry.getValue();
-//			String key = entry.getKey();
-//			for (String s : list) {
-//				if (s.equals(jimpleMethod)) {
-//					methodTargetInstances.add(key);
-//				}
-//			}
-//		}
-//		// logger.error("Cannot find an object id for this method : " + method);
-//		// return null;
-//		return methodTargetInstances;
-//
-//	}
+	// public List<String> getObjectInstanceIdsForMethod(String jimpleMethod) {
+	// List<String> methodTargetInstances = new ArrayList<>();
+	// // TODO WHy this uses this data structure since we build the graph ?!
+	// // Can we
+	// // simply lookup the graph, find the nodes, and such ?
+	// // We might use a cache and a lookup table, but shall go and point
+	// // directly to the right instances/nodes
+	// Iterator<Map.Entry<String, ArrayList<String>>> it =
+	// Graph_Details.instancesHashId.entrySet().iterator();
+	// while (it.hasNext()) {
+	// Map.Entry<String, ArrayList<String>> entry = it.next();
+	// ArrayList<String> list = entry.getValue();
+	// String key = entry.getKey();
+	// for (String s : list) {
+	// if (s.equals(jimpleMethod)) {
+	// methodTargetInstances.add(key);
+	// }
+	// }
+	// }
+	// // logger.error("Cannot find an object id for this method : " + method);
+	// // return null;
+	// return methodTargetInstances;
+	//
+	// }
 
 	// /**
 	// * Generates the first test case
@@ -805,7 +826,8 @@ public class StackImplementation implements TraceParser {
 	// // NOTE: DataNode Dependency is not directed ! It links instances with
 	// // method invocations !
 	// // Include all the invocations that have are transitively reached via
-	// // data dependency from MUT (DataNode dependency) - this excludes main and
+	// // data dependency from MUT (DataNode dependency) - this excludes main
+	// and
 	// // caller methods, but includes also methods which produce parameters
 	// // that are used somewhere in the chain
 	// // Exclude all the invocations the are subsumed, i.e., that are
@@ -1135,41 +1157,43 @@ public class StackImplementation implements TraceParser {
 	// }
 
 	// Was this to verify the implementation is correct of for some other goal?
-//	public boolean checkIfMethodHasTestCase(String method) {
-//		if (!Graph_Details.testCases.isEmpty()) {
-//			Iterator<Map.Entry<Integer, List<String>>> it = Graph_Details.testCases.entrySet().iterator();
-//			while (it.hasNext()) {
-//				Map.Entry<Integer, List<String>> entry = it.next();
-//				List<String> list = entry.getValue();
-//				int key = entry.getKey();
-//				if (list.contains(method))
-//					return true;
-//
-//			}
-//
-//		}
-//		return false;
-//	}
+	// public boolean checkIfMethodHasTestCase(String method) {
+	// if (!Graph_Details.testCases.isEmpty()) {
+	// Iterator<Map.Entry<Integer, List<String>>> it =
+	// Graph_Details.testCases.entrySet().iterator();
+	// while (it.hasNext()) {
+	// Map.Entry<Integer, List<String>> entry = it.next();
+	// List<String> list = entry.getValue();
+	// int key = entry.getKey();
+	// if (list.contains(method))
+	// return true;
+	//
+	// }
+	//
+	// }
+	// return false;
+	// }
 
-//	public ArrayList<String> methodWithreturnType(String returnType) {
-//		logger.debug(returnType);
-//		ArrayList<String> matchingFunctions = new ArrayList<String>();
-//		Iterator<Map.Entry<String, String>> it = Graph_Details.returnTypes.entrySet().iterator();
-//		logger.debug("The elements are(return Type) ::::::::::::::::::::::");
-//		while (it.hasNext()) {
-//
-//			Map.Entry<String, String> entry = it.next();
-//
-//			String key = entry.getKey();
-//
-//			String returnValue = entry.getValue();
-//			if (returnValue.equals(returnType))
-//				matchingFunctions.add(key);
-//
-//		}
-//
-//		return matchingFunctions;
-//	}
+	// public ArrayList<String> methodWithreturnType(String returnType) {
+	// logger.debug(returnType);
+	// ArrayList<String> matchingFunctions = new ArrayList<String>();
+	// Iterator<Map.Entry<String, String>> it =
+	// Graph_Details.returnTypes.entrySet().iterator();
+	// logger.debug("The elements are(return Type) ::::::::::::::::::::::");
+	// while (it.hasNext()) {
+	//
+	// Map.Entry<String, String> entry = it.next();
+	//
+	// String key = entry.getKey();
+	//
+	// String returnValue = entry.getValue();
+	// if (returnValue.equals(returnType))
+	// matchingFunctions.add(key);
+	//
+	// }
+	//
+	// return matchingFunctions;
+	// }
 
 	// /**
 	// * Constructor for the given object. This captures the dependencies via

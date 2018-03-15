@@ -7,7 +7,9 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.List;
 
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -29,6 +31,8 @@ public class StackImplementationTest {
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevel = new Slf4jSimpleLoggerRule(Level.TRACE);
 
+	private final List<MethodInvocationMatcher> emptyMethodInvocationMatcherList = new ArrayList<MethodInvocationMatcher>();
+
 	@Ignore
 	@Test
 	public void testTraceParseWithRealTrace() throws FileNotFoundException, IOException {
@@ -36,7 +40,7 @@ public class StackImplementationTest {
 		// StackImplementation stackImplementation = new StackImplementation();
 		StackImplementation stackImplementation = new StackImplementation();
 		// Parsing
-		stackImplementation.parseTraceFile(traceFile.getAbsolutePath());
+		stackImplementation.parseTraceFile(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		fail("Not implemented! ");
 	}
@@ -60,7 +64,7 @@ public class StackImplementationTest {
 		// StackImplementation stackImplementation = new StackImplementation();
 		StackImplementation stackImplementation = new StackImplementation();
 		// Parsing
-		stackImplementation.parseTraceFile(traceFile.getAbsolutePath());
+		stackImplementation.parseTraceFile(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		// Regression?
 		Hashtable<String, String> hashParams = new Hashtable<String, String>();
@@ -93,7 +97,7 @@ public class StackImplementationTest {
 		StackImplementation stackImplementation = new StackImplementation();
 
 		// Parsing
-		stackImplementation.parseTraceFile(traceFile.getAbsolutePath());
+		stackImplementation.parseTraceFile(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		fail("Not implemented! ");
 	}
@@ -120,7 +124,7 @@ public class StackImplementationTest {
 		StackImplementation stackImplementation = new StackImplementation();
 
 		// Parsing
-		stackImplementation.parseTraceFile(traceFile.getAbsolutePath());
+		stackImplementation.parseTraceFile(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		Hashtable<String, String> hashId = new Hashtable<String, String>();
 		hashId.put("<jpass.ui.action.TextComponentActionType: java.lang.String getName()>", "SELECT_ALL\n\nB\n");
@@ -148,7 +152,7 @@ public class StackImplementationTest {
 		StackImplementation stackImplementation = new StackImplementation();
 
 		// Parsing
-		stackImplementation.parseTraceFile(traceFile.getAbsolutePath());
+		stackImplementation.parseTraceFile(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		Hashtable<String, String> hashParams = new Hashtable<String, String>();
 		hashParams.put(

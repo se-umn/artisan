@@ -9,6 +9,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -42,6 +43,7 @@ public class CarvingTest {
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
 
 	private final MethodInvocationMatcher excludeNoMethodInvocationsMatcher = MethodInvocationMatcher.noMatch();
+	private final List<MethodInvocationMatcher> emptyMethodInvocationMatcherList = new ArrayList<MethodInvocationMatcher>();
 	
 	@Ignore
 	@Test
@@ -51,7 +53,7 @@ public class CarvingTest {
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
 		StackImplementation stackImplementation = new StackImplementation();
 
-		stackImplementation.parseTrace(traceFile.getAbsolutePath());
+		stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 		//
 		fail("Not implemented! ");
 	}
@@ -66,7 +68,7 @@ public class CarvingTest {
 		File traceFile = new File("./src/test/resources/Employee-trace-with-static.txt");
 		StackImplementation stackImplementation = new StackImplementation();
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
-				.parseTrace(traceFile.getAbsolutePath());
+				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
@@ -102,7 +104,7 @@ public class CarvingTest {
 		File traceFile = new File("./src/test/resources/Employee-trace-with-static.txt");
 		StackImplementation stackImplementation = new StackImplementation();
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
-				.parseTrace(traceFile.getAbsolutePath());
+				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
@@ -151,7 +153,7 @@ public class CarvingTest {
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
 		StackImplementation stackImplementation = new StackImplementation();
 
-		stackImplementation.parseTrace(traceFile.getAbsolutePath());
+		stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		fail("Not implemented! ");
 
@@ -196,7 +198,7 @@ public class CarvingTest {
 		StackImplementation stackImplementation = new StackImplementation();
 
 		// Parse trace and fill up Graph_Details.
-		stackImplementation.parseTraceFile(traceFile.getAbsolutePath());
+		stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		stackImplementation.getCallGraph().visualize();
 
@@ -218,7 +220,7 @@ public class CarvingTest {
 		// Not sure what's this
 
 		// Parse trace and fill up Graph_Details.
-		stackImplementation.parseTraceFile(traceFile.getAbsolutePath());
+		stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 		//
 		// stackImplementation.buildExecutionFlowGraph();
 		// stackImplementation.executionGraphView();
@@ -261,7 +263,7 @@ public class CarvingTest {
 		// Not sure what's this
 
 		// Parse trace and fill up Graph_Details.
-		stackImplementation.parseTraceFile(traceFile.getAbsolutePath());
+		stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 		// Demetras' law
 		stackImplementation.getDataDependencyGraph().visualize();
 
@@ -301,7 +303,7 @@ public class CarvingTest {
 		}
 
 		StackImplementation stackImplementation = new StackImplementation();
-		stackImplementation.parseTraceFile(traceFile.getAbsolutePath());
+		stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 		//
 		// This works by updating the static class {@link Graph_Details}
 		stackImplementation.getExectuionFlowGraph().visualize();

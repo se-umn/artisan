@@ -57,8 +57,7 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 	@Test
 	@Category(SystemTest.class)
 	public void instrumentAndTrace() throws URISyntaxException, IOException, InterruptedException {
-		// File outputDir = temporaryFolder.newFolder();
-		File outputDir = Files.createTempDirectory("TEMP").toFile();
+		File outputDir = temporaryFolder.newFolder();
 
 		InstrumentTracer tracer = new InstrumentTracer();
 

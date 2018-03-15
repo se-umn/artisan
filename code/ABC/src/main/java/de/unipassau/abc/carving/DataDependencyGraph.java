@@ -606,9 +606,7 @@ public class DataDependencyGraph {
 		for (GraphNode node : graph.getVertices()) {
 			if (node instanceof MethodInvocation) {
 				MethodInvocation mi = (MethodInvocation) node;
-				if (!connectedMethodInvocations.contains(node)) {
-					// NOTE: since we are iterating and removing at the same
-					// time, this might create proble,s
+				if (!connectedMethodInvocations.contains(mi) && ! mi.belongsToExternalInterface() ) {
 					unconnected.add(mi);
 				}
 			}
