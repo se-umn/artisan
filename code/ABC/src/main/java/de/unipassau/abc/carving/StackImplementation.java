@@ -7,8 +7,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -28,14 +26,6 @@ public class StackImplementation implements TraceParser {
 
 	private static final Logger logger = LoggerFactory.getLogger(StackImplementation.class);
 
-	// private Stack<String> stack;
-
-	// Is this GUI ?!
-	// private SimpleGraphView sgv;
-
-	// No idea what's this is about
-	// private DuplicateGraph duplicateGraph;
-
 	/*
 	 * Link nodes by time. Nodes are actual method invocations of non system,
 	 * non filtered classes. Not all methods, but only the methods which does
@@ -44,77 +34,30 @@ public class StackImplementation implements TraceParser {
 	private ExecutionFlowGraph exectuionFlowGraph;
 
 	/*
-	 * I suspect this is the DataNode Dependency graph, that is Object 1 used
-	 * inside Objcte 2 Dependency in what sense? Call graph ?
-	 * 
-	 * 
-	 * FIXME: either this is broken or there's no DataDependencies
+	 * Track data dependencies among invocations: return values, parameters, and
+	 * method owner
 	 */
 	private DataDependencyGraph dataDependencyGraph;
 
 	/*
-	 * Link nodes by data dependency. Nodes are methods AND object instances...
-	 * THIS IS VERY MISLEADING !!
-	 * 
+	 * Link nodes by called-by, subsumed-by relation
 	 */
 	private CallGraph callGraph;
 
-	// What's this ?
-	// private Queue<String> queue;
-
-	private int edgeCount;
-
-	// Whty those starts from 1 and 2 ?!
+	/*
+	 * Global ID to uniquely identify each method invocation traced
+	 */
 	private AtomicInteger invocationCount = new AtomicInteger(0);
-
-	private AtomicInteger countOfMUT = new AtomicInteger(2);
-	Hashtable<String, ArrayList<String>> parameters;
-
-	// What is this about... an in-carving list of invocations ?
-	private ArrayList<String> testCaseInstructions;
-
-	// This is for testing
-	public ArrayList<String> getTestCases() {
-		return testCaseInstructions;
-	}
-
-	ArrayList<String> externalTestCases;
-	ArrayList<String> extraMethodsAdded;
-	HashSet<String> alreadyCoveredParents;
-	List<String> listOfParameters = new CopyOnWriteArrayList<String>();
-	public String carvingMethod;
-	public List<String> externalDependencyList;
-	boolean flag = false;
-	boolean threadStartFlag = false;
-	String threadStart = "";
 
 	public StackImplementation() {
 		exectuionFlowGraph = new ExecutionFlowGraph();
 		dataDependencyGraph = new DataDependencyGraph();
-		// queue = new LinkedList<String>();
 		callGraph = new CallGraph();
-		edgeCount = 0;
-		testCaseInstructions = new ArrayList<String>();
-		externalTestCases = new ArrayList<String>();
-		extraMethodsAdded = new ArrayList<String>();
-		carvingMethod = "";
-		parameters = new Hashtable<String, ArrayList<String>>();
-		externalDependencyList = new ArrayList<String>();
-		alreadyCoveredParents = new HashSet<String>();
-
-	}
-
-	public void createExternalList() {
-		// externalDependencyList.add("org.apache.commons.codec.binary.");
-		// externalDependencyList.add("java.sql.");
-		// externalDependencyList.add("org.employee.fileread2");
-		// externalDependencyList.add("org.employee.fileread3");
 	}
 
 	private int parseMethodStart(int startLine, List<String> allLines,
 			List<MethodInvocationMatcher> externalInterfaceMatchers) {
 		logger.trace("StackImplementation.parseMethodStart()" + allLines.get(startLine));
-		// This is global counter to distinguish all the invocations
 
 		// Assuming that there's no ";" inside any of those elements !!!
 		// Probably we should move to something structured, that is which encode
