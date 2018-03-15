@@ -504,9 +504,9 @@ public class InstrumentTracer extends BodyTransformer {
 			// value. This means that we can omit to track calls to to
 			// StringBuilder ... (I hope so! -> not really, the moment those are
 			// parameters of any carved invocation this will fail !
-			pureMethods.add(Pattern.compile("<java.lang.StringBuilder: .*"));
+			// pureMethods.add(Pattern.compile("<java.lang.StringBuilder: .*"));
 			// Similarly for boxed type
-			pureMethods.add(Pattern.compile("<java.lang.Integer: .*"));
+			// pureMethods.add(Pattern.compile("<java.lang.Integer: .*"));
 		}
 
 		try {
