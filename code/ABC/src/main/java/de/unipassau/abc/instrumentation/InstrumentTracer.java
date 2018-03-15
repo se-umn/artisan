@@ -143,7 +143,7 @@ public class InstrumentTracer extends BodyTransformer {
 								stmt.getLeftOp(), // Return value ? Or the
 													// target of the assign
 													// ?
-								instanceValue, invokeType, true);
+								instanceValue, invokeType);// , true);
 						// }
 					}
 				}
@@ -157,6 +157,10 @@ public class InstrumentTracer extends BodyTransformer {
 				 * of assignment the invoke is triggered only once.
 				 */
 				public void caseInvokeStmt(InvokeStmt stmt) {
+
+					// Most likely we can add a Local to host the value, how do
+					// we handle invocations inside IF statement for example?
+
 					logger.trace("Inside method " + containerMethod + " caseInvokeStmt() " + stmt);
 
 					InvokeExpr invokeExpr = stmt.getInvokeExpr();
@@ -169,7 +173,6 @@ public class InstrumentTracer extends BodyTransformer {
 
 					String invokeType = null;
 					Value instanceValue = null;
-					Value returnValue = null;
 
 					if (invokeExpr instanceof InstanceInvokeExpr) {
 						invokeType = "InstanceInvokeExpr";
@@ -207,13 +210,21 @@ public class InstrumentTracer extends BodyTransformer {
 
 					// This creates many problems if the return type is
 					// primitive... !
+					Value returnValue = null;
 					if (!(invokeExpr.getMethod().getReturnType() instanceof VoidType)) {
-						logger.debug("TODO: How do we get the value resulting from this call ? " + invokeExpr
-								+ " Maybe we can match this to a return statement somewhere ?");
+						// TODO
+						logger.debug(
+								"InstrumentTracer.instrumentInvokeExpression() Add AssignStmt to access the value of "
+										+ stmt + " which is not read ");
+						// This is requires for generating regression assertions
+						// in case this method is MUT
+						returnValue = UtilInstrumenter.generateFreshLocal(body, invokeExpr.getMethod().getReturnType());
+						Unit capturingAssignStmt = Jimple.v().newAssignStmt(returnValue, invokeExpr);
+						units.insertBefore(capturingAssignStmt, stmt);
 					}
 
 					instrumentInvokeExpression(body, units, u, invokeExpr.getMethod(), invokeExpr.getArgs(),
-							returnValue, instanceValue, invokeType, false);
+							returnValue, instanceValue, invokeType);
 
 				}
 
@@ -270,17 +281,9 @@ public class InstrumentTracer extends BodyTransformer {
 			/*
 			 * Type of invocation.
 			 */
-			String invokeType, //
-			/*
-			 * The return value of the invoke might not be used in the code.
-			 * Soot return null for it, which breaks the code if the return
-			 * value is primitive. Primitive types cannot be null. This is patch
-			 * to be removed upon refactoring
-			 */
-			boolean isRead
+			String invokeType) {
 
-	) {
-		traceMethodCall(body, units, u, method, parameterValues, returnValue, instanceValue, invokeType, isRead);
+		traceMethodCall(body, units, u, method, parameterValues, returnValue, instanceValue, invokeType);
 
 		// TODO XML SERIALIZATION
 		// dumpToXML(b, units, u, method, parameterValues, returnValue,
@@ -292,7 +295,7 @@ public class InstrumentTracer extends BodyTransformer {
 	// TODO Double check that the original implementation does nothing more than
 	// this.
 	private void traceMethodCall(Body b, final PatchingChain<Unit> units, Unit u, SootMethod method,
-			List<Value> parameterList, Value returnValue, Value instanceValue, String invokeType, boolean isRead) {
+			List<Value> parameterList, Value returnValue, Value instanceValue, String invokeType) {
 		/*
 		 * Instrument body to include a call to Trace.start BEFORE the execution
 		 * of method, we store its parameters as well.
@@ -302,7 +305,7 @@ public class InstrumentTracer extends BodyTransformer {
 		 * Instrument body to include a call to Trace.stop AFTER the execution
 		 * of method, we store its return type as well.
 		 */
-		addTraceStop(method, returnValue, isRead, b, units, u);
+		addTraceStop(method, returnValue, b, units, u);
 		/*
 		 * Instrument body to include a call to Trace.object AFTER the execution
 		 * of method, we store the reference to the instance object making the
@@ -341,12 +344,11 @@ public class InstrumentTracer extends BodyTransformer {
 		}
 	}
 
-	private void addTraceStop(SootMethod method, Value returnValue, boolean isRead, Body body,
-			final PatchingChain<Unit> units, Unit u) {
+	private void addTraceStop(SootMethod method, Value returnValue, Body body, final PatchingChain<Unit> units,
+			Unit u) {
 
-		final SootMethod methodStop = Scene.v().getMethod(
-				"<de.unipassau.abc.tracing.Trace: void methodStop(java.lang.String,java.lang.String,java.lang.Object)>");
-
+		final SootMethod methodStop = Scene.v()
+				.getMethod("<de.unipassau.abc.tracing.Trace: void methodStop(java.lang.String,java.lang.Object)>");
 		// Trace.methodStop requires
 		// String -> methodName
 		// Object -> Return value
@@ -355,9 +357,6 @@ public class InstrumentTracer extends BodyTransformer {
 		// Method Name
 		methodStopParameters.add(StringConstant.v(method.getSignature()));
 
-		// Is Read ? Is Used ? Patch
-		methodStopParameters.add(StringConstant.v(Boolean.valueOf(isRead).toString()));
-
 		// This box return value or null or void constants
 		Pair<Value, List<Unit>> tmpReturnValueAndInstructions = null;
 		if (method.getReturnType() instanceof VoidType || method.getReturnType().toString().equals("void")) {
@@ -365,9 +364,7 @@ public class InstrumentTracer extends BodyTransformer {
 					new ArrayList<Unit>());
 
 		} else if (returnValue == null) {
-			logger.trace("InstrumentTracer.traceMethodCall() 	or " + method + " is read " + isRead);
-			tmpReturnValueAndInstructions = new Pair<Value, List<Unit>>(StringConstant.v("not-read"),
-					new ArrayList<Unit>());
+			throw new RuntimeException("Cannot have a null returnValue at this point " + method);
 		} else {
 			tmpReturnValueAndInstructions = UtilInstrumenter.generateReturnValue(returnValue, body);
 		}
