@@ -268,22 +268,22 @@ public class ExecutionFlowGraph {
 
 		// VERIFY. Does this graph contains the connectedMethodInvocation
 		if (!graph.getVertices().containsAll(connectedMethodInvocations)) {
-			visualize();
+			// Only in debugging mode visualize();
 			throw new RuntimeException(
 					" Connected Method invocations " + connectedMethodInvocations + " are not in the graph ?!" + graph);
 		}
 
 		Set<MethodInvocation> unconnected = new HashSet<>();
 		for (MethodInvocation node : graph.getVertices()) {
-			if (!connectedMethodInvocations.contains(node)) {
-				// NOTE: since we are iterating and removing at the same time,
-				// this might create problems
+
+			if (!connectedMethodInvocations.contains(node) && !node.belongsToExternalInterface()) {
+				logger.debug("ExecutionFlowGraph.refine() Remove " + node + " as unconnected");
 				unconnected.add(node);
 			}
+
 		}
 		//
 		for (MethodInvocation mi : unconnected) {
-			logger.debug("ExecutionFlowGraph.refine() Remove " + mi + " as unconnected");
 			// We need to connect predecessor and successor before removing this
 			// vertex
 			Collection<MethodInvocation> predecessors = getPredecessors(mi);
