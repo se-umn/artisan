@@ -1,8 +1,6 @@
 package de.unipassau.abc.instrumentation;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -11,9 +9,6 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 
-import javax.swing.plaf.synth.SynthSeparatorUI;
-
-import org.apache.commons.lang3.SystemUtils;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;

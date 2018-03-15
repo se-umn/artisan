@@ -7,6 +7,8 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.List;
 
+import org.apache.commons.lang3.SystemUtils;
+
 import de.unipassau.abc.carving.CallGraph;
 import de.unipassau.abc.carving.DataDependencyGraph;
 import de.unipassau.abc.carving.ExecutionFlowGraph;
@@ -45,6 +47,19 @@ public class ABCTestUtils {
 			carvedTest.getFirst().visualize();
 			carvedTest.getSecond().visualize();
 		}
-
+	}
+	
+	public static String buildJUnit4Classpath(){
+		StringBuilder junitCPBuilder = new StringBuilder();
+		for( String cpEntry : SystemUtils.JAVA_CLASS_PATH.split(File.pathSeparator) ){
+			if( cpEntry.contains("junit-4")){
+				junitCPBuilder.append( cpEntry ).append( File.pathSeparator );
+			} else if( cpEntry.contains("hamcrest-core")){
+				junitCPBuilder.append( cpEntry ).append( File.pathSeparator );
+			}
+		}
+		junitCPBuilder.reverse().deleteCharAt(0).reverse();
+		return junitCPBuilder.toString();
+		
 	}
 }

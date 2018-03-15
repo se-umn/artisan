@@ -505,8 +505,17 @@ public class InstrumentTracer extends BodyTransformer {
 			// StringBuilder ... (I hope so! -> not really, the moment those are
 			// parameters of any carved invocation this will fail !
 			// pureMethods.add(Pattern.compile("<java.lang.StringBuilder: .*"));
-			// Similarly for boxed type
-			// pureMethods.add(Pattern.compile("<java.lang.Integer: .*"));
+			// Boxed type and Strings "cannot" be modified
+			pureMethods.add(Pattern.compile("<java.lang.String: .*"));
+			///
+			pureMethods.add(Pattern.compile("<java.lang.Boolean: .*"));
+			pureMethods.add(Pattern.compile("<java.lang.Byte: .*"));
+			pureMethods.add(Pattern.compile("<java.lang.Character: .*"));
+			pureMethods.add(Pattern.compile("<java.lang.Float: .*"));
+			pureMethods.add(Pattern.compile("<java.lang.Integer: .*"));
+			pureMethods.add(Pattern.compile("<java.lang.Long: .*"));
+			pureMethods.add(Pattern.compile("<java.lang.Short: .*"));
+			pureMethods.add(Pattern.compile("<java.lang.Double: .*"));
 		}
 
 		try {
