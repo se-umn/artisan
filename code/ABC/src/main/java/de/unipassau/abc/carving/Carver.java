@@ -173,7 +173,7 @@ public class Carver {
 		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests);
 
 		// FOR VISUAL DEBUG
-		if (logger.isDebugEnabled()) {
+		if (logger.isDebugEnabled() || logger.isTraceEnabled() ) {
 			for (SootClass testCase : testCases) {
 				JimpleUtils.prettyPrint(testCase);
 			}

@@ -7,6 +7,7 @@ import java.util.regex.Pattern;
 import soot.Body;
 import soot.SootClass;
 import soot.SootMethod;
+import soot.Type;
 import soot.Unit;
 
 public class JimpleUtils {
@@ -102,5 +103,9 @@ public class JimpleUtils {
 			}
 		}
 		return false;
+	}
+
+	public static boolean isPrimitive(Type type) {
+		return isPrimitive(type.toString());
 	}
 }

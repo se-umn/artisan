@@ -1,5 +1,6 @@
 package de.unipassau.abc.generation;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,6 +12,7 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.jboss.util.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,8 +22,11 @@ import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
 import de.unipassau.abc.carving.ObjectInstance;
 import de.unipassau.abc.data.Pair;
+import de.unipassau.abc.instrumentation.UtilInstrumenter;
 import de.unipassau.abc.utils.JimpleUtils;
+import soot.Body;
 import soot.Local;
+import soot.LongType;
 import soot.Modifier;
 import soot.RefType;
 import soot.Scene;
@@ -31,6 +36,7 @@ import soot.Type;
 import soot.Unit;
 import soot.Value;
 import soot.VoidType;
+import soot.jimple.DoubleConstant;
 import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
 import soot.jimple.JimpleBody;
@@ -60,10 +66,25 @@ public class TestGenerator {
 		// This would set soot cp as the current running app cp
 		// Options.v().set_soot_classpath(System.getProperty("java.path"));
 
+		String junit4Jar = null;
+		String hamcrestCoreJar = null;
+
+		for (String cpEntry : SystemUtils.JAVA_CLASS_PATH.split(File.pathSeparator)) {
+			if (cpEntry.contains("junit-4")) {
+				junit4Jar = cpEntry;
+			} else if (cpEntry.contains("hamcrest-core")) {
+				hamcrestCoreJar = cpEntry;
+			}
+		}
+
+		// TODO Check that both are there ?
+
 		ArrayList<String> necessaryJar = new ArrayList<String>();
 		// Include here JUnit and Hamcrest
-
 		necessaryJar.add(this.projectLib);
+		necessaryJar.add(junit4Jar);
+		necessaryJar.add(hamcrestCoreJar);
+
 		// This might be needed for the EVALUATION and Level+1 Carved tests
 		// necessaryJar.add("./src/main/resources/Assertion.jar");
 
@@ -207,7 +228,13 @@ public class TestGenerator {
 			List<Value> parametersValues = dataDependencyGraph.getParametersSootValueFor(methodInvocation);
 
 			// Store the return value to build the data dependencies
-			Local returnObjLocal = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
+			Value returnValue = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
+			Local returnObjLocal = null;
+			if (returnValue instanceof Local) {
+				returnObjLocal = (Local) returnValue;
+			} else {
+				logger.debug("We do not track return values of primitive types");
+			}
 
 			// When we process the methodInvocationToCarve, we also generate a
 			// final assignment that enable regression testing
@@ -224,27 +251,27 @@ public class TestGenerator {
 				// Debug
 				logger.trace("  >>>> Create a new local variable " + returnObjLocal + " of type " + type
 						+ " to store the output of " + methodInvocationToCarve);
-				// FIXME: I have no idea of what a RetStmt is, but it does the trick, which is it results in an actual java assignment
-				returnStmt =Jimple.v().newRetStmt(returnObjLocal);
+				// FIXME: I have no idea of what a RetStmt is, but it does the
+				// trick, which is it results in an actual java assignment
+				returnStmt = Jimple.v().newRetStmt(returnObjLocal);
 			}
-			
+
 			// We need to use add because some method invocations are actually
 			// more than 1 unit !
 			addUnitFor(units, methodInvocation, objLocal, parametersValues, returnObjLocal);
-			
+
 			//
-			if( returnStmt != null ){
+			if (returnStmt != null) {
 				// Maybe we can simply call units.addAfter() ?
-				units.add( returnStmt );
+//				units.add(returnStmt);
 				//
-//				Value expectedValue = dataDependencyGraph.getReturnValueFor(methodInvocation);
-//				gerenateRegressionAssertionOnReturnValue( returnObjLocal, expectedValue );
+				Value expectedValue = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
+				System.out.println("TestGenerator.generateAndAddTestMethodToTestClass() Expected value for "
+						+ methodInvocation + " is " + expectedValue);
+				gerenateRegressionAssertionOnReturnValue(body, units, expectedValue, returnObjLocal);
 			}
 		}
 
-		
-		
-		
 		// Capture the return value of the MUT if that return something
 
 		// Insert final void return
@@ -271,9 +298,103 @@ public class TestGenerator {
 
 	}
 
-	private void gerenateRegressionAssertionOnReturnValue() {
-		// TODO Auto-generated method stub
+	// TODO Local or Value ?! Value is super class, Local is local variable...
+	private void gerenateRegressionAssertionOnReturnValue(Body body, Chain<Unit> units, Value expected, Local actual) {
+		if (JimpleUtils.isPrimitive(actual.getType())) {
+			generateAssertEqualsForPrimitiveType(body, units, actual.getType(), expected, actual);
+		} else {
+			logger.warn("Assertion for objects are not yet supported !");
+		}
 
+	}
+
+	private void generateAssertEqualsForPrimitiveType(Body body, Chain<Unit> units, Type type, Value expectedValue,
+			Value actualValue) {
+
+		List<Value> assertParameters = new ArrayList<Value>();
+		List<Unit> generated = new ArrayList<>();
+
+		Value boxedExpected = UtilInstrumenter.generateCorrectObject(body, expectedValue, generated);
+		Value boxedActual = UtilInstrumenter.generateCorrectObject(body, actualValue, generated);
+		//
+		assertParameters.add(boxedExpected);
+		assertParameters.add(boxedActual);
+		//
+		SootMethod assertEquals = Scene.v()
+				.getMethod("<org.junit.Assert: void assertEquals(java.lang.Object,java.lang.Object)>");
+
+		generated.add(
+				Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertEquals.makeRef(), assertParameters)));
+
+		units.addAll(generated);
+
+		// System.out.println("TestGenerator.generateAssertEqualsForPrimitiveType()
+		// Boolean Expected: " + expectedValue
+		// + " --- Actual: " + actualValue);
+		// switch (type.toString()) {
+		// case "boolean":
+		// System.out.println("TestGenerator.generateAssertEqualsForPrimitiveType()
+		// NOT IMPLEMENTED ");
+		// // assertParameters.add(actualValue);
+		// // // TODO Probably can be done better
+		// //
+		// // if (expectedValue.toString().equals("0")) {
+		// // assertEquals = Scene.v().getMethod("<org.junit.Assert: void
+		// // assertTrue(boolean)>");
+		// // } else {
+		// // assertEquals = Scene.v().getMethod("<org.junit.Assert: void
+		// // assertFalse(boolean)>");
+		// // }
+		// //
+		// break;
+		// case "int":
+		// case "char":
+		// case "byte":
+		// case "short":
+		// case "long":
+		//
+		//
+		//
+		// // TODO Cast to long
+		// // Local expectedValueCastedToLong =
+		// // UtilInstrumenter.generateFreshLocal(body, LongType.v());
+		// // Local actualValueCastedToLong =
+		// // UtilInstrumenter.generateFreshLocal(body, LongType.v());
+		// // Assign int -> long
+		// // units.add(Jimple.v().newAssignStmt(expectedValueCastedToLong,
+		// // expectedValue));
+		// // units.add(Jimple.v().newAssignStmt(actualValueCastedToLong,
+		// // actualValue));
+		// // Transform everythign to Long
+		// // assertParameters.add(expectedValueCastedToLong);
+		// // assertParameters.add(actualValueCastedToLong);
+		//
+		// assertEquals = Scene.v().getMethod("<org.junit.Assert: void
+		// assertEquals(long,long)>");
+		// break;
+		// case "double":
+		// case "float":
+		// System.out.println("TestGenerator.generateAssertEqualsForPrimitiveType()
+		// NOT IMPLEMENTED ");
+		// // assertParameters.add(expectedValue);
+		// // assertParameters.add(actualValue);
+		// //
+		// // // Add casting to values
+		// //
+		// // // Delta
+		// // assertParameters.add(DoubleConstant.v(0.01));
+		// // assertEquals = Scene.v().getMethod("<org.junit.Assert: void
+		// // assertEquals(double,double,double)>");
+		// break;
+		// default:
+		// break;
+		// }
+		//
+		// // Returns a Pair which contains the array which hosts the parameters
+		// // and the instructions to
+		// // eventually Insert the assert call
+		// units.add(Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertEquals.makeRef(),
+		// assertParameters)));
 	}
 
 	//

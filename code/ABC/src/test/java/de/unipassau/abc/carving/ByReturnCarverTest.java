@@ -12,7 +12,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
-import de.unipassau.abc.carving.Carver;
 import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.abc.utils.SystemTest;
@@ -41,9 +40,9 @@ public class ByReturnCarverTest {
 			File outputDirectory = temporaryFolderRule.newFolder();
 			// This fails beacuse we carve java.lang.Integer if we use "int" as
 			// carveBY
-			// String carveBy = "return=int";
+			 String carveBy = "return=int";
 			// This instead matches only isDummy() in the trace
-			String carveBy = "return=boolean";
+//			String carveBy = "return=boolean";
 			String[] args = new String[] { "--carveBy", carveBy,
 					// String traceFile =
 					"--traceFile", "./src/test/resources/Employee-trace.txt",

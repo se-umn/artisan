@@ -120,7 +120,8 @@ public class DataDependencyGraph {
 		if (JimpleUtils.isVoid(formalReturnValue)) {
 			return;
 		} else if (JimpleUtils.isPrimitive(formalReturnValue)) {
-			// If returnValue is null then it;s a problem, raise the exception is the way to go !
+			// If returnValue is null then it;s a problem, raise the exception
+			// is the way to go !
 			node = PrimitiveNodeFactory.get(formalReturnValue, returnValue);
 			setValueFor(node, ((ValueNode) node).getData());
 		} else if (returnValue == null) {
@@ -365,7 +366,7 @@ public class DataDependencyGraph {
 	 * then this does not find it, because we did not tracked it !
 	 * 
 	 */
-	public Local getReturnObjectLocalFor(MethodInvocation methodInvocation) {
+	public Value getReturnObjectLocalFor(MethodInvocation methodInvocation) {
 		if (JimpleUtils.hasVoidReturnType(methodInvocation.getJimpleMethod())) {
 			return null;
 		}
@@ -383,10 +384,9 @@ public class DataDependencyGraph {
 							GraphNode returnValue = graph.getOpposite(node, edge);
 
 							if (returnValue instanceof ValueNode) {
-								logger.debug("ValueNodes are not tracked as return value !");
-								return null;
+								return ((ValueNode) returnValue).getData();
 							} else if (returnValue instanceof ObjectInstance) {
-								return (Local) getValueFor((ObjectInstance) returnValue);
+								return getValueFor((ObjectInstance) returnValue);
 							}
 						}
 					}
