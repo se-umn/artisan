@@ -142,11 +142,12 @@ public class MethodInvocationMatcher {
 		if (methodInvocation.isStatic()) {
 			return false;
 		}
+		
+		if( methodInvocation.getOwner() == null ){
+			throw new RuntimeException("Invalid Method invocation " + methodInvocation );
+		}
 		String objectId = methodInvocation.getOwner().getObjectId();
 
-		if (objectId == null) {
-
-		}
 		final Matcher instanceMatcher = instancePattern.matcher(objectId);
 		if (!instanceMatcher.find()) {
 			logger.trace(methodInvocation + " with owner " + objectId + " does not match instanceMatcher");

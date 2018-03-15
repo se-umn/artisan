@@ -61,6 +61,8 @@ public class TestGenerator {
 		// Options.v().set_soot_classpath(System.getProperty("java.path"));
 
 		ArrayList<String> necessaryJar = new ArrayList<String>();
+		// Include here JUnit and Hamcrest
+
 		necessaryJar.add(this.projectLib);
 		// This might be needed for the EVALUATION and Level+1 Carved tests
 		// necessaryJar.add("./src/main/resources/Assertion.jar");
@@ -129,6 +131,10 @@ public class TestGenerator {
 	// REFACTOR !!
 	private AtomicInteger generatedTestCases = new AtomicInteger(0);
 
+	/*
+	 * generate a new test method add add that to the class unless there's
+	 * already an equivalent one
+	 */
 	private void generateAndAddTestMethodToTestClass(SootClass testClass,
 			Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest) {
 
@@ -221,15 +227,24 @@ public class TestGenerator {
 				// FIXME: I have no idea of what a RetStmt is, but it does the trick, which is it results in an actual java assignment
 				returnStmt =Jimple.v().newRetStmt(returnObjLocal);
 			}
+			
 			// We need to use add because some method invocations are actually
 			// more than 1 unit !
 			addUnitFor(units, methodInvocation, objLocal, parametersValues, returnObjLocal);
+			
 			//
 			if( returnStmt != null ){
+				// Maybe we can simply call units.addAfter() ?
 				units.add( returnStmt );
+				//
+//				Value expectedValue = dataDependencyGraph.getReturnValueFor(methodInvocation);
+//				gerenateRegressionAssertionOnReturnValue( returnObjLocal, expectedValue );
 			}
 		}
 
+		
+		
+		
 		// Capture the return value of the MUT if that return something
 
 		// Insert final void return
@@ -253,6 +268,11 @@ public class TestGenerator {
 		} else {
 			logger.debug("Found duplicate method " + testMethodName);
 		}
+
+	}
+
+	private void gerenateRegressionAssertionOnReturnValue() {
+		// TODO Auto-generated method stub
 
 	}
 

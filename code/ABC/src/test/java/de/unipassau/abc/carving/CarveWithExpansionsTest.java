@@ -45,7 +45,7 @@ public class CarveWithExpansionsTest {
 	public void testExpansionWithSimpleStatic() throws FileNotFoundException, IOException, InterruptedException {
 		File traceFile = new File("./src/test/resources/DummySystemTestGetSimple-trace.txt");
 
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// Parsing
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
@@ -90,7 +90,7 @@ public class CarveWithExpansionsTest {
 	@Test
 	public void testExpansionWithModifiedStatic() throws FileNotFoundException, IOException, InterruptedException {
 		File traceFile = new File("./src/test/resources/DummySystemTestGetModified-trace.txt");
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// Parsing
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
@@ -136,7 +136,7 @@ public class CarveWithExpansionsTest {
 	public void testExpansionWithSimpleWithDelegate() throws FileNotFoundException, IOException, InterruptedException {
 		File traceFile = new File("./src/test/resources/DummySystemTestGetSimpleWithDelegate-trace.txt");
 
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// Parsing
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
@@ -194,7 +194,7 @@ public class CarveWithExpansionsTest {
 			throws FileNotFoundException, IOException, InterruptedException {
 		File traceFile = new File("./src/test/resources/DummySystemTestGetModifiedWithDelegate-trace.txt");
 
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// Parsing
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
@@ -255,12 +255,13 @@ public class CarveWithExpansionsTest {
 			throws FileNotFoundException, IOException, InterruptedException {
 		File traceFile = new File("./src/test/resources/DummySystemTestGetModifiedWithDelegate-trace.txt");
 
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		List<MethodInvocationMatcher> externalInterfaceMatchers = new ArrayList<>();
-		externalInterfaceMatchers.add( MethodInvocationMatcher.byClass("de.unipassau.abc.testsubject.DummyCreator"));;
+		externalInterfaceMatchers.add(MethodInvocationMatcher.byClass("de.unipassau.abc.testsubject.DummyCreator"));
+		;
 		// Parsing
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
-				.parseTrace(traceFile.getAbsolutePath(), externalInterfaceMatchers );
+				.parseTrace(traceFile.getAbsolutePath(), externalInterfaceMatchers);
 
 		// visualize(parsedTrace);
 
@@ -304,7 +305,7 @@ public class CarveWithExpansionsTest {
 			throws FileNotFoundException, IOException, InterruptedException {
 		File traceFile = new File("./src/test/resources/DummySystemTestGetDoubleModifiedWithDelegate-trace.txt");
 
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// Parsing
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
@@ -351,7 +352,7 @@ public class CarveWithExpansionsTest {
 	public void testExpansionWithSimpleWithParameter() throws FileNotFoundException, IOException, InterruptedException {
 		File traceFile = new File("./src/test/resources/DummySystemTestGetSimpleWithParameter-trace.txt");
 
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// Parsing
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
@@ -400,7 +401,7 @@ public class CarveWithExpansionsTest {
 			throws FileNotFoundException, IOException, InterruptedException {
 		File traceFile = new File("./src/test/resources/DummySystemTestGetSimpleWithNonRequiredParameter-trace.txt");
 
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// Parsing
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);

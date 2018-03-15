@@ -49,10 +49,18 @@ public class StackImplementation implements TraceParser {
 	 */
 	private AtomicInteger invocationCount = new AtomicInteger(0);
 
-	public StackImplementation() {
+	private List<MethodInvocationMatcher> purityMatchers;
+
+	private boolean purityFlag = false;
+	private MethodInvocation pureMethod = null; // This is the method which sets
+												// the purity flag
+
+	public StackImplementation(List<MethodInvocationMatcher> purityMatchers) {
 		exectuionFlowGraph = new ExecutionFlowGraph();
 		dataDependencyGraph = new DataDependencyGraph();
 		callGraph = new CallGraph();
+		//
+		this.purityMatchers = purityMatchers;
 	}
 
 	private int parseMethodStart(int startLine, List<String> allLines,
@@ -77,42 +85,41 @@ public class StackImplementation implements TraceParser {
 			}
 		}
 
+		if (isPure(methodInvocation)) {
+			purityFlag = true;
+			pureMethod = methodInvocation;
+			logger.trace("StackImplementation.parseMethodEnd() Switch PURITY ON");
+		}
+
 		logger.trace("InvocationType for " + jimpleMethod + " is " + typeOfInvocation);
 
 		String returnType = jimpleMethod.replace('<', ' ').replace('>', ' ').trim().split(" ")[1];
 		logger.trace("Return Type " + returnType);
 		//
-		exectuionFlowGraph.enqueueMethodInvocations(methodInvocation);
 
 		int peekIndex = startLine + 1;
+
 		// FIXME This parsing is wrong: we need to check that if the formal
 		// parameters are there, then also the actualParameters are !
+		String[] actualParameters = new String[] {};
 		if (tokens.length > 3) {
 			// This removes the opening '('
-			StringBuffer actualParameters = new StringBuffer(tokens[3].substring(1, tokens[3].length()));
+			StringBuilder actualParametersBuilder = new StringBuilder(tokens[3].substring(1, tokens[3].length()));
 			// Accumulate strings
 
 			while (peekIndex < allLines.size() && !allLines.get(peekIndex).startsWith(Trace.METHOD_START_TOKEN)
 					&& !allLines.get(peekIndex).startsWith(Trace.METHOD_END_TOKEN)
 					&& !allLines.get(peekIndex).startsWith(Trace.METHOD_OBJECT_TOKEN)) {
-				actualParameters.append("\n");
-				actualParameters.append(allLines.get(peekIndex));
+				actualParametersBuilder.append("\n");
+				actualParametersBuilder.append(allLines.get(peekIndex));
 				peekIndex++;
 			}
 
-			actualParameters.deleteCharAt(actualParameters.length() - 1);
-			logger.trace("Actual Parameters " + actualParameters);
+			actualParametersBuilder.deleteCharAt(actualParametersBuilder.length() - 1);
+			logger.trace("Actual Parameters " + actualParametersBuilder.toString());
 
-			// This register that this method invocation requires this paramters
-			// TODO: jimpleMethod is NOT yet associated with an instance, this
-			// gets added later... but since those methods are always called one
-			// after the other
-			// it should be fine... but jimpleMethod shall be uniquely
-			// identified!
-			//
+			actualParameters = actualParametersBuilder.toString().split(",");
 
-			dataDependencyGraph.addMethodInvocation(methodInvocation, actualParameters.toString().split(","));
-			//
 		} else {
 			// TODO Why this should be called only if there's no parameters ?
 			// pushImplementation(jimpleMethod);
@@ -120,11 +127,13 @@ public class StackImplementation implements TraceParser {
 			logger.trace("No formal parameters");
 		}
 
-		// At this point, we need to conside that those are method Invocations,
-		// not just method names !
-		// pushMethodInvocation(jimpleMethod);
-		callGraph.push(methodInvocation);
+		// We push nevertheless
+		callGraph.push(methodInvocation, purityFlag);
 
+		if (!purityFlag) {
+			dataDependencyGraph.addMethodInvocation(methodInvocation, actualParameters);
+			exectuionFlowGraph.enqueueMethodInvocations(methodInvocation);
+		}
 		return peekIndex - 1;
 	}
 
@@ -140,10 +149,6 @@ public class StackImplementation implements TraceParser {
 		// tokens[0] is METHOD_OBJECT_TOKEN
 		String jimpleMethod = tokens[1];
 
-		MethodInvocation methodInvocation = callGraph.peek();// new
-																// MethodInvocation(jimpleMethod,
-																// invocationCount.get());
-
 		StringBuffer thisObject = new StringBuffer(tokens[2]);
 		int peekIndex = startLine + 1;
 		// Accumulate strings
@@ -157,13 +162,13 @@ public class StackImplementation implements TraceParser {
 
 		// Static methods are automatically skipped
 
-		// TODO This shall be placed inside callGraph
+		MethodInvocation methodInvocation = callGraph.peek();
 		methodInvocation.setOwner(new ObjectInstance(thisObject.toString()));
-		//
-		dataDependencyGraph.addDataDependencyOnOwner(methodInvocation, thisObject.toString());
-		exectuionFlowGraph.addOwnerToMethodInvocation(methodInvocation, thisObject.toString());
-		// graphAssigningID(jimpleMethod + ";" + thisObject);
-		//
+
+		if (!purityFlag) {
+			dataDependencyGraph.addDataDependencyOnOwner(methodInvocation, thisObject.toString());
+			exectuionFlowGraph.addOwnerToMethodInvocation(methodInvocation, thisObject.toString());
+		}
 		return peekIndex - 1;
 	}
 
@@ -171,11 +176,8 @@ public class StackImplementation implements TraceParser {
 		logger.trace("StackImplementation.parseMethodEnd() " + allLines.get(startLine));
 		String[] tokens = allLines.get(startLine).split(";");
 		// tokens[0] is METHOD_END_TOKEN
-		String jimpleMethod = tokens[1];
 
-		MethodInvocation methodInvocation = callGraph.pop(); // new
-																// MethodInvocation(jimpleMethod,
-																// invocationCount.get());
+		String jimpleMethod = tokens[1];
 
 		// Void methods are not reported...
 		StringBuffer returnValue = new StringBuffer();
@@ -191,27 +193,37 @@ public class StackImplementation implements TraceParser {
 				returnValue.append(allLines.get(peekIndex));
 				peekIndex++;
 			}
-			logger.trace("Return value " + returnValue + " " + returnValue.length());
+//			logger.info(">> Return value " + jimpleMethod + " returnValue  " + returnValue);
 
 		}
 
-		// TODO This is tricky: one might actually encode the string null !!!
-		dataDependencyGraph.addDataDependencyOnReturn(methodInvocation,
-				(returnValue.length() != 0) ? returnValue.toString() : null);
+		MethodInvocation methodInvocation = callGraph.pop();
 
-		// if (returnValue.toString().equals("null") || returnValue.length() ==
-		// 0) {
-		// } else {
-		// Graph_Details.returnValues.put(jimpleMethod, returnValue.toString());
-		// }
+		if (!purityFlag) {
+			// TODO This is tricky: one might actually encode the string null
+			// !!!
+			dataDependencyGraph.addDataDependencyOnReturn(methodInvocation,
+					(returnValue.length() != 0) ? returnValue.toString() : null);
+		}
 
-		// Note that we might have data dependencies on the return value ?!
-		// TODO Shall this be double checked that we did not miss anything ?
-		// callGraph.pop(methodInvocation);
-		//
-		// popImplementation();
+		// Reset the purity state of the parser
+		if (methodInvocation.equals(pureMethod)) {
+			pureMethod = null;
+			purityFlag = false;
+			logger.trace("StackImplementation.parseMethodEnd() Switch PURITY OFF");
+		}
 
 		return peekIndex - 1;
+	}
+
+	private boolean isPure(MethodInvocation methodInvocation) {
+		for (MethodInvocationMatcher purityMatcher : purityMatchers) {
+			if (purityMatcher.match(methodInvocation)) {
+				logger.trace(methodInvocation + " is pure");
+				return true;
+			}
+		}
+		return false;
 	}
 
 	// TODO Probably this method shall be moved in the Trace project
@@ -224,20 +236,24 @@ public class StackImplementation implements TraceParser {
 		// static MAIN
 		// There should be a value to capture the System.exit value as well
 		// instead of keeping 0 hardcoded
-		lines.add(Trace.METHOD_START_TOKEN + "StaticInvokeExpr;<ABC: int MAIN()>");
+		// FIXME the fact that we have multiple tests but only 1 main is not ok
+		// ?
+		// lines.add(Trace.METHOD_START_TOKEN + "StaticInvokeExpr;<ABC: int
+		// MAIN()>");
+
 		lines.addAll(Files.readAllLines(Paths.get(traceFilePath), Charset.defaultCharset()));
-		lines.add(Trace.METHOD_END_TOKEN + "<ABC: int MAIN()>;0");
+
+		// lines.add(Trace.METHOD_END_TOKEN + "<ABC: int MAIN()>;0");
 		// Since we need to peek we use the line index in the trace...
 		// Hopefully, int is big enough...
 
 		for (int i = 0; i < lines.size(); i++) {
 			String each = lines.get(i);
 
-			// TODO Not sure why this matters...
-			if (each.contains("org.apache.commons.codec.binary.")) {
-				logger.warn("Skip " + each);
-				continue;
-			}
+			// if (each.contains("org.apache.commons.codec.binary.")) {
+			// logger.warn("Skip " + each);
+			// continue;
+			// }
 
 			if (each.startsWith(Trace.METHOD_START_TOKEN)) {
 				i = parseMethodStart(i, lines, externalInterfaceMatchers);
@@ -353,25 +369,6 @@ public class StackImplementation implements TraceParser {
 	 * BTW, the name is misleading, this should be PUSH METHOD INVOCATION
 	 * INSTEAD !
 	 */
-	public void pushMethodInvocation(MethodInvocation jimpleMethod) {
-		// Keep this here for the moment, then we move into call graph
-		callGraph.push(jimpleMethod);
-		//
-		// if (!sgv.isPresent(jimpleMethod)) {
-		// sgv.vertexAdd(jimpleMethod);
-		// return jimpleMethod;
-		// } else {
-		// // Track multiple calls ? Why we do not add them to this graph ?
-		// String newSubs = jimpleMethod + countOfMUT.getAndIncrement();
-		// Graph_Details.hashIdForSameNameVertices.put(jimpleMethod, newSubs);
-		// // Note that we do not add this...
-		// // FIXME: why ?
-		// sgv.vertexAdd(newSubs);
-		// stack.push(newSubs);
-		// // enqueImplementation(newSubs);
-		// return newSubs;
-		// }
-	}
 
 	// /**
 	// * This let us track the execution flow. But Not sure why we use the queue

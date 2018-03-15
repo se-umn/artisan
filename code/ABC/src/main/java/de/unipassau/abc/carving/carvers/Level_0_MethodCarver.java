@@ -23,6 +23,7 @@ import de.unipassau.abc.carving.MethodInvocationMatcher;
 import de.unipassau.abc.carving.ObjectInstance;
 import de.unipassau.abc.carving.exceptions.NotALevel0TestCaseException;
 import de.unipassau.abc.data.Pair;
+import de.unipassau.abc.utils.JimpleUtils;
 
 public class Level_0_MethodCarver implements MethodCarver {
 
@@ -132,10 +133,15 @@ public class Level_0_MethodCarver implements MethodCarver {
 			constructors.add(dataDependencyGraph
 					.getInitMethodInvocationFor(dataDependencyGraph.getOwnerFor(methodInvocationToCarve)));
 		}
+
 		// DIRECT PARAMETERS
 		for (ObjectInstance dataDependency : dataDependencyGraph
 				.getObjectInstancesAsParametersOf(methodInvocationToCarve)) {
-			constructors.add(dataDependencyGraph.getInitMethodInvocationFor(dataDependency));
+			try {
+				constructors.add(dataDependencyGraph.getInitMethodInvocationFor(dataDependency));
+			} catch (RuntimeException e) {
+				logger.info("Swallow: " + e);
+			}
 		}
 
 		if (minimalCarve) {
@@ -168,24 +174,49 @@ public class Level_0_MethodCarver implements MethodCarver {
 			Set<MethodInvocation> returningCallsForObjectInstance = dataDependencyGraph
 					.getMethodInvocationsWhichReturn(objectInstance);
 
-			// Here we need to include the constructors as well to create the
-			// cross products
-			returningCallsForObjectInstance.add(dataDependencyGraph.getInitMethodInvocationFor(objectInstance));
+			try {
+				// Here we need to include the constructors as well to create
+				// the cross products. Note that sometimes, because the
+				// instrumentation cannot cover "everything" we might not be
+				// able to initialize
+				// all the instances: For example:
+				// org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock@463345942
+				// Still we like to carve out some test
+				returningCallsForObjectInstance.add(dataDependencyGraph.getInitMethodInvocationFor(objectInstance));
 
-			returningCalls.put(objectInstance, returningCallsForObjectInstance);
+			} catch (RuntimeException e) { // TODO Factor this into a app
+				// specific exception
+				logger.error("Swallow : " + e);
+			}
+
+			// System.out.println("Level_0_MethodCarver.level0TestCarving() " +
+			// objectInstance + " --> "
+			// + returningCallsForObjectInstance.size());
+
+			if (returningCallsForObjectInstance.size() != 0)
+				returningCalls.put(objectInstance, returningCallsForObjectInstance);
 
 		}
 
 		// And generate the possible combinations by computing the Cartesian
 		// Product of those calls per. For each call generate a new carvedTest
-
+		/// FIXME This becomes HUGE, probably we shall consider some
+		// optimization !
+		// See: #39
 		Set<List<MethodInvocation>> fullCartesianProduct = Sets
 				.cartesianProduct(new ArrayList<>(returningCalls.values()));
 
+		if (fullCartesianProduct.size() > 1000) {
+			logger.warn("The cartesian products of object instance is too big. Expect scalability issue "
+					+ fullCartesianProduct);
+		}
+
 		for (List<MethodInvocation> combination : fullCartesianProduct) {
 			try {
-				carvedTestsForMethodInvocation
-						.add(generateSingleTestCaseFromSliceFor(methodInvocationToCarve, backwardSlice, combination));
+				Pair<ExecutionFlowGraph, DataDependencyGraph> testCase = generateSingleTestCaseFromSliceFor(
+						methodInvocationToCarve, backwardSlice, combination);
+				//
+				carvedTestsForMethodInvocation.add(testCase);
 			} catch (NotALevel0TestCaseException e) {
 				// This might happen as consequence of including calls which
 				// subsume methodInvocationToCarve
@@ -201,6 +232,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 				}
 				logger.info("Invalid test case for " + e.getSubsumedMethodInvocation() + " which is subsumed by "
 						+ e.getSubsumingMethodInvocation() + " via " + e.getSubsumingPath());
+			} catch (RuntimeException e) {
+				e.printStackTrace();
+				logger.error("Swallow : " + e);
 			}
 		}
 
@@ -424,6 +458,6 @@ public class Level_0_MethodCarver implements MethodCarver {
 			carvedTest.getFirst().refine(connectedMethodInvocations);
 			carvedTest.getSecond().refine(connectedMethodInvocations);
 		}
-
 	}
+
 }

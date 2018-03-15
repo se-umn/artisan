@@ -21,6 +21,7 @@ import de.unipassau.abc.utils.SystemTest;
  * System test for carving. Each system test must be declarade in its own file
  * for maven to spin off a new VM for each of them
  * 
+ * FIXME #40
  * 
  * @author gambi
  *
@@ -31,15 +32,25 @@ public class ByInstanceCarverTest {
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
 
 	@Test
 	@Category(SystemTest.class)
 	public void testCarvingByInstance() throws IOException, InterruptedException {
 		try {
+
+			// XXX Do not use scanner as external library yet, since we do not
+			// track primitives and Strings,
+			// scanner will always be reported but never USED.
+			// Similarly, we should entirely remove calls for which we do not
+			// have or cannot provide object instanecs.
+			// Last: external libraries that provides inputs are never really
+			// used in Level-0 carving...
+			// externalInterfaces.add("java.util.Scanner");
+
 			Carver carver = new Carver();
 			File outputDirectory = temporaryFolderRule.newFolder();
-			String carveBy = "instance=org.employee.Validation@1334729950";
+			String carveBy = "instance=org.employee.Validation@997608398";
 			String[] args = new String[] { "--carveBy", carveBy,
 					// String traceFile =
 					"--traceFile", "./src/test/resources/Employee-trace.txt",
@@ -53,7 +64,7 @@ public class ByInstanceCarverTest {
 			assertEquals(2, outputDirectory.listFiles().length);
 
 			ABCTestUtils.printJavaClasses(outputDirectory);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Exception raised");
 		}

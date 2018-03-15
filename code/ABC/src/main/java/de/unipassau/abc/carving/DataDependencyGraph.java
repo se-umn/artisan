@@ -119,17 +119,10 @@ public class DataDependencyGraph {
 
 		if (JimpleUtils.isVoid(formalReturnValue)) {
 			return;
-		} else if (JimpleUtils.isPrimitive(formalReturnValue) && returnValue != null) {
-
+		} else if (JimpleUtils.isPrimitive(formalReturnValue)) {
+			// If returnValue is null then it;s a problem, raise the exception is the way to go !
 			node = PrimitiveNodeFactory.get(formalReturnValue, returnValue);
 			setValueFor(node, ((ValueNode) node).getData());
-		} else if (JimpleUtils.isPrimitive(formalReturnValue) && returnValue == null) {
-			// TODO In case the return value is not used in the code,
-			// returnValue is
-			// null also FOR primitive types
-			// In this case, we shall NOT record this dependency
-			logger.debug("We do not store return values for primitive types if they are not assigned");
-			return;
 		} else if (returnValue == null) {
 			node = NullNodeFactory.get(formalReturnValue);
 			setValueFor(node, ((ValueNode) node).getData());
@@ -565,7 +558,7 @@ public class DataDependencyGraph {
 
 	private Collection<String> getIncomingEdges(MethodInvocation methodInvocation) {
 		Collection<String> incomingEdges = graph.getInEdges(methodInvocation);
-		return ( incomingEdges != null ) ? incomingEdges : new HashSet<String>(); 
+		return (incomingEdges != null) ? incomingEdges : new HashSet<String>();
 	}
 
 	public MethodInvocation getInitMethodInvocationFor(ObjectInstance objectInstance) {
@@ -581,6 +574,9 @@ public class DataDependencyGraph {
 				}
 			}
 		}
+		// TODO There's problem with mocked objects
+		// java.lang.RuntimeException: Cannot find INIT call for
+		// org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock@1869997857
 		throw new RuntimeException("Cannot find INIT call for " + objectInstance);
 	}
 
@@ -606,7 +602,7 @@ public class DataDependencyGraph {
 		for (GraphNode node : graph.getVertices()) {
 			if (node instanceof MethodInvocation) {
 				MethodInvocation mi = (MethodInvocation) node;
-				if (!connectedMethodInvocations.contains(mi) && ! mi.belongsToExternalInterface() ) {
+				if (!connectedMethodInvocations.contains(mi) && !mi.belongsToExternalInterface()) {
 					unconnected.add(mi);
 				}
 			}

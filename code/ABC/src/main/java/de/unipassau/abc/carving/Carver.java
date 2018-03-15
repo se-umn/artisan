@@ -18,6 +18,7 @@ import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.generation.TestCaseFactory;
 import de.unipassau.abc.generation.TestGenerator;
+import de.unipassau.abc.utils.JimpleUtils;
 import soot.SootClass;
 
 // TODO Use some sort of CLI/JewelCLI
@@ -88,9 +89,13 @@ public class Carver {
 		{
 			// Default Interfaces are the one for Files, Network, etc. ?
 			// TODO this list is not complete !
-			externalInterfaces.add("java.util.Scanner");
+//			externalInterfaces.add("java.util.Scanner");
 		}
 
+		List<String> pureMethods = new ArrayList<>();
+		{
+			// Default pure methods
+		}
 		try {
 			CarverCLI result = CliFactory.parseArguments(CarverCLI.class, args);
 			traceFile = result.getTraceFile();
@@ -109,29 +114,41 @@ public class Carver {
 				excludeBy = MethodInvocationMatcher.noMatch();
 			}
 
-			externalInterfaces.addAll( (result.getExternalInterfaces() != null) ? result.getExternalInterfaces() : new ArrayList<String>());
-			
-			
+			externalInterfaces.addAll((result.getExternalInterfaces() != null) ? result.getExternalInterfaces()
+					: new ArrayList<String>());
+
 		} catch (ArgumentValidationException e) {
 		}
 
-		// Build the externalInterfaceMatchers, during parsers those will mark corresponding method invocation with the flag
+		// Build the externalInterfaceMatchers, during parsers those will mark
+		// corresponding method invocation with the flag
 		List<MethodInvocationMatcher> externalInterfaceMatchers = new ArrayList<MethodInvocationMatcher>();
-		for( String externalInterface: externalInterfaces){
+		for (String externalInterface : externalInterfaces) {
 			// By default those are class matchers !
-			externalInterfaceMatchers.add( MethodInvocationMatcher.byClass( externalInterface ) );
+			externalInterfaceMatchers.add(MethodInvocationMatcher.byClass(externalInterface));
 		}
-		
-		
+
+		List<MethodInvocationMatcher> purityMatchers = new ArrayList<MethodInvocationMatcher>();
+		for (String pureMethod : pureMethods) {
+			// By default those are class method matchers!
+			purityMatchers.add(MethodInvocationMatcher.byMethod(pureMethod));
+		}
+		//
+		{
+			// TODO Additional pure methods... this is TRICKY !
+			purityMatchers.add(MethodInvocationMatcher.byClass("java.lang.StringBuilder"));
+		}
+
 		System.out.println("Carver.main() Start parsing ");
 		// Parse the trace file into graphs
-		StackImplementation traceParser = new StackImplementation();
+		StackImplementation traceParser = new StackImplementation(purityMatchers);
 		// TODO How to handle multiple trace files ? All together or one after
 		// another?
 
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = traceParser
 				.parseTrace(traceFile.getAbsolutePath(), externalInterfaceMatchers);
 		System.out.println("Carver.main() End parsing ");
+
 		// Carving
 		System.out.println("Carver.main() Start carving");
 		// TODO Here organize, instantiate and execute the configured Carvers
@@ -156,9 +173,11 @@ public class Carver {
 		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests);
 
 		// FOR VISUAL DEBUG
-		// for (SootClass testCase : testCases){
-		// JimpleUtils.prettyPrint(testCase);
-		// }
+		if (logger.isDebugEnabled()) {
+			for (SootClass testCase : testCases) {
+				JimpleUtils.prettyPrint(testCase);
+			}
+		}
 
 		if (outputDir == null) {
 			// Use default

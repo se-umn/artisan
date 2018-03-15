@@ -85,7 +85,6 @@ public class MethodInvocation implements GraphNode {
 	}
 
 	public void setBelongsToExternalInterface(boolean b) {
-		System.out.println("MethodInvocation " + this + " belongs to an external interface");
 		this.belongToExternalInterface = b;
 	}
 
