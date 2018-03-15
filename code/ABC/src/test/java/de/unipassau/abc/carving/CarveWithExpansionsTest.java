@@ -5,6 +5,7 @@ import static org.junit.Assert.assertEquals;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -41,6 +42,7 @@ public class CarveWithExpansionsTest {
 	// This matcher returns always false
 	private final MethodInvocationMatcher excludeNoMethodInvocationsMatcher = MethodInvocationMatcher.noMatch();
 
+	private final List<MethodInvocationMatcher> emptyMethodInvocationMatcherList = new ArrayList<MethodInvocationMatcher>();
 	@Test
 	public void testExpansionWithSimpleStatic() throws FileNotFoundException, IOException, InterruptedException {
 		File traceFile = new File("./src/test/resources/DummySystemTestGetSimple-trace.txt");
@@ -48,7 +50,7 @@ public class CarveWithExpansionsTest {
 		StackImplementation stackImplementation = new StackImplementation();
 		// Parsing
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
-				.parseTrace(traceFile.getAbsolutePath());
+				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		// visualize(parsedTrace);
 
@@ -92,7 +94,7 @@ public class CarveWithExpansionsTest {
 		StackImplementation stackImplementation = new StackImplementation();
 		// Parsing
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
-				.parseTrace(traceFile.getAbsolutePath());
+				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		// visualize(parsedTrace);
 
@@ -137,7 +139,7 @@ public class CarveWithExpansionsTest {
 		StackImplementation stackImplementation = new StackImplementation();
 		// Parsing
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
-				.parseTrace(traceFile.getAbsolutePath());
+				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		// visualize(parsedTrace);
 
@@ -183,7 +185,7 @@ public class CarveWithExpansionsTest {
 		StackImplementation stackImplementation = new StackImplementation();
 		// Parsing
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
-				.parseTrace(traceFile.getAbsolutePath());
+				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		// visualize(parsedTrace);
 
@@ -229,7 +231,7 @@ public class CarveWithExpansionsTest {
 		StackImplementation stackImplementation = new StackImplementation();
 		// Parsing
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
-				.parseTrace(traceFile.getAbsolutePath());
+				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		// visualize(parsedTrace);
 
@@ -275,7 +277,7 @@ public class CarveWithExpansionsTest {
 		StackImplementation stackImplementation = new StackImplementation();
 		// Parsing
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
-				.parseTrace(traceFile.getAbsolutePath());
+				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		// visualize(parsedTrace);
 
@@ -322,7 +324,7 @@ public class CarveWithExpansionsTest {
 		StackImplementation stackImplementation = new StackImplementation();
 		// Parsing
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
-				.parseTrace(traceFile.getAbsolutePath());
+				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 //		 visualize(parsedTrace);
 

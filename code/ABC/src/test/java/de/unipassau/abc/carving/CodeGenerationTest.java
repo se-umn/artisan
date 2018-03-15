@@ -5,6 +5,7 @@ import static org.junit.Assert.*;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -37,6 +38,8 @@ public class CodeGenerationTest {
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
 	private final MethodInvocationMatcher excludeNoMethodInvocationsMatcher = MethodInvocationMatcher.noMatch();
+
+	private final List<MethodInvocationMatcher> emptyMethodInvocationMatcherList = new ArrayList<MethodInvocationMatcher>();
 
 	@Ignore
 	@Test
@@ -77,7 +80,7 @@ public class CodeGenerationTest {
 
 		StackImplementation stackImplementation = new StackImplementation();
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
-				.parseTrace("./src/test/resources/Employee-trace.txt");
+				.parseTrace("./src/test/resources/Employee-trace.txt", emptyMethodInvocationMatcherList);
 
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
 				parsedTrace.getThird());
