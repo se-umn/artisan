@@ -13,7 +13,7 @@ public class MethodInvocation implements GraphNode {
 
 	// Todo TAG this method invocation as being part of external libraries
 	// instead of applications
-	private boolean belongToExternalLibrary;
+	private boolean belongToExternalInterface;
 
 	public MethodInvocation(String jimpleMethod, int invocationCount) {
 		this.jimpleMethod = jimpleMethod;
@@ -82,6 +82,15 @@ public class MethodInvocation implements GraphNode {
 
 	public void setOwner(ObjectInstance objectInstance) {
 		this.owner = objectInstance;
+	}
+
+	public void setBelongsToExternalInterface(boolean b) {
+		System.out.println("MethodInvocation " + this + " belongs to an external interface");
+		this.belongToExternalInterface = b;
+	}
+	
+	public boolean belongsToExternalInterface(){
+		return belongToExternalInterface;
 	}
 
 }
