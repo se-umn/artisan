@@ -1,9 +1,19 @@
 package de.unipassau.abc.carving;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class MethodInvocation implements GraphNode {
 
+	private final static Logger logger = LoggerFactory.getLogger( MethodInvocation.class);
+	
+	
 	private String invocationType;
 	private String jimpleMethod;
+	//
+	private String xmlFileForOwner; // This stores the owner value status AFTER calling this method
+	private String xmlFileForReturn; // This stores the return value status AFTER calling this method
+	
 	// Null if static
 	private ObjectInstance owner;
 
@@ -90,6 +100,25 @@ public class MethodInvocation implements GraphNode {
 
 	public boolean belongsToExternalInterface() {
 		return belongToExternalInterface;
+	}
+
+	
+	public void setXmlDumpForOwner(String xmlFile) {
+		logger.trace("MethodInvocation.setXmlDumpForOwner() " + xmlFile + " for " + this);
+		this.xmlFileForOwner = xmlFile;
+	}
+
+	public String getXmlDumpForOwner() {
+		return xmlFileForOwner;
+	}
+	
+	public void setXmlDumpForReturn(String xmlFile) {
+		logger.trace("MethodInvocation.setXmlDumpForReturn() " + xmlFile + " for " + this);
+		this.xmlFileForReturn = xmlFile;
+	}
+
+	public String getXmlDumpForReturn() {
+		return xmlFileForReturn;
 	}
 
 }

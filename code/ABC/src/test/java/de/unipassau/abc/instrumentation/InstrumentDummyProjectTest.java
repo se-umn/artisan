@@ -67,8 +67,8 @@ public class InstrumentDummyProjectTest {
 	@Category(SystemTest.class)
 	public void instrumentAndTraceTestSubjects() throws URISyntaxException, IOException, InterruptedException {
 		
-//		File outputDir = temporaryFolder.newFolder();
-		File outputDir = Files.createTempDirectory("TEMP").toFile();
+		File outputDir = temporaryFolder.newFolder();
+//		File outputDir = Files.createTempDirectory("TEMP").toFile();
 
 		// Note that this includes both SUT and its test. If we do not trace
 		// test cases, then we might miss information for carving
@@ -95,15 +95,14 @@ public class InstrumentDummyProjectTest {
 		// At this point we have the instrumented classes and we can start
 		// system tests and make assertions on the resulting traces.
 		// TODO SUpporting jars !
-		runSystemTestFromClass(DummySystemTestGetSimple.class, outputDir, testsubjectJar, traceJarCP);
+		runSystemTestFromClass(DummySystemTestGetDoubleModifiedWithDelegate.class, outputDir, testsubjectJar, traceJarCP);
 		runSystemTestFromClass(DummySystemTestGetModified.class, outputDir, testsubjectJar, traceJarCP);
-		runSystemTestFromClass(DummySystemTestGetSimpleWithDelegate.class, outputDir, testsubjectJar, traceJarCP);
 		runSystemTestFromClass(DummySystemTestGetModifiedWithDelegate.class, outputDir, testsubjectJar, traceJarCP);
-		runSystemTestFromClass(DummySystemTestGetDoubleModifiedWithDelegate.class, outputDir, testsubjectJar,
-				traceJarCP);
-		runSystemTestFromClass(DummySystemTestGetSimpleWithParameter.class, outputDir, testsubjectJar, traceJarCP);
+		runSystemTestFromClass(DummySystemTestGetSimple.class, outputDir, testsubjectJar, traceJarCP);
+		runSystemTestFromClass(DummySystemTestGetSimpleWithDelegate.class, outputDir, testsubjectJar, traceJarCP);
 		runSystemTestFromClass(DummySystemTestGetSimpleWithNonRequiredParameter.class, outputDir, testsubjectJar,
 				traceJarCP);
+		runSystemTestFromClass(DummySystemTestGetSimpleWithParameter.class, outputDir, testsubjectJar, traceJarCP);
 
 	}
 

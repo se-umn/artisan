@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.tracing.Trace;
+import de.unipassau.abc.utils.JimpleUtils;
 
 /**
  * @author gambi
@@ -148,8 +149,10 @@ public class StackImplementation implements TraceParser {
 		String[] tokens = allLines.get(startLine).split(";");
 		// tokens[0] is METHOD_OBJECT_TOKEN
 		String jimpleMethod = tokens[1];
-
-		StringBuffer thisObject = new StringBuffer(tokens[2]);
+		// This might be empty but the ";" MUST be there !
+		String xmlFile = tokens[2];
+		// Static methods
+		StringBuffer thisObject = new StringBuffer(tokens[3]);
 		int peekIndex = startLine + 1;
 		// Accumulate strings
 		while (peekIndex < allLines.size() && !allLines.get(peekIndex).startsWith(Trace.METHOD_START_TOKEN)
@@ -161,9 +164,11 @@ public class StackImplementation implements TraceParser {
 		}
 
 		// Static methods are automatically skipped
-
+		ObjectInstance owner = new ObjectInstance(thisObject.toString());
+		//
 		MethodInvocation methodInvocation = callGraph.peek();
-		methodInvocation.setOwner(new ObjectInstance(thisObject.toString()));
+		methodInvocation.setOwner(owner);
+		methodInvocation.setXmlDumpForOwner(xmlFile);
 
 		if (!purityFlag) {
 			dataDependencyGraph.addDataDependencyOnOwner(methodInvocation, thisObject.toString());
@@ -181,9 +186,11 @@ public class StackImplementation implements TraceParser {
 
 		// Void methods are not reported...
 		StringBuffer returnValue = new StringBuffer();
+		String xmlFile = null;
 		int peekIndex = startLine + 1;
 		if (tokens.length > 2) {
-			returnValue.append(tokens[2]);
+			xmlFile = tokens[2];
+			returnValue.append(tokens[3]);
 
 			// Accumulate strings
 			while (peekIndex < allLines.size() && !allLines.get(peekIndex).startsWith(Trace.METHOD_START_TOKEN)
@@ -193,17 +200,24 @@ public class StackImplementation implements TraceParser {
 				returnValue.append(allLines.get(peekIndex));
 				peekIndex++;
 			}
-//			logger.info(">> Return value " + jimpleMethod + " returnValue  " + returnValue);
+			// logger.info(">> Return value " + jimpleMethod + " returnValue " +
+			// returnValue);
 
 		}
 
 		MethodInvocation methodInvocation = callGraph.pop();
 
 		if (!purityFlag) {
+
+			if( ! JimpleUtils.isVoid( JimpleUtils.getReturnType( methodInvocation.getJimpleMethod() ))){
+				methodInvocation.setXmlDumpForReturn(xmlFile);
+			}
+
 			// TODO This is tricky: one might actually encode the string null
 			// !!!
 			dataDependencyGraph.addDataDependencyOnReturn(methodInvocation,
 					(returnValue.length() != 0) ? returnValue.toString() : null);
+
 		}
 
 		// Reset the purity state of the parser
@@ -227,7 +241,7 @@ public class StackImplementation implements TraceParser {
 	}
 
 	// TODO Probably this method shall be moved in the Trace project
-	public void parseTraceFile(String traceFilePath, List<MethodInvocationMatcher> externalInterfaceMatchers)
+	private void parseTraceFile(String traceFilePath, List<MethodInvocationMatcher> externalInterfaceMatchers)
 			throws FileNotFoundException, IOException {
 
 		List<String> lines = new ArrayList<String>();
@@ -284,11 +298,11 @@ public class StackImplementation implements TraceParser {
 
 		parseTraceFile(traceFilePath, externalInterfaceMatchers);
 
-		if (System.getProperty("debug") != null) {
-			callGraph.visualize();
-			exectuionFlowGraph.visualize();
-			dataDependencyGraph.visualize();
-		}
+		// if (System.getProperty("debug") != null) {
+		// callGraph.visualize();
+		// exectuionFlowGraph.visualize();
+		// dataDependencyGraph.visualize();
+		// }
 
 		return new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(exectuionFlowGraph,
 				dataDependencyGraph, callGraph);
