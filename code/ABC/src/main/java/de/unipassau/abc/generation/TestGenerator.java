@@ -17,11 +17,13 @@ import org.jboss.util.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.DataDependencyGraph;
 import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
 import de.unipassau.abc.carving.ObjectInstance;
 import de.unipassau.abc.data.Pair;
+import de.unipassau.abc.instrumentation.UtilInstrumenter;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.Local;
 import soot.Modifier;
@@ -73,13 +75,17 @@ public class TestGenerator {
 			}
 		}
 
-		// TODO Check that both are there ?
+		String traceJar = ABCUtils.getTraceJar();
 
 		ArrayList<String> necessaryJar = new ArrayList<String>();
 		// Include here JUnit and Hamcrest
 		necessaryJar.add(this.projectLib);
 		necessaryJar.add(junit4Jar);
 		necessaryJar.add(hamcrestCoreJar);
+		necessaryJar.add(traceJar);
+
+		/// TODO Maybe we need to filter out things ?
+		// TODO Maybe we need to include XStream and XMLPull
 
 		// This might be needed for the EVALUATION and Level+1 Carved tests
 		// necessaryJar.add("./src/main/resources/Assertion.jar");
@@ -225,29 +231,28 @@ public class TestGenerator {
 
 			// Store the return value to build the data dependencies
 			Value returnValue = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
-			Local returnObjLocal = null;
+			Local actualReturnValue = null;
 			if (returnValue instanceof Local) {
-				returnObjLocal = (Local) returnValue;
+				actualReturnValue = (Local) returnValue;
 			} else {
 				logger.debug("We do not track return values of primitive types");
 			}
 
 			// When we process the methodInvocationToCarve, we also generate a
 			// final assignment that enable regression testing
-			boolean captureReturnValue = methodInvocation.equals(methodInvocationToCarve)
-					&& !JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()));
 			// Stmt returnStmt = null;
-			if (captureReturnValue) {
+			if (methodInvocation.equals(methodInvocationToCarve)
+					&& !JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()))) {
 				String type = JimpleUtils.getReturnType(methodInvocation.getJimpleMethod());
 				// This shall be null at this point, since we do not use the
 				// return value ?
-				returnObjLocal = Jimple.v().newLocal("returnValue", RefType.v(type));
-				body.getLocals().add(returnObjLocal);
+				actualReturnValue = Jimple.v().newLocal("returnValue", RefType.v(type));
+				body.getLocals().add(actualReturnValue);
 				// returnObjLocal = UtilInstrumenter.generateFreshLocal(body,
 				// RefType.v(type));
 
 				// Debug
-				System.out.println("  >>>> Create a new local variable " + returnObjLocal + " of type " + type
+				System.out.println("  >>>> Create a new local variable " + actualReturnValue + " of type " + type
 						+ " to store the output of " + methodInvocationToCarve);
 				// FIXME: I have no idea of what a RetStmt is, but it does the
 				// trick, which is it results in an actual java assignment
@@ -256,19 +261,39 @@ public class TestGenerator {
 
 			// We need to use add because some method invocations are actually
 			// more than 1 unit !
-			addUnitFor(units, methodInvocation, objLocal, parametersValues, returnObjLocal);
+			addUnitFor(units, methodInvocation, objLocal, parametersValues, actualReturnValue);
 
-			//
-			if (captureReturnValue) {
-				// Maybe we can simply call units.addAfter() ?
-				// units.add(returnStmt);
-				//
-				Value expectedValue = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
-				System.out.println("TestGenerator.generateAndAddTestMethodToTestClass() Expected value for "
-						+ methodInvocation + " is " + expectedValue + " acutal value " + returnObjLocal);
-				
-				AssertionGenerator.gerenateRegressionAssertionOnReturnValue(body, units, expectedValue, returnObjLocal);
+		}
+
+		MethodInvocation methodInvocationUnderTest = executionFlowGraph.getLastMethodInvocation();
+
+		if (!methodInvocationUnderTest.isStatic()) {
+			Value actualOwner = dataDependencyGraph.getObjectLocalFor(methodInvocationUnderTest);
+			Value expectedOwner = UtilInstrumenter.generateExpectedValueForOwner(methodInvocationUnderTest, body, units);
+			AssertionGenerator.gerenateRegressionAssertionOnOwner(body, units, expectedOwner, actualOwner);
+		}
+		
+		if (!JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocationUnderTest.getJimpleMethod()))) {
+			Value expectedReturnValue = dataDependencyGraph.getReturnObjectLocalFor(methodInvocationUnderTest);
+			if (JimpleUtils.isPrimitive(expectedReturnValue.getType())
+					|| JimpleUtils.isString(expectedReturnValue.getType())) {
+				// Do nothing, since the expectedReturnValue is a primitive value
+			} else {
+				// Otherwise, load expectations from file:
+				// Reads this from XML and introduce the code to load this
+				// from XML
+				expectedReturnValue = UtilInstrumenter.generateExpectedValueForReturn(methodInvocationUnderTest, body, units);
 			}
+
+			// Find the
+			Local actualReturnValue = null; 
+			for( Local local : body.getLocals().getElementsUnsorted() ){
+				if( "returnValue".equals( local.getName()) ){
+					actualReturnValue = local;
+					break;
+				}
+			}
+			AssertionGenerator.gerenateRegressionAssertionOnReturnValue(body, units, expectedReturnValue, actualReturnValue);
 		}
 
 		// Capture the return value of the MUT if that return something

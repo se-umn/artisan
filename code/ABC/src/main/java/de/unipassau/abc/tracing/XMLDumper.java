@@ -63,4 +63,9 @@ public class XMLDumper {
 		return xmlFile.getAbsolutePath();
 	}
 
+	public static Object loadObject(String xmlFile) throws IOException {
+		XStream xstream = new XStream();
+		return xstream.fromXML(new File(xmlFile));
+	}
+
 }

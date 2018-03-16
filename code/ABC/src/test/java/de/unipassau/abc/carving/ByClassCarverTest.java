@@ -39,7 +39,9 @@ public class ByClassCarverTest {
 		try {
 			Carver carver = new Carver();
 			File outputDirectory = temporaryFolderRule.newFolder();
-			String[] args = new String[] { "--carveBy", "class=org.employee.Validation",
+//			String className = "org.employee.Validation";
+			String className = "org.employee.DummyObjectFactory";
+			String[] args = new String[] { "--carveBy", "class="+className,
 					// String traceFile =
 					"--traceFile", "./src/test/resources/Employee-trace.txt",
 					// String projectJar =

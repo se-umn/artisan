@@ -3,7 +3,9 @@ package de.unipassau.abc.instrumentation;
 import java.util.ArrayList;
 import java.util.List;
 
+import de.unipassau.abc.carving.MethodInvocation;
 import de.unipassau.abc.data.Pair;
+import de.unipassau.abc.utils.JimpleUtils;
 import soot.ArrayType;
 import soot.Body;
 import soot.BooleanType;
@@ -27,8 +29,11 @@ import soot.javaToJimple.LocalGenerator;
 import soot.jimple.ArrayRef;
 import soot.jimple.IntConstant;
 import soot.jimple.Jimple;
+import soot.jimple.JimpleBody;
 import soot.jimple.NewArrayExpr;
 import soot.jimple.StaticInvokeExpr;
+import soot.jimple.StringConstant;
+import soot.util.Chain;
 
 // Taken from FuzzDroid
 public class UtilInstrumenter {
@@ -188,5 +193,35 @@ public class UtilInstrumenter {
 		generated.add(returnAssignStmt);
 
 		return new Pair<Value, List<Unit>>(newBoxedObjectLocal, generated);
+	}
+
+	public static Value generateExpectedValueFor(Body body, Chain<Unit> units, String xmlFile) {
+
+		// TODO Check for nulls !
+		List<Value> parameters = new ArrayList<>();
+		parameters.add(StringConstant.v(xmlFile));
+
+		// Casting later
+		// Local loadedFromXml = generateFreshLocal(body, RefType.v(
+		// JimpleUtils.getReturnType( methodInvocation.getJimpleMethod() )));
+		Local loadedFromXml = generateFreshLocal(body, RefType.v("java.lang.Object"));
+		SootMethod loadFromXml = Scene.v()
+				.getMethod("<de.unipassau.abc.tracing.XMLDumper: java.lang.Object loadObject(java.lang.String)>");
+
+		units.add(Jimple.v().newAssignStmt(loadedFromXml,
+				Jimple.v().newStaticInvokeExpr(loadFromXml.makeRef(), parameters)));
+
+		return loadedFromXml;
+	}
+
+	public static Value generateExpectedValueForOwner(MethodInvocation methodInvocation, JimpleBody body,
+			Chain<Unit> units) {
+
+		return generateExpectedValueFor(body, units, methodInvocation.getXmlDumpForOwner());
+	}
+
+	public static Value generateExpectedValueForReturn(MethodInvocation methodInvocation, JimpleBody body,
+			Chain<Unit> units) {
+		return generateExpectedValueFor(body, units, methodInvocation.getXmlDumpForReturn());
 	}
 }
