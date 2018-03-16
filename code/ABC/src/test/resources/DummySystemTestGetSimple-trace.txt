@@ -1,8 +1,8 @@
 [>];StaticInvokeExpr;<de.unipassau.abc.testsubject.DummyObjectFactory: de.unipassau.abc.testsubject.DummyObject getSimple()>
 [>];SpecialInvokeExpr;<de.unipassau.abc.testsubject.DummyObject: void <init>()>
-[||];<de.unipassau.abc.testsubject.DummyObject: void <init>()>;de.unipassau.abc.testsubject.DummyObject@386555905
-[<];<de.unipassau.abc.testsubject.DummyObject: void <init>()>
-[<];<de.unipassau.abc.testsubject.DummyObjectFactory: de.unipassau.abc.testsubject.DummyObject getSimple()>;de.unipassau.abc.testsubject.DummyObject@386555905
+[||];<de.unipassau.abc.testsubject.DummyObject: void <init>()>;./src/test/resources/xmlDumps/84874240-db1b-448d-9adc-edbf1fe6d8cc.xml;de.unipassau.abc.testsubject.DummyObject@1520987522
+[<];<de.unipassau.abc.testsubject.DummyObject: void <init>()>;;
+[<];<de.unipassau.abc.testsubject.DummyObjectFactory: de.unipassau.abc.testsubject.DummyObject getSimple()>;./src/test/resources/xmlDumps/1d3909aa-f9df-4b5d-ab1c-ceb2fbc8eacc.xml;de.unipassau.abc.testsubject.DummyObject@1520987522;
 [>];VirtualInvokeExpr;<de.unipassau.abc.testsubject.DummyObject: void end()>
-[||];<de.unipassau.abc.testsubject.DummyObject: void end()>;de.unipassau.abc.testsubject.DummyObject@386555905
-[<];<de.unipassau.abc.testsubject.DummyObject: void end()>
+[||];<de.unipassau.abc.testsubject.DummyObject: void end()>;./src/test/resources/xmlDumps/ea180214-f5ef-430d-aae8-dbbed396ad55.xml;de.unipassau.abc.testsubject.DummyObject@1520987522
+[<];<de.unipassau.abc.testsubject.DummyObject: void end()>;;

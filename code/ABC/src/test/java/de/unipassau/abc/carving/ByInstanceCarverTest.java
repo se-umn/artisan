@@ -50,7 +50,7 @@ public class ByInstanceCarverTest {
 
 			Carver carver = new Carver();
 			File outputDirectory = temporaryFolderRule.newFolder();
-			String carveBy = "instance=org.employee.Validation@997608398";
+			String carveBy = "instance=org.employee.Validation@459848100";
 			String[] args = new String[] { "--carveBy", carveBy,
 					// String traceFile =
 					"--traceFile", "./src/test/resources/Employee-trace.txt",
