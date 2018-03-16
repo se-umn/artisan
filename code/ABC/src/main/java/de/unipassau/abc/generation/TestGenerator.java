@@ -22,11 +22,8 @@ import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
 import de.unipassau.abc.carving.ObjectInstance;
 import de.unipassau.abc.data.Pair;
-import de.unipassau.abc.instrumentation.UtilInstrumenter;
 import de.unipassau.abc.utils.JimpleUtils;
-import soot.Body;
 import soot.Local;
-import soot.LongType;
 import soot.Modifier;
 import soot.RefType;
 import soot.Scene;
@@ -36,7 +33,6 @@ import soot.Type;
 import soot.Unit;
 import soot.Value;
 import soot.VoidType;
-import soot.jimple.DoubleConstant;
 import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
 import soot.jimple.JimpleBody;
@@ -240,20 +236,22 @@ public class TestGenerator {
 			// final assignment that enable regression testing
 			boolean captureReturnValue = methodInvocation.equals(methodInvocationToCarve)
 					&& !JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()));
-			Stmt returnStmt = null;
+			// Stmt returnStmt = null;
 			if (captureReturnValue) {
 				String type = JimpleUtils.getReturnType(methodInvocation.getJimpleMethod());
 				// This shall be null at this point, since we do not use the
 				// return value ?
 				returnObjLocal = Jimple.v().newLocal("returnValue", RefType.v(type));
 				body.getLocals().add(returnObjLocal);
+				// returnObjLocal = UtilInstrumenter.generateFreshLocal(body,
+				// RefType.v(type));
 
 				// Debug
-				logger.trace("  >>>> Create a new local variable " + returnObjLocal + " of type " + type
+				System.out.println("  >>>> Create a new local variable " + returnObjLocal + " of type " + type
 						+ " to store the output of " + methodInvocationToCarve);
 				// FIXME: I have no idea of what a RetStmt is, but it does the
 				// trick, which is it results in an actual java assignment
-				returnStmt = Jimple.v().newRetStmt(returnObjLocal);
+				// returnStmt = Jimple.v().newRetStmt(returnObjLocal);
 			}
 
 			// We need to use add because some method invocations are actually
@@ -261,14 +259,15 @@ public class TestGenerator {
 			addUnitFor(units, methodInvocation, objLocal, parametersValues, returnObjLocal);
 
 			//
-			if (returnStmt != null) {
+			if (captureReturnValue) {
 				// Maybe we can simply call units.addAfter() ?
-//				units.add(returnStmt);
+				// units.add(returnStmt);
 				//
 				Value expectedValue = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
 				System.out.println("TestGenerator.generateAndAddTestMethodToTestClass() Expected value for "
-						+ methodInvocation + " is " + expectedValue);
-				gerenateRegressionAssertionOnReturnValue(body, units, expectedValue, returnObjLocal);
+						+ methodInvocation + " is " + expectedValue + " acutal value " + returnObjLocal);
+				
+				AssertionGenerator.gerenateRegressionAssertionOnReturnValue(body, units, expectedValue, returnObjLocal);
 			}
 		}
 
@@ -296,105 +295,6 @@ public class TestGenerator {
 			logger.debug("Found duplicate method " + testMethodName);
 		}
 
-	}
-
-	// TODO Local or Value ?! Value is super class, Local is local variable...
-	private void gerenateRegressionAssertionOnReturnValue(Body body, Chain<Unit> units, Value expected, Local actual) {
-		if (JimpleUtils.isPrimitive(actual.getType())) {
-			generateAssertEqualsForPrimitiveType(body, units, actual.getType(), expected, actual);
-		} else {
-			logger.warn("Assertion for objects are not yet supported !");
-		}
-
-	}
-
-	private void generateAssertEqualsForPrimitiveType(Body body, Chain<Unit> units, Type type, Value expectedValue,
-			Value actualValue) {
-
-		List<Value> assertParameters = new ArrayList<Value>();
-		List<Unit> generated = new ArrayList<>();
-
-		Value boxedExpected = UtilInstrumenter.generateCorrectObject(body, expectedValue, generated);
-		Value boxedActual = UtilInstrumenter.generateCorrectObject(body, actualValue, generated);
-		//
-		assertParameters.add(boxedExpected);
-		assertParameters.add(boxedActual);
-		//
-		SootMethod assertEquals = Scene.v()
-				.getMethod("<org.junit.Assert: void assertEquals(java.lang.Object,java.lang.Object)>");
-
-		generated.add(
-				Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertEquals.makeRef(), assertParameters)));
-
-		units.addAll(generated);
-
-		// System.out.println("TestGenerator.generateAssertEqualsForPrimitiveType()
-		// Boolean Expected: " + expectedValue
-		// + " --- Actual: " + actualValue);
-		// switch (type.toString()) {
-		// case "boolean":
-		// System.out.println("TestGenerator.generateAssertEqualsForPrimitiveType()
-		// NOT IMPLEMENTED ");
-		// // assertParameters.add(actualValue);
-		// // // TODO Probably can be done better
-		// //
-		// // if (expectedValue.toString().equals("0")) {
-		// // assertEquals = Scene.v().getMethod("<org.junit.Assert: void
-		// // assertTrue(boolean)>");
-		// // } else {
-		// // assertEquals = Scene.v().getMethod("<org.junit.Assert: void
-		// // assertFalse(boolean)>");
-		// // }
-		// //
-		// break;
-		// case "int":
-		// case "char":
-		// case "byte":
-		// case "short":
-		// case "long":
-		//
-		//
-		//
-		// // TODO Cast to long
-		// // Local expectedValueCastedToLong =
-		// // UtilInstrumenter.generateFreshLocal(body, LongType.v());
-		// // Local actualValueCastedToLong =
-		// // UtilInstrumenter.generateFreshLocal(body, LongType.v());
-		// // Assign int -> long
-		// // units.add(Jimple.v().newAssignStmt(expectedValueCastedToLong,
-		// // expectedValue));
-		// // units.add(Jimple.v().newAssignStmt(actualValueCastedToLong,
-		// // actualValue));
-		// // Transform everythign to Long
-		// // assertParameters.add(expectedValueCastedToLong);
-		// // assertParameters.add(actualValueCastedToLong);
-		//
-		// assertEquals = Scene.v().getMethod("<org.junit.Assert: void
-		// assertEquals(long,long)>");
-		// break;
-		// case "double":
-		// case "float":
-		// System.out.println("TestGenerator.generateAssertEqualsForPrimitiveType()
-		// NOT IMPLEMENTED ");
-		// // assertParameters.add(expectedValue);
-		// // assertParameters.add(actualValue);
-		// //
-		// // // Add casting to values
-		// //
-		// // // Delta
-		// // assertParameters.add(DoubleConstant.v(0.01));
-		// // assertEquals = Scene.v().getMethod("<org.junit.Assert: void
-		// // assertEquals(double,double,double)>");
-		// break;
-		// default:
-		// break;
-		// }
-		//
-		// // Returns a Pair which contains the array which hosts the parameters
-		// // and the instructions to
-		// // eventually Insert the assert call
-		// units.add(Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertEquals.makeRef(),
-		// assertParameters)));
 	}
 
 	//
