@@ -24,7 +24,9 @@ function instrument(){
 	export JAVA_OPTS=${INSTRUMENT_JAVA_OPTS}
 	
 	${BIN_FOLDER}/instrument \
-		 ${PROJECT_JAR} ${DEFAULT_INSTRUMENT_OUTPUT_DIR} ${DEFAULT_INSTRUMENT_OUTPUT_FORMAT} 2>&1 | \
+		--project-jar ${PROJECT_JAR} \
+		--output-to ${DEFAULT_INSTRUMENT_OUTPUT_DIR} \
+		--output-type ${DEFAULT_INSTRUMENT_OUTPUT_FORMAT} 2>&1 | \
 			tee instrument.log
 }
 

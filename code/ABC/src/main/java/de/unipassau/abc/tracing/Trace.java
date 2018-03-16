@@ -143,31 +143,17 @@ public class Trace {
 		return type.equals("void");
 	}
 
-	public static void methodStop(String methodName, String isRead, Object returnValue) {
+	public static void methodStop(String methodName, Object returnValue) {
 
 		// We distinguish primitives and boxed using methodName which specifies
 		// the return type !
 		if (isPrimitive(extractReturnType(methodName))) {
-
-			if (Boolean.valueOf(isRead)) {
-				// Note that if this is a primitive type it CANNOT be null !
-				methodStopForPrimitive(methodName, returnValue.toString());
-			} else {
-				methodStopPrimitiveNotRead(methodName);
-			}
-
+			methodStopForPrimitive(methodName, returnValue.toString());
 		} else if (isVoid(extractReturnType(methodName))) {
 			methodStopForVoid(methodName);
 		} else {
 			methodStopForObject(methodName, returnValue);
 		}
-	}
-
-	private static void methodStopPrimitiveNotRead(String methodName) {
-		// System.out.println("Trace.methodStop() " + methodName + " Primitive
-		// return value not used");
-		appendToTraceFile(METHOD_END_TOKEN + methodName + "\n");
-
 	}
 
 	private static void methodStopForObject(String methodName, Object returnValue) {

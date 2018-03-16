@@ -35,13 +35,15 @@ public class CallGraph {
 		stack = new Stack<MethodInvocation>();
 	}
 
-	public void push(MethodInvocation methodInvocation) {
+	public void push(MethodInvocation methodInvocation, boolean purityFlag) {
 		stack.push(methodInvocation);
-		if (graph.containsVertex(methodInvocation)) {
+
+		if (!purityFlag && !graph.containsVertex(methodInvocation)) {
 			graph.addVertex(methodInvocation);
 		}
 	}
 
+	// Pop=ping an empty stack IS an error
 	public MethodInvocation pop() {
 		MethodInvocation callee = stack.pop();
 		if (!stack.isEmpty()) {
@@ -125,7 +127,10 @@ public class CallGraph {
 	}
 
 	public MethodInvocation peek() {
-		return stack.peek();
+		if (!stack.isEmpty())
+			return stack.peek();
+		else
+			return null;
 	}
 
 	// Return the ordered list that starting from (main?) reaches
@@ -141,10 +146,10 @@ public class CallGraph {
 
 	public List<MethodInvocation> getSubsumingPathFor(MethodInvocation subsumingMethodInvocation,
 			MethodInvocation subsumedMethodInvocation) {
-		List<MethodInvocation> subsumingPath =getOrderedSubsumingMethodInvocationsFor(subsumedMethodInvocation);
+		List<MethodInvocation> subsumingPath = getOrderedSubsumingMethodInvocationsFor(subsumedMethodInvocation);
 		subsumingPath.removeAll(getOrderedSubsumingMethodInvocationsFor(subsumingMethodInvocation));
-		// TODO This does not contain the input 
+		// TODO This does not contain the input
 		return subsumingPath;
-				
+
 	}
 }

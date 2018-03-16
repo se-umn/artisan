@@ -48,7 +48,7 @@ public class CodeGenerationTest {
 		String employeeProjectJar = "./src/test/resources/Employee.jar";
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
 
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests =
 		// stackImplementation
 		// .fileTransformer(traceFile.getAbsolutePath(), methodToCarve);
@@ -78,7 +78,7 @@ public class CodeGenerationTest {
 		String jimpleMethod = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>";
 		int invocationID = 116;
 
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
 				.parseTrace("./src/test/resources/Employee-trace.txt", emptyMethodInvocationMatcherList);
 
@@ -106,7 +106,7 @@ public class CodeGenerationTest {
 		String employeeProjectJar = "./src/test/resources/Employee.jar";
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
 
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests =
 		// stackImplementation
 		// .fileTransformer(traceFile.getAbsolutePath(), methodToCarve);

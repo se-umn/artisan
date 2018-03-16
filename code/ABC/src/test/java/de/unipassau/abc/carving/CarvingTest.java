@@ -51,7 +51,7 @@ public class CarvingTest {
 		System.setProperty("debug", "true");
 
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 
 		stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 		//
@@ -66,7 +66,7 @@ public class CarvingTest {
 				"<org.employee.DummyObjectFactory: org.employee.DummyObjectToPassAsParameter createNewDummyObject()>");
 
 		File traceFile = new File("./src/test/resources/Employee-trace-with-static.txt");
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
@@ -102,7 +102,7 @@ public class CarvingTest {
 				"<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>");
 		//
 		File traceFile = new File("./src/test/resources/Employee-trace-with-static.txt");
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
@@ -151,7 +151,7 @@ public class CarvingTest {
 		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>";
 
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 
 		stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
@@ -195,7 +195,7 @@ public class CarvingTest {
 		try (PrintStream out = new PrintStream(new FileOutputStream(traceFile))) {
 			out.print(trace);
 		}
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 
 		// Parse trace and fill up Graph_Details.
 		stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
@@ -215,7 +215,7 @@ public class CarvingTest {
 		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String)>";
 
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 
 		// Not sure what's this
 
@@ -258,7 +258,7 @@ public class CarvingTest {
 		try (PrintStream out = new PrintStream(new FileOutputStream(traceFile))) {
 			out.print(trace);
 		}
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 
 		// Not sure what's this
 
@@ -302,7 +302,7 @@ public class CarvingTest {
 			out.print(trace);
 		}
 
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 		//
 		// This works by updating the static class {@link Graph_Details}
@@ -332,7 +332,7 @@ public class CarvingTest {
 		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String)>";
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
 
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 
 		// List<Pair<ExecutionFlowGraph, DataDependencyGraph>> testCases =
 		// stackImplementation.parseTrace(traceFile.getAbsolutePath(),
@@ -355,7 +355,7 @@ public class CarvingTest {
 		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>";
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
 
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestCases =
 		// stackImplementation
 		// .parseTrace(traceFile.getAbsolutePath(), methodToCarve);

@@ -5,8 +5,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import soot.Body;
+import soot.Local;
 import soot.SootClass;
 import soot.SootMethod;
+import soot.Type;
 import soot.Unit;
 
 public class JimpleUtils {
@@ -70,6 +72,12 @@ public class JimpleUtils {
 
 	public static String prettyPrint(Body body) {
 		StringBuffer bodyBuffer = new StringBuffer();
+
+		Iterator<Local> il = body.getLocals().iterator();
+		while (il.hasNext()) {
+			Local l = il.next();
+			bodyBuffer.append(l).append(" ").append(l.getType()).append("\n");
+		}
 		Iterator<Unit> iu = body.getUnits().iterator();
 		while (iu.hasNext()) {
 			bodyBuffer.append(iu.next()).append("\n");
@@ -94,7 +102,7 @@ public class JimpleUtils {
 		String fakeIdentityStmts = String.format("this := @this: %s", testClass.getName());
 		// Patch: add the "this := @this: <ClassName>" entry
 		final String testMethodBody = fakeIdentityStmts + "\n" + prettyPrint(testMethod.getActiveBody());
-		
+
 		for (SootMethod method : testClass.getMethods()) {
 			String methoBody = prettyPrint(method.getActiveBody());
 			if (testMethodBody.equals(methoBody)) {
@@ -102,5 +110,9 @@ public class JimpleUtils {
 			}
 		}
 		return false;
+	}
+
+	public static boolean isPrimitive(Type type) {
+		return isPrimitive(type.toString());
 	}
 }

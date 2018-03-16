@@ -17,7 +17,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
-import de.unipassau.abc.carving.StackImplementation;
 import de.unipassau.abc.tracing.Trace;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 
@@ -37,8 +36,9 @@ public class StackImplementationTest {
 	@Test
 	public void testTraceParseWithRealTrace() throws FileNotFoundException, IOException {
 		File traceFile = new File("./src/test/resources/trace.txt");
-		// StackImplementation stackImplementation = new StackImplementation();
-		StackImplementation stackImplementation = new StackImplementation();
+		// StackImplementation stackImplementation = new
+		// StackImplementation(emptyMethodInvocationMatcherList);
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// Parsing
 		stackImplementation.parseTraceFile(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
@@ -61,8 +61,9 @@ public class StackImplementationTest {
 			out.print(trace);
 		}
 
-		// StackImplementation stackImplementation = new StackImplementation();
-		StackImplementation stackImplementation = new StackImplementation();
+		// StackImplementation stackImplementation = new
+		// StackImplementation(emptyMethodInvocationMatcherList);
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// Parsing
 		stackImplementation.parseTraceFile(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
@@ -94,7 +95,7 @@ public class StackImplementationTest {
 
 		}
 
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 
 		// Parsing
 		stackImplementation.parseTraceFile(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
@@ -120,8 +121,9 @@ public class StackImplementationTest {
 
 		}
 
-		// StackImplementation stackImplementation = new StackImplementation();
-		StackImplementation stackImplementation = new StackImplementation();
+		// StackImplementation stackImplementation = new
+		// StackImplementation(emptyMethodInvocationMatcherList);
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 
 		// Parsing
 		stackImplementation.parseTraceFile(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
@@ -148,8 +150,7 @@ public class StackImplementationTest {
 
 		}
 
-		// StackImplementation stackImplementation = new StackImplementation();
-		StackImplementation stackImplementation = new StackImplementation();
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 
 		// Parsing
 		stackImplementation.parseTraceFile(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);

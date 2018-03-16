@@ -1,5 +1,6 @@
 package de.unipassau.abc.generation;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,6 +12,7 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.jboss.util.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,8 +62,25 @@ public class TestGenerator {
 		// This would set soot cp as the current running app cp
 		// Options.v().set_soot_classpath(System.getProperty("java.path"));
 
+		String junit4Jar = null;
+		String hamcrestCoreJar = null;
+
+		for (String cpEntry : SystemUtils.JAVA_CLASS_PATH.split(File.pathSeparator)) {
+			if (cpEntry.contains("junit-4")) {
+				junit4Jar = cpEntry;
+			} else if (cpEntry.contains("hamcrest-core")) {
+				hamcrestCoreJar = cpEntry;
+			}
+		}
+
+		// TODO Check that both are there ?
+
 		ArrayList<String> necessaryJar = new ArrayList<String>();
+		// Include here JUnit and Hamcrest
 		necessaryJar.add(this.projectLib);
+		necessaryJar.add(junit4Jar);
+		necessaryJar.add(hamcrestCoreJar);
+
 		// This might be needed for the EVALUATION and Level+1 Carved tests
 		// necessaryJar.add("./src/main/resources/Assertion.jar");
 
@@ -129,6 +148,10 @@ public class TestGenerator {
 	// REFACTOR !!
 	private AtomicInteger generatedTestCases = new AtomicInteger(0);
 
+	/*
+	 * generate a new test method add add that to the class unless there's
+	 * already an equivalent one
+	 */
 	private void generateAndAddTestMethodToTestClass(SootClass testClass,
 			Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest) {
 
@@ -201,32 +224,50 @@ public class TestGenerator {
 			List<Value> parametersValues = dataDependencyGraph.getParametersSootValueFor(methodInvocation);
 
 			// Store the return value to build the data dependencies
-			Local returnObjLocal = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
+			Value returnValue = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
+			Local returnObjLocal = null;
+			if (returnValue instanceof Local) {
+				returnObjLocal = (Local) returnValue;
+			} else {
+				logger.debug("We do not track return values of primitive types");
+			}
 
 			// When we process the methodInvocationToCarve, we also generate a
 			// final assignment that enable regression testing
 			boolean captureReturnValue = methodInvocation.equals(methodInvocationToCarve)
 					&& !JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()));
-			Stmt returnStmt = null;
+			// Stmt returnStmt = null;
 			if (captureReturnValue) {
 				String type = JimpleUtils.getReturnType(methodInvocation.getJimpleMethod());
 				// This shall be null at this point, since we do not use the
 				// return value ?
 				returnObjLocal = Jimple.v().newLocal("returnValue", RefType.v(type));
 				body.getLocals().add(returnObjLocal);
+				// returnObjLocal = UtilInstrumenter.generateFreshLocal(body,
+				// RefType.v(type));
 
 				// Debug
-				logger.trace("  >>>> Create a new local variable " + returnObjLocal + " of type " + type
+				System.out.println("  >>>> Create a new local variable " + returnObjLocal + " of type " + type
 						+ " to store the output of " + methodInvocationToCarve);
-				// FIXME: I have no idea of what a RetStmt is, but it does the trick, which is it results in an actual java assignment
-				returnStmt =Jimple.v().newRetStmt(returnObjLocal);
+				// FIXME: I have no idea of what a RetStmt is, but it does the
+				// trick, which is it results in an actual java assignment
+				// returnStmt = Jimple.v().newRetStmt(returnObjLocal);
 			}
+
 			// We need to use add because some method invocations are actually
 			// more than 1 unit !
 			addUnitFor(units, methodInvocation, objLocal, parametersValues, returnObjLocal);
+
 			//
-			if( returnStmt != null ){
-				units.add( returnStmt );
+			if (captureReturnValue) {
+				// Maybe we can simply call units.addAfter() ?
+				// units.add(returnStmt);
+				//
+				Value expectedValue = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
+				System.out.println("TestGenerator.generateAndAddTestMethodToTestClass() Expected value for "
+						+ methodInvocation + " is " + expectedValue + " acutal value " + returnObjLocal);
+				
+				AssertionGenerator.gerenateRegressionAssertionOnReturnValue(body, units, expectedValue, returnObjLocal);
 			}
 		}
 
