@@ -83,7 +83,7 @@ public class InstrumentDummyProjectTest {
 			}
 		});
 		// TODO Maybe a Hamcrest matcher here?
-		assertEquals(13, count.get());
+		assertEquals(14, count.get());
 
 		// At this point we have the instrumented classes and we can start
 		// system tests and make assertions on the resulting traces.
