@@ -39,6 +39,10 @@ public class JimpleUtils {
 				|| type.equals("int") || type.equals("long") || type.equals("float") || type.equals("double");
 	}
 
+	public static boolean isString(Type type) {
+		return isString(type.toString());
+	}
+
 	public static boolean isString(String type) {
 		return type.equals("java.lang.String");
 	}

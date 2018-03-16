@@ -9,9 +9,10 @@ import org.slf4j.LoggerFactory;
 import de.unipassau.abc.instrumentation.UtilInstrumenter;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.Body;
+import soot.BooleanType;
 import soot.DoubleType;
 import soot.Local;
-import soot.LongType;
+import soot.NullType;
 import soot.RefType;
 import soot.Scene;
 import soot.SootMethod;
@@ -33,6 +34,19 @@ public class AssertionGenerator {
 
 	private static final Logger logger = LoggerFactory.getLogger(AssertionGenerator.class);
 
+	public static void gerenateRegressionAssertionOnOwner(Body body, Chain<Unit> units, Value expected,
+			Value actual) {
+		// IF TYPE PRIMITIVE THERE"S AN ERROR !
+		// IF STRING THERE"S AN ERROR
+		if (JimpleUtils.isPrimitive(actual.getType())) {
+			logger.error("Something wrong happened ! A primitive cannot own method invocations ");
+			//
+		} else {
+			generateAssertEqualsForObjects(body, units, actual.getType(), expected, actual);
+		}
+		
+	}
+	
 	public static void gerenateRegressionAssertionOnReturnValue(Body body, Chain<Unit> units, Value expected,
 			Value actual) {
 		if (JimpleUtils.isPrimitive(actual.getType())) {
@@ -41,13 +55,80 @@ public class AssertionGenerator {
 			generateAssertEqualsForPrimitiveTypeUsingBoxing(body, units, actual.getType(), expected, actual);
 			//
 		} else {
-			logger.warn("Assertion for objects are not yet supported !");
+			generateAssertNullityForObjects(body, units, actual.getType(), expected, actual);
+			generateAssertEqualsForObjects(body, units, actual.getType(), expected, actual);
 		}
 
 	}
 
+	public static void generateAssertNullityForObjects(Body body, Chain<Unit> units, Type type, Value expected,
+			Value actual) {
+		List<Unit> generated = new ArrayList<>();
+
+		if (expected == null || expected instanceof NullType) {
+			SootMethod assertNull = Scene.v().getMethod("<org.junit.Assert: void assertNull(java.lang.Object)>");
+			generated.add(Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertNull.makeRef(), actual)));
+		} else {
+			SootMethod assertNotNull = Scene.v().getMethod("<org.junit.Assert: void assertNotNull(java.lang.Object)>");
+			generated.add(Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertNotNull.makeRef(), actual)));
+		}
+
+		units.addAll(generated);
+
+	}
+
+	public static void generateAssertEqualsForPrimitiveTypeUsingBoxing(Body body, Chain<Unit> units, Type type,
+			Value expectedValue, Value actualValue) {
+		List<Unit> generated = new ArrayList<>();
+
+		if (type instanceof BooleanType) {
+			List<Value> assertParameters = new ArrayList<>();
+			assertParameters.add(actualValue);
+
+			// // TODO Probably can be done better
+			if (expectedValue.toString().equals("0")) {
+				SootMethod assertTrue = Scene.v().getMethod("<org.junit.Assert: void assertTrue(boolean)>");
+				generated.add(Jimple.v()
+						.newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertTrue.makeRef(), assertParameters)));
+			} else {
+				SootMethod assertFalse = Scene.v().getMethod("<org.junit.Assert: void assertFalse(boolean)>");
+				generated.add(Jimple.v()
+						.newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertFalse.makeRef(), assertParameters)));
+			}
+		} else {
+			Value boxedExpected = UtilInstrumenter.generateCorrectObject(body, expectedValue, generated);
+			Value boxedActual = UtilInstrumenter.generateCorrectObject(body, actualValue, generated);
+
+			generateAssertEqualsForObjects(body, units, type, boxedExpected, boxedActual, generated);
+		}
+
+	}
+
+	public static void generateAssertEqualsForObjects(Body body, Chain<Unit> units, Type type, Value expectedValue,
+			Value actualValue) {
+		generateAssertEqualsForObjects(body, units, type, expectedValue, actualValue, new ArrayList<Unit>());
+
+	}
+
+	public static void generateAssertEqualsForObjects(Body body, Chain<Unit> units, Type type, Value expectedValue,
+			Value actualValue, List<Unit> generated) {
+
+		List<Value> assertParameters = new ArrayList<Value>();
+
+		assertParameters.add(expectedValue);
+		assertParameters.add(actualValue);
+
+		SootMethod assertEquals = Scene.v()
+				.getMethod("<org.junit.Assert: void assertEquals(java.lang.Object,java.lang.Object)>");
+
+		generated.add(
+				Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertEquals.makeRef(), assertParameters)));
+
+		units.addAll(generated);
+	}
+
 	@Deprecated // Does not work. It might be the case we need to Box types to
-				// enable casting ?
+	// enable casting ?
 	public static void generateAssertEqualsForPrimitiveType(Body body, Chain<Unit> units, Type type,
 			Value expectedValue, Value actualValue) {
 
@@ -140,24 +221,4 @@ public class AssertionGenerator {
 		units.addAll(generated);
 	}
 
-	public static void generateAssertEqualsForPrimitiveTypeUsingBoxing(Body body, Chain<Unit> units, Type type,
-			Value expectedValue, Value actualValue) {
-
-		List<Value> assertParameters = new ArrayList<Value>();
-		List<Unit> generated = new ArrayList<>();
-
-		Value boxedExpected = UtilInstrumenter.generateCorrectObject(body, expectedValue, generated);
-		Value boxedActual = UtilInstrumenter.generateCorrectObject(body, actualValue, generated);
-
-		assertParameters.add(boxedExpected);
-		assertParameters.add(boxedActual);
-
-		SootMethod assertEquals = Scene.v()
-				.getMethod("<org.junit.Assert: void assertEquals(java.lang.Object,java.lang.Object)>");
-
-		generated.add(
-				Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertEquals.makeRef(), assertParameters)));
-
-		units.addAll(generated);
-	}
 }

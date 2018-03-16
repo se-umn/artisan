@@ -15,6 +15,7 @@ import com.lexicalscope.jewel.cli.ArgumentValidationException;
 import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
 
+import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.MethodInvocationMatcher;
 import de.unipassau.abc.data.Pair;
 import soot.Body;
@@ -593,14 +594,7 @@ public class InstrumentTracer extends BodyTransformer {
 		// AT THE MOMENT I CANNOT FIND A WAY TO HAVE SOOT USING THE SINGLE TRACE
 		// CLASS
 
-		String traceJar = "./libs/trace.jar"; // Eclipse testing
-
-		if (!new File(traceJar).exists()) {
-			traceJar = "../libs/trace.jar"; // Actual usage ...
-			if (!new File(traceJar).exists()) {
-				throw new RuntimeException(new File(traceJar).getAbsolutePath() + " file is missing");
-			}
-		}
+		String traceJar = ABCUtils.getTraceJar();
 
 		// This is the application under analysis. 1 jar -> 1 entry
 		ArrayList<String> list = new ArrayList<String>();
