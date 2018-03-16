@@ -294,18 +294,18 @@ public class InstrumentTracer extends BodyTransformer {
 
 	// TODO Double check that the original implementation does nothing more than
 	// this.
-	private void traceMethodCall(Body b, final PatchingChain<Unit> units, Unit u, SootMethod method,
+	private void traceMethodCall(Body body, final PatchingChain<Unit> units, Unit u, SootMethod method,
 			List<Value> parameterList, Value returnValue, Value instanceValue, String invokeType) {
 		/*
 		 * Instrument body to include a call to Trace.start BEFORE the execution
 		 * of method, we store its parameters as well.
 		 */
-		addTraceStart(invokeType, method.getSignature(), parameterList, b, units, u);
+		addTraceStart(invokeType, method.getSignature(), parameterList, body, units, u);
 		/*
 		 * Instrument body to include a call to Trace.stop AFTER the execution
 		 * of method, we store its return type as well.
 		 */
-		addTraceStop(method, returnValue, b, units, u);
+		addTraceStop(method, returnValue, body, units, u);
 		/*
 		 * Instrument body to include a call to Trace.object AFTER the execution
 		 * of method, we store the reference to the instance object making the
@@ -313,19 +313,19 @@ public class InstrumentTracer extends BodyTransformer {
 		 * instance, hence no trace entry
 		 */
 		if (!Jimple.STATICINVOKE.equals(invokeType)) {
-			addTraceObject(instanceValue, method, units, u);
+			addTraceObject(instanceValue, method, body, units, u);
 		}
 
 	}
 
-	private void addTraceObject(Value instanceValue, SootMethod method, final PatchingChain<Unit> units, Unit u) {
-		final SootMethod methodObject = Scene.v()
-				.getMethod("<de.unipassau.abc.tracing.Trace: void methodObject(java.lang.String,java.lang.Object)>");
+	private void addTraceObject(Value instanceValue, SootMethod method, Body body, final PatchingChain<Unit> units,
+			Unit u) {
 
-		// StickType ?
-		// If the method is not Static, i.e., instance is not null - maybe
-		// there's a better heuristic to identify static methods ?
+		List<Unit> generated = new ArrayList<Unit>();
+
 		if (instanceValue != null) {
+			final SootMethod methodObject = Scene.v().getMethod(
+					"<de.unipassau.abc.tracing.Trace: void methodObject(java.lang.String,java.lang.Object)>");
 			// Trace.methodObject requires
 			// String -> methodName
 			// Object -> "this" / invocation owner if any
@@ -339,45 +339,52 @@ public class InstrumentTracer extends BodyTransformer {
 			// Generate the invocation to Trace.traceObject
 			final Stmt callTracerMethodObject = Jimple.v()
 					.newInvokeStmt(Jimple.v().newStaticInvokeExpr(methodObject.makeRef(), methodObjectParameters));
+			generated.add(callTracerMethodObject);
 
-			units.insertAfter(callTracerMethodObject, u);
 		}
+		//
+		units.insertAfter(generated, u);
+
 	}
 
 	private void addTraceStop(SootMethod method, Value returnValue, Body body, final PatchingChain<Unit> units,
 			Unit u) {
 
-		final SootMethod methodStop = Scene.v()
-				.getMethod("<de.unipassau.abc.tracing.Trace: void methodStop(java.lang.String,java.lang.Object)>");
-		// Trace.methodStop requires
-		// String -> methodName
-		// Object -> Return value
-		List<Value> methodStopParameters = new ArrayList<Value>();
+		List<Unit> generated = new ArrayList<Unit>();
 
-		// Method Name
-		methodStopParameters.add(StringConstant.v(method.getSignature()));
+		{
+			final SootMethod methodStop = Scene.v()
+					.getMethod("<de.unipassau.abc.tracing.Trace: void methodStop(java.lang.String,java.lang.Object)>");
+			// Trace.methodStop requires
+			// String -> methodName
+			// Object -> Return value
+			List<Value> methodStopParameters = new ArrayList<Value>();
 
-		// This box return value or null or void constants
-		Pair<Value, List<Unit>> tmpReturnValueAndInstructions = null;
-		if (method.getReturnType() instanceof VoidType || method.getReturnType().toString().equals("void")) {
-			tmpReturnValueAndInstructions = new Pair<Value, List<Unit>>(StringConstant.v("void"),
-					new ArrayList<Unit>());
+			// Method Name
+			methodStopParameters.add(StringConstant.v(method.getSignature()));
 
-		} else if (returnValue == null) {
-			throw new RuntimeException("Cannot have a null returnValue at this point " + method);
-		} else {
-			tmpReturnValueAndInstructions = UtilInstrumenter.generateReturnValue(returnValue, body);
+			// This box return value or null or void constants
+			Pair<Value, List<Unit>> tmpReturnValueAndInstructions = null;
+			if (method.getReturnType() instanceof VoidType) {
+				tmpReturnValueAndInstructions = new Pair<Value, List<Unit>>(StringConstant.v("void"),
+						new ArrayList<Unit>());
+
+			} else if (returnValue == null) {
+				throw new RuntimeException("Cannot have a null returnValue at this point " + method);
+			} else {
+				tmpReturnValueAndInstructions = UtilInstrumenter.generateReturnValue(returnValue, body);
+			}
+
+			// Append to the array the possibly Boxed return value
+			methodStopParameters.add(tmpReturnValueAndInstructions.getFirst());
+			final Stmt callStmtMethodStop = Jimple.v()
+					.newInvokeStmt(Jimple.v().newStaticInvokeExpr(methodStop.makeRef(), methodStopParameters));
+			// Append the instructions to units.
+			tmpReturnValueAndInstructions.getSecond().add(callStmtMethodStop);
+
+			generated.addAll(tmpReturnValueAndInstructions.getSecond());
 		}
-
-		// Append to the array the possibly Boxed return value
-		methodStopParameters.add(tmpReturnValueAndInstructions.getFirst());
-		final Stmt callStmtMethodStop = Jimple.v()
-				.newInvokeStmt(Jimple.v().newStaticInvokeExpr(methodStop.makeRef(), methodStopParameters));
-		// Append the instructions to units.
-		tmpReturnValueAndInstructions.getSecond().add(callStmtMethodStop);
-
-		units.insertAfter(tmpReturnValueAndInstructions.getSecond(), u);
-
+		units.insertAfter(generated, u);
 	}
 
 	private void addTraceStart(String invokeType, String methodSignature, List<Value> parameterList, Body body,

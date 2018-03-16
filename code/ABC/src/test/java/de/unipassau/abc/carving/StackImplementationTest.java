@@ -17,6 +17,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
+import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.tracing.Trace;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 
@@ -32,19 +33,24 @@ public class StackImplementationTest {
 
 	private final List<MethodInvocationMatcher> emptyMethodInvocationMatcherList = new ArrayList<MethodInvocationMatcher>();
 
-	@Ignore
 	@Test
-	public void testTraceParseWithRealTrace() throws FileNotFoundException, IOException {
-		File traceFile = new File("./src/test/resources/trace.txt");
-		// StackImplementation stackImplementation = new
-		// StackImplementation(emptyMethodInvocationMatcherList);
+	public void testTraceParseWithTraceFromTestSubject() throws FileNotFoundException, IOException {
+		File traceFile = new File("./src/test/resources/DummySystemTestGetSimple-trace.txt");
+		
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
-		// Parsing
-		stackImplementation.parseTraceFile(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
-		fail("Not implemented! ");
+		// TODO Add assertions here  !
+		parsedTrace.getFirst().visualize();
+		parsedTrace.getSecond().visualize();
+		parsedTrace.getThird().visualize();
+		
+		// Assert that file exists or similar ?
+		
+		System.out.println("StackImplementationTest.testTraceParseWithTraceFromTestSubject()");
 	}
 
+	/// The following tests are broken since the trace format changed !
 	@Ignore
 	@Test
 	public void testTraceParserWithFormalParameters() throws IOException {
@@ -65,7 +71,7 @@ public class StackImplementationTest {
 		// StackImplementation(emptyMethodInvocationMatcherList);
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// Parsing
-		stackImplementation.parseTraceFile(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
+		stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		// Regression?
 		Hashtable<String, String> hashParams = new Hashtable<String, String>();
@@ -98,7 +104,7 @@ public class StackImplementationTest {
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 
 		// Parsing
-		stackImplementation.parseTraceFile(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
+		stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		fail("Not implemented! ");
 	}
@@ -126,7 +132,7 @@ public class StackImplementationTest {
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 
 		// Parsing
-		stackImplementation.parseTraceFile(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
+		stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		Hashtable<String, String> hashId = new Hashtable<String, String>();
 		hashId.put("<jpass.ui.action.TextComponentActionType: java.lang.String getName()>", "SELECT_ALL\n\nB\n");
@@ -153,7 +159,7 @@ public class StackImplementationTest {
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 
 		// Parsing
-		stackImplementation.parseTraceFile(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
+		stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		Hashtable<String, String> hashParams = new Hashtable<String, String>();
 		hashParams.put(

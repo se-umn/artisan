@@ -3,13 +3,13 @@ package de.unipassau.abc.carving;
 public class ObjectInstance implements DataNode {
 
 	private String objectId;
-	
+
 	public ObjectInstance(String objectId) {
-		if( objectId == null)
+		if (objectId == null)
 			throw new IllegalArgumentException("ObjectInstance cannot have null objectId");
 		this.objectId = objectId;
 	}
-	
+
 	public String getObjectId() {
 		return objectId;
 	}
@@ -42,11 +42,10 @@ public class ObjectInstance implements DataNode {
 	public String getType() {
 		return objectId.split("@")[0];
 	}
-	
+
 	@Override
 	public String toString() {
 		return objectId;
 	}
-	
-	
+
 }

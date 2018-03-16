@@ -37,21 +37,28 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private static File traceJar;
+	private static List<File> traceCP;
 
 	@BeforeClass
 	public static void setupTraceJar() {
+
 		// Use this if you want to inspect the traces afterwards
 		// File outputDir = com.google.common.io.Files.createTempDir();
 		// File traceOutput = File.createTempFile("trace", ".txt");
 
-		traceJar = new File("./libs/trace.jar"); // Eclipse testing
-		if (!traceJar.exists()) {
-			traceJar = new File("../libs/trace.jar"); // Actual usage ...
-			if (!traceJar.exists()) {
+		File traceJarFile = new File("./libs/trace.jar"); // Eclipse testing
+		if (!traceJarFile.exists()) {
+			traceJarFile = new File("../libs/trace.jar"); // Actual usage ...
+			if (!traceJarFile.exists()) {
 				throw new RuntimeException("trace.jar file is missing");
 			}
 		}
+
+		traceCP = new ArrayList<>();
+		traceCP.add(traceJarFile);
+		traceCP.add(new File("./src/test/resources/xmlpull-1.1.3.1.jar"));
+		traceCP.add(new File("./src/test/resources/xstream-1.4.10.jar"));
+
 	}
 
 	@Test
@@ -86,7 +93,7 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 		List<File> jarFiles = new ArrayList<File>();
 		jarFiles.add(testsubjectJar);
 		jarFiles.add(testsubjectTestsJar);
-		jarFiles.add(traceJar);
+		jarFiles.addAll(traceCP);
 		// This is a link to
 		// ~/.m2/repository/com/github/stefanbirkner/system-rules/1.17.0/system-rules-1.17.0.jar
 		jarFiles.add(new File("./src/test/resources/system-rules-1.17.0.jar"));

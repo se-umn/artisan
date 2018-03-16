@@ -4,7 +4,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 
+import de.unipassau.abc.data.Triplette;
+
 public interface TraceParser {
 
-	public void parseTraceFile(String traceFilePath, List<MethodInvocationMatcher> externalInterfaceMatchers) throws FileNotFoundException, IOException;
+	public Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parseTrace(String traceFilePath,
+			List<MethodInvocationMatcher> externalInterfaceMatchers) throws FileNotFoundException, IOException;
 }

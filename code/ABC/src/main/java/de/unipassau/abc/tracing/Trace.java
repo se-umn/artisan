@@ -102,32 +102,32 @@ public class Trace {
 	 *            - the Id of the object
 	 */
 	public static void methodObject(String method, Object o) {
-		// System.out.println("Trace.methodObject() " + method);
-		String content = METHOD_OBJECT_TOKEN + method + ";" + o.getClass().getName() + "@" + System.identityHashCode(o);
+		String xmlFile = null;
+		try {
+			// Primitives are not tracked, right ?
+			if ("java.lang.String".equals(method.split(" ")[1])) {
+				System.out.println("Trace.methodObject() Skip dump of Strings");
+			} else {
+				xmlFile = XMLDumper.dumpObject(method, o);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		String content = METHOD_OBJECT_TOKEN + method + ";"//
+				+ ((xmlFile != null) ? xmlFile : "") + ";" //
+				+ "" + o.getClass().getName() + "@" + System.identityHashCode(o);
+
 		appendToTraceFile(content + "\n");
 	}
 
-	/*
-	 * public static void methodStart(String typeOfMethod,String method,Object
-	 * o,Object ...objects){
-	 * 
-	 * String content="> "+typeOfMethod+";"+method+";"+o+";(";
-	 * 
-	 * for(int i=0;i<objects.length;i++){ if(i!=objects.length-1)
-	 * content+=objects[i]+","; else content+=objects[i]; } content+=")";
-	 * toFile(content+"\n"); }
-	 */
-
-	// public static void methodStart(String method){
-	//
-	// toFile("> "+method+ ";"+ o +"\n");
-	// }
-
 	// This is for primitives values
-	private static void methodStopForPrimitive(String method, String returnValue) {
-		// System.out.println("Trace.methodStopForPrimitives() " + method + "
-		// returnValue " + returnValue.getClass());
-		appendToTraceFile(METHOD_END_TOKEN + method + ";" + returnValue + "\n");
+	private static void methodStopForPrimitive(String methodName, String returnValue) {
+		String content = METHOD_END_TOKEN + //
+				methodName + ";" + //
+				"" + ";" + //
+				returnValue;
+		appendToTraceFile(content + "\n");
 	}
 
 	private static boolean isPrimitive(String type) {
@@ -157,19 +157,29 @@ public class Trace {
 	}
 
 	private static void methodStopForObject(String methodName, Object returnValue) {
-		// System.out.println("Trace.methodStop() " + methodName + " objRef " +
-		// returnValue.getClass().getName() + "@"
-		// + System.identityHashCode(returnValue));
+		String xmlFile = null;
+		try {
+			// Returns null for null objects
+			xmlFile = XMLDumper.dumpObject(methodName, returnValue);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 
-		appendToTraceFile(METHOD_END_TOKEN + methodName + ";" + returnValue.getClass().getName() + "@"
-				+ System.identityHashCode(returnValue) + "\n");
+		String content = METHOD_END_TOKEN + //
+				methodName + ";" + //
+				((xmlFile != null) ? xmlFile : "") + ";" + //
+				returnValue.getClass().getName() + "@" + System.identityHashCode(returnValue) + ";";
+
+		appendToTraceFile(content + "\n");
 
 	}
 
 	private static void methodStopForVoid(String methodName) {
 		// System.out.println("Trace.methodStop() " + methodName);
-
-		appendToTraceFile(METHOD_END_TOKEN + methodName + "\n");
+		String content = METHOD_END_TOKEN + //
+				methodName + ";" + //
+				"" + ";"; // Empty XML File
+		appendToTraceFile(content + "\n");
 	}
 
 	// public static void methodStopForNullObject(String method) {
