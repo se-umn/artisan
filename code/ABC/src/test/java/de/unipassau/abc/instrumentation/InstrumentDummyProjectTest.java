@@ -41,7 +41,7 @@ public class InstrumentDummyProjectTest {
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private static File traceJar;
+	private static String traceJarCP;
 
 	@BeforeClass
 	public static void setupTraceJar() {
@@ -49,19 +49,26 @@ public class InstrumentDummyProjectTest {
 		// File outputDir = com.google.common.io.Files.createTempDir();
 		// File traceOutput = File.createTempFile("trace", ".txt");
 
-		traceJar = new File("./libs/trace.jar"); // Eclipse testing
-		if (!traceJar.exists()) {
-			traceJar = new File("../libs/trace.jar"); // Actual usage ...
-			if (!traceJar.exists()) {
+		File traceJarFile = new File("./libs/trace.jar"); // Eclipse testing
+		if (!traceJarFile.exists()) {
+			traceJarFile = new File("../libs/trace.jar"); // Actual usage ...
+			if (!traceJarFile.exists()) {
 				throw new RuntimeException("trace.jar file is missing");
 			}
 		}
+
+		traceJarCP = traceJarFile.getAbsolutePath() + File.pathSeparator + //
+				new File("./src/test/resources/xmlpull-1.1.3.1.jar").getAbsolutePath() + File.pathSeparator + //
+				new File("./src/test/resources/xstream-1.4.10.jar").getAbsolutePath();
+
 	}
 
 	@Test
 	@Category(SystemTest.class)
 	public void instrumentAndTraceTestSubjects() throws URISyntaxException, IOException, InterruptedException {
-		File outputDir = temporaryFolder.newFolder();
+		
+//		File outputDir = temporaryFolder.newFolder();
+		File outputDir = Files.createTempDirectory("TEMP").toFile();
 
 		// Note that this includes both SUT and its test. If we do not trace
 		// test cases, then we might miss information for carving
@@ -87,18 +94,20 @@ public class InstrumentDummyProjectTest {
 
 		// At this point we have the instrumented classes and we can start
 		// system tests and make assertions on the resulting traces.
-		runSystemTestFromClass(DummySystemTestGetSimple.class, outputDir, testsubjectJar, traceJar);
-		runSystemTestFromClass(DummySystemTestGetModified.class, outputDir, testsubjectJar, traceJar);
-		runSystemTestFromClass(DummySystemTestGetSimpleWithDelegate.class, outputDir, testsubjectJar, traceJar);
-		runSystemTestFromClass(DummySystemTestGetModifiedWithDelegate.class, outputDir, testsubjectJar, traceJar);
-		runSystemTestFromClass(DummySystemTestGetDoubleModifiedWithDelegate.class, outputDir, testsubjectJar, traceJar);
-		runSystemTestFromClass(DummySystemTestGetSimpleWithParameter.class, outputDir, testsubjectJar, traceJar);
+		// TODO SUpporting jars !
+		runSystemTestFromClass(DummySystemTestGetSimple.class, outputDir, testsubjectJar, traceJarCP);
+		runSystemTestFromClass(DummySystemTestGetModified.class, outputDir, testsubjectJar, traceJarCP);
+		runSystemTestFromClass(DummySystemTestGetSimpleWithDelegate.class, outputDir, testsubjectJar, traceJarCP);
+		runSystemTestFromClass(DummySystemTestGetModifiedWithDelegate.class, outputDir, testsubjectJar, traceJarCP);
+		runSystemTestFromClass(DummySystemTestGetDoubleModifiedWithDelegate.class, outputDir, testsubjectJar,
+				traceJarCP);
+		runSystemTestFromClass(DummySystemTestGetSimpleWithParameter.class, outputDir, testsubjectJar, traceJarCP);
 		runSystemTestFromClass(DummySystemTestGetSimpleWithNonRequiredParameter.class, outputDir, testsubjectJar,
-				traceJar);
+				traceJarCP);
 
 	}
 
-	private void runSystemTestFromClass(Class systemTestClass, File outputDir, File testsubjectJar, File traceJar)
+	private void runSystemTestFromClass(Class systemTestClass, File outputDir, File testsubjectJar, String traceJarCP)
 			throws IOException, URISyntaxException, InterruptedException {
 		String systemTestClassName = systemTestClass.getName();
 
@@ -109,7 +118,7 @@ public class InstrumentDummyProjectTest {
 				systemTestClass.getProtectionDomain().getCodeSource().getLocation().toURI().getPath());
 
 		String classpath = outputDir + File.pathSeparator + testsubjectJar + File.pathSeparator
-				+ systemTestClassClassFile + File.pathSeparator + traceJar.getAbsolutePath();
+				+ systemTestClassClassFile + File.pathSeparator + traceJarCP;
 
 		String javaPath = SystemUtils.JAVA_HOME + File.separator + "bin" + File.separator + "java";
 

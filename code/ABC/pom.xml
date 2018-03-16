@@ -96,7 +96,13 @@
 			<artifactId>guava</artifactId>
 			<version>23.0</version>
 		</dependency>
-
+		<!-- Dump Objects to XML. TODO Move this to testing here and introduce 
+			this as compile dependency to build it with a profile later -->
+		<dependency>
+			<groupId>com.thoughtworks.xstream</groupId>
+			<artifactId>xstream</artifactId>
+			<version>1.4.10</version>
+		</dependency>
 
 
 		<!-- Graph Datastructures and Visualization -->
@@ -236,9 +242,7 @@
 							</dependency>
 						</dependencies>
 						<configuration>
-							<!-- <includes>
-								<include>**/*.class</include>
-							</includes> -->
+							<!-- <includes> <include>**/*.class</include> </includes> -->
 							<excludedGroups>de.unipassau.abc.utils.SystemTest</excludedGroups>
 							<!-- Exclude resources for integration tests. Note that those are 
 								actual java and class files for mutants and tests -->
