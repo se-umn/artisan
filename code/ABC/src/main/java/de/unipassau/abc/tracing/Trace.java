@@ -153,7 +153,7 @@ public class Trace {
 
 		// We distinguish primitives and boxed using methodName which specifies
 		// the return type !
-		if (isPrimitive(extractReturnType(method)) || isString(extractReturnType(method))) {
+		if (isPrimitive(extractReturnType(method)) || (isString(extractReturnType(method)) && returnValue != null)) {
 			methodStopForPrimitive(method, returnValue.toString());
 		} else if (isVoid(extractReturnType(method))) {
 			methodStopForVoid(method);
@@ -174,7 +174,7 @@ public class Trace {
 		String content = METHOD_END_TOKEN + //
 				methodName + ";" + //
 				((xmlFile != null) ? xmlFile : "") + ";" + //
-				returnValue.getClass().getName() + "@" + System.identityHashCode(returnValue) + ";";
+				extractReturnType(methodName) + "@" + System.identityHashCode(returnValue) + ";";
 
 		appendToTraceFile(content + "\n");
 

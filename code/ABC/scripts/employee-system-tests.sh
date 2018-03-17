@@ -7,7 +7,7 @@ if [ ! -d ./sootOutput ]; then
 	exit 1
 fi
 
-rm employee-system-test.log
+rm employee-system-tests.log
 
 # Invoke the System test using JUnit. It requires all the test deps to be provided as classpath
 
@@ -24,12 +24,11 @@ JUNIT_CP="/Users/gambi/.m2/repository/junit/junit/4.12/junit-4.12.jar:/Users/gam
 # Trace requires Xstream and XPull to dump to file
 SUPPORTING_JARS="../libs/trace.jar:/Users/gambi/Documents/Passau/Research/action-based-test-carving/code/ABC/src/test/resources/xmlpull-1.1.3.1.jar:/Users/gambi/Documents/Passau/Research/action-based-test-carving/code/ABC/src/test/resources/xstream-1.4.10.jar"
 
-#SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestAdminLoginWithEmptyDb"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestAdminLoginWithEmptyDb"
 #SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestAdminLoginWithNonEmptyDb"
 #SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestEmployeeLogin"
 #SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewEmployee"
-
-SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestStartAndExit"
+#SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestStartAndExit"
 
 JAVA_OPTS="-Dtrace.output=./tracingOut -Ddump.output=./tracingOut"
 

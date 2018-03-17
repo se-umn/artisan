@@ -6,9 +6,9 @@ rm -r ./abcOutput
 
 TRACE_FILE=${1-"./tracingOut/trace.txt"}
 
-DEFAULT_CARVE_BY='method=<org.employee.Validation: int numberValidation(java.lang.String)>'
+#DEFAULT_CARVE_BY='method=<org.employee.Validation: int numberValidation(java.lang.String)>'
 
-#DEFAULT_CARVE_BY="package=org.employee"
+DEFAULT_CARVE_BY="package=org.employee"
 
 CARVE_BY=${2:-${DEFAULT_CARVE_BY}}
 

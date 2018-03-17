@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import de.unipassau.abc.instrumentation.UtilInstrumenter;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.Body;
-import soot.BooleanType;
 import soot.DoubleType;
 import soot.Local;
 import soot.NullType;
@@ -50,8 +49,6 @@ public class AssertionGenerator {
 	public static void gerenateRegressionAssertionOnReturnValue(Body body, Chain<Unit> units, Value expected,
 			Value actual) {
 		if (JimpleUtils.isPrimitive(actual.getType())) {
-			// Ideally I would like to have precise assertions instead of boxed
-			// ones, however, I am having trouble to handle casting with soot
 			generateAssertEqualsForPrimitiveTypeUsingBoxing(body, units, actual.getType(), expected, actual);
 			//
 		} else {
@@ -81,12 +78,13 @@ public class AssertionGenerator {
 			Value expectedValue, Value actualValue) {
 		List<Unit> generated = new ArrayList<>();
 
-		if (type instanceof BooleanType) {
+		if ("boolean".equals( type.toString())) {
+			
 			List<Value> assertParameters = new ArrayList<>();
 			assertParameters.add(actualValue);
 
 			// // TODO Probably can be done better
-			if (expectedValue.toString().equals("0")) {
+			if (expectedValue.toString().equals("1")) {
 				SootMethod assertTrue = Scene.v().getMethod("<org.junit.Assert: void assertTrue(boolean)>");
 				generated.add(Jimple.v()
 						.newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertTrue.makeRef(), assertParameters)));
@@ -101,12 +99,17 @@ public class AssertionGenerator {
 
 			generateAssertEqualsForObjects(body, units, type, boxedExpected, boxedActual, generated);
 		}
+		// 
+		units.addAll(generated);
 
 	}
 
 	public static void generateAssertEqualsForObjects(Body body, Chain<Unit> units, Type type, Value expectedValue,
 			Value actualValue) {
-		generateAssertEqualsForObjects(body, units, type, expectedValue, actualValue, new ArrayList<Unit>());
+		List<Unit> generated = new ArrayList<Unit>();
+		generateAssertEqualsForObjects(body, units, type, expectedValue, actualValue, generated);
+		units.addAll( generated );
+		
 
 	}
 
@@ -123,8 +126,6 @@ public class AssertionGenerator {
 
 		generated.add(
 				Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertEquals.makeRef(), assertParameters)));
-
-		units.addAll(generated);
 	}
 
 	@Deprecated // Does not work. It might be the case we need to Box types to
