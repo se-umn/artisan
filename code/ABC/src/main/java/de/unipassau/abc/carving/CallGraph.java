@@ -13,6 +13,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.JFrame;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Function;
 
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
@@ -23,6 +26,8 @@ import edu.uci.ics.jung.visualization.VisualizationViewer;
 import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
 
 public class CallGraph {
+
+	private final static Logger logger = LoggerFactory.getLogger(CallGraph.class);
 
 	private final AtomicInteger id = new AtomicInteger(0);
 
@@ -36,6 +41,7 @@ public class CallGraph {
 	}
 
 	public void push(MethodInvocation methodInvocation, boolean purityFlag) {
+		logger.trace("CallGraph.push()" + methodInvocation + " purity flag " + purityFlag);
 		stack.push(methodInvocation);
 
 		if (!purityFlag && !graph.containsVertex(methodInvocation)) {
@@ -150,6 +156,18 @@ public class CallGraph {
 		subsumingPath.removeAll(getOrderedSubsumingMethodInvocationsFor(subsumingMethodInvocation));
 		// TODO This does not contain the input
 		return subsumingPath;
+
+	}
+
+	// last one must be < <java.lang.System: void exit(int)>
+	public void verify() {
+		if (stack.isEmpty()) {
+			return;
+		} else if (stack.size() == 1) {
+			stack.pop().getJimpleMethod().equals("<java.lang.System: void exit(int)>");
+		} else {
+			throw new RuntimeException("Stack is not empty at the end of parsing !");
+		}
 
 	}
 }

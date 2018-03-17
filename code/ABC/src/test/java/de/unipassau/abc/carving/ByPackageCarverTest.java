@@ -37,13 +37,14 @@ public class ByPackageCarverTest {
 		try {
 			Carver carver = new Carver();
 			File outputDirectory = temporaryFolderRule.newFolder();
-			String[] args = new String[] { "--carveBy", "package=org.employee",
+			String[] args = new String[] { //
+					"--carve-by", "package=org.employee",
 					// String traceFile =
-					"--traceFile", "./src/test/resources/Employee-trace.txt",
+					"--trace-file", "./src/test/resources/Employee-trace.txt",
 					// String projectJar =
-					"--projectJar", "./src/test/resources/Employee.jar",
+					"--project-jar", "./src/test/resources/Employee.jar",
 					// String outputDir =
-					"--outputDir", outputDirectory.getAbsolutePath() };
+					"--output-to", outputDirectory.getAbsolutePath() };
 			//
 			carver.main(args);
 			// TODO This can be derived by grepping, sorting, and filtering in the trace.

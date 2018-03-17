@@ -134,6 +134,8 @@ public class StackImplementation implements TraceParser {
 		if (!purityFlag) {
 			dataDependencyGraph.addMethodInvocation(methodInvocation, actualParameters);
 			exectuionFlowGraph.enqueueMethodInvocations(methodInvocation);
+		} else{
+			logger.trace( methodInvocation + " excluded by purity");
 		}
 		return peekIndex - 1;
 	}
@@ -290,7 +292,9 @@ public class StackImplementation implements TraceParser {
 		// The graph is build during parsing !
 		// buildExecutionFlowGraph();
 		// buildDependencyGraph();
-
+		
+		// If the stack is not EMPTY there was a problem !
+		callGraph.verify();
 	}
 
 	public Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parseTrace(String traceFilePath,

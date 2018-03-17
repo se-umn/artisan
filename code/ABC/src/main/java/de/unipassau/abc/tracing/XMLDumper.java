@@ -6,9 +6,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.UUID;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.thoughtworks.xstream.XStream;
 
 /**

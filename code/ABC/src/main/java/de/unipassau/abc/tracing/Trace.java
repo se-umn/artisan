@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -17,17 +18,24 @@ public class Trace {
 	static {
 		try {
 
+			File traceDir;
 			// USE A CONSTANT FOR THIS !
 			if (System.getProperty("trace.output") != null) {
-				traceFile = new File(System.getProperty("trace.output"));
+				traceDir = new File(System.getProperty("trace.output"));
 			} else if (System.getenv("trace.output") != null) {
-				traceFile = new File(System.getenv("trace.output"));
+				traceDir = new File(System.getenv("trace.output"));
 			} else {
-				traceFile = File.createTempFile("temp-trace", ".txt");
+				traceDir = Files.createTempDirectory("temp-trace").toFile();
 			}
+
+			if (!traceDir.exists()) {
+				if (!traceDir.mkdirs()) {
+					throw new IOException("Cannot create trace dir " + traceDir.getAbsolutePath());
+				}
+			}
+			traceFile = new File(traceDir, "trace.txt");
 			System.out.println("**** Trace() Output to " + traceFile);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -104,10 +112,8 @@ public class Trace {
 	public static void methodObject(String method, Object o) {
 		String xmlFile = null;
 		try {
-			// Primitives are not tracked, right ?
-			if ("java.lang.String".equals(method.split(" ")[1])) {
-				System.out.println("Trace.methodObject() Skip dump of Strings");
-			} else {
+			// Primitives are not tracked already
+			if (!"java.lang.String".equals(method.split(" ")[1])) {
 				xmlFile = XMLDumper.dumpObject(method, o);
 			}
 		} catch (IOException e) {
@@ -143,16 +149,16 @@ public class Trace {
 		return type.equals("void");
 	}
 
-	public static void methodStop(String methodName, Object returnValue) {
+	public static void methodStop(String method, Object returnValue) {
 
 		// We distinguish primitives and boxed using methodName which specifies
 		// the return type !
-		if (isPrimitive(extractReturnType(methodName))) {
-			methodStopForPrimitive(methodName, returnValue.toString());
-		} else if (isVoid(extractReturnType(methodName))) {
-			methodStopForVoid(methodName);
+		if (isPrimitive(extractReturnType(method)) || isString(extractReturnType(method))) {
+			methodStopForPrimitive(method, returnValue.toString());
+		} else if (isVoid(extractReturnType(method))) {
+			methodStopForVoid(method);
 		} else {
-			methodStopForObject(methodName, returnValue);
+			methodStopForObject(method, returnValue);
 		}
 	}
 

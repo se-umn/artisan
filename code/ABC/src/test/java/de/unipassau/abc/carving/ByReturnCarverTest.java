@@ -43,13 +43,14 @@ public class ByReturnCarverTest {
 			 String carveBy = "return=int";
 			// This instead matches only isDummy() in the trace
 //			String carveBy = "return=boolean";
-			String[] args = new String[] { "--carveBy", carveBy,
+			String[] args = new String[] { //
+					"--carve-by", carveBy,
 					// String traceFile =
-					"--traceFile", "./src/test/resources/Employee-trace.txt",
+					"--trace-file", "./src/test/resources/Employee-trace.txt",
 					// String projectJar =
-					"--projectJar", "./src/test/resources/Employee.jar",
+					"--project-jar", "./src/test/resources/Employee.jar",
 					// String outputDir =
-					"--outputDir", outputDirectory.getAbsolutePath() };
+					"--output-to", outputDirectory.getAbsolutePath() };
 			//
 			carver.main(args);
 

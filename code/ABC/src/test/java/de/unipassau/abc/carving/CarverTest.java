@@ -49,13 +49,13 @@ public class CarverTest {
 			Carver carver = new Carver();
 			File outputDirectory = temporaryFolderRule.newFolder();
 			String[] args = new String[] {
-					"--carveBy", "method=" + jimpleMethodToCarve,
+					"--carve-by", "method=" + jimpleMethodToCarve,
 					// String traceFile =
-					"--traceFile", "./src/test/resources/Employee-trace.txt",
+					"--trace-file", "./src/test/resources/Employee-trace.txt",
 					// String projectJar =
-					"--projectJar", "./src/test/resources/Employee.jar",
+					"--project-jar", "./src/test/resources/Employee.jar",
 					// String outputDir =
-					"--outputDir", outputDirectory.getAbsolutePath() };
+					"--output-to", outputDirectory.getAbsolutePath() };
 			//
 			carver.main(args);
 			//

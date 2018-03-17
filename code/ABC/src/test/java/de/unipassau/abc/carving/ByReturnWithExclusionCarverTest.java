@@ -42,16 +42,16 @@ public class ByReturnWithExclusionCarverTest {
 			String carveBy = "return=int";
 			String excludeBy = "method=<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)";
 			String[] args = new String[] { //
-					"--carveBy", carveBy,
+					"--carve-by", carveBy,
 					//
-					"--excludeBy", excludeBy, // Refine the carving by including
+					"--exclude-by", excludeBy, // Refine the carving by including
 												// not all the methods
 					// String traceFile =
-					"--traceFile", "./src/test/resources/Employee-trace.txt",
+					"--trace-file", "./src/test/resources/Employee-trace.txt",
 					// String projectJar =
-					"--projectJar", "./src/test/resources/Employee.jar",
+					"--project-jar", "./src/test/resources/Employee.jar",
 					// String outputDir =
-					"--outputDir", outputDirectory.getAbsolutePath() };
+					"--output-to", outputDirectory.getAbsolutePath() };
 			//
 			carver.main(args);
 

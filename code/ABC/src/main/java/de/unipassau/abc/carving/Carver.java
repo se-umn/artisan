@@ -27,17 +27,18 @@ public class Carver {
 	private static final Logger logger = LoggerFactory.getLogger(Carver.class);
 
 	public interface CarverCLI {
-		@Option
+		@Option(longName = "trace-file")
 		File getTraceFile();
 
-		@Option
+		@Option(longName = "project-jar")
 		File getProjectJar();
 
-		@Option(defaultToNull = true)
+		@Option(longName = "output-to", defaultToNull = true)
 		File getOutputDir();
 
-		@Option // This can be refined as package=<regex>, class=<regex>,
-				// method=<jimple method>, return=<regex>, instance=<Object@ID>
+		// This can be refined as package=<regex>, class=<regex>,
+		// method=<jimple method>, return=<regex>, instance=<Object@ID>
+		@Option(longName = "carve-by")
 		String getCarveBy();
 
 		// This works like carveBy but we use it to exclude method invocations
@@ -47,7 +48,7 @@ public class Carver {
 		// like: <java.lang.Integer: int Integer.parse(java.lang.String)>
 		// Probably we can also exclude java.lang by default inside Carving,
 		// nota this simply tell the system to NOT carve tests for those method
-		@Option(defaultToNull = true)
+		@Option(longName = "exclude-by", defaultToNull = true)
 		String getExcludeBy();
 
 		// List the external interfaces, this can be packages or classes, but
@@ -89,7 +90,7 @@ public class Carver {
 		{
 			// Default Interfaces are the one for Files, Network, etc. ?
 			// TODO this list is not complete !
-//			externalInterfaces.add("java.util.Scanner");
+			// externalInterfaces.add("java.util.Scanner");
 		}
 
 		List<String> pureMethods = new ArrayList<>();
@@ -149,6 +150,10 @@ public class Carver {
 				.parseTrace(traceFile.getAbsolutePath(), externalInterfaceMatchers);
 		System.out.println("Carver.main() End parsing ");
 
+		// Interactive mode to visualize?
+		System.out.println(">> TraceSize : " + parsedTrace.getFirst().getOrderedMethodInvocations().size());
+		System.out.println("TraceSize : " + parsedTrace.getFirst().getOrderedMethodInvocations() );
+
 		// Carving
 		System.out.println("Carver.main() Start carving");
 		// TODO Here organize, instantiate and execute the configured Carvers
@@ -158,6 +163,7 @@ public class Carver {
 		// TODO Instantiate a matcher and pass it along to Carver !
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(carveBy, excludeBy);
 		System.out.println("Carver.main() End carving");
+		System.out.println(">> Carved tests : " + carvedTests.size());
 
 		// Verify
 		// VERIFY THAT NO CARVED TEST IS EMPTY !
@@ -173,7 +179,7 @@ public class Carver {
 		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests);
 
 		// FOR VISUAL DEBUG
-		if (logger.isDebugEnabled() || logger.isTraceEnabled() ) {
+		if (logger.isDebugEnabled() || logger.isTraceEnabled()) {
 			for (SootClass testCase : testCases) {
 				JimpleUtils.prettyPrint(testCase);
 			}

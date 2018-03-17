@@ -269,31 +269,35 @@ public class TestGenerator {
 
 		if (!methodInvocationUnderTest.isStatic()) {
 			Value actualOwner = dataDependencyGraph.getObjectLocalFor(methodInvocationUnderTest);
-			Value expectedOwner = UtilInstrumenter.generateExpectedValueForOwner(methodInvocationUnderTest, body, units);
+			Value expectedOwner = UtilInstrumenter.generateExpectedValueForOwner(methodInvocationUnderTest, body,
+					units);
 			AssertionGenerator.gerenateRegressionAssertionOnOwner(body, units, expectedOwner, actualOwner);
 		}
-		
+
 		if (!JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocationUnderTest.getJimpleMethod()))) {
 			Value expectedReturnValue = dataDependencyGraph.getReturnObjectLocalFor(methodInvocationUnderTest);
 			if (JimpleUtils.isPrimitive(expectedReturnValue.getType())
 					|| JimpleUtils.isString(expectedReturnValue.getType())) {
-				// Do nothing, since the expectedReturnValue is a primitive value
+				// Do nothing, since the expectedReturnValue is a primitive
+				// value
 			} else {
 				// Otherwise, load expectations from file:
 				// Reads this from XML and introduce the code to load this
 				// from XML
-				expectedReturnValue = UtilInstrumenter.generateExpectedValueForReturn(methodInvocationUnderTest, body, units);
+				expectedReturnValue = UtilInstrumenter.generateExpectedValueForReturn(methodInvocationUnderTest, body,
+						units);
 			}
 
 			// Find the
-			Local actualReturnValue = null; 
-			for( Local local : body.getLocals().getElementsUnsorted() ){
-				if( "returnValue".equals( local.getName()) ){
+			Local actualReturnValue = null;
+			for (Local local : body.getLocals().getElementsUnsorted()) {
+				if ("returnValue".equals(local.getName())) {
 					actualReturnValue = local;
 					break;
 				}
 			}
-			AssertionGenerator.gerenateRegressionAssertionOnReturnValue(body, units, expectedReturnValue, actualReturnValue);
+			AssertionGenerator.gerenateRegressionAssertionOnReturnValue(body, units, expectedReturnValue,
+					actualReturnValue);
 		}
 
 		// Capture the return value of the MUT if that return something

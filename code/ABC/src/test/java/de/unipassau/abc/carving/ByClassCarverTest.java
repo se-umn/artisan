@@ -41,13 +41,14 @@ public class ByClassCarverTest {
 			File outputDirectory = temporaryFolderRule.newFolder();
 //			String className = "org.employee.Validation";
 			String className = "org.employee.DummyObjectFactory";
-			String[] args = new String[] { "--carveBy", "class="+className,
+			String[] args = new String[] { //
+					"--carve-by", "class="+className,
 					// String traceFile =
-					"--traceFile", "./src/test/resources/Employee-trace.txt",
+					"--trace-file", "./src/test/resources/Employee-trace.txt",
 					// String projectJar =
-					"--projectJar", "./src/test/resources/Employee.jar",
+					"--project-jar", "./src/test/resources/Employee.jar",
 					// String outputDir =
-					"--outputDir", outputDirectory.getAbsolutePath() };
+					"--output-to", outputDirectory.getAbsolutePath() };
 			//
 			carver.main(args);
 			//
