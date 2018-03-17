@@ -1,12 +1,16 @@
 #!/bin/bash
 # ABC Framework script
 
+set -x
+
 INSTRUMENT_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=TRACE"
-CARVING_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=INFO"
+CARVING_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=DEBUG"
 # -Ddebug=true"
 
 DEFAULT_INSTRUMENT_OUTPUT_DIR="./sootOutput"
 DEFAULT_INSTRUMENT_OUTPUT_FORMAT="class" # "jimple"
+
+DEFAULT_CARVING_OUTPUT_DIR="./abcOutput"
 
 BIN_FOLDER="../target/appassembler/bin"
 
@@ -26,8 +30,7 @@ function instrument(){
 	${BIN_FOLDER}/instrument \
 		--project-jar ${PROJECT_JAR} \
 		--output-to ${DEFAULT_INSTRUMENT_OUTPUT_DIR} \
-		--output-type ${DEFAULT_INSTRUMENT_OUTPUT_FORMAT} 2>&1 | \
-			tee instrument.log
+		--output-type ${DEFAULT_INSTRUMENT_OUTPUT_FORMAT} 
 }
 
 function carve(){
@@ -44,17 +47,16 @@ function carve(){
 	
 	PROJECT_JAR=$1
 	TRACE_FILE=$2
-	MUT=$3
-	OUTPUT_DIR=$4
+	CARVE_BY=$3
+	OUTPUT_DIR=${4:-${DEFAULT_CARVING_OUTPUT_DIR}}
 	
 	export JAVA_OPTS=${CARVING_JAVA_OPTS}
 
 	${BIN_FOLDER}/carve \
-		"${MUT}" \
-		${TRACE_FILE} \
-		${PROJECT_JAR} \
-		${OUTPUT_DIR} \
-			2>&1 | tee employee-carving.log
+		--carve-by "${CARVE_BY}" \
+		--trace-file ${TRACE_FILE} \
+		--project-jar ${PROJECT_JAR} \
+		--output-to ${OUTPUT_DIR}
 }
 
 
