@@ -23,6 +23,7 @@ import de.unipassau.abc.utils.SystemTest;
  * 
  * FIXME #40
  * 
+ * THIS IS BRITTLE... every time we update the trace file this breaks
  * @author gambi
  *
  */
@@ -39,18 +40,9 @@ public class ByInstanceCarverTest {
 	public void testCarvingByInstance() throws IOException, InterruptedException {
 		try {
 
-			// XXX Do not use scanner as external library yet, since we do not
-			// track primitives and Strings,
-			// scanner will always be reported but never USED.
-			// Similarly, we should entirely remove calls for which we do not
-			// have or cannot provide object instanecs.
-			// Last: external libraries that provides inputs are never really
-			// used in Level-0 carving...
-			// externalInterfaces.add("java.util.Scanner");
-
 			Carver carver = new Carver();
 			File outputDirectory = temporaryFolderRule.newFolder();
-			String carveBy = "instance=org.employee.Validation@459848100";
+			String carveBy = "instance=org.employee.Validation@1493776331";
 			String[] args = new String[] { //
 					"--carve-by", carveBy,
 					// String traceFile =
@@ -62,7 +54,8 @@ public class ByInstanceCarverTest {
 			//
 			carver.main(args);
 
-			assertEquals(2, outputDirectory.listFiles().length);
+			int count = ABCTestUtils.countFiles(outputDirectory, ".class");
+			assertEquals(1, count);
 
 			ABCTestUtils.printJavaClasses(outputDirectory);
 		} catch (Exception e) {

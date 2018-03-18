@@ -4,8 +4,13 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.lang3.SystemUtils;
 
@@ -61,5 +66,23 @@ public class ABCTestUtils {
 		junitCPBuilder.reverse().deleteCharAt(0).reverse();
 		return junitCPBuilder.toString();
 		
+	}
+
+	public static int countFiles(File outputDir, final String fileExtension) {
+		final AtomicInteger count = new AtomicInteger(0);
+		try {
+			Files.walkFileTree(outputDir.toPath(), new SimpleFileVisitor<Path>() {
+				@Override
+				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+					if (file.toString().endsWith( fileExtension )) {
+						count.incrementAndGet();
+					}
+					return super.visitFile(file, attrs);
+				}
+			});
+		} catch (IOException e) {
+			org.junit.Assert.fail("Cannot count files " + e);
+		}
+		return count.get();
 	}
 }

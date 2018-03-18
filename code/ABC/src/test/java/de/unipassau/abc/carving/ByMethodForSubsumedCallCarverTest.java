@@ -6,6 +6,7 @@ import static org.junit.Assert.fail;
 import java.io.File;
 import java.io.IOException;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -31,6 +32,7 @@ public class ByMethodForSubsumedCallCarverTest {
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
 
+	@Ignore // There's not call to the Dummy Factory in the new trace
 	@Test
 	@Category(SystemTest.class)
 	public void testCarvingByMethodForSubsumedCall() throws IOException, InterruptedException {

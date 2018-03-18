@@ -64,7 +64,9 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 	@Test
 	@Category(SystemTest.class)
 	public void instrumentAndTrace() throws URISyntaxException, IOException, InterruptedException {
-		File outputDir = temporaryFolder.newFolder();
+
+		// File outputDir = temporaryFolder.newFolder();
+		File outputDir = Files.createTempDirectory("TEMP").toFile();
 
 		InstrumentTracer tracer = new InstrumentTracer();
 
@@ -98,13 +100,27 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 		// ~/.m2/repository/com/github/stefanbirkner/system-rules/1.17.0/system-rules-1.17.0.jar
 		jarFiles.add(new File("./src/test/resources/system-rules-1.17.0.jar"));
 		//
-		runSystemTest("org.employee.SystemTest", outputDir, jarFiles);
+
+		String[] systemTests = new String[] { //
+				"org.employee.systemtest.TestAdminLoginWithEmptyDb", //
+				"org.employee.systemtest.TestAdminLoginWithNonEmptyDb", //
+				"org.employee.systemtest.TestEmployeeLogin", //
+				"org.employee.systemtest.TestRegisterANewSeniorSoftwareEnginner", //
+				"org.employee.systemtest.TestRegisterANewSoftwareEnginner", //
+				"org.employee.systemtest.TestRegisterANewSoftwareTrainee", //
+				"org.employee.systemtest.TestStartAndExit"//
+
+		};
+		for (String systemTest : systemTests) {
+			runSystemTest( systemTest, outputDir, jarFiles);
+		}
+
 	}
 
 	private void runSystemTest(String systemTestClassName, File outputDir, List<File> jarFiles)
 			throws IOException, URISyntaxException, InterruptedException {
 
-		File traceOutput = temporaryFolder.newFile(systemTestClassName + "trace.txt");
+		File tracingOutput = temporaryFolder.newFolder();
 
 		///
 		StringBuilder cpBuilder = new StringBuilder();
@@ -120,7 +136,7 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 
 		ProcessBuilder processBuilder = new ProcessBuilder(javaPath, "-cp", classpath, "org.junit.runner.JUnitCore",
 				systemTestClassName);
-		processBuilder.environment().put("trace.output", traceOutput.getAbsolutePath());
+		processBuilder.environment().put("trace.output", tracingOutput.getAbsolutePath());
 
 		System.out.println("InstrumentEmployeeTest.instrumentAndTraceTestSubjects()" + processBuilder.command());
 
@@ -133,14 +149,15 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 
 		assertEquals("System tests fail", 0, result);
 		// This creates the trace in trace.output
-		assertTrue("No trace output", traceOutput.exists());
-		assertNotEquals("Empty trace  output", 0, traceOutput.length());
+		File trace = new File(tracingOutput, "trace.txt");
+		assertTrue("No trace output", trace.exists());
+		assertNotEquals("Empty trace  output", 0, trace.length());
 
 		// Printout the file since temporary folder will delete it !!!
 		System.out.println("=====================================");
 		System.out.println("Trace for " + systemTestClassName);
 		System.out.println("=====================================");
-		for (String line : java.nio.file.Files.readAllLines(traceOutput.toPath(), Charset.defaultCharset())) {
+		for (String line : java.nio.file.Files.readAllLines(trace.toPath(), Charset.defaultCharset())) {
 			System.out.println(line);
 		}
 		System.out.println("=====================================");

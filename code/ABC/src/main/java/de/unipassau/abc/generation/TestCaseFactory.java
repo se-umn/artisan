@@ -71,6 +71,13 @@ public class TestCaseFactory {
 	// TODO We really need this? I bet soot can directly generate Java code ...
 	private static File generateClassBytecode(String fileName, SootClass sClass) throws IOException {
 
+		// Since the fileName might be structures, i.e., the class has package, we need to create the directory structure
+		
+		File outputFile = new File(fileName);
+		if( ! outputFile.getParentFile().exists() ){
+			outputFile.getParentFile().mkdirs();
+		}
+		
 		if (System.getProperty("debug") != null && System.getProperty("debug").equals("true")) {
 			JimpleUtils.prettyPrint(sClass);
 		}

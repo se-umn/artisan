@@ -1,7 +1,7 @@
 #!/bin/bash
 # ABC Framework script
 
-set -x
+#set -x
 
 INSTRUMENT_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=TRACE"
 CARVING_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=DEBUG"

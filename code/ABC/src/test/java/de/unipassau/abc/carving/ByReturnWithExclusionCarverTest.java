@@ -55,13 +55,14 @@ public class ByReturnWithExclusionCarverTest {
 			//
 			carver.main(args);
 
-			assertEquals(2, outputDirectory.listFiles().length);
+			int count = ABCTestUtils.countFiles(outputDirectory, ".class");
+			assertEquals(2, count);
 
 			// TODO Make assertion on Java classes, for example, can they be
 			// compiled ? Can they be executed? Do they produce a green test
 			// suite?
 			ABCTestUtils.printJavaClasses(outputDirectory);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Exception raised");
 		}

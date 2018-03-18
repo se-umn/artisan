@@ -252,7 +252,7 @@ public class TestGenerator {
 				// RefType.v(type));
 
 				// Debug
-				System.out.println("  >>>> Create a new local variable " + actualReturnValue + " of type " + type
+				logger.trace("  >>>> Create a new local variable " + actualReturnValue + " of type " + type
 						+ " to store the output of " + methodInvocationToCarve);
 				// FIXME: I have no idea of what a RetStmt is, but it does the
 				// trick, which is it results in an actual java assignment
@@ -404,10 +404,13 @@ public class TestGenerator {
 	private SootClass getTestClass(String classUnderTest) {
 		String simpleClassName = classUnderTest.replaceAll("\\.", " ")
 				.split(" ")[classUnderTest.replaceAll("\\.", " ").split(" ").length - 1];
-		String testCaseName = "Test" + simpleClassName;
+		String classPackage = classUnderTest.substring(0, classUnderTest.lastIndexOf("."));
+
+		String testCaseName = classPackage + "." + "Test" + simpleClassName;
 
 		SootClass sClass = new SootClass(testCaseName, Modifier.PUBLIC);
 		sClass.setSuperclass(Scene.v().getSootClass("java.lang.Object"));
+		
 		Scene.v().addClass(sClass);
 
 		return sClass;

@@ -126,19 +126,27 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// potential impact on the CUT.
 
 		// The first carved tests considers only the direct constructors
-		// It ENSURES that one test is carved !
+
+		// Ensures that the constructors are ALL BEFORE MUT. it might happen
+		// that subclasses are identified despite being called later. This is
+		// because (I Suspect) Soot associates N<init> method to the same
+		// instance.
 		List<MethodInvocation> constructors = new ArrayList<>();
 		// THIS - Unless is a static call
 		if (!methodInvocationToCarve.isStatic()) {
-			constructors.add(dataDependencyGraph
-					.getInitMethodInvocationFor(dataDependencyGraph.getOwnerFor(methodInvocationToCarve)));
+			MethodInvocation constructor = subGraphFromPastExecution // dataDependencyGraph
+					.getInitMethodInvocationFor(subGraphFromPastExecution // dataDependencyGraph
+							.getOwnerFor(methodInvocationToCarve));
+			constructors.add(constructor);
 		}
 
 		// DIRECT PARAMETERS
-		for (ObjectInstance dataDependency : dataDependencyGraph
+		for (ObjectInstance dataDependency : subGraphFromPastExecution // dataDependencyGraph
 				.getObjectInstancesAsParametersOf(methodInvocationToCarve)) {
 			try {
-				constructors.add(dataDependencyGraph.getInitMethodInvocationFor(dataDependency));
+				MethodInvocation constructor = subGraphFromPastExecution // dataDependencyGraph
+						.getInitMethodInvocationFor(dataDependency);
+				constructors.add(constructor);
 			} catch (RuntimeException e) {
 				logger.info("Swallow: " + e);
 			}
@@ -154,8 +162,16 @@ public class Level_0_MethodCarver implements MethodCarver {
 				carvedTestsForMethodInvocation.add(carvedTestFromConstructors);
 				return carvedTestsForMethodInvocation;
 			} catch (NotALevel0TestCaseException e) {
-				// This should never happen, the basic test shall be there.
-				throw new RuntimeException(e);
+				logger.warn("while carving preconditions of " + methodInvocationToCarve + " invalid test generated as :"
+						+ e.getSubsumedMethodInvocation() + " is subsubed by " + e.getSubsumingMethodInvocation()
+						+ " via " + e.getSubsumingPath());
+				// This should never happen, the basic test shall be there ? Not
+				// really in case a constructor of a subclass is called soot
+				// also report the call to the constructor of the super class.
+				// So in all the cases we get one the other is subsume. This is
+				// not an error if both init refer to the same owner !
+				// throw new RuntimeException("This never happen as the basic
+				// carved test should contain the MUT", e);
 			}
 		}
 
@@ -171,7 +187,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// looking into the exec graph ?
 		for (ObjectInstance objectInstance : subGraphFromPastExecution.getObjectInstances()) {
 
-			Set<MethodInvocation> returningCallsForObjectInstance = dataDependencyGraph
+			Set<MethodInvocation> returningCallsForObjectInstance = subGraphFromPastExecution // dataDependencyGraph
 					.getMethodInvocationsWhichReturn(objectInstance);
 
 			try {
@@ -182,11 +198,12 @@ public class Level_0_MethodCarver implements MethodCarver {
 				// all the instances: For example:
 				// org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock@463345942
 				// Still we like to carve out some test
-				returningCallsForObjectInstance.add(dataDependencyGraph.getInitMethodInvocationFor(objectInstance));
+				returningCallsForObjectInstance.add(subGraphFromPastExecution // dataDependencyGraph
+						.getInitMethodInvocationFor(objectInstance));
 
 			} catch (RuntimeException e) { // TODO Factor this into a app
 				// specific exception
-				logger.error("Swallow : " + e);
+				logger.info("Swallow : " + e);
 			}
 
 			// System.out.println("Level_0_MethodCarver.level0TestCarving() " +
@@ -280,17 +297,33 @@ public class Level_0_MethodCarver implements MethodCarver {
 				if (dataDependencyGraph.getOwnerFor(returnCall) != null || //
 						!dataDependencyGraph.getObjectInstancesAsParametersOf(returnCall).isEmpty()) {
 
-					Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPreconditions = level0TestCarving(returnCall,
-							true).get(0);
-					// Here we do not really care about data dep, since the
-					// later
-					// call should include them as well !
-					logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Preconditions are : "
-							+ carvedPreconditions.getFirst().getOrderedMethodInvocations());
-					// At this point we need to recompute the
-					// dataDependencyGraph to include any deps on preconditions
-					// Which basically consist on carving them ?
-					_backwardSlice.addAll(carvedPreconditions.getFirst().getOrderedMethodInvocations());
+					// This might return an empty set of precondition for calls
+					// that are subsumed, like constructors of super- and sub-
+					// classes.
+					// TODO Try to see if you can avoid doing the precondition
+					// check for those specific cases (which might be also
+					// chains)
+
+					List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedPreconditions = level0TestCarving(
+							returnCall, true);
+
+					if (!carvedPreconditions.isEmpty()) {
+						List<MethodInvocation> preconditions = carvedPreconditions.get(0).getFirst()
+								.getOrderedMethodInvocations();
+						// Here we do not really care about data dep, since the
+						// later
+						// call should include them as well !
+						logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Preconditions are : "
+								+ preconditions);
+						// At this point we need to recompute the
+						// dataDependencyGraph to include any deps on
+						// preconditions
+						// Which basically consist on carving them ?
+						_backwardSlice.addAll(preconditions);
+					} else {
+						logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Method " + returnCall
+								+ " has no preconditions");
+					}
 				} else {
 					logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Method " + returnCall
 							+ " has no preconditions");

@@ -54,10 +54,11 @@ public class ByReturnCarverTest {
 			//
 			carver.main(args);
 
-			assertEquals(2, outputDirectory.listFiles().length);
+			int count = ABCTestUtils.countFiles(outputDirectory, ".class");
+			assertEquals(2, count);
 
 			ABCTestUtils.printJavaClasses(outputDirectory);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Exception raised");
 		}

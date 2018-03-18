@@ -391,4 +391,10 @@ public class ExecutionFlowGraph {
 		return GraphUtility.areExecutionGraphsEqual(graph, other.graph);
 	}
 
+	// Maybe use a Comparator ?
+	// True if method1 was executed before method 2. If they are the same, we do not return it?
+	public boolean isBefore(MethodInvocation methodInvocation1, MethodInvocation methodInvocation2) {
+		return methodInvocation1.getInvocationCount() <= methodInvocation2.getInvocationCount();
+	}
+
 }
