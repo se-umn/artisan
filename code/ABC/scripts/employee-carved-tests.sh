@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# TODO With Maven this might be way easier
+
 rm employee-carved-tests.log
 
 CARVED_TESTS_CP=${1:-./abcOutput}
