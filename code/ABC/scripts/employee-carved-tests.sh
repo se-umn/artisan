@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# TODO With Maven this might be way easier
+
 rm employee-carved-tests.log
 
 CARVED_TESTS_CP=${1:-./abcOutput}
@@ -15,10 +17,13 @@ CARVED_TESTS=`find ${CARVED_TESTS_CP} -iname "Test*.java" -type f -exec basename
 
 set -x
 
-java \
+# Recompile carved tests
+
+
+echo "java \
 	-cp ${CARVED_TESTS_CP}:${PROJECT_CP}:${TEST_CP}:${JUNIT_CP}:${SUPPORTING_JARS} \
 		${JAVA_OPTS} \
 		org.junit.runner.JUnitCore \
 			${CARVED_TESTS} | \
-				tee employee-carved-tests.log
+				tee employee-carved-tests.log"
 

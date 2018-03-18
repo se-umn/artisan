@@ -19,3 +19,5 @@ CARVE_BY=${2:-${DEFAULT_CARVE_BY}}
 	${TRACE_FILE} \
 	"${CARVE_BY}" 2>&1 | \
 		tee employee-carving.log
+
+rm ./abcOutput/*.class
