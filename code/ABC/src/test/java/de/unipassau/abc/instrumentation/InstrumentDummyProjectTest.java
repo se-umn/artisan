@@ -30,6 +30,7 @@ import de.unipassau.abc.testsubject.DummySystemTestGetSimple;
 import de.unipassau.abc.testsubject.DummySystemTestGetSimpleWithDelegate;
 import de.unipassau.abc.testsubject.DummySystemTestGetSimpleWithNonRequiredParameter;
 import de.unipassau.abc.testsubject.DummySystemTestGetSimpleWithParameter;
+import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.abc.utils.SystemTest;
 
@@ -66,9 +67,9 @@ public class InstrumentDummyProjectTest {
 	@Test
 	@Category(SystemTest.class)
 	public void instrumentAndTraceTestSubjects() throws URISyntaxException, IOException, InterruptedException {
-		
-		File outputDir = temporaryFolder.newFolder();
-//		File outputDir = Files.createTempDirectory("TEMP").toFile();
+
+		// File outputDir = temporaryFolder.newFolder();
+		File outputDir = Files.createTempDirectory("TEMP").toFile();
 
 		// Note that this includes both SUT and its test. If we do not trace
 		// test cases, then we might miss information for carving
@@ -79,23 +80,15 @@ public class InstrumentDummyProjectTest {
 				"--output-to", outputDir.getAbsolutePath(), //
 				"--output-type", "class", "--include", "de.unipassau.abc.testsubject.*" });
 		//
-		final AtomicInteger count = new AtomicInteger(0);
-		Files.walkFileTree(outputDir.toPath(), new SimpleFileVisitor<Path>() {
-			@Override
-			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-				if (file.toString().endsWith(".class")) {
-					count.incrementAndGet();
-				}
-				return super.visitFile(file, attrs);
-			}
-		});
 		// TODO Maybe a Hamcrest matcher here?
-		assertEquals(14, count.get());
+		int count = ABCTestUtils.countFiles(outputDir, ".class");
+		assertEquals(14, count);
 
 		// At this point we have the instrumented classes and we can start
 		// system tests and make assertions on the resulting traces.
 		// TODO SUpporting jars !
-		runSystemTestFromClass(DummySystemTestGetDoubleModifiedWithDelegate.class, outputDir, testsubjectJar, traceJarCP);
+		runSystemTestFromClass(DummySystemTestGetDoubleModifiedWithDelegate.class, outputDir, testsubjectJar,
+				traceJarCP);
 		runSystemTestFromClass(DummySystemTestGetModified.class, outputDir, testsubjectJar, traceJarCP);
 		runSystemTestFromClass(DummySystemTestGetModifiedWithDelegate.class, outputDir, testsubjectJar, traceJarCP);
 		runSystemTestFromClass(DummySystemTestGetSimple.class, outputDir, testsubjectJar, traceJarCP);
@@ -110,7 +103,7 @@ public class InstrumentDummyProjectTest {
 			throws IOException, URISyntaxException, InterruptedException {
 		String systemTestClassName = systemTestClass.getName();
 
-		File traceOutput = temporaryFolder.newFile(systemTestClassName + "trace.txt");
+		File tracingOutput = temporaryFolder.newFolder();
 
 		// Run the tests for collecting the traces using a second JVM
 		File systemTestClassClassFile = new File(
@@ -122,7 +115,7 @@ public class InstrumentDummyProjectTest {
 		String javaPath = SystemUtils.JAVA_HOME + File.separator + "bin" + File.separator + "java";
 
 		ProcessBuilder processBuilder = new ProcessBuilder(javaPath, "-cp", classpath, systemTestClassName);
-		processBuilder.environment().put("trace.output", traceOutput.getAbsolutePath());
+		processBuilder.environment().put("trace.output", tracingOutput.getAbsolutePath());
 		System.out.println("InstrumentEmployeeTest.instrumentAndTraceTestSubjects()" + processBuilder.command());
 
 		// This causes problems
@@ -134,14 +127,15 @@ public class InstrumentDummyProjectTest {
 
 		assertEquals("System tests fail", 0, result);
 		// This creates the trace in trace.output
-		assertTrue("No trace output", traceOutput.exists());
-		assertNotEquals("Empty trace  output", 0, traceOutput.length());
+		File trace = new File(tracingOutput, "trace.txt");
+		assertTrue("No trace output", trace.exists());
+		assertNotEquals("Empty trace  output", 0, trace.length());
 
 		// Printout the file since temporary folder will delete it !!!
 		System.out.println("=====================================");
 		System.out.println("Trace for " + systemTestClassName);
 		System.out.println("=====================================");
-		for (String line : java.nio.file.Files.readAllLines(traceOutput.toPath(), Charset.defaultCharset())) {
+		for (String line : java.nio.file.Files.readAllLines(trace.toPath(), Charset.defaultCharset())) {
 			System.out.println(line);
 		}
 		System.out.println("=====================================");

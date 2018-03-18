@@ -49,11 +49,15 @@ public class ByPackageCarverTest {
 			carver.main(args);
 			// TODO This can be derived by grepping, sorting, and filtering in the trace.
 			// CLASSES IN PACKAGE : cat src/test/resources/Employee-trace.txt | grep "<org.employee." | grep "\[>\]" | tr ";" " " | awk '{print $3}' | sort | uniq | wc -l
-			// 2 * CLASSES IN PACKAGE 
-			assertEquals(12, outputDirectory.listFiles().length);
-
+			// 2 * CLASSES IN PACKAGE
+			// Collect file recursively
 			ABCTestUtils.printJavaClasses(outputDirectory);
-		} catch (Throwable e) {
+
+			
+			int count = ABCTestUtils.countFiles(outputDirectory, ".class");
+			assertEquals(10, count);
+
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Exception raised");
 		}

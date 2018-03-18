@@ -39,10 +39,24 @@ public class ByClassCarverTest {
 		try {
 			Carver carver = new Carver();
 			File outputDirectory = temporaryFolderRule.newFolder();
-//			String className = "org.employee.Validation";
-			String className = "org.employee.DummyObjectFactory";
+			// String className = "org.employee.Validation";
+			// String className = "org.employee.DummyObjectToPassAsParameter";
+
+			// This one is problematic, since no tests are generated. FIXME The
+			// problem is related to subclasses
+			/*
+			 * Level_0_MethodCarver - <org.employee.EmployeeMetaData: void
+			 * <init>(java.io.File)>_544 subsubed by
+			 * <org.employee.SoftwareTrainee: void <init>(java.io.File)>_543 via
+			 * [<org.employee.SoftwareTrainee: void <init>(java.io.File)>_543]
+			 * 
+			 * First I am not sure why it tries to carve 544 while it should
+			 * stop at 543. in other terms 544 should not be there right?
+			 * 
+			 */
+			String className = "org.employee.SoftwareTrainee";
 			String[] args = new String[] { //
-					"--carve-by", "class="+className,
+					"--carve-by", "class=" + className,
 					// String traceFile =
 					"--trace-file", "./src/test/resources/Employee-trace.txt",
 					// String projectJar =
@@ -52,10 +66,11 @@ public class ByClassCarverTest {
 			//
 			carver.main(args);
 			//
-			assertEquals(2, outputDirectory.listFiles().length);
+			int count = ABCTestUtils.countFiles(outputDirectory, ".class");
+			assertEquals(1, count);
 
 			ABCTestUtils.printJavaClasses(outputDirectory);
-		} catch (Throwable e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Exception raised");
 		}

@@ -50,7 +50,8 @@ public class ByMethodSimpleCarverTest {
 			//
 			carver.main(args);
 			//
-			assertEquals(2, outputDirectory.listFiles().length);
+			int count = ABCTestUtils.countFiles(outputDirectory, ".class");
+			assertEquals(1, count);
 
 			ABCTestUtils.printJavaClasses(outputDirectory);
 		} catch (Throwable e) {

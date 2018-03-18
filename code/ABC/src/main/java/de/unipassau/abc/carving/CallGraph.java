@@ -161,12 +161,17 @@ public class CallGraph {
 
 	// last one must be < <java.lang.System: void exit(int)>
 	public void verify() {
-		if (stack.isEmpty()) {
-			return;
-		} else if (stack.size() == 1) {
-			stack.pop().getJimpleMethod().equals("<java.lang.System: void exit(int)>");
-		} else {
-			throw new RuntimeException("Stack is not empty at the end of parsing !");
+		// Since we run many system tests, there might be many calls to:
+		// <java.lang.System: void exit(int)>
+		// we need to remove them
+		while (!stack.isEmpty()) {
+			MethodInvocation top = stack.peek();
+			if (top.getJimpleMethod().equals("<java.lang.System: void exit(int)>")) {
+				stack.pop();
+			} else {
+				// Raise
+				throw new RuntimeException("Stack contains the wrong element at the end of parsing: " + top);
+			}
 		}
 
 	}
