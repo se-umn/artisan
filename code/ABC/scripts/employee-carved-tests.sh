@@ -4,7 +4,7 @@
 
 rm employee-carved-tests.log
 rm employee-carved-tests-coverage.log
-
+rm employee-carved-tests.exec
 
 CARVED_TESTS_CP=${1:-./abcOutput}
 
@@ -16,11 +16,11 @@ JUNIT_CP="/Users/gambi/.m2/repository/junit/junit/4.12/junit-4.12.jar:/Users/gam
 SUPPORTING_JARS="../libs/trace.jar:/Users/gambi/Documents/Passau/Research/action-based-test-carving/code/ABC/src/test/resources/xmlpull-1.1.3.1.jar:/Users/gambi/Documents/Passau/Research/action-based-test-carving/code/ABC/src/test/resources/xpp3_min-1.1.4c.jar:/Users/gambi/Documents/Passau/Research/action-based-test-carving/code/ABC/src/test/resources/xstream-1.4.10.jar"
 
 # Recompile the tests to avoid the Verify problem ?
-# SOURCE_CARVED_TESTS=$(find ${CARVED_TESTS_CP} -iname "Test*.java" -type f | tr "\n" " ")
-#javac \
-#    -cp ${CARVED_TESTS_CP}:${PROJECT_CP}:${TEST_CP}:${JUNIT_CP}:${SUPPORTING_JARS} \
-#        ${SOURCE_CARVED_TESTS} | \
-#            tee employee-carved-tests.log
+SOURCE_CARVED_TESTS=$(find ${CARVED_TESTS_CP} -iname "Test*.java" -type f | tr "\n" " ")
+javac \
+    -cp ${CARVED_TESTS_CP}:${PROJECT_CP}:${TEST_CP}:${JUNIT_CP}:${SUPPORTING_JARS} \
+        ${SOURCE_CARVED_TESTS}
+
 
 CARVED_TESTS=$(find ${CARVED_TESTS_CP} -iname "Test*.java" -type f | sed "s|${CARVED_TESTS_CP}/||"| tr "/" "." | sed 's|\.java||g' | tr "\n" " ")
 
@@ -36,7 +36,7 @@ java \
 JACOCO_AGENT="../libs/jacocoagent.jar"
 JACOCO_CLI="../libs/jacococli.jar"
 
-### Collect coverage information. This works only if tests pass ?
+### Collect coverage information. This works only if tests pass, isn't it?
 java \
     -javaagent:${JACOCO_AGENT}=destfile=employee-carved-tests.exec \
     -cp ${CARVED_TESTS_CP}:${PROJECT_CP}:${TEST_CP}:${JUNIT_CP}:${SUPPORTING_JARS} \

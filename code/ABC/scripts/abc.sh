@@ -3,8 +3,8 @@
 
 #set -x
 
-INSTRUMENT_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=TRACE"
-CARVING_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=TRACE"
+INSTRUMENT_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=INFO"
+CARVING_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=INFO"
 # -Ddebug=true"
 
 DEFAULT_INSTRUMENT_OUTPUT_DIR="./sootOutput"
