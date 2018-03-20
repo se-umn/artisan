@@ -8,7 +8,12 @@ TRACE_FILE=${1-"./tracingOut/trace.txt"}
 
 #DEFAULT_CARVE_BY='method=<org.employee.Validation: int numberValidation(java.lang.String)>'
 
-DEFAULT_CARVE_BY="package=org.employee"
+# EmployeeMetaData gets input from Scanner directly to public fields. but we cannot replicate scanner next so far, since we marked that as pure/external interface for the moment...
+#DEFAULT_CARVE_BY='class=org.employee.SoftwareTrainee'
+
+DEFAULT_CARVE_BY='class=org.employee.EmployeeMetaData'
+
+#DEFAULT_CARVE_BY="package=org.employee"
 
 CARVE_BY=${2:-${DEFAULT_CARVE_BY}}
 
@@ -17,7 +22,5 @@ CARVE_BY=${2:-${DEFAULT_CARVE_BY}}
 ./abc.sh carve \
 	'/Users/gambi/action-based-test-carving/test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHOT.jar' \
 	${TRACE_FILE} \
-	"${CARVE_BY}" 2>&1 | \
-		tee employee-carving.log
-
-rm ./abcOutput/*.class
+	"${CARVE_BY}" \
+		2>&1 | tee employee-carving.log

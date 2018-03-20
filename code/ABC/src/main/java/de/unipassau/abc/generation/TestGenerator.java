@@ -23,7 +23,6 @@ import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
 import de.unipassau.abc.carving.ObjectInstance;
 import de.unipassau.abc.data.Pair;
-import de.unipassau.abc.instrumentation.UtilInstrumenter;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.Local;
 import soot.Modifier;
@@ -76,6 +75,7 @@ public class TestGenerator {
 		}
 
 		String traceJar = ABCUtils.getTraceJar();
+		String systemRulesJar = ABCUtils.getSystemRulesJar();
 
 		ArrayList<String> necessaryJar = new ArrayList<String>();
 		// Include here JUnit and Hamcrest
@@ -83,6 +83,12 @@ public class TestGenerator {
 		necessaryJar.add(junit4Jar);
 		necessaryJar.add(hamcrestCoreJar);
 		necessaryJar.add(traceJar);
+		//
+		necessaryJar.add(systemRulesJar);
+		//
+		// necessaryJar.add("./src/test/resources/xmlpull-1.1.3.1.jar");
+		// necessaryJar.add("./src/test/resources/xpp3_min-1.1.4c.jar");
+		// necessaryJar.add("./src/test/resources/xstream-1.4.10.jar");
 
 		/// TODO Maybe we need to filter out things ?
 		// TODO Maybe we need to include XStream and XMLPull
@@ -176,6 +182,12 @@ public class TestGenerator {
 		SootMethod testMethod = new SootMethod(testMethodName, Collections.<Type>emptyList(), VoidType.v(),
 				Modifier.PUBLIC);
 
+		// Add the tag to this code. note that the last element is always the
+		// MUT !
+		testMethod.addTag(new CarvingTag(executionFlowGraph.getLastMethodInvocation().getJimpleMethod() + "_"
+				+ executionFlowGraph.getLastMethodInvocation().getInvocationCount()));
+		// if (tag.getName().startsWith("carving")) {
+
 		SootClass e = Scene.v().loadClassAndSupport("java.lang.Exception");
 		testMethod.addExceptionIfAbsent(e);
 
@@ -189,32 +201,68 @@ public class TestGenerator {
 		// Keep track of local per type per method
 		Map<String, AtomicInteger> localMap = new HashMap<>();
 
+		// Generating method body. We need this here to introduce the assignment
+		// to System.In
+		Chain<Unit> units = body.getUnits();
+
 		// Generate the Local Variables for the Method
 		for (ObjectInstance node : dataDependencyGraph.getObjectInstances()) {
+
 			String type = node.getType();
+			// Patch for system in - Do not generate this multiple times
+			if (node.equals(ObjectInstance.SystemIn())) {
+				// This is a fake type for System.in
+				if (!localMap.containsKey(node.getType())) {
+					localMap.put(type, new AtomicInteger(0));
+				}
 
-			if (!localMap.containsKey(type)) {
-				localMap.put(type, new AtomicInteger(0));
+				System.out.println("TestGenerator.generateAndAddTestMethodToTestClass() Patch for System.in");
+				// Generate a local for system in
+				int localId = localMap.get(type).getAndIncrement();
+
+				type = "java.io.InputStream";
+				String localName = RefType.v(type).getClassName();
+				localName = localName.substring(localName.lastIndexOf('.') + 1);
+				// Apply code conventions
+				localName = localName.replaceFirst(localName.substring(0, 1), localName.substring(0, 1).toLowerCase());
+				//
+				Local localVariable = Jimple.v().newLocal(localName + localId, RefType.v(type));
+				body.getLocals().add(localVariable);
+
+				dataDependencyGraph.setValueFor(node, localVariable);
+
+				// Initialize the local with the assignment
+				units.add(Jimple.v().newAssignStmt(localVariable, Jimple.v().newStaticFieldRef(
+						Scene.v().getField("<java.lang.System: java.io.InputStream in>").makeRef())));
+			} else {
+
+				if (!localMap.containsKey(type)) {
+					localMap.put(type, new AtomicInteger(0));
+				}
+				int localId = localMap.get(type).getAndIncrement();
+
+				String localName = RefType.v(type).getClassName();
+				localName = localName.substring(localName.lastIndexOf('.') + 1);
+				// Apply code conventions
+				localName = localName.replaceFirst(localName.substring(0, 1), localName.substring(0, 1).toLowerCase());
+				//
+				Local localVariable = Jimple.v().newLocal(localName + localId, RefType.v(type));
+				body.getLocals().add(localVariable);
+
+				// TODO Here most likely we need to handle
+				// Handle System.in
+				// Scene.v().loadClassAndSupport("java.lang.System");
+
+				// Debug
+				// logger.trace
+				System.out.println("  >>>> Create a new local variable " + localVariable + " of type " + type
+						+ " and node " + node + " " + node.hashCode());
+
+				dataDependencyGraph.setValueFor(node, localVariable);
 			}
-			int localId = localMap.get(type).getAndIncrement();
-
-			String localName = RefType.v(type).getClassName();
-			localName = localName.substring(localName.lastIndexOf('.') + 1);
-			// Apply code conventions
-			localName = localName.replaceFirst(localName.substring(0, 1), localName.substring(0, 1).toLowerCase());
 			//
-			Local localVariable = Jimple.v().newLocal(localName + localId, RefType.v(type));
-			body.getLocals().add(localVariable);
-
-			// Debug
-			logger.trace("  >>>> Create a new local variable " + localVariable + " of type " + type + " and node "
-					+ node + " " + node.hashCode());
-			//
-			dataDependencyGraph.setValueFor(node, localVariable);
 		}
 
-		// Generating method body
-		Chain<Unit> units = body.getUnits();
 		List<MethodInvocation> orderedMethodInvocations = executionFlowGraph.getOrderedMethodInvocations();
 		// By definition the MUT is the last invoked
 		MethodInvocation methodInvocationToCarve = executionFlowGraph.getLastMethodInvocation();
@@ -265,44 +313,7 @@ public class TestGenerator {
 
 		}
 
-		MethodInvocation methodInvocationUnderTest = executionFlowGraph.getLastMethodInvocation();
-
-		if (!methodInvocationUnderTest.isStatic()) {
-			Value actualOwner = dataDependencyGraph.getObjectLocalFor(methodInvocationUnderTest);
-			Value expectedOwner = UtilInstrumenter.generateExpectedValueForOwner(methodInvocationUnderTest, body,
-					units);
-			AssertionGenerator.gerenateRegressionAssertionOnOwner(body, units, expectedOwner, actualOwner);
-		}
-
-		if (!JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocationUnderTest.getJimpleMethod()))) {
-			Value expectedReturnValue = dataDependencyGraph.getReturnObjectLocalFor(methodInvocationUnderTest);
-			if (JimpleUtils.isPrimitive(expectedReturnValue.getType())
-					|| JimpleUtils.isString(expectedReturnValue.getType())) {
-				// Do nothing, since the expectedReturnValue is a primitive
-				// value
-			} else {
-				// Otherwise, load expectations from file:
-				// Reads this from XML and introduce the code to load this
-				// from XML
-				expectedReturnValue = UtilInstrumenter.generateExpectedValueForReturn(methodInvocationUnderTest, body,
-						units);
-			}
-
-			// Find the
-			Local actualReturnValue = null;
-			for (Local local : body.getLocals().getElementsUnsorted()) {
-				if ("returnValue".equals(local.getName())) {
-					actualReturnValue = local;
-					break;
-				}
-			}
-			AssertionGenerator.gerenateRegressionAssertionOnReturnValue(body, units, expectedReturnValue,
-					actualReturnValue);
-		}
-
-		// Capture the return value of the MUT if that return something
-
-		// Insert final void return
+		// Insert final void return to close the test method
 		units.add(Jimple.v().newReturnVoidStmt());
 
 		// This is to handle the assertion of Level +1 test cases
@@ -410,7 +421,7 @@ public class TestGenerator {
 
 		SootClass sClass = new SootClass(testCaseName, Modifier.PUBLIC);
 		sClass.setSuperclass(Scene.v().getSootClass("java.lang.Object"));
-		
+
 		Scene.v().addClass(sClass);
 
 		return sClass;

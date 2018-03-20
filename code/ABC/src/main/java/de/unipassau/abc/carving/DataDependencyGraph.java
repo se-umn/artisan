@@ -3,6 +3,7 @@ package de.unipassau.abc.carving;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Paint;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -68,6 +69,7 @@ public class DataDependencyGraph {
 	 * @param methodInvocation
 	 * @param actualParameters
 	 */
+	@SuppressWarnings("unchecked")
 	public void addMethodInvocation(MethodInvocation methodInvocation, String... actualParameters) {
 
 		if (!graph.containsVertex(methodInvocation)) {
@@ -94,9 +96,49 @@ public class DataDependencyGraph {
 			} else {
 				node = new ObjectInstance(actualParameters[position]);
 			}
+
 			if (!graph.containsVertex(node)) {
+
+				// HERE We need to check if this data note is not yet define, if
+				// this is an OBJECT might be an error, since all the objects
+				// must
+				// be define before use... There might be different explanations
+				// here: the one we found is the objects like System.in gets
+				// initialized inside java code, so we cannot see this. Hence we
+				// cannot carve this. We use the simple heuristic here that we
+				// force "System.in"
+				if (node instanceof ObjectInstance) {
+
+					// Check if this is mocking. We use heuristic here,
+					// otherwise we need to load classes and deps for each app
+					// under test
+
+					if (((ObjectInstance) node).getType().startsWith(
+							"org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock")) {
+						System.out.println("DataDependencyGraph.addMethodInvocation() PATCH FOR MOCKED INPUT");
+						node = ObjectInstance.SystemIn();
+						System.out.println("DataDependencyGraph.addMethodInvocation() Patch with " + node);
+					} else {
+
+						try {
+							@SuppressWarnings("rawtypes")
+							Class actualClass = Class.forName(((ObjectInstance) node).getType());
+							if (InputStream.class.isAssignableFrom(actualClass)) {
+								System.out.println("DataDependencyGraph.addMethodInvocation() FIRST SEEN " + node);
+								node = ObjectInstance.SystemIn();
+								System.out.println("DataDependencyGraph.addMethodInvocation() Patch with " + node);
+							}
+						} catch (ClassNotFoundException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					}
+
+				}
 				graph.addVertex(node);
+
 			}
+
 			graph.addEdge(DATA_DEPENDENCY_PREFIX + "_" + position + "_" + id.getAndIncrement(), node, methodInvocation,
 					EdgeType.DIRECTED);
 		}
@@ -574,6 +616,7 @@ public class DataDependencyGraph {
 				}
 			}
 		}
+
 		// TODO There's problem with mocked objects
 		// java.lang.RuntimeException: Cannot find INIT call for
 		// org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock@1869997857

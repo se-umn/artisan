@@ -5,7 +5,6 @@ import java.util.List;
 
 import de.unipassau.abc.carving.MethodInvocation;
 import de.unipassau.abc.data.Pair;
-import de.unipassau.abc.utils.JimpleUtils;
 import soot.ArrayType;
 import soot.Body;
 import soot.BooleanType;
@@ -38,11 +37,11 @@ import soot.util.Chain;
 // Taken from FuzzDroid
 public class UtilInstrumenter {
 
-	public static Pair<Value, List<Unit>> generateParameterArray(List<Value> parameterList, Body body) {
+	public static Pair<Value, List<Unit>> generateParameterArray(Type arrayType, List<Value> parameterList, Body body) {
 		List<Unit> generated = new ArrayList<Unit>();
 
 		// Create an array to host the values
-		NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(RefType.v("java.lang.Object"),
+		NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(arrayType, //RefType.v("java.lang.Object"),
 				IntConstant.v(parameterList.size()));
 
 		Value newArrayLocal = generateFreshLocal(body, getParameterArrayType());

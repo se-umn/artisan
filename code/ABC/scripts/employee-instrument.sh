@@ -1,6 +1,7 @@
 #!/bin/bash
 
 rm -r ./sootOutput
+rm employee-instrument.log
 
 export JAVA_OPTS="-Dtrace.output=./tracingOut -Ddump.output=./tracingOut"
 

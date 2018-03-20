@@ -19,7 +19,7 @@ public class MethodInvocationMatcher {
 		}
 
 		@Override
-		public boolean match(MethodInvocation methodInvocation) {
+		public boolean matches(MethodInvocation methodInvocation) {
 			return false;
 		}
 	}
@@ -134,7 +134,7 @@ public class MethodInvocationMatcher {
 
 	}
 
-	public boolean match(MethodInvocation methodInvocation) {
+	public boolean matches(MethodInvocation methodInvocation) {
 		return instancePattern == null ? matchByRegEx(methodInvocation) : matchByInstanceId(methodInvocation);
 	}
 
@@ -150,7 +150,7 @@ public class MethodInvocationMatcher {
 
 		final Matcher instanceMatcher = instancePattern.matcher(objectId);
 		if (!instanceMatcher.find()) {
-			logger.trace(methodInvocation + " with owner " + objectId + " does not match instanceMatcher");
+//			logger.trace(methodInvocation + " with owner " + objectId + " does not match instanceMatcher");
 			return false;
 		}
 
@@ -164,13 +164,13 @@ public class MethodInvocationMatcher {
 		final Matcher jimpleMatcher = jimpleMethodInvocationPattern.matcher(jimpleMethod);
 
 		if (!jimpleMatcher.find()) {
-			logger.trace(methodInvocation + " does not match jimpleMatcher");
+//			logger.trace(methodInvocation + " does not match jimpleMatcher");
 			return false;
 		}
 
 		final Matcher classMatcher = classPattern.matcher(JimpleUtils.getClassNameForMethod(jimpleMethod));
 		if (!classMatcher.find()) {
-			logger.trace(methodInvocation + " does not match classPatternMatcher " + classPattern);
+//			logger.trace(methodInvocation + " does not match classPatternMatcher " + classPattern);
 			return false;
 		} else if (returnPattern == null) {
 			return true;
@@ -180,7 +180,7 @@ public class MethodInvocationMatcher {
 
 		final Matcher returnMatcher = returnPattern.matcher(JimpleUtils.getReturnType(jimpleMethod));
 		if (!returnMatcher.find()) {
-			logger.trace(methodInvocation + " does not match returnPatternMatcher " + returnPattern);
+//			logger.trace(methodInvocation + " does not match returnPatternMatcher " + returnPattern);
 			return false;
 		} else if (methodPattern == null) {
 			return true;
@@ -188,27 +188,27 @@ public class MethodInvocationMatcher {
 
 		final Matcher methodMatcher = methodPattern.matcher(JimpleUtils.getMethodName(jimpleMethod));
 		if (!methodMatcher.find()) {
-			logger.trace(methodInvocation + " does not match methodPatternMatcher " + methodPattern);
+//			logger.trace(methodInvocation + " does not match methodPatternMatcher " + methodPattern);
 			return false;
 		}
 		// Matching parametes positionally
 		String[] formalParams = JimpleUtils.getParameterList(jimpleMethod);
 		if (formalParams.length != parameterPatterns.length) {
-			logger.trace(methodInvocation + " does not match methodParameterCountMatcher");
+//			logger.trace(methodInvocation + " does not match methodParameterCountMatcher");
 			return false;
 		}
 
 		for (int pos = 0; pos < formalParams.length; pos++) {
 			final Matcher parameterMatcher = parameterPatterns[pos].matcher(formalParams[pos]);
 			if (!parameterMatcher.find()) {
-				logger.trace(methodInvocation + " does not match parameterCountMatcher for " + formalParams[pos]);
+//				logger.trace(methodInvocation + " does not match parameterCountMatcher for " + formalParams[pos]);
 				return false;
 			}
 		}
 
 		if (invocationID != -1) {
 			if (methodInvocation.getInvocationCount() != this.invocationID) {
-				logger.trace(methodInvocation + " does not match invocationCount for " + this.invocationID);
+//				logger.trace(methodInvocation + " does not match invocationCount for " + this.invocationID);
 				return false;
 			}
 		}

@@ -42,19 +42,13 @@ public class ByClassCarverTest {
 			// String className = "org.employee.Validation";
 			// String className = "org.employee.DummyObjectToPassAsParameter";
 
-			// This one is problematic, since no tests are generated. FIXME The
-			// problem is related to subclasses
-			/*
-			 * Level_0_MethodCarver - <org.employee.EmployeeMetaData: void
-			 * <init>(java.io.File)>_544 subsubed by
-			 * <org.employee.SoftwareTrainee: void <init>(java.io.File)>_543 via
-			 * [<org.employee.SoftwareTrainee: void <init>(java.io.File)>_543]
-			 * 
-			 * First I am not sure why it tries to carve 544 while it should
-			 * stop at 543. in other terms 544 should not be there right?
-			 * 
-			 */
-			String className = "org.employee.SoftwareTrainee";
+			// This is pretty useless: org.employee.SoftwareTrainee is used only
+			// to keep constant values, its a subclass or EmployeeMetaData only
+			// to keep storing functions ? No idea!
+			//String className = "org.employee.SoftwareTrainee";
+			
+			String className = "org.employee.EmployeeMetaData";
+			
 			String[] args = new String[] { //
 					"--carve-by", "class=" + className,
 					// String traceFile =
@@ -72,7 +66,7 @@ public class ByClassCarverTest {
 			ABCTestUtils.printJavaClasses(outputDirectory);
 		} catch (Exception e) {
 			e.printStackTrace();
-			fail("Exception raised");
+			fail("Exception raised " + e);
 		}
 	}
 }

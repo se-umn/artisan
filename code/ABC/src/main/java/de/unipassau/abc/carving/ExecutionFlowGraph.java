@@ -5,6 +5,7 @@ import java.awt.Dimension;
 import java.awt.Paint;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -26,6 +27,7 @@ import edu.uci.ics.jung.graph.SparseMultigraph;
 import edu.uci.ics.jung.graph.util.EdgeType;
 import edu.uci.ics.jung.visualization.VisualizationViewer;
 import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
+import soot.Type;
 
 public class ExecutionFlowGraph {
 
@@ -176,12 +178,12 @@ public class ExecutionFlowGraph {
 			MethodInvocationMatcher... excludeBy) {
 		ArrayList<MethodInvocation> matching = new ArrayList<>();
 		for (MethodInvocation mi : graph.getVertices()) {
-			if (carveBy.match(mi)) {
+			if (carveBy.matches(mi)) {
 				// TODO Refactor with an AND matcher? not really want to go
 				// there...
 				boolean excluded = false;
 				for (MethodInvocationMatcher exclude : excludeBy) {
-					if (exclude.match(mi)) {
+					if (exclude.matches(mi)) {
 						excluded = true;
 						break;
 					}
@@ -208,6 +210,12 @@ public class ExecutionFlowGraph {
 	}
 
 	public List<MethodInvocation> getOrderedMethodInvocationsBefore(MethodInvocation methodInvocation) {
+		
+		if( ! graph.containsVertex( methodInvocation ) ){
+			logger.info("Method invocation " + methodInvocation + " not in the execution graph");
+			return Collections.<MethodInvocation>emptyList();
+		}	
+		
 		List<MethodInvocation> predecessorsOf = new ArrayList<>();
 		for (MethodInvocation mi : getPredecessors(methodInvocation)) {
 			predecessorsOf.addAll(getOrderedMethodInvocationsBefore(mi));
@@ -395,6 +403,10 @@ public class ExecutionFlowGraph {
 	// True if method1 was executed before method 2. If they are the same, we do not return it?
 	public boolean isBefore(MethodInvocation methodInvocation1, MethodInvocation methodInvocation2) {
 		return methodInvocation1.getInvocationCount() <= methodInvocation2.getInvocationCount();
+	}
+
+	public boolean contains(MethodInvocation methodInvocation) {
+		return graph.containsVertex(methodInvocation);
 	}
 
 }

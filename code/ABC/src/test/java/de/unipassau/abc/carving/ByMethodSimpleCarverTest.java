@@ -12,7 +12,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
-import de.unipassau.abc.carving.Carver;
 import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.abc.utils.SystemTest;
@@ -29,24 +28,32 @@ public class ByMethodSimpleCarverTest {
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
 	@Test
 	@Category(SystemTest.class)
 	public void testCarvingByMethodSimple() throws IOException, InterruptedException {
-		String jimpleMethodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String)>";
+		// <org.employee.Validation: int
+		// numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>
+//		String jimpleMethodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String)>";
+		 String jimpleMethodToCarve = "<org.employee.EmployeeMetaData: void addMeta()>";
 
+		 String traceFile ="./src/test/resources/Employee-trace.txt";
+		 // TODO Mark this with a DebugTest otherwise:
+//		String traceFile = "/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut/trace.txt";
 		try {
 			Carver carver = new Carver();
 			File outputDirectory = temporaryFolderRule.newFolder();
-			String[] args = new String[] {//
+			String[] args = new String[] { //
 					"--carve-by", "method=" + jimpleMethodToCarve,
 					// String traceFile =
-					"--trace-file", "./src/test/resources/Employee-trace.txt",
+					"--trace-file", traceFile,
 					// String projectJar =
 					"--project-jar", "./src/test/resources/Employee.jar",
 					// String outputDir =
-					"--output-to", outputDirectory.getAbsolutePath() };
+					"--output-to", outputDirectory.getAbsolutePath(),
+					// Define External interfaces
+					"--external", "java.util.Scanner" };
 			//
 			carver.main(args);
 			//

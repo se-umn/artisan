@@ -6,13 +6,13 @@ import static org.junit.Assert.fail;
 import java.io.File;
 import java.io.IOException;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
-import de.unipassau.abc.carving.Carver;
 import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.abc.utils.SystemTest;
@@ -23,7 +23,7 @@ import de.unipassau.abc.utils.SystemTest;
  * 
  * FIXME #40
  * 
- * THIS IS BRITTLE... every time we update the trace file this breaks
+ * 
  * @author gambi
  *
  */
@@ -35,6 +35,7 @@ public class ByInstanceCarverTest {
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
 
+	@Ignore // THIS IS BRITTLE... every time we update the trace file this breaks --> FIXME Mark this as Debug category instead 
 	@Test
 	@Category(SystemTest.class)
 	public void testCarvingByInstance() throws IOException, InterruptedException {

@@ -22,6 +22,7 @@ import soot.Body;
 import soot.BodyTransformer;
 import soot.PackManager;
 import soot.PatchingChain;
+import soot.RefType;
 import soot.Scene;
 import soot.SootMethod;
 import soot.Transform;
@@ -86,6 +87,7 @@ public class InstrumentTracer extends BodyTransformer {
 				public void caseAssignStmt(AssignStmt stmt) {
 					// TODO Refactor. Use Jimple constants a not plain string...
 					logger.trace("Inside method " + containerMethod + " caseAssignStmt() " + stmt);
+					
 					boolean containsInvokeExpr = stmt.containsInvokeExpr();
 					if (containsInvokeExpr) {
 
@@ -146,6 +148,9 @@ public class InstrumentTracer extends BodyTransformer {
 													// ?
 								instanceValue, invokeType);// , true);
 						// }
+					} else {
+						// Those are regular assignments...
+						
 					}
 				}
 
@@ -411,7 +416,9 @@ public class InstrumentTracer extends BodyTransformer {
 
 		// Returns a Pair which contains the array and the instructions to
 		// create it
-		Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter.generateParameterArray(parameterList,
+		Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter.generateParameterArray(
+				RefType.v("java.lang.Object"),
+				parameterList,
 				body);
 		// Append the array to the parameters for the trace start
 		methodStartParameters.add(tmpArgsListAndInstructions.getFirst());
@@ -484,8 +491,9 @@ public class InstrumentTracer extends BodyTransformer {
 			sootExclude.add("de.unipassau.abc.*");
 			// TODO Shall we also exclude loggers and such ? Again Shaded deps ?
 			// NOTE THAT SOOT COMES WITH ITS OWN DEPS IN THE JAR !
-			sootExclude.add("java.io.*");
-			sootExclude.add("java.nio.*");
+			///// Sure about this ?
+			// sootExclude.add("java.io.*");
+			// sootExclude.add("java.nio.*");
 		}
 		List<String> sootInclude = new ArrayList<>();
 		{

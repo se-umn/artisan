@@ -49,6 +49,30 @@ public class StackImplementationTest {
 		
 		System.out.println("StackImplementationTest.testTraceParseWithTraceFromTestSubject()");
 	}
+	
+	// THIS HAS HARDCODED VALUES ! MOSTLY FOR DEBUGGING
+	@Ignore
+	@Test
+	public void testTraceParseWithSystemIn() throws FileNotFoundException, IOException {
+		File traceFile = new File("/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut/trace.txt");
+		
+//		MethodInvocationMatcher byClass = MethodInvocationMatcher.byClass("org.employee.EmployeeMetaData");
+		
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
+
+		// TODO Add assertions here  !
+		parsedTrace.getFirst().visualize();
+		parsedTrace.getSecond().visualize();
+		parsedTrace.getThird().visualize();
+		
+		// Assert that file exists or similar ?
+		
+		System.out.println("StackImplementationTest.testTraceParseWithTraceFromTestSubject()");
+	}
+	
+	
+	
 
 	/// The following tests are broken since the trace format changed !
 	@Ignore

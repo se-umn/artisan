@@ -16,4 +16,18 @@ public class ABCUtils {
 
 		return traceJar;
 	}
+
+	// I do not like this...
+	public static String getSystemRulesJar() {
+		String jar = "./src/main/resources/system-rules-1.17.0.jar";; // Eclipse testing
+
+		if (!new File(jar).exists()) {
+			jar = "../src/main/resources/system-rules-1.17.0.jar"; // Actual usage ...
+			if (!new File(jar).exists()) {
+				throw new RuntimeException(new File(jar).getAbsolutePath() + " file is missing");
+			}
+		}
+
+		return jar;
+	}
 }

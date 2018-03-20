@@ -3,6 +3,8 @@ package de.unipassau.abc.carving;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import soot.tagkit.Tag;
+
 public class MethodInvocation implements GraphNode {
 
 	private final static Logger logger = LoggerFactory.getLogger( MethodInvocation.class);
@@ -119,6 +121,11 @@ public class MethodInvocation implements GraphNode {
 
 	public String getXmlDumpForReturn() {
 		return xmlFileForReturn;
+	}
+
+	public static MethodInvocation fromTag(Tag tag) {
+		String[] tokens = tag.getName().replaceAll("carving:","").split("_");
+		return new MethodInvocation( tokens[0], Integer.parseInt(tokens[1]));
 	}
 
 }

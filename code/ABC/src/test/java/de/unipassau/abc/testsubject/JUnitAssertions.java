@@ -1,6 +1,20 @@
 package de.unipassau.abc.testsubject;
 
+import java.io.IOException;
+
+import org.junit.Rule;
+import org.junit.rules.TemporaryFolder;
+
 public class JUnitAssertions {
+
+	@Rule
+	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+	
+	public void useSystemIn() throws IOException {
+//		InputStream _inputStream = System.in;
+//		System.out.println("JUnitAssertions.useSystemIn()");
+		temporaryFolder.newFolder();
+	}
 
 	public void assertionWithCasting() {
 		int A = 10;
@@ -18,10 +32,10 @@ public class JUnitAssertions {
 
 		org.junit.Assert.assertEquals(5, X);
 	}
-	
-	public void methodInvocations(){
+
+	public void methodInvocations() {
 		int i = 10;
-		Integer integer = Integer.valueOf( i );
+		Integer integer = Integer.valueOf(i);
 		long l = integer.longValue();
 		l = l + 5;
 		System.out.println("l is " + l);

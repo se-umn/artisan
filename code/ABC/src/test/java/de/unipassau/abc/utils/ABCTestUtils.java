@@ -30,14 +30,27 @@ public class ABCTestUtils {
 	};
 	
 	public static void printJavaClasses(File outputDir) throws IOException {
-		System.out.println("PRINTING CONTENT OF FILE " + outputDir );
-		System.out.println("========================================");
-		for (File javaFile : outputDir.listFiles(javaFileNameFilter)) {
-			System.out.println("File: " + javaFile.getAbsolutePath());
-			for (String line : Files.readAllLines(javaFile.toPath(), Charset.defaultCharset())) {
-				System.out.println(line);
-			}
+		final String fileExtension = ".java";
+		try {
+			Files.walkFileTree(outputDir.toPath(), new SimpleFileVisitor<Path>() {
+				@Override
+				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+					if (file.toString().endsWith( fileExtension )) {
+						System.out.println("PRINTING CONTENT OF FILE " + file );
+						System.out.println("========================================");
+							for (String line : Files.readAllLines(file, Charset.defaultCharset())) {
+								System.out.println(line);
+							}
+					}
+					return super.visitFile(file, attrs);
+				}
+			});
+		} catch (IOException e) {
+			org.junit.Assert.fail("Cannot count files " + e);
 		}
+		
+		
+		
 
 	}
 

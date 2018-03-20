@@ -13,6 +13,12 @@ public class ObjectInstance implements DataNode {
 	public String getObjectId() {
 		return objectId;
 	}
+	
+	// This is somehow wrong...
+	public static DataNode SystemIn() {
+		// Those are static instances... not sure how to handle them !
+		return new ObjectInstance("java.lang.System.in@0");
+	}
 
 	@Override
 	public int hashCode() {

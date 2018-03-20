@@ -4,7 +4,7 @@
 #set -x
 
 INSTRUMENT_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=TRACE"
-CARVING_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=DEBUG"
+CARVING_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=TRACE"
 # -Ddebug=true"
 
 DEFAULT_INSTRUMENT_OUTPUT_DIR="./sootOutput"
@@ -15,8 +15,6 @@ DEFAULT_CARVING_OUTPUT_DIR="./abcOutput"
 BIN_FOLDER="../target/appassembler/bin"
 
 function instrument(){
-	
-	rm instrument.log
 	
 	if [ $# -lt 1 ]; then
 		(>&2 echo "Not enough arguments. Missing project jar")
@@ -56,6 +54,7 @@ function carve(){
 		--carve-by "${CARVE_BY}" \
 		--trace-file ${TRACE_FILE} \
 		--project-jar ${PROJECT_JAR} \
+		--external java.util.Scanner \
 		--output-to ${OUTPUT_DIR}
 }
 

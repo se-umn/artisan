@@ -32,6 +32,10 @@ SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSoftwareEn
 SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSoftwareTrainee"
 SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestStartAndExit"
 
+# Debugging
+#SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestStartAndExitWithManualInput"
+
+
 JAVA_OPTS="-Dtrace.output=./tracingOut -Ddump.output=./tracingOut"
 
 java \

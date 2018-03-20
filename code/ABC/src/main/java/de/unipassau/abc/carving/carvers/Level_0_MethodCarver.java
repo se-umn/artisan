@@ -144,6 +144,12 @@ public class Level_0_MethodCarver implements MethodCarver {
 		for (ObjectInstance dataDependency : subGraphFromPastExecution // dataDependencyGraph
 				.getObjectInstancesAsParametersOf(methodInvocationToCarve)) {
 			try {
+				
+				// Static instances like Syste.in have no init calls
+				if( dataDependency.equals( ObjectInstance.SystemIn() ) ){
+					System.out.println("Level_0_MethodCarver.level0TestCarving() No INIT call for static instance " + dataDependency );
+					continue;
+				}
 				MethodInvocation constructor = subGraphFromPastExecution // dataDependencyGraph
 						.getInitMethodInvocationFor(dataDependency);
 				constructors.add(constructor);

@@ -14,6 +14,7 @@ import soot.Local;
 import soot.NullType;
 import soot.RefType;
 import soot.Scene;
+import soot.SootClass;
 import soot.SootMethod;
 import soot.Type;
 import soot.Unit;
@@ -33,8 +34,7 @@ public class AssertionGenerator {
 
 	private static final Logger logger = LoggerFactory.getLogger(AssertionGenerator.class);
 
-	public static void gerenateRegressionAssertionOnOwner(Body body, Chain<Unit> units, Value expected,
-			Value actual) {
+	public static void gerenateRegressionAssertionOnOwner(Body body, Chain<Unit> units, Value expected, Value actual) {
 		// IF TYPE PRIMITIVE THERE"S AN ERROR !
 		// IF STRING THERE"S AN ERROR
 		if (JimpleUtils.isPrimitive(actual.getType())) {
@@ -43,9 +43,9 @@ public class AssertionGenerator {
 		} else {
 			generateAssertEqualsForObjects(body, units, actual.getType(), expected, actual);
 		}
-		
+
 	}
-	
+
 	public static void gerenateRegressionAssertionOnReturnValue(Body body, Chain<Unit> units, Value expected,
 			Value actual) {
 		if (JimpleUtils.isPrimitive(actual.getType())) {
@@ -78,8 +78,8 @@ public class AssertionGenerator {
 			Value expectedValue, Value actualValue) {
 		List<Unit> generated = new ArrayList<>();
 
-		if ("boolean".equals( type.toString())) {
-			
+		if ("boolean".equals(type.toString())) {
+
 			List<Value> assertParameters = new ArrayList<>();
 			assertParameters.add(actualValue);
 
@@ -99,18 +99,61 @@ public class AssertionGenerator {
 
 			generateAssertEqualsForObjects(body, units, type, boxedExpected, boxedActual, generated);
 		}
-		// 
+		//
 		units.addAll(generated);
 
 	}
 
+	// NOTE that expected value getType returns object, it should return type
+	// instead ?
 	public static void generateAssertEqualsForObjects(Body body, Chain<Unit> units, Type type, Value expectedValue,
 			Value actualValue) {
+
+		// Generate the assertion only if the CUT re-implements equals/hashCode
+		// Scene.v().getMethod("<"+ expectedValue.getType().toString() +":
+		// boolean equals(java.lang.Object>");
+		// Scene.v().loadClass(expectedValue.getType().toString() )
+		if (!redefinesEqualsAndHashCodeMethods(type)) {
+			// Not sure about primitives and boxed primitives at this point..
+			System.out.println("AssertionGenerator skip generateAssertEqualsForObjects for object " + type);
+			return;
+		}
+
 		List<Unit> generated = new ArrayList<Unit>();
 		generateAssertEqualsForObjects(body, units, type, expectedValue, actualValue, generated);
-		units.addAll( generated );
-		
+		units.addAll(generated);
 
+	}
+
+	// TODO Probably there's a simpler way to access that method directly or at least
+	// get an exception that says the class does not..
+	// TODO How to handle super types at this point? If the super types?
+	private static boolean redefinesEqualsAndHashCodeMethods(Type type) {
+		System.out.println("AssertionGenerator.redefinesEqualsAndHashCodeMethods() " + type.getEscapedName() );
+		SootClass sc=Scene.v().loadClassAndSupport( type.getEscapedName() );
+		
+		// Check if this class or any of its super types except for Object redefine equals
+		while( ! sc.getType().equals(RefType.v("java.lang.Object"))){
+			for (SootMethod method : sc.getMethods()) {
+				// NOTE THIS IS NAIVE
+				if (method.getSignature().contains("equals(java.lang.Object)>")) {
+					System.out.println(sc+ " has method " + method);
+					return true;
+				}
+			}
+			sc = sc.getSuperclass();
+		}
+//		for (SootClass applicationClass : Scene.v().getApplicationClasses()) {
+//			if (applicationClass.getType().equals(type)) {
+//				for (SootMethod method : applicationClass.getMethods()) {
+//					if (method.getName().equals("equals")) {
+//						System.out.println(applicationClass + " has method " + method);
+//						return true;
+//					}
+//				}
+//			}
+//		}
+		return false;
 	}
 
 	public static void generateAssertEqualsForObjects(Body body, Chain<Unit> units, Type type, Value expectedValue,

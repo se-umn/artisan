@@ -81,7 +81,7 @@ public class StackImplementation implements TraceParser {
 		methodInvocation.setInvocationType(typeOfInvocation);
 		// Check if this method belongs to an external interface
 		for (MethodInvocationMatcher externalInterfaceMatcher : externalInterfaceMatchers) {
-			if (externalInterfaceMatcher.match(methodInvocation)) {
+			if (externalInterfaceMatcher.matches(methodInvocation)) {
 				methodInvocation.setBelongsToExternalInterface(true);
 			}
 		}
@@ -234,7 +234,7 @@ public class StackImplementation implements TraceParser {
 
 	private boolean isPure(MethodInvocation methodInvocation) {
 		for (MethodInvocationMatcher purityMatcher : purityMatchers) {
-			if (purityMatcher.match(methodInvocation)) {
+			if (purityMatcher.matches(methodInvocation)) {
 				logger.trace(methodInvocation + " is pure");
 				return true;
 			}
