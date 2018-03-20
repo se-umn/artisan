@@ -1,9 +1,7 @@
 #!/bin/bash
 # ABC Framework script
 
-#set -x
-
-INSTRUMENT_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=INFO"
+INSTRUMENT_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=WARN"
 CARVING_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=INFO"
 # -Ddebug=true"
 
@@ -13,6 +11,8 @@ DEFAULT_INSTRUMENT_OUTPUT_FORMAT="class" # "jimple"
 DEFAULT_CARVING_OUTPUT_DIR="./abcOutput"
 
 BIN_FOLDER="../target/appassembler/bin"
+
+LOG_FOLDER="./logs"
 
 function instrument(){
 	
@@ -64,10 +64,14 @@ function help(){
 	cat abc.sh | grep function | grep -v "__private" | grep -v "\#" | sed -e '/^ /d' -e 's|function \(.*\)(){|\1|g'
 }
 
-
 # Invoke functions by name
 if declare -f "$1" > /dev/null
 then
+
+  if [ ! -e ${LOG_FOLDER} ]; then
+	mkdir ${LOG_FOLDER}
+  fi
+
   # call arguments verbatim
   "$@"
 else

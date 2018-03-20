@@ -144,17 +144,18 @@ public class Level_0_MethodCarver implements MethodCarver {
 		for (ObjectInstance dataDependency : subGraphFromPastExecution // dataDependencyGraph
 				.getObjectInstancesAsParametersOf(methodInvocationToCarve)) {
 			try {
-				
+
 				// Static instances like Syste.in have no init calls
-				if( dataDependency.equals( ObjectInstance.SystemIn() ) ){
-					System.out.println("Level_0_MethodCarver.level0TestCarving() No INIT call for static instance " + dataDependency );
+				if (dataDependency.equals(ObjectInstance.SystemIn())) {
+					logger.debug("Level_0_MethodCarver.level0TestCarving() No INIT call for static instance "
+							+ dataDependency);
 					continue;
 				}
 				MethodInvocation constructor = subGraphFromPastExecution // dataDependencyGraph
 						.getInitMethodInvocationFor(dataDependency);
 				constructors.add(constructor);
 			} catch (RuntimeException e) {
-				logger.info("Swallow: " + e);
+				logger.debug("Swallow: " + e);
 			}
 		}
 
@@ -209,7 +210,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 			} catch (RuntimeException e) { // TODO Factor this into a app
 				// specific exception
-				logger.info("Swallow : " + e);
+				logger.debug("Swallow : " + e);
 			}
 
 			// System.out.println("Level_0_MethodCarver.level0TestCarving() " +
@@ -253,17 +254,19 @@ public class Level_0_MethodCarver implements MethodCarver {
 					logger.warn(" The subsumed call " + e.getSubsumedMethodInvocation()
 							+ " is not the one under carving " + methodInvocationToCarve);
 				}
-				logger.info("Invalid test case for " + e.getSubsumedMethodInvocation() + " which is subsumed by "
+				logger.warn("Invalid test case for " + e.getSubsumedMethodInvocation() + " which is subsumed by "
 						+ e.getSubsumingMethodInvocation() + " via " + e.getSubsumingPath());
 			} catch (RuntimeException e) {
-				e.printStackTrace();
-				logger.error("Swallow : " + e);
+//				e.printStackTrace();
+				logger.debug("Swallow : " + e);
 			}
 		}
 
-		if (!minimalCarve) {
-			for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTestsForMethodInvocation) {
-				logger.info("\t Test : " + carvedTest.getFirst().getOrderedMethodInvocations());
+		if (logger.isDebugEnabled()) {
+			if (!minimalCarve) {
+				for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTestsForMethodInvocation) {
+					logger.info("\t Test : " + carvedTest.getFirst().getOrderedMethodInvocations());
+				}
 			}
 		}
 

@@ -1,6 +1,8 @@
 package de.unipassau.abc;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ABCUtils {
 
@@ -29,5 +31,23 @@ public class ABCUtils {
 		}
 
 		return jar;
+	}
+	
+	// I do not like this...
+	public static List<String> getXStreamJars() {
+		List<String> jars = new ArrayList<>();
+		for( String jarName : new String[]{"xmlpull-1.1.3.1.jar", "xpp3_min-1.1.4c.jar", "xstream-1.4.10.jar"}){
+			String jar = "./src/test/resources/"+jarName; // Eclipse testing
+			
+			if (!new File(jar).exists()) {
+				jar = "../src/test/resources/"+jarName; // Actual usage ...
+				if (!new File(jar).exists()) {
+					throw new RuntimeException(new File(jar).getAbsolutePath() + " file is missing");
+				}
+			}
+			
+		}
+
+		return jars;
 	}
 }

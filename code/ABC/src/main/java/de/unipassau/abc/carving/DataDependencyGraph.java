@@ -115,18 +115,18 @@ public class DataDependencyGraph {
 
 					if (((ObjectInstance) node).getType().startsWith(
 							"org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock")) {
-						System.out.println("DataDependencyGraph.addMethodInvocation() PATCH FOR MOCKED INPUT");
+//						System.out.println("DataDependencyGraph.addMethodInvocation() PATCH FOR MOCKED INPUT");
 						node = ObjectInstance.SystemIn();
-						System.out.println("DataDependencyGraph.addMethodInvocation() Patch with " + node);
+//						System.out.println("DataDependencyGraph.addMethodInvocation() Patch with " + node);
 					} else {
 
 						try {
 							@SuppressWarnings("rawtypes")
 							Class actualClass = Class.forName(((ObjectInstance) node).getType());
 							if (InputStream.class.isAssignableFrom(actualClass)) {
-								System.out.println("DataDependencyGraph.addMethodInvocation() FIRST SEEN " + node);
+//								System.out.println("DataDependencyGraph.addMethodInvocation() FIRST SEEN " + node);
 								node = ObjectInstance.SystemIn();
-								System.out.println("DataDependencyGraph.addMethodInvocation() Patch with " + node);
+//								System.out.println("DataDependencyGraph.addMethodInvocation() Patch with " + node);
 							}
 						} catch (ClassNotFoundException e) {
 							// TODO Auto-generated catch block

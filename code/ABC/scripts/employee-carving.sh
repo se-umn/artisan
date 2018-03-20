@@ -1,20 +1,20 @@
 #!/bin/bash
 
-rm -r ./abcOutput
-
-#if [ $# -lt 1 ]; then echo "missing trace file"; exit 1; fi
-
 TRACE_FILE=${1-"./tracingOut/trace.txt"}
+LOG="./logs/employee-carving.log"
+PROJECT_JAR="../../../test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHOT.jar"
+
+# Default location
+rm -r ./abcOutput
+rm ${LOG}
 
 # Use the entire package for carving, meaning we carve test cases for each class and each method
 DEFAULT_CARVE_BY="package=org.employee"
 
 CARVE_BY=${2:-${DEFAULT_CARVE_BY}}
 
-#export JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=TRACE"
-
 ./abc.sh carve \
-	'/Users/gambi/action-based-test-carving/test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHOT.jar' \
-	${TRACE_FILE} \
+	"${PROJECT_JAR}" \
+	"${TRACE_FILE}" \
 	"${CARVE_BY}" \
-		2>&1 | tee employee-carving.log
+		2>&1 | tee ${LOG}

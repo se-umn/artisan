@@ -76,6 +76,7 @@ public class TestGenerator {
 
 		String traceJar = ABCUtils.getTraceJar();
 		String systemRulesJar = ABCUtils.getSystemRulesJar();
+		List<String> xStreamJars = ABCUtils.getXStreamJars();
 
 		ArrayList<String> necessaryJar = new ArrayList<String>();
 		// Include here JUnit and Hamcrest
@@ -86,10 +87,8 @@ public class TestGenerator {
 		//
 		necessaryJar.add(systemRulesJar);
 		//
-		// necessaryJar.add("./src/test/resources/xmlpull-1.1.3.1.jar");
-		// necessaryJar.add("./src/test/resources/xpp3_min-1.1.4c.jar");
-		// necessaryJar.add("./src/test/resources/xstream-1.4.10.jar");
-
+		necessaryJar.addAll( xStreamJars );
+		
 		/// TODO Maybe we need to filter out things ?
 		// TODO Maybe we need to include XStream and XMLPull
 
@@ -216,7 +215,7 @@ public class TestGenerator {
 					localMap.put(type, new AtomicInteger(0));
 				}
 
-				System.out.println("TestGenerator.generateAndAddTestMethodToTestClass() Patch for System.in");
+//				System.out.println("TestGenerator.generateAndAddTestMethodToTestClass() Patch for System.in");
 				// Generate a local for system in
 				int localId = localMap.get(type).getAndIncrement();
 
@@ -255,8 +254,8 @@ public class TestGenerator {
 
 				// Debug
 				// logger.trace
-				System.out.println("  >>>> Create a new local variable " + localVariable + " of type " + type
-						+ " and node " + node + " " + node.hashCode());
+//				System.out.println("  >>>> Create a new local variable " + localVariable + " of type " + type
+//						+ " and node " + node + " " + node.hashCode());
 
 				dataDependencyGraph.setValueFor(node, localVariable);
 			}

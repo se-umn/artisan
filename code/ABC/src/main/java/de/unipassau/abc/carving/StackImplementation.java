@@ -146,7 +146,7 @@ public class StackImplementation implements TraceParser {
 
 		// Check if this method is System.exit
 		if (systemExitMatcher.matches(methodInvocation)) {
-			logger.info("Reached System.exit " + methodInvocation);
+			logger.debug("Reached System.exit " + methodInvocation);
 			systemExitReached = true;
 		}
 
@@ -266,7 +266,7 @@ public class StackImplementation implements TraceParser {
 		systemExitReached = false;
 		//
 
-		logger.info("Start parsing from position " + initialPosition);
+		logger.debug("Start parsing from position " + initialPosition);
 
 		int positionAfterSystemExit = -1;
 

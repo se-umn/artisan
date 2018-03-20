@@ -142,7 +142,7 @@ public class Carver {
 			purityMatchers.add(MethodInvocationMatcher.byClass("java.lang.StringBuilder"));
 		}
 
-		System.out.println("Carver.main() Start parsing ");
+		logger.info("Carver.main() Start parsing ");
 		// Parse the trace file into graphs
 		StackImplementation traceParser = new StackImplementation(purityMatchers);
 		// TODO How to handle multiple trace files ? All together or one after
@@ -151,12 +151,11 @@ public class Carver {
 		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = traceParser
 				.parseTrace(traceFile.getAbsolutePath(), externalInterfaceMatchers);
 
-		System.out.println("Carver.main() End parsing ");
-
-		System.out.println(">> Analyzes " + parsedTrace.size() + " system tests");
+		logger.info("Carver.main() End parsing ");
+		logger.info(">> Analyzed " + parsedTrace.size() + " system tests");
 
 		// Carving
-		System.out.println("Carver.main() Start carving");
+		logger.info("Carver.main() Start carving");
 
 		// TODO Propagate here the tracing link to system test if necessary
 		// For each system test we carve out unit tests and accumulate

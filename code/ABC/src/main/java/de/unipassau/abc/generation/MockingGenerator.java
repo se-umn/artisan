@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.Set;
 
 import org.junit.Rule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import de.unipassau.abc.carving.CallGraph;
 import de.unipassau.abc.carving.DataDependencyGraph;
@@ -39,6 +41,8 @@ import soot.tagkit.Tag;
 // https://github.com/Sable/soot/wiki/Adding-profiling-instructions-to-applications
 public class MockingGenerator {
 
+	private final static Logger logger = LoggerFactory.getLogger(MockingGenerator.class);
+
 	public static final String SYSTEM_IN_RULE_NAME = "userInputs";
 
 	/**
@@ -60,7 +64,6 @@ public class MockingGenerator {
 		SootField systemInJunit4RuleField = null;
 		if (testClass.declaresFieldByName(SYSTEM_IN_RULE_NAME)) {
 			systemInJunit4RuleField = testClass.getFieldByName(SYSTEM_IN_RULE_NAME);
-			System.out.println("MockingGenerator.addSystemIn() Alread added ");
 			return;
 		} else {
 			systemInJunit4RuleField = new SootField(SYSTEM_IN_RULE_NAME,
@@ -79,7 +82,7 @@ public class MockingGenerator {
 			if (testClass.declaresMethodByName("<init>")) {
 				testClassInitializer = testClass.getMethodByName("<init>");
 			} else {
-				System.out.println("Generate <init>");
+				// FIXME apparently here we shall call supet() or this() ?
 				testClassInitializer = new SootMethod("<init>", Collections.<Type>emptyList(), VoidType.v(),
 						Modifier.PUBLIC);
 				// Build the body from the input list of statements
@@ -148,7 +151,6 @@ public class MockingGenerator {
 
 	private static void addSystemInToTest(SootMethod testMethod, SootField systemInJunit4RuleField, //
 			Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace) {
-		System.out.println("MockingGenerator.addSystemInToTest() to method " + testMethod);
 
 		// create the string array which contains in the observation ORDER all
 		// the method invocations
@@ -161,26 +163,26 @@ public class MockingGenerator {
 		for (Tag tag : testMethod.getTags()) {
 
 			if (tag.getName().startsWith("carving:")) {
-				System.out.println("MockingGenerator.addSystemInToTest() FOUND TAG " + tag.getName());
 				methodInvocationToBeCarved = MethodInvocation.fromTag(tag);
 			}
 		}
 
 		if (methodInvocationToBeCarved == null) {
-			System.out.println("MockingGenerator.addSystemInToTest() Null " + systemInJunit4RuleField);
+			logger.warn("addSystemInToTest() Null " + systemInJunit4RuleField);
 			return;
 		}
 
 		// Find the "right" SystemTest
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTraceFromSystemTest = null;
-		for( Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> pTrace : parsedTrace.values() ){
-			if( pTrace.getFirst().contains( methodInvocationToBeCarved ) ){
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> pTrace : parsedTrace.values()) {
+			if (pTrace.getFirst().contains(methodInvocationToBeCarved)) {
 				parsedTraceFromSystemTest = pTrace;
 				break;
 			}
 		}
-		
-		List<Value> valuesReadFromInput = collectValuesReadFromInput(parsedTraceFromSystemTest, methodInvocationToBeCarved);
+
+		List<Value> valuesReadFromInput = collectValuesReadFromInput(parsedTraceFromSystemTest,
+				methodInvocationToBeCarved);
 		// At this point we have accumulated all the values that were read from
 		// input during the execution, we store them into an array and invoke
 		// org.junit.contrib.java.lang.system.TextFromStandardInputStream.provideLines(
@@ -227,7 +229,7 @@ public class MockingGenerator {
 
 		Set<MethodInvocation> subsubmedCalls = callGraph.getMethodInvocationsSubsumedBy(methodInvocationToBeCarved);
 
-		System.out.println("MockingGenerator.collectValuesReadFromInput() Subsumed calls " + subsubmedCalls);
+//		System.out.println("MockingGenerator.collectValuesReadFromInput() Subsumed calls " + subsubmedCalls);
 		// It there's not subsumed calls then the MUT is the last call
 		MethodInvocation lastSubsumedCall = null;
 		if (!subsubmedCalls.isEmpty()) {
@@ -259,17 +261,17 @@ public class MockingGenerator {
 
 		List<MethodInvocation> previousCalls = executionFlowGraph.getOrderedMethodInvocationsBefore(lastSubsumedCall);
 
-		System.out.println("MockingGenerator.collectValuesReadFromInput() LAST SUBSUMED CALL " + lastSubsumedCall);
+//		System.out.println("MockingGenerator.collectValuesReadFromInput() LAST SUBSUMED CALL " + lastSubsumedCall);
 
 		// Check only the one before the last subsumed call
 		for (MethodInvocation methodInvocation : previousCalls) {
 
-			System.out.println("Processing " + methodInvocation);
+//			System.out.println("Processing " + methodInvocation);
 
 			if (scannerNextMethodMatcher.matches(methodInvocation)) {
-				System.out.println(">> Found a call to scanner method: " + methodInvocation);
+//				System.out.println(">> Found a call to scanner method: " + methodInvocation);
 				Value valueReadFromInput = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
-				System.out.println(">> Return value is " + valueReadFromInput);
+//				System.out.println(">> Return value is " + valueReadFromInput);
 				valuesFromInput.add(valueReadFromInput);
 			}
 		}
