@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,15 +17,11 @@ import com.lexicalscope.jewel.cli.Option;
 import de.unipassau.abc.carving.carvers.Level_0_MethodCarver;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
-import de.unipassau.abc.generation.AssertionGenerator;
 import de.unipassau.abc.generation.MockingGenerator;
 import de.unipassau.abc.generation.TestCaseFactory;
 import de.unipassau.abc.generation.TestGenerator;
-import de.unipassau.abc.instrumentation.UtilInstrumenter;
 import de.unipassau.abc.utils.JimpleUtils;
-import soot.Local;
 import soot.SootClass;
-import soot.Value;
 
 // TODO Use some sort of CLI/JewelCLI
 public class Carver {
@@ -151,22 +148,25 @@ public class Carver {
 		// TODO How to handle multiple trace files ? All together or one after
 		// another?
 
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = traceParser
+		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = traceParser
 				.parseTrace(traceFile.getAbsolutePath(), externalInterfaceMatchers);
+
 		System.out.println("Carver.main() End parsing ");
 
-		// Interactive mode to visualize?
-		System.out.println(">> TraceSize : " + parsedTrace.getFirst().getOrderedMethodInvocations().size());
-//		System.out.println("TraceSize : " + parsedTrace.getFirst().getOrderedMethodInvocations() );
+		System.out.println(">> Analyzes " + parsedTrace.size() + " system tests");
 
 		// Carving
 		System.out.println("Carver.main() Start carving");
-		// TODO Here organize, instantiate and execute the configured Carvers
-		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
-				parsedTrace.getThird());
 
-		// TODO Instantiate a matcher and pass it along to Carver !
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(carveBy, excludeBy);
+		// TODO Propagate here the tracing link to system test if necessary
+		// For each system test we carve out unit tests and accumulate
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTest : parsedTrace.values()) {
+			Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTest.getFirst(), parsedTest.getSecond(),
+					parsedTest.getThird());
+			carvedTests.addAll(testCarver.carve(carveBy, excludeBy));
+		}
+
 		System.out.println("Carver.main() End carving");
 		System.out.println(">> Carved tests : " + carvedTests.size());
 
@@ -183,53 +183,59 @@ public class Carver {
 		TestGenerator testCaseGenerator = new TestGenerator(projectJar.getAbsolutePath());
 		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests);
 
-		
+		// TODO Are assertions STILL generated ?!
 		//// DECORATORS HERE: ASSERTIONS AND MOCKING !
-		for( SootClass testClass : testCases ){
-			// This introdyuce a default system rule which provides inputs to scanner if any
-			// A bit hardcoded, but it should make it. Then for the test it carve out the inputs.
-			// We assume the last call / invoke is the method under test
+		for (SootClass testClass : testCases) {
 			MockingGenerator.addSystemIn(testClass, parsedTrace);
 		}
-		
+
 		// TODO Add Asssertions here...
-//		MethodInvocation methodInvocationUnderTest = executionFlowGraph.getLastMethodInvocation();
-//
-//		if (!methodInvocationUnderTest.isStatic()) {
-//			Value actualOwner = dataDependencyGraph.getObjectLocalFor(methodInvocationUnderTest);
-//			Value expectedOwner = UtilInstrumenter.generateExpectedValueForOwner(methodInvocationUnderTest, body,
-//					units);
-//			AssertionGenerator.gerenateRegressionAssertionOnOwner(body, units, expectedOwner, actualOwner);
-//		}
-//
-//		if (!JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocationUnderTest.getJimpleMethod()))) {
-//			Value expectedReturnValue = dataDependencyGraph.getReturnObjectLocalFor(methodInvocationUnderTest);
-//			if (JimpleUtils.isPrimitive(expectedReturnValue.getType())
-//					|| JimpleUtils.isString(expectedReturnValue.getType())) {
-//				// Do nothing, since the expectedReturnValue is a primitive
-//				// value
-//			} else {
-//				// Otherwise, load expectations from file:
-//				// Reads this from XML and introduce the code to load this
-//				// from XML
-//				expectedReturnValue = UtilInstrumenter.generateExpectedValueForReturn(methodInvocationUnderTest, body,
-//						units);
-//			}
-//
-//			// Find the
-//			Local actualReturnValue = null;
-//			for (Local local : body.getLocals().getElementsUnsorted()) {
-//				if ("returnValue".equals(local.getName())) {
-//					actualReturnValue = local;
-//					break;
-//				}
-//			}
-//			AssertionGenerator.gerenateRegressionAssertionOnReturnValue(body, units, expectedReturnValue,
-//					actualReturnValue);
-//		}
-		
-		
-		
+		// MethodInvocation methodInvocationUnderTest =
+		// executionFlowGraph.getLastMethodInvocation();
+		//
+		// if (!methodInvocationUnderTest.isStatic()) {
+		// Value actualOwner =
+		// dataDependencyGraph.getObjectLocalFor(methodInvocationUnderTest);
+		// Value expectedOwner =
+		// UtilInstrumenter.generateExpectedValueForOwner(methodInvocationUnderTest,
+		// body,
+		// units);
+		// AssertionGenerator.gerenateRegressionAssertionOnOwner(body, units,
+		// expectedOwner, actualOwner);
+		// }
+		//
+		// if
+		// (!JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocationUnderTest.getJimpleMethod())))
+		// {
+		// Value expectedReturnValue =
+		// dataDependencyGraph.getReturnObjectLocalFor(methodInvocationUnderTest);
+		// if (JimpleUtils.isPrimitive(expectedReturnValue.getType())
+		// || JimpleUtils.isString(expectedReturnValue.getType())) {
+		// // Do nothing, since the expectedReturnValue is a primitive
+		// // value
+		// } else {
+		// // Otherwise, load expectations from file:
+		// // Reads this from XML and introduce the code to load this
+		// // from XML
+		// expectedReturnValue =
+		// UtilInstrumenter.generateExpectedValueForReturn(methodInvocationUnderTest,
+		// body,
+		// units);
+		// }
+		//
+		// // Find the
+		// Local actualReturnValue = null;
+		// for (Local local : body.getLocals().getElementsUnsorted()) {
+		// if ("returnValue".equals(local.getName())) {
+		// actualReturnValue = local;
+		// break;
+		// }
+		// }
+		// AssertionGenerator.gerenateRegressionAssertionOnReturnValue(body,
+		// units, expectedReturnValue,
+		// actualReturnValue);
+		// }
+
 		// FOR VISUAL DEBUG
 		if (logger.isDebugEnabled() || logger.isTraceEnabled()) {
 			for (SootClass testCase : testCases) {

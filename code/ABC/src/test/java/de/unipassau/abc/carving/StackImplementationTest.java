@@ -1,5 +1,6 @@
 package de.unipassau.abc.carving;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import java.io.File;
@@ -10,6 +11,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -36,43 +38,42 @@ public class StackImplementationTest {
 	@Test
 	public void testTraceParseWithTraceFromTestSubject() throws FileNotFoundException, IOException {
 		File traceFile = new File("./src/test/resources/DummySystemTestGetSimple-trace.txt");
-		
-		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
-		// TODO Add assertions here  !
-		parsedTrace.getFirst().visualize();
-		parsedTrace.getSecond().visualize();
-		parsedTrace.getThird().visualize();
-		
-		// Assert that file exists or similar ?
-		
-		System.out.println("StackImplementationTest.testTraceParseWithTraceFromTestSubject()");
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
+		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = stackImplementation
+				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
+
+		assertEquals(1, parsedTrace.size());
+
+		// TODO Better assertions here !
+		// parsedTrace.getFirst().visualize();
+		// parsedTrace.getSecond().visualize();
+		// parsedTrace.getThird().visualize();
+
+		// System.out.println("StackImplementationTest.testTraceParseWithTraceFromTestSubject()");
 	}
-	
-	// THIS HAS HARDCODED VALUES ! MOSTLY FOR DEBUGGING
-	@Ignore
+
+	@Ignore /* THIS HAS HARDCODED VALUES ! MOSTLY FOR DEBUGGING */
 	@Test
 	public void testTraceParseWithSystemIn() throws FileNotFoundException, IOException {
 		File traceFile = new File("/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut/trace.txt");
-		
-//		MethodInvocationMatcher byClass = MethodInvocationMatcher.byClass("org.employee.EmployeeMetaData");
-		
-		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
-		// TODO Add assertions here  !
-		parsedTrace.getFirst().visualize();
-		parsedTrace.getSecond().visualize();
-		parsedTrace.getThird().visualize();
-		
+		// MethodInvocationMatcher byClass =
+		// MethodInvocationMatcher.byClass("org.employee.EmployeeMetaData");
+
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
+		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = stackImplementation
+				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
+
+		// TODO Add assertions here !
+		// parsedTrace.getFirst().visualize();
+		// parsedTrace.getSecond().visualize();
+		// parsedTrace.getThird().visualize();
+
 		// Assert that file exists or similar ?
-		
+
 		System.out.println("StackImplementationTest.testTraceParseWithTraceFromTestSubject()");
 	}
-	
-	
-	
 
 	/// The following tests are broken since the trace format changed !
 	@Ignore

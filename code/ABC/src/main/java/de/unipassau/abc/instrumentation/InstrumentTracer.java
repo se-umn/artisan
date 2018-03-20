@@ -356,7 +356,7 @@ public class InstrumentTracer extends BodyTransformer {
 	private void addTraceStop(SootMethod method, Value returnValue, Body body, final PatchingChain<Unit> units,
 			Unit u) {
 
-		System.out.println("InstrumentTracer.addTraceStop() for " + method );
+		logger.trace("InstrumentTracer.addTraceStop() for " + method );
 		List<Unit> generated = new ArrayList<Unit>();
 
 		{
