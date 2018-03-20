@@ -12,6 +12,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -19,12 +20,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
-import de.unipassau.abc.carving.CallGraph;
-import de.unipassau.abc.carving.DataDependencyGraph;
-import de.unipassau.abc.carving.ExecutionFlowGraph;
-import de.unipassau.abc.carving.MethodInvocation;
-import de.unipassau.abc.carving.MethodInvocationMatcher;
-import de.unipassau.abc.carving.StackImplementation;
 import de.unipassau.abc.carving.carvers.Level_0_MethodCarver;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
@@ -67,11 +62,17 @@ public class CarvingTest {
 
 		File traceFile = new File("./src/test/resources/Employee-trace-with-static.txt");
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
+		// Parsing
+		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
-		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
-				parsedTrace.getThird());
+		assertEquals(1, parsedTrace.size());
+
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedSystemTest = parsedTrace.values().iterator()
+				.next();
+		// Carving
+		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
+				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(staticMethodToCarve, excludeNoMethodInvocationsMatcher);
 
 		// System tests contains 2 executions
@@ -103,11 +104,17 @@ public class CarvingTest {
 		//
 		File traceFile = new File("./src/test/resources/Employee-trace-with-static.txt");
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
+		// Parsing
+		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
-		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
-				parsedTrace.getThird());
+		assertEquals(1, parsedTrace.size());
+
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedSystemTest = parsedTrace.values().iterator()
+				.next();
+		// Carving
+		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
+				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarve, excludeNoMethodInvocationsMatcher);
 
 		// The trace contains 2 executions. start -> exit, start -> register

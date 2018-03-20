@@ -7,7 +7,10 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -56,11 +59,13 @@ public class StackImplementation implements TraceParser {
 	private MethodInvocation pureMethod = null; // This is the method which sets
 												// the purity flag
 
+	final private MethodInvocationMatcher systemExitMatcher = MethodInvocationMatcher
+			.byMethod("<java.lang.System: void exit(int)>");
+
+	// State variable controlling the parser
+	private boolean systemExitReached = false;
+
 	public StackImplementation(List<MethodInvocationMatcher> purityMatchers) {
-		exectuionFlowGraph = new ExecutionFlowGraph();
-		dataDependencyGraph = new DataDependencyGraph();
-		callGraph = new CallGraph();
-		//
 		this.purityMatchers = purityMatchers;
 	}
 
@@ -79,6 +84,7 @@ public class StackImplementation implements TraceParser {
 
 		MethodInvocation methodInvocation = new MethodInvocation(jimpleMethod, invocationCount.incrementAndGet());
 		methodInvocation.setInvocationType(typeOfInvocation);
+
 		// Check if this method belongs to an external interface
 		for (MethodInvocationMatcher externalInterfaceMatcher : externalInterfaceMatchers) {
 			if (externalInterfaceMatcher.matches(methodInvocation)) {
@@ -134,9 +140,16 @@ public class StackImplementation implements TraceParser {
 		if (!purityFlag) {
 			dataDependencyGraph.addMethodInvocation(methodInvocation, actualParameters);
 			exectuionFlowGraph.enqueueMethodInvocations(methodInvocation);
-		} else{
-			logger.trace( methodInvocation + " excluded by purity");
+		} else {
+			logger.trace(methodInvocation + " excluded by purity");
 		}
+
+		// Check if this method is System.exit
+		if (systemExitMatcher.matches(methodInvocation)) {
+			logger.info("Reached System.exit " + methodInvocation);
+			systemExitReached = true;
+		}
+
 		return peekIndex - 1;
 	}
 
@@ -211,7 +224,7 @@ public class StackImplementation implements TraceParser {
 
 		if (!purityFlag) {
 
-			if( ! JimpleUtils.isVoid( JimpleUtils.getReturnType( methodInvocation.getJimpleMethod() ))){
+			if (!JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()))) {
 				methodInvocation.setXmlDumpForReturn(xmlFile);
 			}
 
@@ -242,28 +255,22 @@ public class StackImplementation implements TraceParser {
 		return false;
 	}
 
-	// TODO Probably this method shall be moved in the Trace project
-	private void parseTraceFile(String traceFilePath, List<MethodInvocationMatcher> externalInterfaceMatchers)
+	private int parseTraceFile(List<String> lines, // Lines of the trace file
+			List<MethodInvocationMatcher> externalInterfaceMatchers, int initialPosition)
 			throws FileNotFoundException, IOException {
 
-		List<String> lines = new ArrayList<String>();
-		// TODO This shall be handled somehow... especially the return value..
-		// There should be in soot a way to understand if we are inside the
-		// static MAIN
-		// There should be a value to capture the System.exit value as well
-		// instead of keeping 0 hardcoded
-		// FIXME the fact that we have multiple tests but only 1 main is not ok
-		// ?
-		// lines.add(Trace.METHOD_START_TOKEN + "StaticInvokeExpr;<ABC: int
-		// MAIN()>");
+		// Reinitialize all the parsing state variables
+		exectuionFlowGraph = new ExecutionFlowGraph();
+		dataDependencyGraph = new DataDependencyGraph();
+		callGraph = new CallGraph();
+		systemExitReached = false;
+		//
 
-		lines.addAll(Files.readAllLines(Paths.get(traceFilePath), Charset.defaultCharset()));
+		logger.info("Start parsing from position " + initialPosition);
 
-		// lines.add(Trace.METHOD_END_TOKEN + "<ABC: int MAIN()>;0");
-		// Since we need to peek we use the line index in the trace...
-		// Hopefully, int is big enough...
+		int positionAfterSystemExit = -1;
 
-		for (int i = 0; i < lines.size(); i++) {
+		for (int i = initialPosition; i < lines.size(); i++) {
 			String each = lines.get(i);
 
 			// if (each.contains("org.apache.commons.codec.binary.")) {
@@ -280,36 +287,50 @@ public class StackImplementation implements TraceParser {
 			} else {
 				logger.error("WARNING SKIP THE FOLLOWING LINE ! " + each);
 			}
+
+			if (systemExitReached) {
+				// i is the position OF system exit
+				positionAfterSystemExit = i + 1;
+				break;
+			}
 		}
 
-		// THIS ONE Seems to add the dependency edges in the simple flow graph.
-		// Which I suspect was the first implementation of the call graph ?
-		// TODO I suspect that sgv is never used...
-		// sgv.enhanceMethods();
-
-		// buildObjectInvocationsGraph();
-
-		// The graph is build during parsing !
-		// buildExecutionFlowGraph();
-		// buildDependencyGraph();
-		
-		// If the stack is not EMPTY there was a problem !
 		callGraph.verify();
+
+		return positionAfterSystemExit;
 	}
 
-	public Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parseTrace(String traceFilePath,
+	/**
+	 * There might be multiple test cases, each terminating by a call to
+	 * System.exit().
+	 */
+	public Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parseTrace(String traceFilePath,
 			List<MethodInvocationMatcher> externalInterfaceMatchers) throws FileNotFoundException, IOException {
 
-		parseTraceFile(traceFilePath, externalInterfaceMatchers);
+		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> result = new HashMap<>();
 
-		// if (System.getProperty("debug") != null) {
-		// callGraph.visualize();
-		// exectuionFlowGraph.visualize();
-		// dataDependencyGraph.visualize();
-		// }
+		// Read the file into a set of string, this might be a problem for long
+		// traces...
+		List<String> lines = new ArrayList<>();
+		lines.addAll(Files.readAllLines(Paths.get(traceFilePath), Charset.defaultCharset()));
 
-		return new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(exectuionFlowGraph,
-				dataDependencyGraph, callGraph);
+		// Parse the first system test, start from 0 and ends up in position
+		// (position of System.exit
+		// TODO maybe int is not good, but using long is cumbersome. Better an
+		// iterator at this point
+		int position = parseTraceFile(lines, externalInterfaceMatchers, 0);
+		//
+		result.put(UUID.randomUUID().toString(), new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
+				exectuionFlowGraph, dataDependencyGraph, callGraph));
+
+		while (position != -1) {
+			position = parseTraceFile(lines, externalInterfaceMatchers, position);
+			//
+			result.put(UUID.randomUUID().toString(), new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
+					exectuionFlowGraph, dataDependencyGraph, callGraph));
+		}
+
+		return result;
 	}
 
 	// Method name and parameters

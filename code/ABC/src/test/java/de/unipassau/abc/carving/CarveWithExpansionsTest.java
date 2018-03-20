@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -47,14 +48,18 @@ public class CarveWithExpansionsTest {
 
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// Parsing
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
+		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
 		// visualize(parsedTrace);
+		assertEquals(1, parsedTrace.size());
 
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedSystemTest = parsedTrace.values().iterator()
+				.next();
 		// Carving
-		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
-				parsedTrace.getThird());
+		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
+				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
+
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
 				excludeNoMethodInvocationsMatcher);
 
@@ -93,14 +98,18 @@ public class CarveWithExpansionsTest {
 		File traceFile = new File("./src/test/resources/DummySystemTestGetModified-trace.txt");
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// Parsing
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
+		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
-		// visualize(parsedTrace);
+		assertEquals(1, parsedTrace.size());
 
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedSystemTest = parsedTrace.values().iterator()
+				.next();
 		// Carving
-		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
-				parsedTrace.getThird());
+		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
+				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
+		
+		
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
 				excludeNoMethodInvocationsMatcher);
 
@@ -139,14 +148,17 @@ public class CarveWithExpansionsTest {
 
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// Parsing
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
+		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
-		// visualize(parsedTrace);
+		assertEquals(1, parsedTrace.size());
 
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedSystemTest = parsedTrace.values().iterator()
+				.next();
 		// Carving
-		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
-				parsedTrace.getThird());
+		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
+				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
+
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
 				excludeNoMethodInvocationsMatcher);
 
@@ -197,14 +209,17 @@ public class CarveWithExpansionsTest {
 
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// Parsing
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
+		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
-		// visualize(parsedTrace);
+		assertEquals(1, parsedTrace.size());
 
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedSystemTest = parsedTrace.values().iterator()
+				.next();
 		// Carving
-		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
-				parsedTrace.getThird());
+		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
+				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
+
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
 				excludeNoMethodInvocationsMatcher);
 
@@ -259,16 +274,19 @@ public class CarveWithExpansionsTest {
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		List<MethodInvocationMatcher> externalInterfaceMatchers = new ArrayList<>();
 		externalInterfaceMatchers.add(MethodInvocationMatcher.byClass("de.unipassau.abc.testsubject.DummyCreator"));
-		;
+
 		// Parsing
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
-				.parseTrace(traceFile.getAbsolutePath(), externalInterfaceMatchers);
+		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = stackImplementation
+				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
-		// visualize(parsedTrace);
+		assertEquals(1, parsedTrace.size());
 
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedSystemTest = parsedTrace.values().iterator()
+				.next();
 		// Carving
-		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
-				parsedTrace.getThird());
+		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
+				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
+
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
 				excludeNoMethodInvocationsMatcher);
 
@@ -307,15 +325,19 @@ public class CarveWithExpansionsTest {
 		File traceFile = new File("./src/test/resources/DummySystemTestGetDoubleModifiedWithDelegate-trace.txt");
 
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
+
 		// Parsing
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
+		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
-		// visualize(parsedTrace);
+		assertEquals(1, parsedTrace.size());
 
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedSystemTest = parsedTrace.values().iterator()
+				.next();
 		// Carving
-		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
-				parsedTrace.getThird());
+		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
+				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
+
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
 				excludeNoMethodInvocationsMatcher);
 
@@ -354,15 +376,19 @@ public class CarveWithExpansionsTest {
 		File traceFile = new File("./src/test/resources/DummySystemTestGetSimpleWithParameter-trace.txt");
 
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
+
 		// Parsing
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
+		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
-		// visualize(parsedTrace);
+		assertEquals(1, parsedTrace.size());
 
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedSystemTest = parsedTrace.values().iterator()
+				.next();
 		// Carving
-		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
-				parsedTrace.getThird());
+		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
+				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
+
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
 				excludeNoMethodInvocationsMatcher);
 
@@ -403,15 +429,19 @@ public class CarveWithExpansionsTest {
 		File traceFile = new File("./src/test/resources/DummySystemTestGetSimpleWithNonRequiredParameter-trace.txt");
 
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
+
 		// Parsing
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace = stackImplementation
+		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = stackImplementation
 				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
-		// visualize(parsedTrace);
+		assertEquals(1, parsedTrace.size());
 
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedSystemTest = parsedTrace.values().iterator()
+				.next();
 		// Carving
-		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTrace.getFirst(), parsedTrace.getSecond(),
-				parsedTrace.getThird());
+		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
+				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
+
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
 				excludeNoMethodInvocationsMatcher);
 

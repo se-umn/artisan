@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.Rule;
@@ -21,7 +21,6 @@ import de.unipassau.abc.instrumentation.UtilInstrumenter;
 import soot.Body;
 import soot.Local;
 import soot.Modifier;
-import soot.NullType;
 import soot.PatchingChain;
 import soot.RefType;
 import soot.Scene;
@@ -34,8 +33,6 @@ import soot.Value;
 import soot.VoidType;
 import soot.jimple.Jimple;
 import soot.jimple.JimpleBody;
-import soot.jimple.NewExpr;
-import soot.jimple.ReturnVoidStmt;
 import soot.jimple.toolkits.annotation.j5anno.AnnotationGenerator;
 import soot.tagkit.Tag;
 
@@ -45,15 +42,21 @@ public class MockingGenerator {
 	public static final String SYSTEM_IN_RULE_NAME = "userInputs";
 
 	/**
+	 * This introduce a default JUnit SystemRule which mock user inputs and can
+	 * provide inputs to java.util.Scanner. It's hard=coded, but it should make
+	 * it. Then for the test it carve out the inputs. Note we assume the last
+	 * call in the each test method is the invocation of the method under test
 	 * 
 	 * @param testClass
 	 * @param testMethod
 	 * @param carvedTest
 	 */
 	public static void addSystemIn(SootClass testClass,
-			// SootMethod testMethod,
-			// MethodInvocation methodInvocationToBeCarved, //
-			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace) {
+			// Now we have the problem that carved tests come from different
+			// system tests, and at this point we do not have this information
+			// easily available. Guess we look each and every parsedTrace to
+			// find the right one
+			Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace) {
 		SootField systemInJunit4RuleField = null;
 		if (testClass.declaresFieldByName(SYSTEM_IN_RULE_NAME)) {
 			systemInJunit4RuleField = testClass.getFieldByName(SYSTEM_IN_RULE_NAME);
@@ -144,7 +147,7 @@ public class MockingGenerator {
 	}
 
 	private static void addSystemInToTest(SootMethod testMethod, SootField systemInJunit4RuleField, //
-			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace) {
+			Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace) {
 		System.out.println("MockingGenerator.addSystemInToTest() to method " + testMethod);
 
 		// create the string array which contains in the observation ORDER all
@@ -168,7 +171,16 @@ public class MockingGenerator {
 			return;
 		}
 
-		List<Value> valuesReadFromInput = collectValuesReadFromInput(parsedTrace, methodInvocationToBeCarved);
+		// Find the "right" SystemTest
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTraceFromSystemTest = null;
+		for( Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> pTrace : parsedTrace.values() ){
+			if( pTrace.getFirst().contains( methodInvocationToBeCarved ) ){
+				parsedTraceFromSystemTest = pTrace;
+				break;
+			}
+		}
+		
+		List<Value> valuesReadFromInput = collectValuesReadFromInput(parsedTraceFromSystemTest, methodInvocationToBeCarved);
 		// At this point we have accumulated all the values that were read from
 		// input during the execution, we store them into an array and invoke
 		// org.junit.contrib.java.lang.system.TextFromStandardInputStream.provideLines(
