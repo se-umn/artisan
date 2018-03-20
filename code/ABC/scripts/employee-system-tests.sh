@@ -8,6 +8,10 @@ if [ ! -d ./sootOutput ]; then
 fi
 
 rm employee-system-tests.log
+rm employee-system-tests-coverage.log
+rm employee-system-tests.exec
+rm employee-system-tests.xml
+rm -r employee-system-tests-report
 
 # Invoke the System test using JUnit. It requires all the test deps to be provided as classpath
 
@@ -36,6 +40,26 @@ SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestStartAndExit"
 #SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestStartAndExitWithManualInput"
 
 
+JACOCO_AGENT="../libs/jacocoagent.jar"
+JACOCO_CLI="../libs/jacococli.jar"
+
+### Collect coverage information BEFORE running the instrumented code
+java \
+    -javaagent:${JACOCO_AGENT}=destfile=employee-system-tests.exec \
+        -cp ${PROJECT_CP}:${TEST_CP}:${JUNIT_CP}:${SUPPORTING_JARS} \
+        ${JAVA_OPTS} \
+            org.junit.runner.JUnitCore \
+                ${SYSTEM_TESTS} \
+                    2>&1 | tee employee-system-tests-coverage.log
+
+### Generate the REPORT. HTML for us, XML for later processing
+java -jar ${JACOCO_CLI} report employee-system-tests.exec \
+    --classfiles ${PROJECT_CP} \
+    --name employee-system-tests \
+    --html employee-system-tests-report \
+    --xml employee-system-tests.xml
+
+### Run the instrumented files to generate the trace
 JAVA_OPTS="-Dtrace.output=./tracingOut -Ddump.output=./tracingOut"
 
 java \
