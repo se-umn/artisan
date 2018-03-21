@@ -326,7 +326,7 @@ public class StackImplementation implements TraceParser {
 		result.put(UUID.randomUUID().toString(), new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
 				exectuionFlowGraph, dataDependencyGraph, callGraph));
 
-		while (position != -1) {
+		while (position != -1 && position < lines.size() ) {
 			position = parseTraceFile(lines, externalInterfaceMatchers, position);
 			//
 			result.put(UUID.randomUUID().toString(), new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
