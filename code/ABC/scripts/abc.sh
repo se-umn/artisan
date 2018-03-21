@@ -47,7 +47,6 @@ function carve(){
 	TRACE_FILE=$2
 	CARVE_BY=$3
 	OUTPUT_DIR=${4:-${DEFAULT_CARVING_OUTPUT_DIR}}
-	
 	export JAVA_OPTS=${CARVING_JAVA_OPTS}
 
 	${BIN_FOLDER}/carve \

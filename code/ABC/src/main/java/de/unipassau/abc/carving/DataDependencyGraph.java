@@ -3,7 +3,6 @@ package de.unipassau.abc.carving;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Paint;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -23,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 
+import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.utils.GraphUtility;
 import de.unipassau.abc.utils.JimpleUtils;
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
@@ -99,51 +99,10 @@ public class DataDependencyGraph {
 
 			// DANGLING OBJECTS !
 			if (!graph.containsVertex(node)) {
-
-				// HERE We need to check if this data note is not yet define, if
-				// this is an OBJECT might be an error, since all the objects
-				// must
-				// be define before use... There might be different explanations
-				// here: the one we found is the objects like System.in gets
-				// initialized inside java code, so we cannot see this. Hence we
-				// cannot carve this. We use the simple heuristic here that we
-				// force "System.in"
 				if (node instanceof ObjectInstance) {
-
-					// We use heuristics here:
-
-					//
-					// Check if this is System.in mocking
-					if (((ObjectInstance) node).getType().startsWith(
-							"org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock")) {
-						node = ObjectInstance.SystemIn();
-					} else if (((ObjectInstance) node).getType().endsWith("[]")) {
-						// Check if this is an array... Shall we default to
-						// empty array ?!
-						// Otherwise, we might need to look at their serialized
-						// form ?!
-						System.out.println("DataDependencyGraph.addMethodInvocation() It's an array of type " + ((ObjectInstance) node).getType().replace("[]", ""));
-						System.out.println("DataDependencyGraph.addMethodInvocation() WE SKIP ARRAY FOR THE MOMENT");
-
-					} else {
-
-						try {
-							@SuppressWarnings("rawtypes")
-							Class actualClass = Class.forName(((ObjectInstance) node).getType());
-							if (InputStream.class.isAssignableFrom(actualClass)) {
-								// System.out.println("DataDependencyGraph.addMethodInvocation()
-								// FIRST SEEN " + node);
-								node = ObjectInstance.SystemIn();
-								// System.out.println("DataDependencyGraph.addMethodInvocation()
-								// Patch with " + node);
-							}
-						} catch (ClassNotFoundException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-					}
-
+					node = handleDanglingObjectInstance((ObjectInstance) node);
 				}
+
 				graph.addVertex(node);
 
 			}
@@ -151,6 +110,86 @@ public class DataDependencyGraph {
 			graph.addEdge(DATA_DEPENDENCY_PREFIX + "_" + position + "_" + id.getAndIncrement(), node, methodInvocation,
 					EdgeType.DIRECTED);
 		}
+	}
+
+	// HERE We need to check if this data note is not yet define, if
+	// this is an OBJECT might be an error, since all the objects
+	// must
+	// be define before use... There might be different explanations
+	// here: the one we found is the objects like System.in gets
+	// initialized inside java code, so we cannot see this. Hence we
+	// cannot carve this. We use the simple heuristic here that we
+	// force "System.in"
+	private ObjectInstance handleDanglingObjectInstance(ObjectInstance node) {
+
+		// Check if this is System.in mocking
+		if (((ObjectInstance) node).getType()
+				.startsWith("org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock")) {
+			return ObjectInstance.SystemIn();
+		} else if (((ObjectInstance) node).getType().endsWith("[]")) {
+			// Check if this is an array... Shall we default to
+			// empty array ?! or null ?
+			// Otherwise, we might need to look at their serialized
+			// form ?!
+			
+			System.out.println("DataDependencyGraph.addMethodInvocation() It's an array of type "
+					+ ((ObjectInstance) node).getType().replace("[]", ""));
+			System.out.println("DataDependencyGraph.addMethodInvocation() WE SKIP ARRAY FOR THE MOMENT");
+			//
+			return node;
+		} else {
+			// For some reason, the tracer reports an interface
+			// level ref instead of an implementation level one
+			// for Path and UnixPath. Therefore we use the following
+			// heuristic: if in the graph there's already an object
+			// with the same
+			// system id and which implements and interface (or
+			// maybe is implemented by?) we merge the two....
+			// TODO We might track ALIAS relations now and then
+			// merge those...
+			// TODO Not sure if we always see first the interface
+			// and then the implementation, tho
+
+			// This returns the FIRST one there, does not check if there's more
+			// than one
+			ObjectInstance alias = getVertexById(((ObjectInstance) node).getObjectId());
+			if (alias != null) {
+				// TODO Check interface !
+				System.out.println("DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with " + alias);
+				return alias;
+			} else {
+//				// FIXME IS THIS REALLY NECESSARY ?
+//				try {
+//					@SuppressWarnings("rawtypes")
+//					Class actualClass = Class.forName(((ObjectInstance) node).getType());
+//					if (InputStream.class.isAssignableFrom(actualClass)) {
+//						// System.out.println("DataDependencyGraph.addMethodInvocation()
+//						// FIRST SEEN " + node);
+//						return ObjectInstance.SystemIn();
+//						// System.out.println("DataDependencyGraph.addMethodInvocation()
+//						// Patch with " + node);
+//					}
+//				} catch (ClassNotFoundException e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//				}
+			}
+		}
+
+		System.out.println("DataDependencyGraph.handleDanglingObjectInstance() Return the original node");
+		// Worst case return the original node
+		return node;
+	}
+
+	// TODO We might need to check that there no 2 objects with same id...
+	private ObjectInstance getVertexById(String objectId) {
+		// We need to extract the id
+		for (ObjectInstance objectInstance : getObjectInstances()) {
+			if (objectInstance.getObjectId().split("@")[1].equals(objectId.split("@")[1])) {
+				return objectInstance;
+			}
+		}
+		return null;
 	}
 
 	// This will not work for static methods
@@ -185,10 +224,16 @@ public class DataDependencyGraph {
 		} else {
 			node = new ObjectInstance(returnValue);
 		}
+
+		// DANGLING OBJECTS !
 		if (!graph.containsVertex(node)) {
+			if (node instanceof ObjectInstance) {
+				node = handleDanglingObjectInstance((ObjectInstance) node);
+			}
+
 			graph.addVertex(node);
+
 		}
-		// METHOD -> RETURN
 
 		graph.addEdge(RETURN_DEPENDENCY_PREFIX + id.getAndIncrement(), methodInvocation, node, EdgeType.DIRECTED);
 	}
@@ -199,14 +244,18 @@ public class DataDependencyGraph {
 			graph.addVertex(methodInvocation);
 		}
 
-		ObjectInstance oi = new ObjectInstance(objectInstanceId);
-		methodInvocation.setOwner(oi);
+		ObjectInstance node = new ObjectInstance(objectInstanceId);
 
-		if (!graph.containsVertex(oi)) {
-			graph.addVertex(oi);
+		if (!graph.containsVertex(node)) {
+			if (node instanceof ObjectInstance) {
+				node = handleDanglingObjectInstance((ObjectInstance) node);
+			}
+			graph.addVertex(node);
 		}
+
+		methodInvocation.setOwner(node);
 		// Dependency as owner of the method OBJECT -> INIT
-		graph.addEdge(OWNERSHIP_DEPENDENCY_PREFIX + id.getAndIncrement(), oi, methodInvocation, EdgeType.DIRECTED);
+		graph.addEdge(OWNERSHIP_DEPENDENCY_PREFIX + id.getAndIncrement(), node, methodInvocation, EdgeType.DIRECTED);
 	}
 
 	// https://www.youtube.com/watch?v=I6eAA7tmgsQ
@@ -612,7 +661,7 @@ public class DataDependencyGraph {
 		return (incomingEdges != null) ? incomingEdges : new HashSet<String>();
 	}
 
-	public MethodInvocation getInitMethodInvocationFor(ObjectInstance objectInstance) {
+	public MethodInvocation getInitMethodInvocationFor(ObjectInstance objectInstance) throws CarvingException {
 		// include the init call
 		for (String outgoingEdge : graph.getOutEdges(objectInstance)) {
 			if (outgoingEdge.startsWith(OWNERSHIP_DEPENDENCY_PREFIX)) {
@@ -626,10 +675,11 @@ public class DataDependencyGraph {
 			}
 		}
 
-		// TODO There's problem with mocked objects
-		// java.lang.RuntimeException: Cannot find INIT call for
-		// org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock@1869997857
-		throw new RuntimeException("Cannot find INIT call for " + objectInstance);
+		// NOTE: For some object there's no INIT call, but there might be a call
+		// which RETURN them. Especially if this call which returns them is an
+		// EXTERNAL INTERFACE
+
+		throw new CarvingException("Cannot find INIT call for " + objectInstance);
 	}
 
 	public Set<MethodInvocation> getMethodInvocationsWhichReturn(ObjectInstance objectInstance) {
@@ -654,6 +704,10 @@ public class DataDependencyGraph {
 		for (GraphNode node : graph.getVertices()) {
 			if (node instanceof MethodInvocation) {
 				MethodInvocation mi = (MethodInvocation) node;
+				
+				System.out.println("DataDependencyGraph.refine() " + mi + " belongsToExternalInterface() " + mi.belongsToExternalInterface());
+				
+				
 				if (!connectedMethodInvocations.contains(mi) && !mi.belongsToExternalInterface()) {
 					unconnected.add(mi);
 				}

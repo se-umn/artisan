@@ -93,7 +93,7 @@ public class CodeGenerationTest {
 				excludeNoMethodInvocationsMatcher);
 
 		File projectJar = new File("./src/test/resources/Employee.jar");
-		TestGenerator testCaseGenerator = new TestGenerator(projectJar.getAbsolutePath());
+		TestGenerator testCaseGenerator = new TestGenerator(projectJar);
 		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests);
 
 		assertEquals(1, testCases.size());

@@ -34,9 +34,12 @@ import soot.Type;
 import soot.Unit;
 import soot.Value;
 import soot.VoidType;
+import soot.jimple.ArrayRef;
+import soot.jimple.IntConstant;
 import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
 import soot.jimple.JimpleBody;
+import soot.jimple.NewArrayExpr;
 import soot.jimple.Stmt;
 import soot.jimple.toolkits.annotation.j5anno.AnnotationGenerator;
 import soot.options.Options;
@@ -50,10 +53,18 @@ public class TestGenerator {
 
 	// Point to jar of target project. This is the original code, not the
 	// instrumented one
-	private String projectLib;
+	private List<String> projectLibs = new ArrayList<>();
 
-	public TestGenerator(String projectLib) {
-		this.projectLib = projectLib;
+	public TestGenerator(File... projectLibs) {
+		List<String> projectLibsPath = new ArrayList<>();
+		for (File projectLib : projectLibs) {
+			projectLibsPath.add(projectLib.getAbsolutePath());
+		}
+		this.projectLibs.addAll(projectLibsPath);
+	}
+
+	public TestGenerator(List<String> projectLibsPath) {
+		this.projectLibs.addAll(projectLibsPath);
 	}
 
 	private void setupSoot() {
@@ -80,15 +91,17 @@ public class TestGenerator {
 
 		ArrayList<String> necessaryJar = new ArrayList<String>();
 		// Include here JUnit and Hamcrest
-		necessaryJar.add(this.projectLib);
+		for (String projectLib : projectLibs) {
+			necessaryJar.add(projectLib);
+		}
 		necessaryJar.add(junit4Jar);
 		necessaryJar.add(hamcrestCoreJar);
 		necessaryJar.add(traceJar);
 		//
 		necessaryJar.add(systemRulesJar);
 		//
-		necessaryJar.addAll( xStreamJars );
-		
+		necessaryJar.addAll(xStreamJars);
+
 		/// TODO Maybe we need to filter out things ?
 		// TODO Maybe we need to include XStream and XMLPull
 
@@ -215,7 +228,8 @@ public class TestGenerator {
 					localMap.put(type, new AtomicInteger(0));
 				}
 
-//				System.out.println("TestGenerator.generateAndAddTestMethodToTestClass() Patch for System.in");
+				// System.out.println("TestGenerator.generateAndAddTestMethodToTestClass()
+				// Patch for System.in");
 				// Generate a local for system in
 				int localId = localMap.get(type).getAndIncrement();
 
@@ -240,24 +254,56 @@ public class TestGenerator {
 				}
 				int localId = localMap.get(type).getAndIncrement();
 
-				String localName = RefType.v(type).getClassName();
-				localName = localName.substring(localName.lastIndexOf('.') + 1);
-				// Apply code conventions
-				localName = localName.replaceFirst(localName.substring(0, 1), localName.substring(0, 1).toLowerCase());
-				//
-				Local localVariable = Jimple.v().newLocal(localName + localId, RefType.v(type));
-				body.getLocals().add(localVariable);
+				// ARRAYS ARE STORES LIKE <className>[] and not as [L<classname>;
+				RefType variableType = null;
+				String variableName = null;
+				
+				if( type.endsWith("[]")){
+					variableType = RefType.v(type.replace("[]", ""));
+					variableName = variableType.getClassName();
+					//
+					variableName = variableName.substring(variableName.lastIndexOf('.') + 1);
+					// Apply code conventions
+					variableName = variableName.replaceFirst(variableName.substring(0, 1), variableName.substring(0, 1).toLowerCase());
+					
+					variableName = variableName + "Array";
+					
+					//					name the array
+					// Create an array to host the values
+					// TODO: THIS IS WRONG BUT CANNOT SEE OTHER SOLUYTION NOW !
+					NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(variableType, //RefType.v("java.lang.Object"),
+							IntConstant.v(0));
 
-				// TODO Here most likely we need to handle
-				// Handle System.in
-				// Scene.v().loadClassAndSupport("java.lang.System");
-
-				// Debug
-				// logger.trace
-//				System.out.println("  >>>> Create a new local variable " + localVariable + " of type " + type
-//						+ " and node " + node + " " + node.hashCode());
-
-				dataDependencyGraph.setValueFor(node, localVariable);
+					Local newArrayLocal = Jimple.v().newLocal(variableName + localId, variableType);
+					body.getLocals().add(newArrayLocal);
+					
+					// Add the instruction to create the empty array 
+					Unit newAssignStmt = Jimple.v().newAssignStmt(newArrayLocal, arrayExpr);
+					units.add(newAssignStmt);
+					
+					// Debug
+					logger.trace("  >>>> Create a new local ARRAY variable " + newArrayLocal + " of type " + type + " and node "
+							+ node + " " + node.hashCode());
+					//
+					dataDependencyGraph.setValueFor(node, newArrayLocal);
+				} else{
+					variableType = RefType.v(type);
+					variableName = variableType.getClassName();
+					//
+					variableName = variableName.substring(variableName.lastIndexOf('.') + 1);
+					// Apply code conventions
+					variableName = variableName.replaceFirst(variableName.substring(0, 1), variableName.substring(0, 1).toLowerCase());
+					//
+					Local localVariable = Jimple.v().newLocal(variableName + localId, variableType);
+					body.getLocals().add(localVariable);
+					
+					// Debug
+					logger.trace("  >>>> Create a new local variable " + localVariable + " of type " + type + " and node "
+							+ node + " " + node.hashCode());
+					
+					dataDependencyGraph.setValueFor(node, localVariable);
+				}
+				
 			}
 			//
 		}
@@ -404,7 +450,17 @@ public class TestGenerator {
 				units.add(callStmt);
 			}
 			break;
-
+		case "InterfaceInvokeExpr":
+			if (returnObjLocal != null) {
+				Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
+						jimple.newInterfaceInvokeExpr(objLocal, method.makeRef(), parametersValues));
+				units.add(assignStmt);
+			} else {
+				Stmt callStmt = jimple
+						.newInvokeStmt(jimple.newInterfaceInvokeExpr(objLocal, method.makeRef(), parametersValues));
+				units.add(callStmt);
+			}
+			break;
 		default:
 			logger.error("Unexpected Invocation type " + methodInvocation.getInvocationType());
 			throw new NotImplementedException("Unexpected Invocation type " + methodInvocation.getInvocationType());

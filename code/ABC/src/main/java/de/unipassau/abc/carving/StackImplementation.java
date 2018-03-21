@@ -92,6 +92,8 @@ public class StackImplementation implements TraceParser {
 		for (MethodInvocationMatcher externalInterfaceMatcher : externalInterfaceMatchers) {
 			if (externalInterfaceMatcher.matches(methodInvocation)) {
 				methodInvocation.setBelongsToExternalInterface(true);
+			} else {
+				System.out.println( externalInterfaceMatcher + " does not match " + methodInvocation);
 			}
 		}
 

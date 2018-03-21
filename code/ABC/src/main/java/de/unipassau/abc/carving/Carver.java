@@ -33,7 +33,7 @@ public class Carver {
 		File getTraceFile();
 
 		@Option(longName = "project-jar")
-		File getProjectJar();
+		List<File> getProjectJar();
 
 		@Option(longName = "output-to", defaultToNull = true)
 		File getOutputDir();
@@ -83,7 +83,7 @@ public class Carver {
 		long startTime = System.nanoTime();
 
 		File traceFile = null;
-		File projectJar = null;
+		List<File> projectJars = new ArrayList<>();
 		File outputDir = null;
 		MethodInvocationMatcher carveBy = null;
 		MethodInvocationMatcher excludeBy = null;
@@ -101,24 +101,24 @@ public class Carver {
 			// Default pure methods
 		}
 		try {
-			CarverCLI result = CliFactory.parseArguments(CarverCLI.class, args);
-			traceFile = result.getTraceFile();
-			outputDir = result.getOutputDir();
-			projectJar = result.getProjectJar();
+			CarverCLI cli = CliFactory.parseArguments(CarverCLI.class, args);
+			traceFile = cli.getTraceFile();
+			outputDir = cli.getOutputDir();
+			projectJars.addAll( cli.getProjectJar() );
 
 			// TODO This can be moved inside CLI parsing using an instance
 			// strategy
-			String[] carveByTokens = result.getCarveBy().split("=");
+			String[] carveByTokens = cli.getCarveBy().split("=");
 			carveBy = getMatcherFor(carveByTokens[0], carveByTokens[1]);
 
-			if (result.getExcludeBy() != null) {
-				String[] excludeByTokens = result.getExcludeBy().split("=");
+			if (cli.getExcludeBy() != null) {
+				String[] excludeByTokens = cli.getExcludeBy().split("=");
 				excludeBy = getMatcherFor(excludeByTokens[0], excludeByTokens[1]);
 			} else {
 				excludeBy = MethodInvocationMatcher.noMatch();
 			}
 
-			externalInterfaces.addAll((result.getExternalInterfaces() != null) ? result.getExternalInterfaces()
+			externalInterfaces.addAll((cli.getExternalInterfaces() != null) ? cli.getExternalInterfaces()
 					: new ArrayList<String>());
 
 		} catch (ArgumentValidationException e) {
@@ -128,6 +128,9 @@ public class Carver {
 		// corresponding method invocation with the flag
 		List<MethodInvocationMatcher> externalInterfaceMatchers = new ArrayList<MethodInvocationMatcher>();
 		for (String externalInterface : externalInterfaces) {
+			
+			System.out.println("Carver.main() >>>> external interface " + externalInterface );
+			
 			// By default those are class matchers !
 			externalInterfaceMatchers.add(MethodInvocationMatcher.byClass(externalInterface));
 		}
@@ -180,7 +183,7 @@ public class Carver {
 
 		System.out.println("Carver.main() Start code generation");
 		// Test Generation
-		TestGenerator testCaseGenerator = new TestGenerator(projectJar.getAbsolutePath());
+		TestGenerator testCaseGenerator = new TestGenerator(projectJars.toArray( new File[]{}));
 		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests);
 
 		// TODO Are assertions STILL generated ?!

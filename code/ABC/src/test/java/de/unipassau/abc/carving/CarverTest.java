@@ -32,12 +32,11 @@ public class CarverTest {
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
 	@Test
 	@Category(SystemTest.class)
-	public void testCarvingByMethodForSubsumedCall() throws IOException, InterruptedException {
-//		String jimpleMethodToCarve = "<org.employee.DummyObjectToPassAsParameter: void <init>()>"; ///
+	public void testCarvingManually() throws IOException, InterruptedException {
 
 		try {
 			Carver carver = new Carver();
@@ -53,11 +52,13 @@ public class CarverTest {
 					// String projectJar =
 					"--project-jar", "./src/test/resources/Employee.jar",
 					// String outputDir =
-					"--output-to", outputDirectory.getAbsolutePath() };
+					"--output-to", outputDirectory.getAbsolutePath(),
+					// List the external interfaces here
+					"--external", "org.junit.rules.TemporaryFolder", "java.nio.file.Files"};
 			//
 			carver.main(args);
 			//
-			assertEquals(2, outputDirectory.listFiles().length);
+			assertEquals(1, ABCTestUtils.countFiles(outputDirectory, ".java"));
 
 			ABCTestUtils.printJavaClasses(outputDirectory);
 		} catch (Throwable e) {

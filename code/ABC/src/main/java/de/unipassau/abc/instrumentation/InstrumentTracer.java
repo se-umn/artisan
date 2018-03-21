@@ -501,12 +501,11 @@ public class InstrumentTracer extends BodyTransformer {
 		}
 		List<String> externalInterfaces = new ArrayList<>();
 		{
-			// Default Interfaces are the one for Files, Network, etc. ?
-			// TODO this list is not complete !
-			externalInterfaces.add("java.util.Scanner");
+			// External interfaces are not instrumented by soot
+			// externalInterfaces.add("java.util.Scanner");
 		}
 
-		// Default pure methods
+		// Default pure methods. Pure methods ARE not tracked !!
 		{
 			// m.getDeclaringClass().getName().equals("java.lang.StringBuilder")
 			// ||
@@ -514,6 +513,10 @@ public class InstrumentTracer extends BodyTransformer {
 
 			pureMethods.add(Pattern.compile(Pattern.quote("<java.lang.Object: void <init>()>")));
 			pureMethods.add(Pattern.compile("<java.io.PrintStream: void println\\(.*>"));
+			
+			//
+			// pureMethods.add(Pattern.compile("<java.nio.file.Path: File toFile()>")); 
+			
 			// We treat Strings as primitives, i.e., we pass around them by
 			// value. This means that we can omit to track calls to to
 			// StringBuilder ... (I hope so! -> not really, the moment those are

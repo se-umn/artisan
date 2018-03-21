@@ -36,8 +36,8 @@ public class MethodInvocationMatcher {
 			+ "([\\.\\w][\\.\\w]*|<init>|<clinit>)" // Method name or
 													// constructor or static
 													// initializer
-			+ "\\(([a-zA_Z_][\\.\\w]*)?(,[a-zA_Z_][\\.\\w]*)*\\)" // Parameter
-																	// list
+			+ "\\(([a-zA_Z_][\\.\\w]*(\\[\\])?)?(,[a-zA_Z_][\\.\\w]*(\\[\\])?)*\\)" // Parameter
+																	// list -> Does not match ARRAY !
 			+ ">"); // Closing Tag
 
 	// Package and class name, package class and name for return type,
@@ -164,13 +164,13 @@ public class MethodInvocationMatcher {
 		final Matcher jimpleMatcher = jimpleMethodInvocationPattern.matcher(jimpleMethod);
 
 		if (!jimpleMatcher.find()) {
-//			logger.trace(methodInvocation + " does not match jimpleMatcher");
+			logger.trace(methodInvocation + " does not match jimpleMatcher");
 			return false;
 		}
 
 		final Matcher classMatcher = classPattern.matcher(JimpleUtils.getClassNameForMethod(jimpleMethod));
 		if (!classMatcher.find()) {
-//			logger.trace(methodInvocation + " does not match classPatternMatcher " + classPattern);
+			logger.trace(methodInvocation + " does not match classPatternMatcher " + classPattern);
 			return false;
 		} else if (returnPattern == null) {
 			return true;
@@ -180,7 +180,7 @@ public class MethodInvocationMatcher {
 
 		final Matcher returnMatcher = returnPattern.matcher(JimpleUtils.getReturnType(jimpleMethod));
 		if (!returnMatcher.find()) {
-//			logger.trace(methodInvocation + " does not match returnPatternMatcher " + returnPattern);
+			logger.trace(methodInvocation + " does not match returnPatternMatcher " + returnPattern);
 			return false;
 		} else if (methodPattern == null) {
 			return true;

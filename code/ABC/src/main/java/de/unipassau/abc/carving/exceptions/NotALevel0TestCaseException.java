@@ -4,7 +4,7 @@ import java.util.List;
 
 import de.unipassau.abc.carving.MethodInvocation;
 
-public class NotALevel0TestCaseException extends Exception {
+public class NotALevel0TestCaseException extends CarvingException {
 
 	private static final long serialVersionUID = -4249043711042731323L;
 
