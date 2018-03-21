@@ -73,13 +73,21 @@ public class Trace {
 					// Not null string By Value
 					content += String.valueOf(objects[i]);
 				} else if (isArray(parametersType[i])) {
+
 					// TODO Not sure this is the best approach, tho
 					// We transform:
 					// [Ljava.nio.file.attribute.FileAttribute;@448354164
 					// To java.nio.file.attribute.FileAttribute[]@448354164
-					String transformedClassName = (objects[i]).getClass().getName().replace("[L", "").replace(";", "")
-							+ "[]";
-					content += transformedClassName + "@" + System.identityHashCode(objects[i]);
+					if ((objects[i]).getClass().getName().contains("[L")) {
+						String transformedClassName = (objects[i]).getClass().getName().replace("[L", "").replace(";",
+								"") + "[]";
+						content += transformedClassName + "@" + System.identityHashCode(objects[i]);
+					} else {
+						// Arrays of primitive types are weird, they are not [L
+						// but [B for byte [I for integer
+						// To avoid problems we use the formal parameters
+						content += parametersType[i] + "@" + System.identityHashCode(objects[i]);
+					}
 				} else {
 					// By Reference - String can be NULL !
 					content += (objects[i]).getClass().getName() + "@" + System.identityHashCode(objects[i]);
@@ -141,7 +149,7 @@ public class Trace {
 				+ ((xmlFile != null) ? xmlFile : "") + ";";//
 
 		if (isArray(parameterType)) {
-//			System.out.println("Trace.methodObject() " + parameterType );
+			// System.out.println("Trace.methodObject() " + parameterType );
 			// TODO Not sure this is the best approach, tho
 			// We transform:
 			// [Ljava.nio.file.attribute.FileAttribute;@448354164
