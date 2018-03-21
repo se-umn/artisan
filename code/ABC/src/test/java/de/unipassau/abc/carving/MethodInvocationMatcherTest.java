@@ -19,6 +19,14 @@ public class MethodInvocationMatcherTest {
 			1);
 
 	@Test
+	public void testByMethodWithArray() {
+		MethodInvocation methodInvocation = new MethodInvocation("<de.unipassau.abc.testsubject2.ArrayHandlingClass: void callMeMaybe(java.lang.String[])>", 1);
+		MethodInvocationMatcher methodMatcher = MethodInvocationMatcher
+				.byMethodLiteral("<de.unipassau.abc.testsubject2.ArrayHandlingClass: void callMeMaybe(java.lang.String[])>");
+		assertTrue(methodMatcher.matches(methodInvocation));
+	}
+	
+	@Test
 	public void testMethodWithRegEx() {
 		MethodInvocation scannerReadString = new MethodInvocation("<<java.util.Scanner: java.lang.String next()>)>", 1);
 		MethodInvocation scannerReadInt = new MethodInvocation("<<java.util.Scanner: int nextInt()>)>", 2);
@@ -34,6 +42,42 @@ public class MethodInvocationMatcherTest {
 				"java.lang.String", "org.employee.DummyObjectToPassAsParameter");
 		assertTrue(mim.matches(sampleMethodInvocation));
 	}
+	
+	@Test
+	public void testMatchWithParameterArray1() {
+		MethodInvocationMatcher mim = MethodInvocationMatcher.byClass("java.nio.file.Files");
+		MethodInvocation methodInvocationWithArray = new MethodInvocation("<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.lang.String,java.nio.file.attribute.FileAttribute[])>",1);
+		assertTrue(mim.matches(methodInvocationWithArray));
+	}
+	
+	@Test
+	public void testMatchWithParameterArray2() {
+		MethodInvocationMatcher mim = MethodInvocationMatcher.byClass("java.nio.file.Files");
+		MethodInvocation methodInvocationWithArray = new MethodInvocation("<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.nio.file.attribute.FileAttribute[],java.lang.String)>",1);
+		assertTrue(mim.matches(methodInvocationWithArray));
+	}
+	
+	@Test
+	public void testMatchWithParameterArray3() {
+		MethodInvocationMatcher mim = MethodInvocationMatcher.byClass("java.nio.file.Files");
+		MethodInvocation methodInvocationWithArray = new MethodInvocation("<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.nio.file.attribute.FileAttribute[])>",1);
+		assertTrue(mim.matches(methodInvocationWithArray));
+	}
+	
+	@Test
+	public void testMatchWithParameterArray4() {
+		MethodInvocationMatcher mim = MethodInvocationMatcher.byClass("java.nio.file.Files");
+		MethodInvocation methodInvocationWithArray = new MethodInvocation("<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.lang.String[],java.nio.file.attribute.FileAttribute[])>",1);
+		assertTrue(mim.matches(methodInvocationWithArray));
+	}
+	
+	@Test
+	public void testMatchWithParameterArray5() {
+		MethodInvocationMatcher mim = MethodInvocationMatcher.byClass("java.nio.file.Files");
+		MethodInvocation methodInvocationWithArray = new MethodInvocation("<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.lang.String[],int,java.nio.file.attribute.FileAttribute[])>",1);
+		assertTrue(mim.matches(methodInvocationWithArray));
+	}
+	
 
 	@Test
 	public void testDoesNotExactMatch() {

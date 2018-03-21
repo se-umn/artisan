@@ -77,7 +77,8 @@ public class Trace {
 					// We transform:
 					// [Ljava.nio.file.attribute.FileAttribute;@448354164
 					// To java.nio.file.attribute.FileAttribute[]@448354164
-					String transformedClassName = (objects[i]).getClass().getName().replace("[L", "").replace(";", "")+"[]";
+					String transformedClassName = (objects[i]).getClass().getName().replace("[L", "").replace(";", "")
+							+ "[]";
 					content += transformedClassName + "@" + System.identityHashCode(objects[i]);
 				} else {
 					// By Reference - String can be NULL !
@@ -133,9 +134,23 @@ public class Trace {
 			e.printStackTrace();
 		}
 
-		String content = METHOD_OBJECT_TOKEN + method + ";"//
-				+ ((xmlFile != null) ? xmlFile : "") + ";" //
-				+ "" + o.getClass().getName() + "@" + System.identityHashCode(o);
+		// There should be only one
+		String parameterType = extractClassType(method);
+
+		String content = METHOD_OBJECT_TOKEN + method + ";" //
+				+ ((xmlFile != null) ? xmlFile : "") + ";";//
+
+		if (isArray(parameterType)) {
+//			System.out.println("Trace.methodObject() " + parameterType );
+			// TODO Not sure this is the best approach, tho
+			// We transform:
+			// [Ljava.nio.file.attribute.FileAttribute;@448354164
+			// To java.nio.file.attribute.FileAttribute[]@448354164
+			String transformedClassName = o.getClass().getName().replace("[L", "").replace(";", "") + "[]";
+			content += transformedClassName + "@" + System.identityHashCode(o);
+		} else {
+			content += "" + o.getClass().getName() + "@" + System.identityHashCode(o);
+		}
 
 		appendToTraceFile(content + "\n");
 	}
@@ -209,6 +224,11 @@ public class Trace {
 
 	private static String extractReturnType(String methodName) {
 		return methodName.split(" ")[1];
+	}
+
+	// NOT SURE THIS IS CORRECT !
+	private static String extractClassType(String methodName) {
+		return methodName.replace("<", "").split(" ")[0].replaceAll(":", "");
 	}
 
 	public static void appendToTraceFile(String content) {

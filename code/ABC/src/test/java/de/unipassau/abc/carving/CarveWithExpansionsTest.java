@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -72,7 +73,10 @@ public class CarveWithExpansionsTest {
 		assertEquals(2, carvedTests.size());
 
 		String testSubjectJar = "./libs/testsubject-tests.jar";
-		TestGenerator testGenerator = new TestGenerator(testSubjectJar);
+		
+		Carver.setupSoot( Collections.singletonList( new File(testSubjectJar) ) );
+		
+		TestGenerator testGenerator = new TestGenerator( );
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 
@@ -122,7 +126,10 @@ public class CarveWithExpansionsTest {
 		assertEquals(2, carvedTests.size());
 
 		String testSubjectJar = "./libs/testsubject-tests.jar";
-		TestGenerator testGenerator = new TestGenerator(testSubjectJar);
+		
+		Carver.setupSoot( Collections.singletonList( new File(testSubjectJar) ) );
+		TestGenerator testGenerator = new TestGenerator( );
+		
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 
@@ -171,7 +178,10 @@ public class CarveWithExpansionsTest {
 		assertEquals(3, carvedTests.size());
 
 		String testSubjectJar = "./libs/testsubject-tests.jar";
-		TestGenerator testGenerator = new TestGenerator(testSubjectJar);
+
+		Carver.setupSoot( Collections.singletonList( new File(testSubjectJar) ) );
+		TestGenerator testGenerator = new TestGenerator( );
+	
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 
@@ -232,7 +242,10 @@ public class CarveWithExpansionsTest {
 		assertEquals(3, carvedTests.size());
 
 		String testSubjectJar = "./libs/testsubject-tests.jar";
-		TestGenerator testGenerator = new TestGenerator(testSubjectJar);
+
+		Carver.setupSoot( Collections.singletonList( new File(testSubjectJar) ) );
+		TestGenerator testGenerator = new TestGenerator( );
+	
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 
@@ -299,7 +312,10 @@ public class CarveWithExpansionsTest {
 		assertEquals(3, carvedTests.size());
 
 		String testSubjectJar = "./libs/testsubject-tests.jar";
-		TestGenerator testGenerator = new TestGenerator(testSubjectJar);
+
+		Carver.setupSoot( Collections.singletonList( new File(testSubjectJar) ) );
+		TestGenerator testGenerator = new TestGenerator( );
+	
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 
@@ -351,7 +367,10 @@ public class CarveWithExpansionsTest {
 		assertEquals(3, carvedTests.size());
 
 		String testSubjectJar = "./libs/testsubject-tests.jar";
-		TestGenerator testGenerator = new TestGenerator(testSubjectJar);
+
+		Carver.setupSoot( Collections.singletonList( new File(testSubjectJar) ) );
+		TestGenerator testGenerator = new TestGenerator( );
+	
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 
@@ -403,7 +422,10 @@ public class CarveWithExpansionsTest {
 		assertEquals(4, carvedTests.size());
 
 		String testSubjectJar = "./libs/testsubject-tests.jar";
-		TestGenerator testGenerator = new TestGenerator(testSubjectJar);
+
+		Carver.setupSoot( Collections.singletonList( new File(testSubjectJar) ) );
+		TestGenerator testGenerator = new TestGenerator( );
+	
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 
@@ -451,7 +473,10 @@ public class CarveWithExpansionsTest {
 		assertEquals(4, carvedTests.size());
 
 		String testSubjectJar = "./libs/testsubject-tests.jar";
-		TestGenerator testGenerator = new TestGenerator(testSubjectJar);
+
+		Carver.setupSoot( Collections.singletonList( new File(testSubjectJar) ) );
+		TestGenerator testGenerator = new TestGenerator( );
+	
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 

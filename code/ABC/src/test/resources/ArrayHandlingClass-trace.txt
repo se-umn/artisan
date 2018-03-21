@@ -1,0 +1,37 @@
+[>];SpecialInvokeExpr;<de.unipassau.abc.testsubject2.ArrayHandlingClass: void <init>()>
+[||];<de.unipassau.abc.testsubject2.ArrayHandlingClass: void <init>()>;/var/folders/jf/9l21bwgd7czdw8jm38z2pr3m0000gq/T/tmp-dump1602575495230110698/b0e0442c-2c9a-45eb-94be-248261c55162.xml;de.unipassau.abc.testsubject2.ArrayHandlingClass@1661184567
+[<];<de.unipassau.abc.testsubject2.ArrayHandlingClass: void <init>()>;;
+[>];ArrayOperation;<java.lang.String[]: void <init>(int)>;(10)
+[||];<java.lang.String[]: void <init>(int)>;/var/folders/jf/9l21bwgd7czdw8jm38z2pr3m0000gq/T/tmp-dump1602575495230110698/2340e154-1f29-48f3-b51c-379c54141a99.xml;java.lang.String[]@392260782
+[<];<java.lang.String[]: void <init>(int)>;;
+[>];ArrayOperation;<java.lang.String[]: void store(int,java.lang.String)>;(0,Test)
+[||];<java.lang.String[]: void store(int,java.lang.String)>;/var/folders/jf/9l21bwgd7czdw8jm38z2pr3m0000gq/T/tmp-dump1602575495230110698/339177f2-92d0-4c52-b23c-0ababfa297ad.xml;java.lang.String[]@392260782
+[<];<java.lang.String[]: void store(int,java.lang.String)>;;
+[>];ArrayOperation;<java.lang.String[]: void store(int,java.lang.String)>;(1,Foo)
+[||];<java.lang.String[]: void store(int,java.lang.String)>;/var/folders/jf/9l21bwgd7czdw8jm38z2pr3m0000gq/T/tmp-dump1602575495230110698/30eb052a-2164-4d17-bdcf-5e55e512a198.xml;java.lang.String[]@392260782
+[<];<java.lang.String[]: void store(int,java.lang.String)>;;
+[>];ArrayOperation;<java.lang.String[]: void store(int,java.lang.String)>;(2,Bar)
+[||];<java.lang.String[]: void store(int,java.lang.String)>;/var/folders/jf/9l21bwgd7czdw8jm38z2pr3m0000gq/T/tmp-dump1602575495230110698/4409b67b-eab3-46aa-a042-1455182aa3c6.xml;java.lang.String[]@392260782
+[<];<java.lang.String[]: void store(int,java.lang.String)>;;
+[>];VirtualInvokeExpr;<de.unipassau.abc.testsubject2.ArrayHandlingClass: java.lang.String handleStringArray()>
+[>];SpecialInvokeExpr;<java.lang.StringBuffer: void <init>(java.lang.String)>;(buffer)
+[||];<java.lang.StringBuffer: void <init>(java.lang.String)>;/var/folders/jf/9l21bwgd7czdw8jm38z2pr3m0000gq/T/tmp-dump1602575495230110698/34c1c7c9-66ad-49bc-a485-5e9c67868721.xml;java.lang.StringBuffer@1406903357
+[<];<java.lang.StringBuffer: void <init>(java.lang.String)>;;
+[>];VirtualInvokeExpr;<java.lang.StringBuffer: java.lang.String toString()>
+[||];<java.lang.StringBuffer: java.lang.String toString()>;;java.lang.StringBuffer@1406903357
+[<];<java.lang.StringBuffer: java.lang.String toString()>;;buffer
+[||];<de.unipassau.abc.testsubject2.ArrayHandlingClass: java.lang.String handleStringArray()>;;de.unipassau.abc.testsubject2.ArrayHandlingClass@1661184567
+[<];<de.unipassau.abc.testsubject2.ArrayHandlingClass: java.lang.String handleStringArray()>;;buffer
+[>];ArrayOperation;<java.lang.String[]: void store(int,java.lang.String)>;(3,buffer)
+[||];<java.lang.String[]: void store(int,java.lang.String)>;/var/folders/jf/9l21bwgd7czdw8jm38z2pr3m0000gq/T/tmp-dump1602575495230110698/d5262869-c41b-4900-ac95-679b88170068.xml;java.lang.String[]@392260782
+[<];<java.lang.String[]: void store(int,java.lang.String)>;;
+[>];VirtualInvokeExpr;<de.unipassau.abc.testsubject2.ArrayHandlingClass: void callMeMaybe(java.lang.String[])>;(java.lang.String[]@392260782)
+[>];StaticInvokeExpr;<java.util.Arrays: java.lang.String toString(java.lang.Object[])>;(java.lang.String[]@392260782)
+[<];<java.util.Arrays: java.lang.String toString(java.lang.Object[])>;;[Test, Foo, Bar, buffer, null, null, null, null, null, null]
+[>];SpecialInvokeExpr;<de.unipassau.abc.testsubject2.ArrayHandlingClass: void cannotCarveMe(java.lang.String[])>;(java.lang.String[]@392260782)
+[>];StaticInvokeExpr;<java.util.Arrays: java.lang.String toString(java.lang.Object[])>;(java.lang.String[]@392260782)
+[<];<java.util.Arrays: java.lang.String toString(java.lang.Object[])>;;[Test, Foo, Bar, buffer, null, null, null, null, null, null]
+[||];<de.unipassau.abc.testsubject2.ArrayHandlingClass: void cannotCarveMe(java.lang.String[])>;/var/folders/jf/9l21bwgd7czdw8jm38z2pr3m0000gq/T/tmp-dump1602575495230110698/9c2d8b2e-8004-4ad7-bd4b-1e6eee66e40d.xml;de.unipassau.abc.testsubject2.ArrayHandlingClass@1661184567
+[<];<de.unipassau.abc.testsubject2.ArrayHandlingClass: void cannotCarveMe(java.lang.String[])>;;
+[||];<de.unipassau.abc.testsubject2.ArrayHandlingClass: void callMeMaybe(java.lang.String[])>;/var/folders/jf/9l21bwgd7czdw8jm38z2pr3m0000gq/T/tmp-dump1602575495230110698/4bdf6aef-e898-4225-a839-6f5fd62f7d82.xml;de.unipassau.abc.testsubject2.ArrayHandlingClass@1661184567
+[<];<de.unipassau.abc.testsubject2.ArrayHandlingClass: void callMeMaybe(java.lang.String[])>;;

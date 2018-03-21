@@ -9,6 +9,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
@@ -20,12 +21,14 @@ import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
 import de.unipassau.abc.carving.CallGraph;
+import de.unipassau.abc.carving.Carver;
 import de.unipassau.abc.carving.DataDependencyGraph;
 import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocationMatcher;
 import de.unipassau.abc.carving.StackImplementation;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.tracing.Trace;
+import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 
 //@RunWith(PowerMockRunner.class)
@@ -39,6 +42,24 @@ public class StackImplementationTest {
 	public Slf4jSimpleLoggerRule loggerLevel = new Slf4jSimpleLoggerRule(Level.TRACE);
 
 	private final List<MethodInvocationMatcher> emptyMethodInvocationMatcherList = new ArrayList<MethodInvocationMatcher>();
+
+	@Test
+	public void testParserWithStoreArrays() throws FileNotFoundException, IOException {
+
+		Carver.setupSoot(Collections.singletonList(new File(ABCTestUtils.getTestSubjectJar())));
+
+		File traceFile = new File("./src/test/resources/ArrayHandlingClass-trace.txt");
+
+		// Init of STRING[]
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
+		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = stackImplementation
+				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
+		// parsedTrace.values().iterator().next().getFirst().visualize()
+		// parsedTrace.values().iterator().next().getSecond().visualize()
+		// parsedTrace.values().iterator().next().getThird().visualize()
+		assertEquals(1, parsedTrace.size());
+
+	}
 
 	@Test
 	public void testTraceParseWithTraceFromTestSubject() throws FileNotFoundException, IOException {

@@ -8,6 +8,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -74,7 +75,7 @@ public class CodeGenerationTest {
 		String jimpleMethod = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>";
 		int invocationID = 116;
 		File traceFile = new File("./src/test/resources/Employee-trace.txt");
-		
+
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// Parsing
 		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = stackImplementation
@@ -87,14 +88,15 @@ public class CodeGenerationTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
 				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
-		
+
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(
 				MethodInvocationMatcher.fromMethodInvocation(new MethodInvocation(jimpleMethod, invocationID)),
 				excludeNoMethodInvocationsMatcher);
 
 		File projectJar = new File("./src/test/resources/Employee.jar");
-		TestGenerator testCaseGenerator = new TestGenerator(projectJar.getAbsolutePath());
-		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests);
+		Carver.setupSoot(Collections.singletonList(projectJar));
+		TestGenerator testGenerator = new TestGenerator();
+		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 
 		assertEquals(1, testCases.size());
 		SootClass testCase = testCases.iterator().next();

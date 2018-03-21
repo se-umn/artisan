@@ -21,9 +21,9 @@ import de.unipassau.abc.carving.MethodCarver;
 import de.unipassau.abc.carving.MethodInvocation;
 import de.unipassau.abc.carving.MethodInvocationMatcher;
 import de.unipassau.abc.carving.ObjectInstance;
+import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.carving.exceptions.NotALevel0TestCaseException;
 import de.unipassau.abc.data.Pair;
-import de.unipassau.abc.utils.JimpleUtils;
 
 public class Level_0_MethodCarver implements MethodCarver {
 
@@ -37,7 +37,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 	// This is to avoid to carve the fake method that we create.
 	private final MethodInvocationMatcher excludeMain = MethodInvocationMatcher.byMethod("<ABC: int MAIN()>");
 	private final MethodInvocationMatcher excludeJavaLang = MethodInvocationMatcher.byPackage("java");
-
+	// TODO We need to exclude also PRIVATE method !
+	
 	/**
 	 * 
 	 * @param executionFlowGraph
@@ -134,10 +135,16 @@ public class Level_0_MethodCarver implements MethodCarver {
 		List<MethodInvocation> constructors = new ArrayList<>();
 		// THIS - Unless is a static call
 		if (!methodInvocationToCarve.isStatic()) {
+			
+			// For some instances, there's no INIT call, tho there's calls which return it.
+			try{
 			MethodInvocation constructor = subGraphFromPastExecution // dataDependencyGraph
 					.getInitMethodInvocationFor(subGraphFromPastExecution // dataDependencyGraph
 							.getOwnerFor(methodInvocationToCarve));
 			constructors.add(constructor);
+			} catch (CarvingException e) {
+				logger.error("We cannot find an INIT call for this objects" + subGraphFromPastExecution.getOwnerFor(methodInvocationToCarve) );
+			}			
 		}
 
 		// DIRECT PARAMETERS
@@ -154,7 +161,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 				MethodInvocation constructor = subGraphFromPastExecution // dataDependencyGraph
 						.getInitMethodInvocationFor(dataDependency);
 				constructors.add(constructor);
-			} catch (RuntimeException e) {
+			} catch (CarvingException e) {
 				logger.debug("Swallow: " + e);
 			}
 		}
@@ -208,7 +215,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 				returningCallsForObjectInstance.add(subGraphFromPastExecution // dataDependencyGraph
 						.getInitMethodInvocationFor(objectInstance));
 
-			} catch (RuntimeException e) { // TODO Factor this into a app
+			} catch (CarvingException e) { // TODO Factor this into a app
 				// specific exception
 				logger.debug("Swallow : " + e);
 			}
@@ -257,7 +264,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 				logger.warn("Invalid test case for " + e.getSubsumedMethodInvocation() + " which is subsumed by "
 						+ e.getSubsumingMethodInvocation() + " via " + e.getSubsumingPath());
 			} catch (RuntimeException e) {
-//				e.printStackTrace();
+				e.printStackTrace();
 				logger.debug("Swallow : " + e);
 			}
 		}
@@ -280,6 +287,10 @@ public class Level_0_MethodCarver implements MethodCarver {
 		logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() for " + dataReturningCalls
 				+ " from backward slice " + backwardSlice);
 
+		// FIXME If the call is the only thing inside the backwardSlice we might short-circuit here probably
+		
+		
+		
 		// Create a local copy of the backwardSlide. This is the "minimal slice"
 		Set<MethodInvocation> _backwardSlice = new HashSet<>(backwardSlice);
 		// Explicitly Include the returning calls
@@ -423,6 +434,12 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 		for (MethodInvocation methodInvocationUnderTest : executionFlowGraph.getMethodInvocationsFor(carveBy,
 				excludeMain, excludeJavaLang, excludeBy)) {
+			
+			
+			if( methodInvocationUnderTest.isPrivate()){
+				logger.info("We do not carve private methods");
+			}
+			
 			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestsPetMethodInvocation = new ArrayList<>();
 
 			carvedTestsPetMethodInvocation.addAll(level0TestCarving(methodInvocationUnderTest, false));
@@ -492,6 +509,10 @@ public class Level_0_MethodCarver implements MethodCarver {
 			Set<MethodInvocation> connectedMethodInvocations = carvedTest.getSecond()
 					.getWeaklyConnectedComponentContaining(methodInvocationUnderTest);
 
+			// WHERE THE EXTERNAL INTERFACES COMES TO PLACE ?
+			
+			
+			
 			logger.trace(" Connected invocations  " + connectedMethodInvocations);
 			// Remove from the execution graph and data dependency graph all the
 			// invocations and object instances that are not connected in any

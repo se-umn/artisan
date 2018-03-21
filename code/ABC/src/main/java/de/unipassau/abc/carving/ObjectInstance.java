@@ -15,7 +15,7 @@ public class ObjectInstance implements DataNode {
 	}
 	
 	// This is somehow wrong...
-	public static DataNode SystemIn() {
+	public static ObjectInstance SystemIn() {
 		// Those are static instances... not sure how to handle them !
 		return new ObjectInstance("java.lang.System.in@0");
 	}

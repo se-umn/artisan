@@ -27,6 +27,8 @@ public class MethodInvocation implements GraphNode {
 	// instead of applications
 	private boolean belongToExternalInterface;
 
+	private boolean isPrivate = false;
+
 	public MethodInvocation(String jimpleMethod, int invocationCount) {
 		this.jimpleMethod = jimpleMethod;
 		this.invocationCount = invocationCount;
@@ -97,6 +99,7 @@ public class MethodInvocation implements GraphNode {
 	}
 
 	public void setBelongsToExternalInterface(boolean b) {
+		System.out.println("MethodInvocation.setBelongsToExternalInterface() for " + toString());
 		this.belongToExternalInterface = b;
 	}
 
@@ -126,6 +129,15 @@ public class MethodInvocation implements GraphNode {
 	public static MethodInvocation fromTag(Tag tag) {
 		String[] tokens = tag.getName().replaceAll("carving:","").split("_");
 		return new MethodInvocation( tokens[0], Integer.parseInt(tokens[1]));
+	}
+
+	public void setPrivate(boolean isPrivate) {
+		System.out.println( toString() + " isPrivate ? " + isPrivate );
+		this.isPrivate = isPrivate;
+	}
+	
+	public boolean isPrivate() {
+		return isPrivate;
 	}
 
 }

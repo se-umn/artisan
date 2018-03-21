@@ -16,17 +16,7 @@ import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.abc.utils.SystemTest;
 
-/**
- * System test for carving. Each system test must be declarade in its own file
- * for maven to spin off a new VM for each of them THIS file has nasty manifest
- * dependencies, probably through out Soot or some other variable, because if I
- * run all the tests alone, they pass but the moment I run them together they
- * fail !
- * 
- * @author gambi
- *
- */
-public class CarverTest {
+public class CarverTestInDummyProjectTest {
 
 	@Rule
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
@@ -42,15 +32,15 @@ public class CarverTest {
 			Carver carver = new Carver();
 			File outputDirectory = temporaryFolderRule.newFolder();
 			
-			String jimpleMethodToCarve = "org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>"; //
-			String traceFile = "/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut/trace.txt";
-
+			String traceFile = "./src/test/resources/ArrayHandlingClass-trace.txt";
+//			String carveBy = "method=" + "<de.unipassau.abc.testsubject2.ArrayHandlingClass: void callMeMaybe(java.lang.String[])>";
+			String carveBy = "package=" + "de.unipassau.abc.testsubject2.ArrayHandlingClass";
 			String[] args = new String[] {
-					"--carve-by", "method=" + jimpleMethodToCarve,
+					"--carve-by", carveBy,
 					// String traceFile =
 					"--trace-file", traceFile, 
 					// String projectJar =
-					"--project-jar", "./src/test/resources/Employee.jar",
+					"--project-jar", "./libs/testsubject-tests.jar",
 					// String outputDir =
 					"--output-to", outputDirectory.getAbsolutePath(),
 					// List the external interfaces here

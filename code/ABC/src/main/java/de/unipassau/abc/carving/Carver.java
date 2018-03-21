@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,6 +15,7 @@ import com.lexicalscope.jewel.cli.ArgumentValidationException;
 import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
 
+import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.carvers.Level_0_MethodCarver;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
@@ -21,7 +23,9 @@ import de.unipassau.abc.generation.MockingGenerator;
 import de.unipassau.abc.generation.TestCaseFactory;
 import de.unipassau.abc.generation.TestGenerator;
 import de.unipassau.abc.utils.JimpleUtils;
+import soot.Scene;
 import soot.SootClass;
+import soot.options.Options;
 
 // TODO Use some sort of CLI/JewelCLI
 public class Carver {
@@ -33,7 +37,7 @@ public class Carver {
 		File getTraceFile();
 
 		@Option(longName = "project-jar")
-		File getProjectJar();
+		List<File> getProjectJar();
 
 		@Option(longName = "output-to", defaultToNull = true)
 		File getOutputDir();
@@ -68,6 +72,9 @@ public class Carver {
 		case "class":
 			return MethodInvocationMatcher.byClass(regEx);
 		case "method":
+			// PAY ATTENTION TO THIS
+			return MethodInvocationMatcher.byMethodLiteral(regEx);
+		case "regex":
 			return MethodInvocationMatcher.byMethod(regEx);
 		case "return":
 			return MethodInvocationMatcher.byReturnType(regEx);
@@ -79,11 +86,66 @@ public class Carver {
 		}
 	}
 
+	/*
+	 * This is global anyway. Public for testing
+	 */
+	public static void setupSoot(List<File> projectJars) {
+		// System Settings Begin
+		Options.v().set_allow_phantom_refs(true);
+		Options.v().set_whole_program(true);
+		// This would set soot cp as the current running app cp
+		// Options.v().set_soot_classpath(System.getProperty("java.path"));
+
+		String junit4Jar = null;
+		String hamcrestCoreJar = null;
+
+		for (String cpEntry : SystemUtils.JAVA_CLASS_PATH.split(File.pathSeparator)) {
+			if (cpEntry.contains("junit-4")) {
+				junit4Jar = cpEntry;
+			} else if (cpEntry.contains("hamcrest-core")) {
+				hamcrestCoreJar = cpEntry;
+			}
+		}
+
+		String traceJar = ABCUtils.getTraceJar();
+		String systemRulesJar = ABCUtils.getSystemRulesJar();
+		List<String> xStreamJars = ABCUtils.getXStreamJars();
+
+		ArrayList<String> necessaryJar = new ArrayList<String>();
+		// Include here JUnit and Hamcrest
+		for (File projectLib : projectJars) {
+			necessaryJar.add(projectLib.getAbsolutePath());
+		}
+		necessaryJar.add(junit4Jar);
+		necessaryJar.add(hamcrestCoreJar);
+		necessaryJar.add(traceJar);
+		//
+		necessaryJar.add(systemRulesJar);
+		//
+		necessaryJar.addAll(xStreamJars);
+
+		/// TODO Maybe we need to filter out things ?
+		// TODO Maybe we need to include XStream and XMLPull
+
+		// This might be needed for the EVALUATION and Level+1 Carved tests
+		// necessaryJar.add("./src/main/resources/Assertion.jar");
+
+		/*
+		 * To process a JAR file, just use the same option but provide a path to
+		 * a JAR instead of a directory.
+		 */
+		Options.v().set_process_dir(necessaryJar);
+		// Patch to work on Mac OS X
+		System.setProperty("os.name", "Whatever");
+		Scene.v().loadNecessaryClasses();
+		System.setProperty("os.name", "Mac OS X");
+	}
+
 	public static void main(String[] args) throws IOException, InterruptedException {
 		long startTime = System.nanoTime();
 
 		File traceFile = null;
-		File projectJar = null;
+		List<File> projectJars = new ArrayList<>();
 		File outputDir = null;
 		MethodInvocationMatcher carveBy = null;
 		MethodInvocationMatcher excludeBy = null;
@@ -101,25 +163,25 @@ public class Carver {
 			// Default pure methods
 		}
 		try {
-			CarverCLI result = CliFactory.parseArguments(CarverCLI.class, args);
-			traceFile = result.getTraceFile();
-			outputDir = result.getOutputDir();
-			projectJar = result.getProjectJar();
+			CarverCLI cli = CliFactory.parseArguments(CarverCLI.class, args);
+			traceFile = cli.getTraceFile();
+			outputDir = cli.getOutputDir();
+			projectJars.addAll(cli.getProjectJar());
 
 			// TODO This can be moved inside CLI parsing using an instance
 			// strategy
-			String[] carveByTokens = result.getCarveBy().split("=");
+			String[] carveByTokens = cli.getCarveBy().split("=");
 			carveBy = getMatcherFor(carveByTokens[0], carveByTokens[1]);
 
-			if (result.getExcludeBy() != null) {
-				String[] excludeByTokens = result.getExcludeBy().split("=");
+			if (cli.getExcludeBy() != null) {
+				String[] excludeByTokens = cli.getExcludeBy().split("=");
 				excludeBy = getMatcherFor(excludeByTokens[0], excludeByTokens[1]);
 			} else {
 				excludeBy = MethodInvocationMatcher.noMatch();
 			}
 
-			externalInterfaces.addAll((result.getExternalInterfaces() != null) ? result.getExternalInterfaces()
-					: new ArrayList<String>());
+			externalInterfaces.addAll(
+					(cli.getExternalInterfaces() != null) ? cli.getExternalInterfaces() : new ArrayList<String>());
 
 		} catch (ArgumentValidationException e) {
 		}
@@ -128,6 +190,9 @@ public class Carver {
 		// corresponding method invocation with the flag
 		List<MethodInvocationMatcher> externalInterfaceMatchers = new ArrayList<MethodInvocationMatcher>();
 		for (String externalInterface : externalInterfaces) {
+
+			System.out.println("Carver.main() >>>> external interface " + externalInterface);
+
 			// By default those are class matchers !
 			externalInterfaceMatchers.add(MethodInvocationMatcher.byClass(externalInterface));
 		}
@@ -143,6 +208,9 @@ public class Carver {
 			purityMatchers.add(MethodInvocationMatcher.byClass("java.lang.StringBuilder"));
 		}
 
+		setupSoot(projectJars);
+		
+		
 		logger.info("Carver.main() Start parsing ");
 		// Parse the trace file into graphs
 		StackImplementation traceParser = new StackImplementation(purityMatchers);
@@ -180,7 +248,7 @@ public class Carver {
 
 		System.out.println("Carver.main() Start code generation");
 		// Test Generation
-		TestGenerator testCaseGenerator = new TestGenerator(projectJar.getAbsolutePath());
+		TestGenerator testCaseGenerator = new TestGenerator();
 		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests);
 
 		// TODO Are assertions STILL generated ?!

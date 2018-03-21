@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -85,7 +86,10 @@ public class CarvingTest {
 		}
 
 		String employeeProjectJar = "./src/test/resources/Employee.jar";
-		TestGenerator testGenerator = new TestGenerator(employeeProjectJar);
+
+		Carver.setupSoot( Collections.singletonList( new File(employeeProjectJar) ) );
+		TestGenerator testGenerator = new TestGenerator( );
+
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 
@@ -141,7 +145,11 @@ public class CarvingTest {
 		assertEquals("Missing invocations of " + staticJimpleMethodProvidingObjects, 4, matchCount);
 
 		String employeeProjectJar = "./src/test/resources/Employee.jar";
-		TestGenerator testGenerator = new TestGenerator(employeeProjectJar);
+
+		
+		Carver.setupSoot( Collections.singletonList( new File(employeeProjectJar) ) );
+		TestGenerator testGenerator = new TestGenerator( );
+		
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 

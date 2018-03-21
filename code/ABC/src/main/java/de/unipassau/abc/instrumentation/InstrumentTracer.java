@@ -18,6 +18,7 @@ import com.lexicalscope.jewel.cli.Option;
 import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.MethodInvocationMatcher;
 import de.unipassau.abc.data.Pair;
+import de.unipassau.abc.utils.JimpleUtils;
 import soot.Body;
 import soot.BodyTransformer;
 import soot.PackManager;
@@ -31,13 +32,16 @@ import soot.Value;
 import soot.VoidType;
 import soot.grimp.NewInvokeExpr;
 import soot.jimple.AbstractStmtSwitch;
+import soot.jimple.ArrayRef;
 import soot.jimple.AssignStmt;
 import soot.jimple.DynamicInvokeExpr;
+import soot.jimple.IdentityStmt;
 import soot.jimple.InstanceInvokeExpr;
 import soot.jimple.InterfaceInvokeExpr;
 import soot.jimple.InvokeExpr;
 import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
+import soot.jimple.NewArrayExpr;
 import soot.jimple.SpecialInvokeExpr;
 import soot.jimple.StaticInvokeExpr;
 import soot.jimple.Stmt;
@@ -46,10 +50,8 @@ import soot.jimple.VirtualInvokeExpr;
 import soot.options.Options;
 
 /**
- * TODO Open points: - Tracking return values for invoke that are not assigned.
- * This might not be necessary unless we need deep regression assertion ? - Dump
- * XML is not implemented yet, please check the original Soot_Instrumentation
- * project
+ * TODO: handling array store/load as actions handling assignment/read to public
+ * fields as actions
  * 
  * @author gambi
  *
@@ -87,8 +89,9 @@ public class InstrumentTracer extends BodyTransformer {
 				public void caseAssignStmt(AssignStmt stmt) {
 					// TODO Refactor. Use Jimple constants a not plain string...
 					logger.trace("Inside method " + containerMethod + " caseAssignStmt() " + stmt);
-					
+
 					boolean containsInvokeExpr = stmt.containsInvokeExpr();
+					
 					if (containsInvokeExpr) {
 
 						InvokeExpr invokeExpr = stmt.getInvokeExpr();
@@ -150,10 +153,52 @@ public class InstrumentTracer extends BodyTransformer {
 						// }
 					} else {
 						// Those are regular assignments...
+						// assignemnts and new ?
+
+						if (stmt.containsArrayRef()) {
+							ArrayRef arrayRefExp = stmt.getArrayRef();
+
+							instrumentArrayAssignmentExpression(body, units, u,
+									//
+									arrayRefExp.getBase(), // The ref to arraym
+															// is this LeftOp ?!
+									arrayRefExp.getIndex(), // The position in
+															// the array
+									stmt.getRightOp()); // I have no better
+														// option at this
+														// point...
+						}
+						
+						// Are those exclusive ?
+//						if (stmt.containsFieldRef()) {
+//							System.out.println("Processing Field REF " + stmt);
+//							
+//						}
+						if( stmt.getRightOp() instanceof NewArrayExpr){
+							// This might come wihout an init attached to it 
+							System.out.println(
+									"InstrumentTracer.internalTransform(...).new AbstractStmtSwitch() {...}.caseAssignStmt() " + stmt);
+							
+							NewArrayExpr right = (NewArrayExpr) stmt.getRightOp();
+							// System.out.println( right.getBaseType() ); String
+//							System.out.println( right.getType() );  String[]
+							
+							instrumentArrayInitExpression(body, units, u,
+									// 
+									stmt.getLeftOp(), 
+									right.getSize());
+						}
 						
 					}
 				}
 
+//				@Override
+//				public void caseIdentityStmt(IdentityStmt stmt) {
+//					System.out.println(
+//							"InstrumentTracer.internalTransform(...).new AbstractStmtSwitch() {...}.caseIdentityStmt() " + stmt);
+//					super.caseIdentityStmt(stmt);
+//				}
+//				
 				/*
 				 * When soot triggers this, since there is no assignment of the
 				 * return value, we cannot access it... probably, if we need to
@@ -252,6 +297,76 @@ public class InstrumentTracer extends BodyTransformer {
 				containerMethod.getSignature().contains("java.sql.");
 	}
 
+	private void instrumentArrayAssignmentExpression(
+			Body body, PatchingChain<Unit> units, Unit u, 
+			//
+			Value array,
+			Value arrayIndex, //
+			Value rightOp) {
+
+		String invokeType = "ArrayOperation";
+		String fakeMethodSignature = "<" + array.getType() + ": void store(int," + array.getType().toString().replace("[]", "") + ")>";
+
+		/*
+		 * Instrument body to include a call to Trace.start BEFORE the execution
+		 * of method, we store its parameters as well.
+		 */
+		List<Value> parameterList = new ArrayList<>();
+		parameterList.add( arrayIndex );
+		parameterList.add( rightOp );
+		addTraceStart(invokeType, fakeMethodSignature, parameterList, body, units, u);
+		/*
+		 * Instrument body to include a call to Trace.stop AFTER the execution
+		 * of method, we store its return type as well.
+		 */
+		addTraceStop(fakeMethodSignature, null, body, units, u);
+		/*
+		 * Instrument body to include a call to Trace.object AFTER the execution
+		 * of method, we store the reference to the instance object making the
+		 * call unless the method is static. In this case there's no object
+		 * instance, hence no trace entry
+		 */
+		if (!Jimple.STATICINVOKE.equals(invokeType)) {
+			addTraceObject(array, fakeMethodSignature, body, units, u);
+		}
+
+	}
+	
+	// Arrays do not have an INIT function, they are not objects, so we fake one the moment we see newarray
+	private void instrumentArrayInitExpression(
+			Body body, PatchingChain<Unit> units, Unit u, 
+			//
+			Value array,
+			Value arraySize) {
+
+		String invokeType = "ArrayOperation";
+		// Init <size>
+		String fakeMethodSignature = "<" + array.getType() + ": void <init>(int)>";
+
+		/*
+		 * Instrument body to include a call to Trace.start BEFORE the execution
+		 * of method, we store its parameters as well.
+		 */
+		List<Value> parameterList = new ArrayList<>();
+		parameterList.add( arraySize );
+		addTraceStart(invokeType, fakeMethodSignature, parameterList, body, units, u);
+		/*
+		 * Instrument body to include a call to Trace.stop AFTER the execution
+		 * of method, we store its return type as well.
+		 */
+		addTraceStop(fakeMethodSignature, null, body, units, u);
+		/*
+		 * Instrument body to include a call to Trace.object AFTER the execution
+		 * of method, we store the reference to the instance object making the
+		 * call unless the method is static. In this case there's no object
+		 * instance, hence no trace entry
+		 */
+		if (!Jimple.STATICINVOKE.equals(invokeType)) {
+			addTraceObject(array, fakeMethodSignature, body, units, u);
+		}
+
+	}
+
 	/**
 	 * BodyTransformer repeats for every execution, so to make a check that
 	 * every method is instrumented only once I implement HashSet for every
@@ -289,29 +404,16 @@ public class InstrumentTracer extends BodyTransformer {
 			 */
 			String invokeType) {
 
-		traceMethodCall(body, units, u, method, parameterValues, returnValue, instanceValue, invokeType);
-
-		// TODO XML SERIALIZATION
-		// dumpToXML(b, units, u, method, parameterValues, returnValue,
-		// instanceValue, invokeType);
-	}
-
-	// }
-
-	// TODO Double check that the original implementation does nothing more than
-	// this.
-	private void traceMethodCall(Body body, final PatchingChain<Unit> units, Unit u, SootMethod method,
-			List<Value> parameterList, Value returnValue, Value instanceValue, String invokeType) {
 		/*
 		 * Instrument body to include a call to Trace.start BEFORE the execution
 		 * of method, we store its parameters as well.
 		 */
-		addTraceStart(invokeType, method.getSignature(), parameterList, body, units, u);
+		addTraceStart(invokeType, method.getSignature(), parameterValues, body, units, u);
 		/*
 		 * Instrument body to include a call to Trace.stop AFTER the execution
 		 * of method, we store its return type as well.
 		 */
-		addTraceStop(method, returnValue, body, units, u);
+		addTraceStop(method.getSignature(), returnValue, body, units, u);
 		/*
 		 * Instrument body to include a call to Trace.object AFTER the execution
 		 * of method, we store the reference to the instance object making the
@@ -319,12 +421,15 @@ public class InstrumentTracer extends BodyTransformer {
 		 * instance, hence no trace entry
 		 */
 		if (!Jimple.STATICINVOKE.equals(invokeType)) {
-			addTraceObject(instanceValue, method, body, units, u);
+			addTraceObject(instanceValue, method.getSignature(), body, units, u);
 		}
 
+		// TODO XML SERIALIZATION
+		// dumpToXML(b, units, u, method, parameterValues, returnValue,
+		// instanceValue, invokeType);
 	}
 
-	private void addTraceObject(Value instanceValue, SootMethod method, Body body, final PatchingChain<Unit> units,
+	private void addTraceObject(Value instanceValue, String methodSignature, Body body, final PatchingChain<Unit> units,
 			Unit u) {
 
 		List<Unit> generated = new ArrayList<Unit>();
@@ -338,7 +443,7 @@ public class InstrumentTracer extends BodyTransformer {
 
 			List<Value> methodObjectParameters = new ArrayList<Value>();
 			// Method Name
-			methodObjectParameters.add(StringConstant.v(method.getSignature()));
+			methodObjectParameters.add(StringConstant.v(methodSignature));
 			//
 			methodObjectParameters.add(instanceValue);
 
@@ -353,10 +458,10 @@ public class InstrumentTracer extends BodyTransformer {
 
 	}
 
-	private void addTraceStop(SootMethod method, Value returnValue, Body body, final PatchingChain<Unit> units,
-			Unit u) {
+	private void addTraceStop(// SootMethod method,
+			String methodSignature, Value returnValue, Body body, final PatchingChain<Unit> units, Unit u) {
 
-		logger.trace("InstrumentTracer.addTraceStop() for " + method );
+		logger.trace("InstrumentTracer.addTraceStop() for " + methodSignature);
 		List<Unit> generated = new ArrayList<Unit>();
 
 		{
@@ -368,16 +473,27 @@ public class InstrumentTracer extends BodyTransformer {
 			List<Value> methodStopParameters = new ArrayList<Value>();
 
 			// Method Name
-			methodStopParameters.add(StringConstant.v(method.getSignature()));
+			methodStopParameters.add(StringConstant.v(methodSignature));
 
 			// This box return value or null or void constants
 			Pair<Value, List<Unit>> tmpReturnValueAndInstructions = null;
-			if (method.getReturnType() instanceof VoidType) {
+			if (JimpleUtils.isVoid(JimpleUtils.getReturnType(methodSignature))) { // if
+																					// (method.getReturnType()
+																					// instanceof
+																					// VoidType)
+																					// {
+//				System.out.println("InstrumentTracer.addTraceStop() VoidType "); // Not
+																					// sure
+																					// this
+																					// is
+																					// actually
+																					// a
+																					// thing...
 				tmpReturnValueAndInstructions = new Pair<Value, List<Unit>>(StringConstant.v("void"),
 						new ArrayList<Unit>());
 
 			} else if (returnValue == null) {
-				throw new RuntimeException("Cannot have a null returnValue at this point " + method);
+				throw new RuntimeException("Cannot have a null returnValue at this point " + methodSignature);
 			} else {
 				tmpReturnValueAndInstructions = UtilInstrumenter.generateReturnValue(returnValue, body);
 			}
@@ -416,10 +532,8 @@ public class InstrumentTracer extends BodyTransformer {
 
 		// Returns a Pair which contains the array and the instructions to
 		// create it
-		Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter.generateParameterArray(
-				RefType.v("java.lang.Object"),
-				parameterList,
-				body);
+		Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter
+				.generateParameterArray(RefType.v("java.lang.Object"), parameterList, body);
 		// Append the array to the parameters for the trace start
 		methodStartParameters.add(tmpArgsListAndInstructions.getFirst());
 
@@ -501,12 +615,11 @@ public class InstrumentTracer extends BodyTransformer {
 		}
 		List<String> externalInterfaces = new ArrayList<>();
 		{
-			// Default Interfaces are the one for Files, Network, etc. ?
-			// TODO this list is not complete !
-			externalInterfaces.add("java.util.Scanner");
+			// External interfaces are not instrumented by soot
+			// externalInterfaces.add("java.util.Scanner");
 		}
 
-		// Default pure methods
+		// Default pure methods. Pure methods ARE not tracked !!
 		{
 			// m.getDeclaringClass().getName().equals("java.lang.StringBuilder")
 			// ||
@@ -514,6 +627,11 @@ public class InstrumentTracer extends BodyTransformer {
 
 			pureMethods.add(Pattern.compile(Pattern.quote("<java.lang.Object: void <init>()>")));
 			pureMethods.add(Pattern.compile("<java.io.PrintStream: void println\\(.*>"));
+
+			//
+			// pureMethods.add(Pattern.compile("<java.nio.file.Path: File
+			// toFile()>"));
+
 			// We treat Strings as primitives, i.e., we pass around them by
 			// value. This means that we can omit to track calls to to
 			// StringBuilder ... (I hope so! -> not really, the moment those are
@@ -534,7 +652,7 @@ public class InstrumentTracer extends BodyTransformer {
 
 		try {
 			InstrumentTracerCLI commandLineOptions = CliFactory.parseArguments(InstrumentTracerCLI.class, args);
-			projectJars.addAll( commandLineOptions.getProjectJar());
+			projectJars.addAll(commandLineOptions.getProjectJar());
 			outputDir = commandLineOptions.getOutputDir();
 			outputType = commandLineOptions.getOutputType();
 			//
@@ -608,7 +726,7 @@ public class InstrumentTracer extends BodyTransformer {
 		// This is the application under analysis. 1 jar -> 1 entry
 		// There can be more jars (libraries, tests, etc.)
 		ArrayList<String> list = new ArrayList<String>();
-		for( File projectJar : projectJars){
+		for (File projectJar : projectJars) {
 			list.add(projectJar.getAbsolutePath());
 		}
 		// TODO Most likely project dependencies shall be listed here
