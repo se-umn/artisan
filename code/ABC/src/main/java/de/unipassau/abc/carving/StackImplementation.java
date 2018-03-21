@@ -20,6 +20,10 @@ import org.slf4j.LoggerFactory;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.tracing.Trace;
 import de.unipassau.abc.utils.JimpleUtils;
+import soot.Modifier;
+import soot.Scene;
+import soot.SootClass;
+import soot.SootMethod;
 
 /**
  * @author gambi
@@ -78,7 +82,7 @@ public class StackImplementation implements TraceParser {
 		// Assuming that there's no ";" inside any of those elements !!!
 		// Probably we should move to something structured, that is which encode
 		// those elements more precisely !!
-		// Turns out that Reference to Arrays have that ! 
+		// Turns out that Reference to Arrays have that !
 		String[] tokens = allLines.get(startLine).split(";");
 
 		// tokens[0] is METHOD_START_TOKEN
@@ -88,12 +92,28 @@ public class StackImplementation implements TraceParser {
 		MethodInvocation methodInvocation = new MethodInvocation(jimpleMethod, invocationCount.incrementAndGet());
 		methodInvocation.setInvocationType(typeOfInvocation);
 
+		// Check with soot ?
+		try {
+
+			if (!typeOfInvocation.equals("ArrayOperation")) {
+				// This might be required to get to the method in the first
+				// place
+				System.out.println(
+						"StackImplementation.parseMethodStart() Checking method visibility: " + methodInvocation);
+				Scene.v().loadClassAndSupport(JimpleUtils.getClassNameForMethod(jimpleMethod));
+				methodInvocation.setPrivate(Scene.v().getMethod(jimpleMethod).isPrivate());
+			}
+
+		} catch (Throwable e) {
+			e.printStackTrace();
+		}
+
 		// Check if this method belongs to an external interface
 		for (MethodInvocationMatcher externalInterfaceMatcher : externalInterfaceMatchers) {
 			if (externalInterfaceMatcher.matches(methodInvocation)) {
 				methodInvocation.setBelongsToExternalInterface(true);
 			} else {
-				System.out.println( externalInterfaceMatcher + " does not match " + methodInvocation);
+				System.out.println(externalInterfaceMatcher + " does not match " + methodInvocation);
 			}
 		}
 
@@ -328,7 +348,7 @@ public class StackImplementation implements TraceParser {
 		result.put(UUID.randomUUID().toString(), new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
 				exectuionFlowGraph, dataDependencyGraph, callGraph));
 
-		while (position != -1 && position < lines.size() ) {
+		while (position != -1 && position < lines.size()) {
 			position = parseTraceFile(lines, externalInterfaceMatchers, position);
 			//
 			result.put(UUID.randomUUID().toString(), new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(

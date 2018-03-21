@@ -435,6 +435,11 @@ public class Level_0_MethodCarver implements MethodCarver {
 		for (MethodInvocation methodInvocationUnderTest : executionFlowGraph.getMethodInvocationsFor(carveBy,
 				excludeMain, excludeJavaLang, excludeBy)) {
 			
+			
+			if( methodInvocationUnderTest.isPrivate()){
+				logger.info("We do not carve private methods");
+			}
+			
 			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestsPetMethodInvocation = new ArrayList<>();
 
 			carvedTestsPetMethodInvocation.addAll(level0TestCarving(methodInvocationUnderTest, false));

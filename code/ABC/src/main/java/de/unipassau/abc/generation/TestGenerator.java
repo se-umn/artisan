@@ -1,6 +1,5 @@
 package de.unipassau.abc.generation;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,12 +11,10 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.lang3.SystemUtils;
 import org.jboss.util.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.DataDependencyGraph;
 import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
@@ -44,7 +41,6 @@ import soot.jimple.JimpleBody;
 import soot.jimple.NewArrayExpr;
 import soot.jimple.Stmt;
 import soot.jimple.toolkits.annotation.j5anno.AnnotationGenerator;
-import soot.options.Options;
 import soot.util.Chain;
 
 public class TestGenerator {
@@ -53,73 +49,7 @@ public class TestGenerator {
 
 	private static final Logger logger = LoggerFactory.getLogger(TestGenerator.class);
 
-	// Point to jar of target project. This is the original code, not the
-	// instrumented one
-	private List<String> projectLibs = new ArrayList<>();
-
-	public TestGenerator(File... projectLibs) {
-		List<String> projectLibsPath = new ArrayList<>();
-		for (File projectLib : projectLibs) {
-			projectLibsPath.add(projectLib.getAbsolutePath());
-		}
-		this.projectLibs.addAll(projectLibsPath);
-	}
-
-	public TestGenerator(List<String> projectLibsPath) {
-		this.projectLibs.addAll(projectLibsPath);
-	}
-
-	private void setupSoot() {
-		// System Settings Begin
-		Options.v().set_allow_phantom_refs(true);
-		Options.v().set_whole_program(true);
-		// This would set soot cp as the current running app cp
-		// Options.v().set_soot_classpath(System.getProperty("java.path"));
-
-		String junit4Jar = null;
-		String hamcrestCoreJar = null;
-
-		for (String cpEntry : SystemUtils.JAVA_CLASS_PATH.split(File.pathSeparator)) {
-			if (cpEntry.contains("junit-4")) {
-				junit4Jar = cpEntry;
-			} else if (cpEntry.contains("hamcrest-core")) {
-				hamcrestCoreJar = cpEntry;
-			}
-		}
-
-		String traceJar = ABCUtils.getTraceJar();
-		String systemRulesJar = ABCUtils.getSystemRulesJar();
-		List<String> xStreamJars = ABCUtils.getXStreamJars();
-
-		ArrayList<String> necessaryJar = new ArrayList<String>();
-		// Include here JUnit and Hamcrest
-		for (String projectLib : projectLibs) {
-			necessaryJar.add(projectLib);
-		}
-		necessaryJar.add(junit4Jar);
-		necessaryJar.add(hamcrestCoreJar);
-		necessaryJar.add(traceJar);
-		//
-		necessaryJar.add(systemRulesJar);
-		//
-		necessaryJar.addAll(xStreamJars);
-
-		/// TODO Maybe we need to filter out things ?
-		// TODO Maybe we need to include XStream and XMLPull
-
-		// This might be needed for the EVALUATION and Level+1 Carved tests
-		// necessaryJar.add("./src/main/resources/Assertion.jar");
-
-		/*
-		 * To process a JAR file, just use the same option but provide a path to
-		 * a JAR instead of a directory.
-		 */
-		Options.v().set_process_dir(necessaryJar);
-		// Patch to work on Mac OS X
-		System.setProperty("os.name", "Whatever");
-		Scene.v().loadNecessaryClasses();
-		System.setProperty("os.name", "Mac OS X");
-	}
+	
 
 	/**
 	 * Test case generation requires only the list of instructions and the data
@@ -144,8 +74,6 @@ public class TestGenerator {
 		// Why we need to initialize soot here otherwise we cannot create
 		// methods and classes, and such
 		// To probably there's also something else to include here
-		setupSoot();
-
 		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
 
 			// Get the mut, which by definition is the last invocation executed

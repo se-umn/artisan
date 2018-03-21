@@ -105,7 +105,7 @@ public class ABCTestUtils {
 			traceFile = Files.createTempFile("TEMP", "trace").toFile();
 			traceFile.deleteOnExit();
 			try (PrintStream out = new PrintStream(new FileOutputStream(traceFile))) {
-				for( String line : lines)
+				for (String line : lines)
 					out.println(line);
 			}
 			return traceFile;
@@ -114,5 +114,19 @@ public class ABCTestUtils {
 		}
 		// This is dead code, but the compiler fails if this code is not here
 		return null;
+	}
+
+	public static String getTestSubjectJar() {
+		String traceJar = "./libs/testsubject-tests.jar"; // Eclipse testing
+
+		if (!new File(traceJar).exists()) {
+			traceJar = "../libs/testsubject-tests.jar"; // Actual usage ...
+			if (!new File(traceJar).exists()) {
+				throw new RuntimeException(new File(traceJar).getAbsolutePath() + " file is missing");
+			}
+		}
+
+		return traceJar;
+
 	}
 }
