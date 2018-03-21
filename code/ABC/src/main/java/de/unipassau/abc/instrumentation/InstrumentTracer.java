@@ -532,8 +532,13 @@ public class InstrumentTracer extends BodyTransformer {
 
 		// Returns a Pair which contains the array and the instructions to
 		// create it
+		
+		System.out.println("InstrumentTracer.addTraceStart() Generate parameter array for: " + parameterList);
 		Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter
 				.generateParameterArray(RefType.v("java.lang.Object"), parameterList, body);
+		
+		
+		
 		// Append the array to the parameters for the trace start
 		methodStartParameters.add(tmpArgsListAndInstructions.getFirst());
 

@@ -38,26 +38,54 @@ import soot.util.Chain;
 public class UtilInstrumenter {
 
 	public static Pair<Value, List<Unit>> generateParameterArray(Type arrayType, List<Value> parameterList, Body body) {
-		List<Unit> generated = new ArrayList<Unit>();
+		try {
+			List<Unit> generated = new ArrayList<Unit>();
 
-		// Create an array to host the values
-		NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(arrayType, //RefType.v("java.lang.Object"),
-				IntConstant.v(parameterList.size()));
+			// Create an array to host the values
+			NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(arrayType, // RefType.v("java.lang.Object"),
+					IntConstant.v(parameterList.size()));
 
-		Value newArrayLocal = generateFreshLocal(body, getParameterArrayType());
-		Unit newAssignStmt = Jimple.v().newAssignStmt(newArrayLocal, arrayExpr);
-		generated.add(newAssignStmt);
+			Value newArrayLocal = generateFreshLocal(body, getParameterArrayType());
+			Unit newAssignStmt = Jimple.v().newAssignStmt(newArrayLocal, arrayExpr);
+			generated.add(newAssignStmt);
 
-		for (int i = 0; i < parameterList.size(); i++) {
-			Value index = IntConstant.v(i);
-			ArrayRef leftSide = Jimple.v().newArrayRef(newArrayLocal, index);
-			Value rightSide = generateCorrectObject(body, parameterList.get(i), generated);
+			for (int i = 0; i < parameterList.size(); i++) {
+				Value index = IntConstant.v(i);
 
-			Unit parameterInArray = Jimple.v().newAssignStmt(leftSide, rightSide);
-			generated.add(parameterInArray);
+				ArrayRef leftSide = Jimple.v().newArrayRef(newArrayLocal, index);
+				Value rightSide = null;
+				if (parameterList.get(i) instanceof ArrayRef) {
+					System.out.println("UtilInstrumenter.generateParameterArray() Right side is also an array element "
+							+ parameterList.get(i));
+					// Probably we need to extract it to a local
+					rightSide = generateCorrectObjectFromArrayRef( body, (ArrayRef)parameterList.get(i), generated);
+				} else {
+					rightSide = generateCorrectObject(body, parameterList.get(i), generated);
+				}
+				System.out.println("UtilInstrumenter.generateParameterArray() left " + leftSide);
+				System.out.println("UtilInstrumenter.generateParameterArray() right " + rightSide);
+
+				Unit parameterInArray = Jimple.v().newAssignStmt(leftSide, rightSide);
+				generated.add(parameterInArray);
+			}
+
+			return new Pair<Value, List<Unit>>(newArrayLocal, generated);
+		} catch (Throwable e) {
+			System.out.println("UtilInstrumenter.generateParameterArray() ERROR While processing\n" + "arraytype "
+					+ arrayType + "\n" + "parameterList " + parameterList + "\n" + "");
+			throw e;
 		}
+	}
 
-		return new Pair<Value, List<Unit>>(newArrayLocal, generated);
+	public static Value generateCorrectObjectFromArrayRef(Body body, ArrayRef arrayRef, List<Unit> generated) {
+		// Write some code to extract the element of the array into a variable and then pass it along to the 
+		// generateCorrectObject
+		
+		Local arrayElement = generateFreshLocal(body, arrayRef.getType() );
+		Unit arrayElementAssignStmt = Jimple.v().newAssignStmt(arrayElement, arrayRef);
+		generated.add(arrayElementAssignStmt);
+		// Chain the call
+		return generateCorrectObject(body,arrayElement, generated);
 	}
 
 	/**
@@ -165,9 +193,10 @@ public class UtilInstrumenter {
 				return shortLocal;
 			} else
 				throw new RuntimeException("Ooops, something went all wonky!");
-		} else
+		} else {
 			// just return the value, there is nothing to box
 			return value;
+		}
 	}
 
 	public static Local generateFreshLocal(Body body, Type type) {
