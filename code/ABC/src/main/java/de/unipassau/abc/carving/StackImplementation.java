@@ -76,6 +76,7 @@ public class StackImplementation implements TraceParser {
 		// Assuming that there's no ";" inside any of those elements !!!
 		// Probably we should move to something structured, that is which encode
 		// those elements more precisely !!
+		// Turns out that Reference to Arrays have that ! 
 		String[] tokens = allLines.get(startLine).split(";");
 
 		// tokens[0] is METHOD_START_TOKEN

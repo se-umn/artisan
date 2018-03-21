@@ -10,9 +10,11 @@ import java.util.regex.Pattern;
 
 public class Trace {
 
-	public final static String METHOD_START_TOKEN = "[>];";
-	public final static String METHOD_END_TOKEN = "[<];";
-	public final static String METHOD_OBJECT_TOKEN = "[||];";
+	public final static char DELIMITER = ';';
+
+	public final static String METHOD_START_TOKEN = "[>]" + DELIMITER;
+	public final static String METHOD_END_TOKEN = "[<]" + DELIMITER;
+	public final static String METHOD_OBJECT_TOKEN = "[||]" + DELIMITER;
 
 	private static File traceFile;
 	static {
@@ -53,7 +55,7 @@ public class Trace {
 	public static void methodStart(String typeOfMethod, String method, Object... objects) {
 
 		// System.out.println("Trace.methodStart() " + method);
-
+		// TODO Maybe a StringBuffer here?
 		String content = METHOD_START_TOKEN + typeOfMethod + ";" + method;
 
 		if (objects.length > 0) {
@@ -70,6 +72,13 @@ public class Trace {
 				} else if (isString(parametersType[i]) && objects[i] != null) {
 					// Not null string By Value
 					content += String.valueOf(objects[i]);
+				} else if (isArray(parametersType[i])) {
+					// TODO Not sure this is the best approach, tho
+					// We transform:
+					// [Ljava.nio.file.attribute.FileAttribute;@448354164
+					// To java.nio.file.attribute.FileAttribute[]@448354164
+					String transformedClassName = (objects[i]).getClass().getName().replace("[L", "").replace(";", "")+"[]";
+					content += transformedClassName + "@" + System.identityHashCode(objects[i]);
 				} else {
 					// By Reference - String can be NULL !
 					content += (objects[i]).getClass().getName() + "@" + System.identityHashCode(objects[i]);
@@ -91,6 +100,10 @@ public class Trace {
 	// appendToTraceFile(METHOD_START_TOKEN + typeOfMethod + ";" + method +
 	// "\n");
 	// }
+
+	private static boolean isArray(String formalParameterType) {
+		return formalParameterType.endsWith("[]");
+	}
 
 	private static String[] extractParameterTypes(String method) {
 		Pattern argsPattern = Pattern.compile("\\((.*?)\\)");
