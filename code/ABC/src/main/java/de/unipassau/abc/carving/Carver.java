@@ -255,6 +255,8 @@ public class Carver {
 		//// DECORATORS HERE: ASSERTIONS AND MOCKING !
 		for (SootClass testClass : testCases) {
 			MockingGenerator.addSystemIn(testClass, parsedTrace);
+			MockingGenerator.addSystemExit(testClass, parsedTrace);
+			
 		}
 
 		// TODO Add Asssertions here...

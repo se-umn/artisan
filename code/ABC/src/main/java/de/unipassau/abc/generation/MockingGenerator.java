@@ -20,6 +20,7 @@ import de.unipassau.abc.carving.MethodInvocationMatcher;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.instrumentation.UtilInstrumenter;
+import de.unipassau.abc.utils.JimpleUtils;
 import soot.Body;
 import soot.Local;
 import soot.Modifier;
@@ -33,6 +34,7 @@ import soot.Type;
 import soot.Unit;
 import soot.Value;
 import soot.VoidType;
+import soot.jimple.IntConstant;
 import soot.jimple.Jimple;
 import soot.jimple.JimpleBody;
 import soot.jimple.toolkits.annotation.j5anno.AnnotationGenerator;
@@ -44,6 +46,7 @@ public class MockingGenerator {
 	private final static Logger logger = LoggerFactory.getLogger(MockingGenerator.class);
 
 	public static final String SYSTEM_IN_RULE_NAME = "userInputs";
+	public static final String SYSTEM_EXIT_RULE_NAME = "expectedSystemExit";
 
 	/**
 	 * This introduce a default JUnit SystemRule which mock user inputs and can
@@ -100,19 +103,6 @@ public class MockingGenerator {
 			Body constructorBody = testClassInitializer.getActiveBody();
 			PatchingChain<Unit> units = constructorBody.getUnits();
 
-			// Inside <init>
-			// Local
-			// org.junit.rules.TemporaryFolder $r1;
-			// Call init on this
-			// $r1 = new org.junit.rules.TemporaryFolder;
-			// specialinvoke $r1.<org.junit.rules.TemporaryFolder: void
-			// <init>()>();
-
-			// We need to use this to initialize the object !
-			// org.junit.contrib.java.lang.system.TextFromStandardInputStream.emptyStandardInputStream()
-			// NewExpr instantiateRuleExpr = Jimple.v()
-			// .newNewExpr(RefType.v("org.junit.contrib.java.lang.system.TextFromStandardInputStream"));
-
 			Local local = UtilInstrumenter.generateFreshLocal(constructorBody,
 					RefType.v("org.junit.contrib.java.lang.system.TextFromStandardInputStream"));
 			Unit newAssignStmt = Jimple.v().newAssignStmt(local,
@@ -136,17 +126,178 @@ public class MockingGenerator {
 
 		}
 
-		/*
-		 * // Set the field. units.insertAfter( Jimple.v().newAssignStmt(
-		 * 
-		 */
-
-		/////
 		for (SootMethod testMethod : testClass.getMethods()) {
 			if (testMethod.getSignature().contains("test_")) {
 				addSystemInToTest(testMethod, systemInJunit4RuleField, parsedTrace);
 			}
 		}
+	}
+
+	public static void addSystemExit(SootClass testClass,
+			Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace) {
+		SootField systemExitJunit4RuleField = null;
+		if (testClass.declaresFieldByName(SYSTEM_EXIT_RULE_NAME)) {
+			systemExitJunit4RuleField = testClass.getFieldByName(SYSTEM_EXIT_RULE_NAME);
+			return;
+		} else {
+			systemExitJunit4RuleField = new SootField(SYSTEM_EXIT_RULE_NAME,
+					RefType.v("org.junit.contrib.java.lang.system.ExpectedSystemExit"),
+					Modifier.PUBLIC | Modifier.FINAL);
+			// Add annotation
+			AnnotationGenerator.v().annotate(systemExitJunit4RuleField, Rule.class);
+			Scene.v().loadClassAndSupport("org.junit.contrib.java.lang.system.ExpectedSystemExit");
+			testClass.addField(systemExitJunit4RuleField);
+
+			// Go inside the <init> and initialize the field
+			SootMethod testClassInitializer;
+			// create a class initializer if one does not already exist.
+			// TODO Not sure HOW I CAN GENERATE IN PLACE INITIALIZATION, but
+			// this works anyway
+			if (testClass.declaresMethodByName("<init>")) {
+				testClassInitializer = testClass.getMethodByName("<init>");
+			} else {
+				// FIXME This utility method to get or create <init> !
+				// FIXME apparently here we shall call supet() or this() ?
+				testClassInitializer = new SootMethod("<init>", Collections.<Type>emptyList(), VoidType.v(),
+						Modifier.PUBLIC);
+				// Build the body from the input list of statements
+				JimpleBody body = Jimple.v().newBody(testClassInitializer);
+				testClassInitializer.setActiveBody(body);
+				testClass.addMethod(testClassInitializer);
+				//
+				body.insertIdentityStmts();
+				// Add the return stmt
+				// Insert final void return to close the test method
+				testClassInitializer.getActiveBody().getUnits().add(Jimple.v().newReturnVoidStmt());
+			}
+
+			Body constructorBody = testClassInitializer.getActiveBody();
+			PatchingChain<Unit> units = constructorBody.getUnits();
+
+			Local local = UtilInstrumenter.generateFreshLocal(constructorBody,
+					RefType.v("org.junit.contrib.java.lang.system.ExpectedSystemExit"));
+			Unit newAssignStmt = Jimple.v().newAssignStmt(local,
+					Jimple.v()
+							.newStaticInvokeExpr(Scene.v()
+									.getMethod(
+											"<org.junit.contrib.java.lang.system.ExpectedSystemExit: org.junit.contrib.java.lang.system.ExpectedSystemExit none()>")
+									.makeRef()));
+			//
+			List<Unit> generated = new ArrayList<Unit>();
+			generated.add(newAssignStmt);
+			// localRule = $r1
+			// r0.<de.unipassau.abc.testsubject.JUnitAssertions:
+			// org.junit.rules.TemporaryFolder temporaryFolder> = $r1
+			generated.add(Jimple.v().newAssignStmt(
+					Jimple.v().newInstanceFieldRef(constructorBody.getThisLocal(), systemExitJunit4RuleField.makeRef()),
+					local));
+
+			// Get the last unit - return
+			units.insertBefore(generated, units.getLast());
+		}
+
+		// Capture the exit value for each test...
+		for (SootMethod testMethod : testClass.getMethods()) {
+			if ( JimpleUtils.getMethodName(testMethod.getSignature()).startsWith("test_")) {
+				addSystemExitToTest(testMethod, systemExitJunit4RuleField, parsedTrace);
+			}
+		}
+	}
+
+	private static void addSystemExitToTest(SootMethod testMethod, SootField systemExitJunit4RuleField, //
+			Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace) {
+
+		List<Unit> generated = new ArrayList<>();
+
+		MethodInvocation methodInvocationToBeCarved = findMethodInvocationToBeCarved(testMethod);
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTraceFromSystemTest = findParsedSystemTest(
+				methodInvocationToBeCarved, parsedTrace);
+
+		// Go over the execution flow and find where exit or the rule is invoked
+		// with the parameter
+		// This also works as regression assertion
+
+		Value valueReadFromInput = collectExpectedSystemExitValue(parsedTraceFromSystemTest,
+				methodInvocationToBeCarved);
+
+		Body body = testMethod.getActiveBody();
+
+		SootMethod expectSystemExit = Scene.v().getMethod(
+				"<org.junit.contrib.java.lang.system.ExpectedSystemExit: void expectSystemExitWithStatus(int)>");
+
+		Local localRule = UtilInstrumenter.generateFreshLocal(body,
+				RefType.v("org.junit.contrib.java.lang.system.ExpectedSystemExit"));
+
+		// Assign local to THIS.field
+		generated.add(Jimple.v().newAssignStmt(localRule,
+				Jimple.v().newInstanceFieldRef(body.getThisLocal(), systemExitJunit4RuleField.makeRef())));
+
+		generated.add(Jimple.v().newInvokeStmt(
+				Jimple.v().newVirtualInvokeExpr(localRule, expectSystemExit.makeRef(), valueReadFromInput)));
+		//
+		// Add everything at the beginnign of the method
+		body.getUnits().insertAfter(generated, body.getUnits().getFirst());
+
+	}
+
+	private static Value collectExpectedSystemExitValue(
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace,
+			MethodInvocation methodInvocationToBeCarved) {
+		
+		// Default to 0
+		Value expectedSystemExitValue = IntConstant.v(0);
+
+		MethodInvocationMatcher systemExitMethodMatcher = MethodInvocationMatcher
+				.byMethod("<java.lang.System: void exit(int)>");
+		// Which one do we pick ?!
+		// [>];StaticInvokeExpr;<java.lang.System: void exit(int)>;(0)
+		// [>];VirtualInvokeExpr;<org.junit.contrib.java.lang.system.ExpectedSystemExit: void expectSystemExitWithStatus(int)>;(0)
+
+		ExecutionFlowGraph executionFlowGraph = parsedTrace.getFirst();
+		DataDependencyGraph dataDependencyGraph = parsedTrace.getSecond();
+		CallGraph callGraph = parsedTrace.getThird();
+		
+		List<MethodInvocation> subsequentCalls = getSubsequentCalls(methodInvocationToBeCarved, executionFlowGraph, dataDependencyGraph, callGraph);
+
+		for (MethodInvocation methodInvocation : subsequentCalls) {
+			if (systemExitMethodMatcher.matches(methodInvocation)) {
+				
+				Value exitValue = dataDependencyGraph.getParametersSootValueFor(methodInvocation).get(0);
+				return exitValue;
+			}
+		}
+		logger.info("MockingGenerator.collectExpectedSystemExitValue() Cannot find System.exit call, return default value 0");
+		return expectedSystemExitValue;
+	}
+
+	private static MethodInvocation findMethodInvocationToBeCarved(SootMethod testMethod) {
+		// The name of the tag is the value
+		MethodInvocation methodInvocationToBeCarved = null;
+		for (Tag tag : testMethod.getTags()) {
+
+			if (tag.getName().startsWith("carving:")) {
+				methodInvocationToBeCarved = MethodInvocation.fromTag(tag);
+			}
+		}
+
+		return methodInvocationToBeCarved;
+	}
+
+	private static Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> findParsedSystemTest(
+			MethodInvocation methodInvocationToBeCarved,
+			Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace) {
+
+		// Find the "right" SystemTest
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTraceFromSystemTest = null;
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> pTrace : parsedTrace.values()) {
+			if (pTrace.getFirst().contains(methodInvocationToBeCarved)) {
+				return pTrace;
+			}
+		}
+
+		System.out.println("MockingGenerator.findParsedSystemTest() Cannot find any system test for test method "
+				+ methodInvocationToBeCarved);
+		return null;
 	}
 
 	private static void addSystemInToTest(SootMethod testMethod, SootField systemInJunit4RuleField, //
@@ -158,28 +309,9 @@ public class MockingGenerator {
 		// but at today,
 		// this is the one we use in the evaluation
 
-		// The name of the tag is the value
-		MethodInvocation methodInvocationToBeCarved = null;
-		for (Tag tag : testMethod.getTags()) {
-
-			if (tag.getName().startsWith("carving:")) {
-				methodInvocationToBeCarved = MethodInvocation.fromTag(tag);
-			}
-		}
-
-		if (methodInvocationToBeCarved == null) {
-			logger.warn("addSystemInToTest() Null " + systemInJunit4RuleField);
-			return;
-		}
-
-		// Find the "right" SystemTest
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTraceFromSystemTest = null;
-		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> pTrace : parsedTrace.values()) {
-			if (pTrace.getFirst().contains(methodInvocationToBeCarved)) {
-				parsedTraceFromSystemTest = pTrace;
-				break;
-			}
-		}
+		MethodInvocation methodInvocationToBeCarved = findMethodInvocationToBeCarved(testMethod);
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTraceFromSystemTest = findParsedSystemTest(
+				methodInvocationToBeCarved, parsedTrace);
 
 		List<Value> valuesReadFromInput = collectValuesReadFromInput(parsedTraceFromSystemTest,
 				methodInvocationToBeCarved);
@@ -213,23 +345,22 @@ public class MockingGenerator {
 
 	}
 
-	private static List<Value> collectValuesReadFromInput(
-			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace,
-			MethodInvocation methodInvocationToBeCarved) {
-		List<Value> valuesFromInput = new ArrayList<>();
-
+	// Get the calls which strictly follows the given one, in reverse order...
+	private static List<MethodInvocation> getSubsequentCalls(MethodInvocation methodInvocationToBeCarved, ExecutionFlowGraph executionFlowGraph,
+			DataDependencyGraph dataDependencyGraph, CallGraph callGraph) {
+		List<MethodInvocation> subSequentCalls = executionFlowGraph.getOrderedMethodInvocationsAfter( methodInvocationToBeCarved);
+		Collections.reverse( subSequentCalls );
+		return subSequentCalls;
+	}
+	
+	private static List<MethodInvocation> getPreviousCalls(MethodInvocation methodInvocationToBeCarved, ExecutionFlowGraph executionFlowGraph,
+			DataDependencyGraph dataDependencyGraph, CallGraph callGraph) {
 		// Get the last method, which the next method called after MUT, minus 1
-		ExecutionFlowGraph executionFlowGraph = parsedTrace.getFirst();
-		DataDependencyGraph dataDependencyGraph = parsedTrace.getSecond();
-		CallGraph callGraph = parsedTrace.getThird();
-		//
-		MethodInvocationMatcher scannerNextMethodMatcher = MethodInvocationMatcher
-				.byMethod("<java.util.Scanner: .* next.*()>");
-		//
 
 		Set<MethodInvocation> subsubmedCalls = callGraph.getMethodInvocationsSubsumedBy(methodInvocationToBeCarved);
 
-//		System.out.println("MockingGenerator.collectValuesReadFromInput() Subsumed calls " + subsubmedCalls);
+		// System.out.println("MockingGenerator.collectValuesReadFromInput()
+		// Subsumed calls " + subsubmedCalls);
 		// It there's not subsumed calls then the MUT is the last call
 		MethodInvocation lastSubsumedCall = null;
 		if (!subsubmedCalls.isEmpty()) {
@@ -259,19 +390,29 @@ public class MockingGenerator {
 			lastSubsumedCall = methodInvocationToBeCarved;
 		}
 
-		List<MethodInvocation> previousCalls = executionFlowGraph.getOrderedMethodInvocationsBefore(lastSubsumedCall);
+		return executionFlowGraph.getOrderedMethodInvocationsBefore(lastSubsumedCall);
+	}
 
-//		System.out.println("MockingGenerator.collectValuesReadFromInput() LAST SUBSUMED CALL " + lastSubsumedCall);
+	private static List<Value> collectValuesReadFromInput(
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace,
+			MethodInvocation methodInvocationToBeCarved) {
+		
+		List<Value> valuesFromInput = new ArrayList<>();
 
-		// Check only the one before the last subsumed call
+		// System.out.println("MockingGenerator.collectValuesReadFromInput()
+		// LAST SUBSUMED CALL " + lastSubsumedCall);
+		MethodInvocationMatcher scannerNextMethodMatcher = MethodInvocationMatcher
+				.byMethod("<java.util.Scanner: .* next.*()>");
+
+		ExecutionFlowGraph executionFlowGraph = parsedTrace.getFirst();
+		DataDependencyGraph dataDependencyGraph = parsedTrace.getSecond();
+		CallGraph callGraph = parsedTrace.getThird();
+		
+		List<MethodInvocation> previousCalls = getPreviousCalls(methodInvocationToBeCarved, executionFlowGraph, dataDependencyGraph, callGraph);
+
 		for (MethodInvocation methodInvocation : previousCalls) {
-
-//			System.out.println("Processing " + methodInvocation);
-
 			if (scannerNextMethodMatcher.matches(methodInvocation)) {
-//				System.out.println(">> Found a call to scanner method: " + methodInvocation);
 				Value valueReadFromInput = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
-//				System.out.println(">> Return value is " + valueReadFromInput);
 				valuesFromInput.add(valueReadFromInput);
 			}
 		}
