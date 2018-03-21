@@ -97,6 +97,7 @@ public class DataDependencyGraph {
 				node = new ObjectInstance(actualParameters[position]);
 			}
 
+			// DANGLING OBJECTS !
 			if (!graph.containsVertex(node)) {
 
 				// HERE We need to check if this data note is not yet define, if
@@ -109,24 +110,32 @@ public class DataDependencyGraph {
 				// force "System.in"
 				if (node instanceof ObjectInstance) {
 
-					// Check if this is mocking. We use heuristic here,
-					// otherwise we need to load classes and deps for each app
-					// under test
+					// We use heuristics here:
 
+					//
+					// Check if this is System.in mocking
 					if (((ObjectInstance) node).getType().startsWith(
 							"org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock")) {
-//						System.out.println("DataDependencyGraph.addMethodInvocation() PATCH FOR MOCKED INPUT");
 						node = ObjectInstance.SystemIn();
-//						System.out.println("DataDependencyGraph.addMethodInvocation() Patch with " + node);
+					} else if (((ObjectInstance) node).getType().endsWith("[]")) {
+						// Check if this is an array... Shall we default to
+						// empty array ?!
+						// Otherwise, we might need to look at their serialized
+						// form ?!
+						System.out.println("DataDependencyGraph.addMethodInvocation() It's an array of type " + ((ObjectInstance) node).getType().replace("[]", ""));
+						System.out.println("DataDependencyGraph.addMethodInvocation() WE SKIP ARRAY FOR THE MOMENT");
+
 					} else {
 
 						try {
 							@SuppressWarnings("rawtypes")
 							Class actualClass = Class.forName(((ObjectInstance) node).getType());
 							if (InputStream.class.isAssignableFrom(actualClass)) {
-//								System.out.println("DataDependencyGraph.addMethodInvocation() FIRST SEEN " + node);
+								// System.out.println("DataDependencyGraph.addMethodInvocation()
+								// FIRST SEEN " + node);
 								node = ObjectInstance.SystemIn();
-//								System.out.println("DataDependencyGraph.addMethodInvocation() Patch with " + node);
+								// System.out.println("DataDependencyGraph.addMethodInvocation()
+								// Patch with " + node);
 							}
 						} catch (ClassNotFoundException e) {
 							// TODO Auto-generated catch block
