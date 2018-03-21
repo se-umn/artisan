@@ -69,6 +69,8 @@ public class StackImplementation implements TraceParser {
 		this.purityMatchers = purityMatchers;
 	}
 
+	// This method is hard to test, and cannot be public since requires setup
+	// from the method calling it
 	private int parseMethodStart(int startLine, List<String> allLines,
 			List<MethodInvocationMatcher> externalInterfaceMatchers) {
 		logger.trace("StackImplementation.parseMethodStart()" + allLines.get(startLine));

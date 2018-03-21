@@ -91,8 +91,9 @@ public class Carver {
 		List<String> externalInterfaces = new ArrayList<>();
 		{
 			// Default Interfaces are the one for Files, Network, etc. ?
-			// TODO this list is not complete !
-			// externalInterfaces.add("java.util.Scanner");
+			// External interfaces are defined by Class
+			externalInterfaces.add("java.util.Scanner");
+			externalInterfaces.add("java.nio.file.Path");
 		}
 
 		List<String> pureMethods = new ArrayList<>();

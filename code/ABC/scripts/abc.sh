@@ -2,7 +2,7 @@
 # ABC Framework script
 
 INSTRUMENT_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=WARN"
-CARVING_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=INFO"
+CARVING_JAVA_OPTS=${CARVING_JAVA_OPTS:-"-Dorg.slf4j.simpleLogger.defaultLogLevel=INFO"}
 # -Ddebug=true"
 
 DEFAULT_INSTRUMENT_OUTPUT_DIR="./sootOutput"
@@ -21,7 +21,7 @@ function instrument(){
 		return
 	fi
 	 
-	PROJECT_JAR=$1
+	PROJECT_JAR="$@"
 	
 	export JAVA_OPTS=${INSTRUMENT_JAVA_OPTS}
 	

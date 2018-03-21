@@ -443,7 +443,7 @@ public class InstrumentTracer extends BodyTransformer {
 
 	public interface InstrumentTracerCLI {
 		@Option(longName = "project-jar")
-		File getProjectJar();
+		List<File> getProjectJar();
 
 		@Option(longName = "output-to", defaultValue = "./sootOutput")
 		File getOutputDir();
@@ -478,7 +478,7 @@ public class InstrumentTracer extends BodyTransformer {
 	public static void main(String[] args) throws URISyntaxException {
 		String phaseName = "jtp.mainInstrumentation";
 
-		File projectJar = null;
+		List<File> projectJars = new ArrayList<>();
 		File outputDir = null;
 		String outputType = null;
 		// This contains a list of package? classes? not sure that tell soot
@@ -534,7 +534,7 @@ public class InstrumentTracer extends BodyTransformer {
 
 		try {
 			InstrumentTracerCLI commandLineOptions = CliFactory.parseArguments(InstrumentTracerCLI.class, args);
-			projectJar = commandLineOptions.getProjectJar();
+			projectJars.addAll( commandLineOptions.getProjectJar());
 			outputDir = commandLineOptions.getOutputDir();
 			outputType = commandLineOptions.getOutputType();
 			//
@@ -606,8 +606,11 @@ public class InstrumentTracer extends BodyTransformer {
 		String traceJar = ABCUtils.getTraceJar();
 
 		// This is the application under analysis. 1 jar -> 1 entry
+		// There can be more jars (libraries, tests, etc.)
 		ArrayList<String> list = new ArrayList<String>();
-		list.add(projectJar.getAbsolutePath());
+		for( File projectJar : projectJars){
+			list.add(projectJar.getAbsolutePath());
+		}
 		// TODO Most likely project dependencies shall be listed here
 		// Supporting jar. TODO Pretty sure this can be done in a different way
 		// !

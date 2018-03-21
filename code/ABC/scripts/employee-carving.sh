@@ -13,6 +13,9 @@ DEFAULT_CARVE_BY="package=org.employee"
 
 CARVE_BY=${2:-${DEFAULT_CARVE_BY}}
 
+export CARVING_JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=TRACE"
+
+
 ./abc.sh carve \
 	"${PROJECT_JAR}" \
 	"${TRACE_FILE}" \

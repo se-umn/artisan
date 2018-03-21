@@ -7,8 +7,10 @@ rm ${LOG}
 
 export JAVA_OPTS="-Dtrace.output=./tracingOut -Ddump.output=./tracingOut"
 
-PROJECT_JAR="../../../test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHOT.jar"
+# We require system test cases packages as jar
+PROJECT_CP="../../../test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHOT.jar"
+TEST_CP="../../../test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHOT-tests.jar"
 
 ./abc.sh instrument \
-	${PROJECT_JAR} 2>&1 | \
+        ${PROJECT_CP} ${TEST_CP} 2>&1 | \
 		tee ${LOG}
