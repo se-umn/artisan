@@ -19,6 +19,14 @@ public class MethodInvocationMatcherTest {
 			1);
 
 	@Test
+	public void testByMethodWithArray() {
+		MethodInvocation methodInvocation = new MethodInvocation("<de.unipassau.abc.testsubject2.ArrayHandlingClass: void callMeMaybe(java.lang.String[])>", 1);
+		MethodInvocationMatcher methodMatcher = MethodInvocationMatcher
+				.byMethodLiteral("<de.unipassau.abc.testsubject2.ArrayHandlingClass: void callMeMaybe(java.lang.String[])>");
+		assertTrue(methodMatcher.matches(methodInvocation));
+	}
+	
+	@Test
 	public void testMethodWithRegEx() {
 		MethodInvocation scannerReadString = new MethodInvocation("<<java.util.Scanner: java.lang.String next()>)>", 1);
 		MethodInvocation scannerReadInt = new MethodInvocation("<<java.util.Scanner: int nextInt()>)>", 2);

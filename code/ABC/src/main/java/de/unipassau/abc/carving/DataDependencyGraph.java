@@ -132,9 +132,9 @@ public class DataDependencyGraph {
 			// Otherwise, we might need to look at their serialized
 			// form ?!
 			
-			System.out.println("DataDependencyGraph.addMethodInvocation() It's an array of type "
-					+ ((ObjectInstance) node).getType().replace("[]", ""));
-			System.out.println("DataDependencyGraph.addMethodInvocation() WE SKIP ARRAY FOR THE MOMENT");
+//			System.out.println("DataDependencyGraph.addMethodInvocation() It's an array of type "
+//					+ ((ObjectInstance) node).getType().replace("[]", ""));
+//			System.out.println("DataDependencyGraph.addMethodInvocation() WE SKIP ARRAY FOR THE MOMENT");
 			//
 			return node;
 		} else {
@@ -263,7 +263,7 @@ public class DataDependencyGraph {
 		VisualizationViewer<GraphNode, String> vv = new VisualizationViewer<GraphNode, String>(
 				new KKLayout<GraphNode, String>(graph));
 
-		vv.setPreferredSize(new Dimension(1000, 800)); // Sets the viewing area
+		vv.setPreferredSize(new Dimension(2000, 1600)); // Sets the viewing area
 		// Code duplication...
 		vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller() {
 			@Override

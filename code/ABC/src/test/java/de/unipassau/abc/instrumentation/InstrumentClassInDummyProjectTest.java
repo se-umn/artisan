@@ -18,18 +18,12 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
-import de.unipassau.abc.testsubject.DummySystemTestGetDoubleModifiedWithDelegate;
-import de.unipassau.abc.testsubject.DummySystemTestGetModified;
-import de.unipassau.abc.testsubject.DummySystemTestGetModifiedWithDelegate;
-import de.unipassau.abc.testsubject.DummySystemTestGetSimple;
-import de.unipassau.abc.testsubject.DummySystemTestGetSimpleWithDelegate;
-import de.unipassau.abc.testsubject.DummySystemTestGetSimpleWithNonRequiredParameter;
-import de.unipassau.abc.testsubject.DummySystemTestGetSimpleWithParameter;
+import de.unipassau.abc.testsubject2.ArrayHandlingClass;
 import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.abc.utils.SystemTest;
 
-public class InstrumentDummyProjectTest {
+public class InstrumentClassInDummyProjectTest {
 
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
@@ -73,25 +67,16 @@ public class InstrumentDummyProjectTest {
 		InstrumentTracer tracer = new InstrumentTracer();
 		tracer.main(new String[] { "--project-jar", testsubjectJar.getAbsolutePath(), //
 				"--output-to", outputDir.getAbsolutePath(), //
-				"--output-type", "class", "--include", "de.unipassau.abc.testsubject.*" });
+				"--output-type", "class", 
+				"--include", "de.unipassau.abc.testsubject2.*"});
 		//
 		// TODO Maybe a Hamcrest matcher here?
 		int count = ABCTestUtils.countFiles(outputDir, ".class");
-		assertEquals(14, count);
-
-		// At this point we have the instrumented classes and we can start
-		// system tests and make assertions on the resulting traces.
-		// TODO SUpporting jars !
-		runSystemTestFromClass(DummySystemTestGetDoubleModifiedWithDelegate.class, outputDir, testsubjectJar,
-				traceJarCP);
-		runSystemTestFromClass(DummySystemTestGetModified.class, outputDir, testsubjectJar, traceJarCP);
-		runSystemTestFromClass(DummySystemTestGetModifiedWithDelegate.class, outputDir, testsubjectJar, traceJarCP);
-		runSystemTestFromClass(DummySystemTestGetSimple.class, outputDir, testsubjectJar, traceJarCP);
-		runSystemTestFromClass(DummySystemTestGetSimpleWithDelegate.class, outputDir, testsubjectJar, traceJarCP);
-		runSystemTestFromClass(DummySystemTestGetSimpleWithNonRequiredParameter.class, outputDir, testsubjectJar,
-				traceJarCP);
-		runSystemTestFromClass(DummySystemTestGetSimpleWithParameter.class, outputDir, testsubjectJar, traceJarCP);
-
+		// There's two files now
+		assertEquals(2, count);
+		
+		runSystemTestFromClass(ArrayHandlingClass.class, outputDir, testsubjectJar, traceJarCP);
+		
 	}
 
 	private void runSystemTestFromClass(Class systemTestClass, File outputDir, File testsubjectJar, String traceJarCP)
@@ -114,7 +99,7 @@ public class InstrumentDummyProjectTest {
 		System.out.println("InstrumentEmployeeTest.instrumentAndTraceTestSubjects()" + processBuilder.command());
 
 		// This causes problems
-		// processBuilder.inheritIO();
+		 processBuilder.inheritIO();
 
 		Process process = processBuilder.start();
 

@@ -40,6 +40,23 @@ public class StackImplementationTest {
 
 	private final List<MethodInvocationMatcher> emptyMethodInvocationMatcherList = new ArrayList<MethodInvocationMatcher>();
 
+	
+	@Test
+	public void testParserWithStoreArrays() throws FileNotFoundException, IOException {
+		File traceFile = new File("./src/test/resources/ArrayHandlingClass-trace.txt");
+
+		// Init of STRING[]
+		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
+		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = stackImplementation
+				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
+		// parsedTrace.values().iterator().next().getFirst().visualize()
+//		parsedTrace.values().iterator().next().getSecond().visualize()
+//		parsedTrace.values().iterator().next().getThird().visualize()
+		assertEquals(1, parsedTrace.size());
+
+	}
+
+	
 	@Test
 	public void testTraceParseWithTraceFromTestSubject() throws FileNotFoundException, IOException {
 		File traceFile = new File("./src/test/resources/DummySystemTestGetSimple-trace.txt");

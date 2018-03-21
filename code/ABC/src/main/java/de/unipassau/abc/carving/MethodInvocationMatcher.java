@@ -28,16 +28,16 @@ public class MethodInvocationMatcher {
 	// Jimple methods: <org.employee.Validation: int
 	// numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>
 	public final static Pattern jimpleMethodInvocationPattern = Pattern.compile("<" // Opening
-																				// Tag
-			+ "[a-zA_Z_][\\.\\w]*" //
+			// Tag
+			+ "[a-zA_Z_][\\.\\w]*(\\[\\])?" // accept arrays as owners
 			+ ":\\s" //
-			+ "[a-zA_Z_][\\.\\w]*" //
+			+ "[a-zA_Z_][\\.\\w]*(\\[\\])?" // accept arrats as return type
 			+ "\\s"//
 			+ "([\\.\\w][\\.\\w]*|<init>|<clinit>)" // Method name or
 													// constructor or static
 													// initializer
 			+ "\\(([a-zA_Z_][\\.\\w]*(\\[\\])?)?(,[a-zA_Z_][\\.\\w]*(\\[\\])?)*\\)" // Parameter
-																	// list -> Does not match ARRAY !
+			// list -> Does not match ARRAY !
 			+ ">"); // Closing Tag
 
 	// Package and class name, package class and name for return type,
@@ -68,6 +68,22 @@ public class MethodInvocationMatcher {
 	public static MethodInvocationMatcher byMethod(String string) {
 		// TODO Validate this is a well formed jimple method
 		return fromJimpleMethod(string);
+	}
+
+	public static MethodInvocationMatcher byMethodLiteral(String jimpleMethod) {
+		
+		// Build the array for parameters
+		String[] _params = JimpleUtils.getParameterList(jimpleMethod);
+		Pattern[] params = new Pattern[ _params.length ];
+		for(int i = 0; i < params.length; i++){
+			params[i] = Pattern.compile( Pattern.quote( _params[i]));
+		}
+		
+		return new MethodInvocationMatcher(//
+				Pattern.compile( Pattern.quote(JimpleUtils.getClassNameForMethod(jimpleMethod))), //
+				Pattern.compile( Pattern.quote(JimpleUtils.getReturnType(jimpleMethod))), //
+						Pattern.compile( Pattern.quote(JimpleUtils.getMethodName(jimpleMethod))), //
+								params);
 	}
 
 	public static MethodInvocationMatcher byInstance(ObjectInstance objectInstance) {
@@ -122,6 +138,18 @@ public class MethodInvocationMatcher {
 		this.instancePattern = objectId != null ? Pattern.compile(Pattern.quote(objectId)) : null;
 	}
 
+	// Avoid this to be called from outside
+	protected MethodInvocationMatcher(Pattern classPattern, Pattern returnPattern, Pattern methodPattern,
+			Pattern[] parameterPatterns) {
+		this.classPattern = classPattern;
+		this.returnPattern = returnPattern;
+		this.methodPattern = methodPattern;
+		this.parameterPatterns = parameterPatterns;
+		//
+		this.invocationID = -1;
+		this.instancePattern = null;
+	}
+
 	protected MethodInvocationMatcher(String classRegEx, String returnRegEx, String methodNameRegEx,
 			String... parameterRegExs) {
 		this(classRegEx, returnRegEx, methodNameRegEx, parameterRegExs, -1, null);
@@ -142,15 +170,16 @@ public class MethodInvocationMatcher {
 		if (methodInvocation.isStatic()) {
 			return false;
 		}
-		
-		if( methodInvocation.getOwner() == null ){
-			throw new RuntimeException("Invalid Method invocation " + methodInvocation );
+
+		if (methodInvocation.getOwner() == null) {
+			throw new RuntimeException("Invalid Method invocation " + methodInvocation);
 		}
 		String objectId = methodInvocation.getOwner().getObjectId();
 
 		final Matcher instanceMatcher = instancePattern.matcher(objectId);
 		if (!instanceMatcher.find()) {
-//			logger.trace(methodInvocation + " with owner " + objectId + " does not match instanceMatcher");
+			// logger.trace(methodInvocation + " with owner " + objectId + "
+			// does not match instanceMatcher");
 			return false;
 		}
 
@@ -188,27 +217,31 @@ public class MethodInvocationMatcher {
 
 		final Matcher methodMatcher = methodPattern.matcher(JimpleUtils.getMethodName(jimpleMethod));
 		if (!methodMatcher.find()) {
-//			logger.trace(methodInvocation + " does not match methodPatternMatcher " + methodPattern);
+			// logger.trace(methodInvocation + " does not match
+			// methodPatternMatcher " + methodPattern);
 			return false;
 		}
 		// Matching parametes positionally
 		String[] formalParams = JimpleUtils.getParameterList(jimpleMethod);
 		if (formalParams.length != parameterPatterns.length) {
-//			logger.trace(methodInvocation + " does not match methodParameterCountMatcher");
+			// logger.trace(methodInvocation + " does not match
+			// methodParameterCountMatcher");
 			return false;
 		}
 
 		for (int pos = 0; pos < formalParams.length; pos++) {
 			final Matcher parameterMatcher = parameterPatterns[pos].matcher(formalParams[pos]);
 			if (!parameterMatcher.find()) {
-//				logger.trace(methodInvocation + " does not match parameterCountMatcher for " + formalParams[pos]);
+				// logger.trace(methodInvocation + " does not match
+				// parameterCountMatcher for " + formalParams[pos]);
 				return false;
 			}
 		}
 
 		if (invocationID != -1) {
 			if (methodInvocation.getInvocationCount() != this.invocationID) {
-//				logger.trace(methodInvocation + " does not match invocationCount for " + this.invocationID);
+				// logger.trace(methodInvocation + " does not match
+				// invocationCount for " + this.invocationID);
 				return false;
 			}
 		}

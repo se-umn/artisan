@@ -21,6 +21,7 @@ import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.DataDependencyGraph;
 import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
+import de.unipassau.abc.carving.MethodInvocationMatcher;
 import de.unipassau.abc.carving.ObjectInstance;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.utils.JimpleUtils;
@@ -35,6 +36,7 @@ import soot.Unit;
 import soot.Value;
 import soot.VoidType;
 import soot.jimple.ArrayRef;
+import soot.jimple.AssignStmt;
 import soot.jimple.IntConstant;
 import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
@@ -254,56 +256,59 @@ public class TestGenerator {
 				}
 				int localId = localMap.get(type).getAndIncrement();
 
-				// ARRAYS ARE STORES LIKE <className>[] and not as [L<classname>;
+				// ARRAYS ARE STORES LIKE <className>[] and not as
+				// [L<classname>;
 				RefType variableType = null;
 				String variableName = null;
-				
-				if( type.endsWith("[]")){
+
+				if (type.endsWith("[]")) {
 					variableType = RefType.v(type.replace("[]", ""));
 					variableName = variableType.getClassName();
 					//
 					variableName = variableName.substring(variableName.lastIndexOf('.') + 1);
 					// Apply code conventions
-					variableName = variableName.replaceFirst(variableName.substring(0, 1), variableName.substring(0, 1).toLowerCase());
-					
+					variableName = variableName.replaceFirst(variableName.substring(0, 1),
+							variableName.substring(0, 1).toLowerCase());
+
 					variableName = variableName + "Array";
-					
-					//					name the array
+
+					// name the array
 					// Create an array to host the values
 					// TODO: THIS IS WRONG BUT CANNOT SEE OTHER SOLUYTION NOW !
-					NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(variableType, //RefType.v("java.lang.Object"),
+					NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(variableType, // RefType.v("java.lang.Object"),
 							IntConstant.v(0));
 
 					Local newArrayLocal = Jimple.v().newLocal(variableName + localId, variableType);
 					body.getLocals().add(newArrayLocal);
-					
-					// Add the instruction to create the empty array 
+
+					// Add the instruction to create the empty array
 					Unit newAssignStmt = Jimple.v().newAssignStmt(newArrayLocal, arrayExpr);
 					units.add(newAssignStmt);
-					
+
 					// Debug
-					logger.trace("  >>>> Create a new local ARRAY variable " + newArrayLocal + " of type " + type + " and node "
-							+ node + " " + node.hashCode());
+					logger.trace("  >>>> Create a new local ARRAY variable " + newArrayLocal + " of type " + type
+							+ " and node " + node + " " + node.hashCode());
 					//
 					dataDependencyGraph.setValueFor(node, newArrayLocal);
-				} else{
+				} else {
 					variableType = RefType.v(type);
 					variableName = variableType.getClassName();
 					//
 					variableName = variableName.substring(variableName.lastIndexOf('.') + 1);
 					// Apply code conventions
-					variableName = variableName.replaceFirst(variableName.substring(0, 1), variableName.substring(0, 1).toLowerCase());
+					variableName = variableName.replaceFirst(variableName.substring(0, 1),
+							variableName.substring(0, 1).toLowerCase());
 					//
 					Local localVariable = Jimple.v().newLocal(variableName + localId, variableType);
 					body.getLocals().add(localVariable);
-					
+
 					// Debug
-					logger.trace("  >>>> Create a new local variable " + localVariable + " of type " + type + " and node "
-							+ node + " " + node.hashCode());
-					
+					logger.trace("  >>>> Create a new local variable " + localVariable + " of type " + type
+							+ " and node " + node + " " + node.hashCode());
+
 					dataDependencyGraph.setValueFor(node, localVariable);
 				}
-				
+
 			}
 			//
 		}
@@ -408,62 +413,83 @@ public class TestGenerator {
 
 		Jimple jimple = Jimple.v();
 
-		// This is supposed to be the constructor !
-		SootMethod method = Scene.v().getMethod(methodInvocation.getJimpleMethod());
+		// Here we need to handle the fact that ArrayOperations are an artefact
+		// of ABC
+		if (MethodInvocationMatcher.byMethod("<.*\\[\\]: void <init>(int)>").matches(methodInvocation)) {
+			// Create an array to host the values
+			String arrayType = JimpleUtils.getClassNameForMethod( methodInvocation.getJimpleMethod()).replace("[]","");
+			NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(RefType.v(arrayType),
+					parametersValues.get(0));
 
-		switch (methodInvocation.getInvocationType()) {
-		case "SpecialInvokeExpr":
-			// This is a constructor so I need to call new and then <init> with
-			// the right parameteres
-			RefType cType = RefType.v(JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod()));
-			// Call "new"
-			Stmt assignToNew = jimple.newAssignStmt(objLocal, jimple.newNewExpr(cType));
-			// Call init + parameters
-			InvokeStmt invokeStmt = jimple
-					.newInvokeStmt(jimple.newSpecialInvokeExpr(objLocal, method.makeRef(), parametersValues));
+			units.add(Jimple.v().newAssignStmt(objLocal, arrayExpr));
+			
+		} else if (MethodInvocationMatcher.byMethod("<.*\\[\\]: void store(int,.*)>").matches(methodInvocation)){
+			// Assign in position the value
+			ArrayRef arrayRef1 = Jimple.v().newArrayRef(objLocal, parametersValues.get(0));
+	        AssignStmt assignStmt1 = Jimple.v().newAssignStmt(arrayRef1, parametersValues.get(1));
+	        units.add(assignStmt1);
+	        } 
+		else {
 
-			// This automatically captures the return value of <init> in case we
-			// need it for regression assertions
-			units.add(assignToNew);
-			units.add(invokeStmt);
-			break;
-		case "VirtualInvokeExpr":
-			if (returnObjLocal != null) {
-				Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
-						jimple.newVirtualInvokeExpr(objLocal, method.makeRef(), parametersValues));
-				units.add(assignStmt);
-			} else {
-				Stmt callStmt = jimple
-						.newInvokeStmt(jimple.newVirtualInvokeExpr(objLocal, method.makeRef(), parametersValues));
-				units.add(callStmt);
-			}
-			break;
+			// This is supposed to be the constructor !
+			SootMethod method = Scene.v().getMethod(methodInvocation.getJimpleMethod());
 
-		case "StaticInvokeExpr":
-			if (returnObjLocal != null) {
-				final Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
-						jimple.newStaticInvokeExpr(method.makeRef(), parametersValues));
-				units.add(assignStmt);
-			} else {
-				final Stmt callStmt = jimple
-						.newInvokeStmt(jimple.newStaticInvokeExpr(method.makeRef(), parametersValues));
-				units.add(callStmt);
+			switch (methodInvocation.getInvocationType()) {
+			case "SpecialInvokeExpr":
+				// This is a constructor so I need to call new and then <init>
+				// with
+				// the right parameteres
+				RefType cType = RefType.v(JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod()));
+				// Call "new"
+				Stmt assignToNew = jimple.newAssignStmt(objLocal, jimple.newNewExpr(cType));
+				// Call init + parameters
+				InvokeStmt invokeStmt = jimple
+						.newInvokeStmt(jimple.newSpecialInvokeExpr(objLocal, method.makeRef(), parametersValues));
+
+				// This automatically captures the return value of <init> in
+				// case we
+				// need it for regression assertions
+				units.add(assignToNew);
+				units.add(invokeStmt);
+				break;
+			case "VirtualInvokeExpr":
+				if (returnObjLocal != null) {
+					Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
+							jimple.newVirtualInvokeExpr(objLocal, method.makeRef(), parametersValues));
+					units.add(assignStmt);
+				} else {
+					Stmt callStmt = jimple
+							.newInvokeStmt(jimple.newVirtualInvokeExpr(objLocal, method.makeRef(), parametersValues));
+					units.add(callStmt);
+				}
+				break;
+
+			case "StaticInvokeExpr":
+				if (returnObjLocal != null) {
+					final Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
+							jimple.newStaticInvokeExpr(method.makeRef(), parametersValues));
+					units.add(assignStmt);
+				} else {
+					final Stmt callStmt = jimple
+							.newInvokeStmt(jimple.newStaticInvokeExpr(method.makeRef(), parametersValues));
+					units.add(callStmt);
+				}
+				break;
+			case "InterfaceInvokeExpr":
+				if (returnObjLocal != null) {
+					Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
+							jimple.newInterfaceInvokeExpr(objLocal, method.makeRef(), parametersValues));
+					units.add(assignStmt);
+				} else {
+					Stmt callStmt = jimple
+							.newInvokeStmt(jimple.newInterfaceInvokeExpr(objLocal, method.makeRef(), parametersValues));
+					units.add(callStmt);
+				}
+				break;
+			default:
+				logger.error("Unexpected Invocation type " + methodInvocation.getInvocationType());
+				throw new NotImplementedException("Unexpected Invocation type " + methodInvocation.getInvocationType());
 			}
-			break;
-		case "InterfaceInvokeExpr":
-			if (returnObjLocal != null) {
-				Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
-						jimple.newInterfaceInvokeExpr(objLocal, method.makeRef(), parametersValues));
-				units.add(assignStmt);
-			} else {
-				Stmt callStmt = jimple
-						.newInvokeStmt(jimple.newInterfaceInvokeExpr(objLocal, method.makeRef(), parametersValues));
-				units.add(callStmt);
-			}
-			break;
-		default:
-			logger.error("Unexpected Invocation type " + methodInvocation.getInvocationType());
-			throw new NotImplementedException("Unexpected Invocation type " + methodInvocation.getInvocationType());
 		}
 	}
 

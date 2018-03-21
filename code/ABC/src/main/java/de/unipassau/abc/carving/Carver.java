@@ -68,6 +68,9 @@ public class Carver {
 		case "class":
 			return MethodInvocationMatcher.byClass(regEx);
 		case "method":
+			// PAY ATTENTION TO THIS
+			return MethodInvocationMatcher.byMethodLiteral(regEx);
+		case "regex":
 			return MethodInvocationMatcher.byMethod(regEx);
 		case "return":
 			return MethodInvocationMatcher.byReturnType(regEx);
