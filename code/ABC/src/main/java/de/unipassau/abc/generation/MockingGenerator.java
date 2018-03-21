@@ -34,7 +34,6 @@ import soot.Type;
 import soot.Unit;
 import soot.Value;
 import soot.VoidType;
-import soot.jimple.IntConstant;
 import soot.jimple.Jimple;
 import soot.jimple.JimpleBody;
 import soot.jimple.toolkits.annotation.j5anno.AnnotationGenerator;
@@ -220,6 +219,11 @@ public class MockingGenerator {
 		Value valueReadFromInput = collectExpectedSystemExitValue(parsedTraceFromSystemTest,
 				methodInvocationToBeCarved);
 
+		if( valueReadFromInput == null ){
+			// System.exit cannot be called by this test (I hope)
+			return;
+		}
+		
 		Body body = testMethod.getActiveBody();
 
 		SootMethod expectSystemExit = Scene.v().getMethod(
@@ -240,34 +244,31 @@ public class MockingGenerator {
 
 	}
 
+	// System exit might not event be called in the scope of the carved test !
 	private static Value collectExpectedSystemExitValue(
 			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace,
 			MethodInvocation methodInvocationToBeCarved) {
 		
 		// Default to 0
-		Value expectedSystemExitValue = IntConstant.v(0);
-
 		MethodInvocationMatcher systemExitMethodMatcher = MethodInvocationMatcher
 				.byMethod("<java.lang.System: void exit(int)>");
 		// Which one do we pick ?!
 		// [>];StaticInvokeExpr;<java.lang.System: void exit(int)>;(0)
 		// [>];VirtualInvokeExpr;<org.junit.contrib.java.lang.system.ExpectedSystemExit: void expectSystemExitWithStatus(int)>;(0)
 
-		ExecutionFlowGraph executionFlowGraph = parsedTrace.getFirst();
 		DataDependencyGraph dataDependencyGraph = parsedTrace.getSecond();
 		CallGraph callGraph = parsedTrace.getThird();
 		
-		List<MethodInvocation> subsequentCalls = getSubsequentCalls(methodInvocationToBeCarved, executionFlowGraph, dataDependencyGraph, callGraph);
+		Set<MethodInvocation> subsequentCalls = callGraph.getMethodInvocationsSubsumedBy( methodInvocationToBeCarved );
+		System.out.println("MockingGenerator.collectExpectedSystemExitValue() Calls subsumed by " + methodInvocationToBeCarved );
+		System.out.println("		" + subsequentCalls );
 
 		for (MethodInvocation methodInvocation : subsequentCalls) {
 			if (systemExitMethodMatcher.matches(methodInvocation)) {
-				
-				Value exitValue = dataDependencyGraph.getParametersSootValueFor(methodInvocation).get(0);
-				return exitValue;
+				return dataDependencyGraph.getParametersSootValueFor(methodInvocation).get(0);
 			}
 		}
-		logger.info("MockingGenerator.collectExpectedSystemExitValue() Cannot find System.exit call, return default value 0");
-		return expectedSystemExitValue;
+		return null;
 	}
 
 	private static MethodInvocation findMethodInvocationToBeCarved(SootMethod testMethod) {
@@ -345,14 +346,6 @@ public class MockingGenerator {
 
 	}
 
-	// Get the calls which strictly follows the given one, in reverse order...
-	private static List<MethodInvocation> getSubsequentCalls(MethodInvocation methodInvocationToBeCarved, ExecutionFlowGraph executionFlowGraph,
-			DataDependencyGraph dataDependencyGraph, CallGraph callGraph) {
-		List<MethodInvocation> subSequentCalls = executionFlowGraph.getOrderedMethodInvocationsAfter( methodInvocationToBeCarved);
-		Collections.reverse( subSequentCalls );
-		return subSequentCalls;
-	}
-	
 	private static List<MethodInvocation> getPreviousCalls(MethodInvocation methodInvocationToBeCarved, ExecutionFlowGraph executionFlowGraph,
 			DataDependencyGraph dataDependencyGraph, CallGraph callGraph) {
 		// Get the last method, which the next method called after MUT, minus 1

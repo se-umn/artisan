@@ -44,9 +44,10 @@ public class CarverTest {
 			
 			String jimpleMethodToCarve = "org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>"; //
 			String traceFile = "/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut/trace.txt";
-
+//			String carveBy = "method=" + jimpleMethodToCarve;
+			String carveBy = "class=org.employee.Employee";
 			String[] args = new String[] {
-					"--carve-by", "method=" + jimpleMethodToCarve,
+					"--carve-by", carveBy,
 					// String traceFile =
 					"--trace-file", traceFile, 
 					// String projectJar =

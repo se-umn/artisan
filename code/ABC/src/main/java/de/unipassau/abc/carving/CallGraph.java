@@ -42,20 +42,33 @@ public class CallGraph {
 
 	public void push(MethodInvocation methodInvocation, boolean purityFlag) {
 		logger.trace("CallGraph.push()" + methodInvocation + " purity flag " + purityFlag);
-		stack.push(methodInvocation);
 
-		if (!purityFlag && !graph.containsVertex(methodInvocation)) {
-			graph.addVertex(methodInvocation);
+		if (stack.isEmpty()) {
+			// This register the call in the graph
+			if (!purityFlag && !graph.containsVertex(methodInvocation)) {
+				graph.addVertex(methodInvocation);
+			}
+		} else {
+			// If the stack is not empty we can link directly the nodes
+			MethodInvocation caller = stack.peek();
+			if (!purityFlag && !graph.containsVertex(methodInvocation)) {
+				graph.addVertex(methodInvocation);
+				// Link the two
+				graph.addEdge("CallDependency-" + id.getAndIncrement(), caller, methodInvocation, EdgeType.DIRECTED);
+			}
 		}
+		// This keeps track of the depth
+		stack.push(methodInvocation);
 	}
 
 	// Pop=ping an empty stack IS an error
 	public MethodInvocation pop() {
 		MethodInvocation callee = stack.pop();
-		if (!stack.isEmpty()) {
-			MethodInvocation caller = stack.peek();
-			graph.addEdge("CallDependency-" + id.getAndIncrement(), caller, callee, EdgeType.DIRECTED);
-		}
+		// if (!stack.isEmpty()) {
+		// MethodInvocation caller = stack.peek();
+		// graph.addEdge("CallDependency-" + id.getAndIncrement(), caller,
+		// callee, EdgeType.DIRECTED);
+		// }
 		return callee;
 	}
 

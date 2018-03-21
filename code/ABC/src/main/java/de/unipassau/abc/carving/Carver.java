@@ -23,6 +23,7 @@ import de.unipassau.abc.generation.MockingGenerator;
 import de.unipassau.abc.generation.TestCaseFactory;
 import de.unipassau.abc.generation.TestGenerator;
 import de.unipassau.abc.utils.JimpleUtils;
+import soot.G;
 import soot.Scene;
 import soot.SootClass;
 import soot.options.Options;
@@ -90,6 +91,9 @@ public class Carver {
 	 * This is global anyway. Public for testing
 	 */
 	public static void setupSoot(List<File> projectJars) {
+		G.reset();
+		//
+		
 		// System Settings Begin
 		Options.v().set_allow_phantom_refs(true);
 		Options.v().set_whole_program(true);
