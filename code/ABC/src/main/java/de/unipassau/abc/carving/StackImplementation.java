@@ -95,7 +95,7 @@ public class StackImplementation implements TraceParser {
 		// Check with soot ?
 		try {
 
-			if (!typeOfInvocation.equals("ArrayOperation")) {
+			if (!typeOfInvocation.equals("ArrayOperation") ) {
 				// This might be required to get to the method in the first
 				// place
 				System.out.println(
@@ -105,7 +105,9 @@ public class StackImplementation implements TraceParser {
 			}
 
 		} catch (Throwable e) {
-			e.printStackTrace();
+			// This fails for java classes
+			System.out.println("StackImplementation.parseMethodStart() Swallow:  " + e);
+//			e.printStackTrace();
 		}
 
 		// Check if this method belongs to an external interface
@@ -163,6 +165,7 @@ public class StackImplementation implements TraceParser {
 		callGraph.push(methodInvocation, purityFlag);
 
 		if (!purityFlag) {
+			// This also tracks parameter dependency
 			dataDependencyGraph.addMethodInvocation(methodInvocation, actualParameters);
 			exectuionFlowGraph.enqueueMethodInvocations(methodInvocation);
 		} else {
@@ -357,263 +360,6 @@ public class StackImplementation implements TraceParser {
 
 		return result;
 	}
-
-	// Method name and parameters
-	// public String graphAssigning(String subs) {
-	// String details[] = subs.split(";");
-	// logger.debug("Trying : " + details[0]);
-	// String methodName = pushImplementation(details[0]);
-	// enqueImplementation(details[0]);
-	// String removeBrackets = details[1].substring(1, details[1].length() - 1);
-	// // logger.debug(removeBrackets);
-	// return removeBrackets;
-	//
-	//
-	// }
-
-	// public void buildExecutionFlowGraph() {
-	// // TODO Auto-generated method stub
-	// if (queue.size() <= 1) {
-	// // no need for dependencies/add egdes
-	// return;
-	// }
-	// int initialQueueSize = queue.size();
-	//
-	// String source = queue.poll();
-	// String target = null;
-	// for (int position = 1; position < initialQueueSize; position++) {
-	// target = queue.poll();
-	// exectuionFlowGraph.edgeAdd("" + position, source, target);
-	// // Swap and move on
-	// source = target;
-	// }
-	// // exectuionFlowGraph
-	// // queue
-	//
-	// }
-
-	// Register the object which called the method
-	// public void graphAssigningID(String subs) {
-	// String tokens[] = subs.split(";");
-	//
-	// String jimpleMethod = tokens[0];
-	// // FIXME Hash of the object must be a proper hash not the default
-	// // toString of it...
-	// // System.identityHashCode(yourObject)
-	// String stringRepresentationOfTheObject = subs.substring(subs.indexOf(';')
-	// + 1, subs.length());
-	//
-	// Graph_Details.hashIdDuplicate.put(jimpleMethod,
-	// stringRepresentationOfTheObject);
-	// ArrayList<String> list;
-	//
-	// if
-	// (Graph_Details.instancesHashId.containsKey(stringRepresentationOfTheObject))
-	// {
-	// list =
-	// Graph_Details.instancesHashId.get(stringRepresentationOfTheObject);
-	//
-	// list.add(jimpleMethod);
-	// Graph_Details.instancesHashId.put(stringRepresentationOfTheObject, list);
-	// } else {
-	// list = new ArrayList<String>();
-	// list.add(jimpleMethod);
-	// Graph_Details.instancesHashId.put(stringRepresentationOfTheObject, list);
-	// }
-	//
-	// }
-
-	/*
-	 * Push on top of the stack the current method. This will match the
-	 * corresponding return method to track the call dependencies.
-	 * 
-	 * We return the method invocation or the methos invokation with the
-	 * additional number to track its occurrence...
-	 * 
-	 * BTW, the name is misleading, this should be PUSH METHOD INVOCATION
-	 * INSTEAD !
-	 */
-
-	// /**
-	// * This let us track the execution flow. But Not sure why we use the queue
-	// *
-	// * @param subs
-	// * @return
-	// */
-	// public String enqueImplementation(String subs) {
-	// logger.trace("Enqueing : " + subs);
-	// exectuionFlowGraph.enqueueMethodInvocations(subs);
-	// // if (!exectuionFlowGraph.isPresent(subs)) {
-	// // exectuionFlowGraph.vertexAdd(subs);
-	// // queue.add(subs);
-	// // }
-	// /*
-	// * else{ String newSubs=subs+invocationCount.getAndIncrement();
-	// *
-	// * exectuionFlowGraph.vertexAdd(newSubs); queue.add(newSubs); return
-	// * newSubs; }
-	// */
-	// return subs;
-	// }
-
-	// public void dequeueImplementation(String subs) {
-	// logger.debug("Dequeue for " + subs);
-	// if (!queue.isEmpty()) {
-	// String element = queue.peek();
-	// if (element.equals(subs)) {
-	//
-	// // logger.debug("Remove "+element);
-	// Iterator<String> it = queue.iterator();
-	// while (it.hasNext()) {
-	//
-	// // logger.debug("Remove "+queue.poll());
-	// String ver1 = queue.poll();
-	// String ver2 = queue.peek();
-	// if (ver1 != null && ver2 != null)
-	// exectuionFlowGraph.edgeAdd("Edge" + invocationCount.getAndIncrement(),
-	// ver1, ver2);
-	// }
-	// }
-	//
-	// }
-	// }
-
-	// public void popImplementation() {
-	// // If the stack is empty there's a failure !
-	// // if (!stack.isEmpty()) {
-	//
-	// // Track how many invocations we have observed ?
-	// edgeCount++;
-	// String edge_name = "Edge" + edgeCount;
-	//
-	// // How's possible that when we pop, we pop a return value and not a
-	// // jimplMethod ?
-	// // String returnValue = stack.pop();
-	// String jimpleMethod = stack.pop();
-	// logger.trace("Popping: " + jimpleMethod);
-	//
-	// // This should capture the fact that the method on top will return to
-	// // the method below it ?
-	// // Do we need this information ?
-	//
-	// // String peekValue = "";
-	// // if (!stack.isEmpty()) {
-	// // peekValue = stack.peek();
-	// //
-	// // String actualReturnValue = sgv.returnGraphVertice(returnValue);
-	// // logger.debug("StackImplementation.popImplementation() Actual
-	// // Return Value : " + actualReturnValue);
-	// //
-	// // String actualPeekValue = sgv.returnGraphVertice(peekValue);
-	// // logger.debug("StackImplementation.popImplementation() Actual Peek
-	// // Value : " + actualPeekValue);
-	// //
-	// // if (actualPeekValue != null && actualReturnValue != null)
-	// // sgv.edgeAdd(edge_name, actualPeekValue, actualReturnValue);
-	// // else
-	// // sgv.edgeAdd(edge_name, peekValue, returnValue);
-	// // // ??
-	// // duplicateGraph.edgeAdd(edge_name, peekValue, returnValue);
-	// // }
-	// // }
-	// }
-
-	/**
-	 * Creates the control flow graph
-	 */
-
-	// public void graphView() {
-	//
-	// VisualizationViewer<String, String> vv = new VisualizationViewer<String,
-	// String>(
-	// new KKLayout<String, String>(sgv.g));
-	// logger.debug("The number of vertices in CFG is : " +
-	// sgv.g.getVertexCount());
-	//
-	// vv.setPreferredSize(new Dimension(1000, 800)); // Sets the viewing area
-	// // size
-	// vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller());
-	//
-	// JFrame frame = new JFrame("Simple Graph View");
-	// frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-	// frame.getContentPane().add(vv);
-	// frame.pack();
-	// frame.setVisible(true);
-	//
-	// }
-
-	// /// TODO: Visualize this graph differently: squared green nodes ->
-	// /// instanced, rounded red nodes -> methos invocations
-	// // Is this even used? This smells like
-	// public void objectInvocationView() {
-	//
-	// VisualizationViewer<String, String> vv = new VisualizationViewer<String,
-	// String>(
-	// new KKLayout<String, String>(callGraph.g));
-	//
-	// vv.setPreferredSize(new Dimension(1000, 800)); // Sets the viewing area
-	// // size
-	// vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller());
-	//
-	// JFrame frame = new JFrame("DataNode Dependency View");
-	// frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-	// frame.getContentPane().add(vv);
-	// frame.pack();
-	// frame.setVisible(true);
-	//
-	// }
-
-	// TODO THIS IS NEVER CALLED ?!
-	// public void carving(String method) {
-	// sgv.getParents(method);
-	// sgv.getSuccessors(method);
-	// sgv.showPredecessors(method);
-	// }
-
-	// No idea what is this about...
-	// public void buildDependencyGraph() {
-	// Iterator<Map.Entry<String, String>> it =
-	// Graph_Details.hashParam.entrySet().iterator();
-	//
-	// while (it.hasNext()) {
-	// Map.Entry<String, String> entry = it.next();
-	//
-	// // TODO This should me a method invocation not a method !
-	// String jimpleMethod = entry.getKey();
-	// //
-	// String parameters = entry.getValue();
-	//
-	// for (String parameter : parameters.split(",")) {
-	// // TODO Not reliable, plus we must understand why the check
-	// // checkParamIsAObject(s) fails !
-	// if( parameter.contains("@") ){ // Otherwise this contains the VALUE.
-	// dataDependencyGraph.addVertices(jimpleMethod);
-	// dataDependencyGraph.addVertices(parameters);
-	// dataDependencyGraph.addEdges(jimpleMethod, parameters);
-	// }
-	// }
-	// }
-	// }
-
-	/*
-	 * This add the links between an object and the invocations observed on it.
-	 * Why do we need a graph ? Can we simply store this into a table? Probbaly
-	 * graph to backtrack the edges and implement backwards slicing
-	 */
-	// public void buildObjectInvocationsGraph() {
-	// Iterator<Map.Entry<String, ArrayList<String>>> it =
-	// Graph_Details.instancesHashId.entrySet().iterator();
-	// logger.debug("The elements are ::::::::::::::::::::::");
-	// while (it.hasNext()) {
-	// Map.Entry<String, ArrayList<String>> entry = it.next();
-	// // logger.debug("Key : "+entry.getKey());
-	// ArrayList<String> list = entry.getValue();
-	// for (String s : list) {
-	// // System.out.print("Value "+s+"\n");
-	// callGraph.addEdges(s, entry.getKey());
-	// }
-	// }
-	// }
 
 	public CallGraph getCallGraph() {
 		return callGraph;

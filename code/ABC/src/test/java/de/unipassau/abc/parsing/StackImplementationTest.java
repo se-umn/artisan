@@ -100,7 +100,7 @@ public class StackImplementationTest {
 		// System.out.println("StackImplementationTest.testTraceParseWithTraceFromTestSubject()");
 	}
 
-	@Ignore /* THIS HAS HARDCODED VALUES ! MOSTLY FOR DEBUGGING */
+//	@Ignore /* THIS HAS HARDCODED VALUES ! MOSTLY FOR DEBUGGING */
 	@Test
 	public void testTraceParseWithSystemIn() throws FileNotFoundException, IOException {
 		File traceFile = new File("/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut/trace.txt");

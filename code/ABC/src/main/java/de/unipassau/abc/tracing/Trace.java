@@ -59,6 +59,9 @@ public class Trace {
 		String content = METHOD_START_TOKEN + typeOfMethod + ";" + method;
 
 		if (objects.length > 0) {
+			// The formal parameters might be different than the actual ones!
+			// Object -> String
+			// So use the actual type for the trace !
 			String[] parametersType = extractParameterTypes(method);
 
 			content = content + ";(";
@@ -67,30 +70,43 @@ public class Trace {
 			for (int i = 0; i < objects.length; i++) {
 
 				if (isPrimitive(parametersType[i])) {
-					// By Value
-					content += String.valueOf(objects[i]);
-				} else if (isString(parametersType[i]) && objects[i] != null) {
-					// Not null string By Value
 					content += String.valueOf(objects[i]);
 				} else if (isArray(parametersType[i])) {
 
-					// TODO Not sure this is the best approach, tho
-					// We transform:
-					// [Ljava.nio.file.attribute.FileAttribute;@448354164
-					// To java.nio.file.attribute.FileAttribute[]@448354164
-					if ((objects[i]).getClass().getName().contains("[L")) {
+					if (objects[i] == null) { // Null array, we use the formal
+												// parameter
+						content += parametersType[i] + "@" + System.identityHashCode(objects[i]);
+					} else if ((objects[i]).getClass().getName().contains("[L")) { // Not
+																					// null
+																					// array
+																					// of
+																					// objects
 						String transformedClassName = (objects[i]).getClass().getName().replace("[L", "").replace(";",
 								"") + "[]";
 						content += transformedClassName + "@" + System.identityHashCode(objects[i]);
 					} else {
-						// Arrays of primitive types are weird, they are not [L
+						// Arrays of primitive types are weird, they are not
+						// [L
 						// but [B for byte [I for integer
 						// To avoid problems we use the formal parameters
 						content += parametersType[i] + "@" + System.identityHashCode(objects[i]);
 					}
 				} else {
-					// By Reference - String can be NULL !
-					content += (objects[i]).getClass().getName() + "@" + System.identityHashCode(objects[i]);
+					// To handle Objects
+					if (objects[i] == null) {
+						// Use the formal parameter
+						content += parametersType[i] + "@" + System.identityHashCode(objects[i]);
+					} else {
+						String actualParameterType = (objects[i]).getClass().getName();
+						// TODO Track String like regular objects
+//						if (isString(actualParameterType)) {
+//							// Not null string By Value
+//							content += String.valueOf(objects[i]);
+//						} else {
+							// All the remaining By Reference
+							content += actualParameterType + "@" + System.identityHashCode(objects[i]);
+//						}
+					}
 				}
 
 				if (i != objects.length - 1) {
@@ -100,6 +116,7 @@ public class Trace {
 
 			content += ")";
 		}
+
 		appendToTraceFile(content + "\n");
 	}
 
@@ -132,18 +149,20 @@ public class Trace {
 	 *            - the Id of the object
 	 */
 	public static void methodObject(String method, Object o) {
+		// There should be only one
+		String parameterType = extractClassType(method);
+
 		String xmlFile = null;
 		try {
-			// Primitives are not tracked already
-			if (!"java.lang.String".equals(method.split(" ")[1])) {
+			// Primitives are not tracked already but we do not store string to
+			// file
+			// we pass around by value
+//			if (!isString(parameterType) && o != null) {
 				xmlFile = XMLDumper.dumpObject(method, o);
-			}
+//			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-
-		// There should be only one
-		String parameterType = extractClassType(method);
 
 		String content = METHOD_OBJECT_TOKEN + method + ";" //
 				+ ((xmlFile != null) ? xmlFile : "") + ";";//
@@ -156,7 +175,12 @@ public class Trace {
 			// To java.nio.file.attribute.FileAttribute[]@448354164
 			String transformedClassName = o.getClass().getName().replace("[L", "").replace(";", "") + "[]";
 			content += transformedClassName + "@" + System.identityHashCode(o);
-		} else {
+		}
+//		else if (isString(parameterType) && o != null) {
+//			// Not null string By Value
+//			content += String.valueOf(o);
+//		} 
+		else {
 			content += "" + o.getClass().getName() + "@" + System.identityHashCode(o);
 		}
 
@@ -189,7 +213,7 @@ public class Trace {
 
 		// We distinguish primitives and boxed using methodName which specifies
 		// the return type !
-		if (isPrimitive(extractReturnType(method)) || (isString(extractReturnType(method)) && returnValue != null)) {
+		if (isPrimitive(extractReturnType(method)) /*|| (isString(extractReturnType(method)) && returnValue != null)*/) {
 			methodStopForPrimitive(method, returnValue.toString());
 		} else if (isVoid(extractReturnType(method))) {
 			methodStopForVoid(method);
@@ -202,7 +226,9 @@ public class Trace {
 		String xmlFile = null;
 		try {
 			// Returns null for null objects
-			xmlFile = XMLDumper.dumpObject(methodName, returnValue);
+			if (returnValue != null) {
+				xmlFile = XMLDumper.dumpObject(methodName, returnValue);
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

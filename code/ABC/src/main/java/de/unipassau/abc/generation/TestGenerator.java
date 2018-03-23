@@ -20,6 +20,7 @@ import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
 import de.unipassau.abc.carving.MethodInvocationMatcher;
 import de.unipassau.abc.carving.ObjectInstance;
+import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.Local;
@@ -48,8 +49,6 @@ public class TestGenerator {
 	// private static final AtomicInteger localId = new AtomicInteger(0);
 
 	private static final Logger logger = LoggerFactory.getLogger(TestGenerator.class);
-
-	
 
 	/**
 	 * Test case generation requires only the list of instructions and the data
@@ -81,6 +80,9 @@ public class TestGenerator {
 
 			// Somehow this does include the executions we removed ?!
 			logger.info("Generate Test: " + mut);
+
+			// carvedTest.getFirst().visualize();
+			// carvedTest.getSecond().visualize();
 
 			String classUnderTest = JimpleUtils.getClassNameForMethod(mut.getJimpleMethod());
 
@@ -172,7 +174,7 @@ public class TestGenerator {
 				Local localVariable = Jimple.v().newLocal(localName + localId, RefType.v(type));
 				body.getLocals().add(localVariable);
 
-				dataDependencyGraph.setValueFor(node, localVariable);
+				dataDependencyGraph.setSootValueFor(node, localVariable);
 
 				// Initialize the local with the assignment
 				units.add(Jimple.v().newAssignStmt(localVariable, Jimple.v().newStaticFieldRef(
@@ -217,7 +219,7 @@ public class TestGenerator {
 					logger.trace("  >>>> Create a new local ARRAY variable " + newArrayLocal + " of type " + type
 							+ " and node " + node + " " + node.hashCode());
 					//
-					dataDependencyGraph.setValueFor(node, newArrayLocal);
+					dataDependencyGraph.setSootValueFor(node, newArrayLocal);
 				} else {
 					variableType = RefType.v(type);
 					variableName = variableType.getClassName();
@@ -234,7 +236,33 @@ public class TestGenerator {
 					logger.trace("  >>>> Create a new local variable " + localVariable + " of type " + type
 							+ " and node " + node + " " + node.hashCode());
 
-					dataDependencyGraph.setValueFor(node, localVariable);
+					if (type.equals("java.lang.String")) {
+						
+						
+//						todo this does not work
+						
+						
+						try {
+							// Does this string have an INIT method ? If so,
+							// this should be invoked later (note that we need a
+							// PATCH)
+							dataDependencyGraph.getInitMethodInvocationFor(node);
+							System.out.println(
+									"TestGenerator.generateAndAddTestMethodToTestClass() STRING HAS INIT METHOD");
+							// So we force the initialization by reading the
+							// value (from XML)
+							units.add(
+									Jimple.v().newAssignStmt(localVariable, dataDependencyGraph.getSootValueFor(node)));
+						} catch (CarvingException e1) {
+//							logger.trace("  >>>> " + localVariable + " have no INIT method?");
+//							System.out.println("TestGenerator.generateAndAddTestMethodToTestClass()" + dataDependencyGraph.getMethodInvocationsForOwner( node ));
+							// THIS STRING HAS NO INIT METHOD, FOR EXAMPLE IT WAS A PARAMETER TO A CALL... --> INSTRUMENTATION SHALL BE IMPROVED !!
+							units.add(
+									Jimple.v().newAssignStmt(localVariable, dataDependencyGraph.getSootValueFor(node)));
+						}
+					}
+					dataDependencyGraph.setSootValueFor(node, localVariable);
+
 				}
 
 			}
@@ -261,7 +289,8 @@ public class TestGenerator {
 			if (returnValue instanceof Local) {
 				actualReturnValue = (Local) returnValue;
 			} else {
-				logger.debug("We do not track return values of primitive types");
+				logger.debug("We do not track return values of primitive types for " + methodInvocation
+						+ " with return value " + returnValue);
 			}
 
 			// When we process the methodInvocationToCarve, we also generate a
@@ -345,19 +374,17 @@ public class TestGenerator {
 		// of ABC
 		if (MethodInvocationMatcher.byMethod("<.*\\[\\]: void <init>(int)>").matches(methodInvocation)) {
 			// Create an array to host the values
-			String arrayType = JimpleUtils.getClassNameForMethod( methodInvocation.getJimpleMethod()).replace("[]","");
-			NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(RefType.v(arrayType),
-					parametersValues.get(0));
+			String arrayType = JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod()).replace("[]", "");
+			NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(RefType.v(arrayType), parametersValues.get(0));
 
 			units.add(Jimple.v().newAssignStmt(objLocal, arrayExpr));
-			
-		} else if (MethodInvocationMatcher.byMethod("<.*\\[\\]: void store(int,.*)>").matches(methodInvocation)){
+
+		} else if (MethodInvocationMatcher.byMethod("<.*\\[\\]: void store(int,.*)>").matches(methodInvocation)) {
 			// Assign in position the value
 			ArrayRef arrayRef1 = Jimple.v().newArrayRef(objLocal, parametersValues.get(0));
-	        AssignStmt assignStmt1 = Jimple.v().newAssignStmt(arrayRef1, parametersValues.get(1));
-	        units.add(assignStmt1);
-	        } 
-		else {
+			AssignStmt assignStmt1 = Jimple.v().newAssignStmt(arrayRef1, parametersValues.get(1));
+			units.add(assignStmt1);
+		} else {
 
 			// This is supposed to be the constructor !
 			SootMethod method = Scene.v().getMethod(methodInvocation.getJimpleMethod());

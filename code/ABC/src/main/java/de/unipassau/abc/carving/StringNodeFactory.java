@@ -6,9 +6,10 @@ public class StringNodeFactory {
 
 	private final static AtomicInteger uniqueId = new AtomicInteger(0);
 
-	public static StringValue get(String string) {
-		return new StringValue( uniqueId.incrementAndGet(), string); 
+	public static StringNode get(String objectId, String value) {
+		StringNode node = new StringNode( Integer.parseInt(objectId.split("@")[1]), value);
+		System.out.println("StringNodeFactory.get() Generate new string node " + node + " with value " + value);
+		return node;
 	}
-	
-	
+
 }

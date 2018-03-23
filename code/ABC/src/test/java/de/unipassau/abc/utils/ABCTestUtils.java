@@ -32,8 +32,7 @@ public class ABCTestUtils {
 		}
 	};
 
-	public static void printJavaClasses(File outputDir) throws IOException {
-		final String fileExtension = ".java";
+	public static void printFiles(File outputDir, final String fileExtension) {
 		try {
 			Files.walkFileTree(outputDir.toPath(), new SimpleFileVisitor<Path>() {
 				@Override
@@ -51,6 +50,10 @@ public class ABCTestUtils {
 		} catch (IOException e) {
 			org.junit.Assert.fail("Cannot count files " + e);
 		}
+		
+	}
+	public static void printJavaClasses(File outputDir) throws IOException {
+		printFiles(outputDir, ".java");
 
 	}
 
@@ -129,4 +132,5 @@ public class ABCTestUtils {
 		return traceJar;
 
 	}
+
 }

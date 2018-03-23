@@ -221,6 +221,7 @@
 							<includes>
 								<include>**/de/unipassau/abc/testsubject/*</include>
 								<include>**/de/unipassau/abc/testsubject2/*</include>
+								<include>**/de/unipassau/abc/testsubject3/*</include>
 							</includes>
 							<outputDirectory>./libs</outputDirectory>
 						</configuration>

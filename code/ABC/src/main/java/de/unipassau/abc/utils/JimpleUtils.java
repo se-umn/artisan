@@ -119,4 +119,10 @@ public class JimpleUtils {
 	public static boolean isPrimitive(Type type) {
 		return isPrimitive(type.toString());
 	}
+
+	public static boolean isNull(String string) {
+//		System.out.println("JimpleUtils.isNull() " + string);
+		// we use system hash, this is 0 for null objects
+		return string == null || (string.split("@")[1].equals("0"));
+	}
 }

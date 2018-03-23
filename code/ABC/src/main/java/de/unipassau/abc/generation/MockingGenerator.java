@@ -93,6 +93,11 @@ public class MockingGenerator {
 				testClass.addMethod(testClassInitializer);
 				//
 				body.insertIdentityStmts();
+
+				// TODO Insert this call -> super();
+				//         specialinvoke r0.<java.lang.Object: void <init>()>();
+
+				
 				// Add the return stmt
 				// Insert final void return to close the test method
 				testClassInitializer.getActiveBody().getUnits().add(Jimple.v().newReturnVoidStmt());
@@ -405,7 +410,9 @@ public class MockingGenerator {
 
 		for (MethodInvocation methodInvocation : previousCalls) {
 			if (scannerNextMethodMatcher.matches(methodInvocation)) {
+				
 				Value valueReadFromInput = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
+				System.out.println("MockingGenerator.collectValuesReadFromInput() " + methodInvocation + " --> " + valueReadFromInput );
 				valuesFromInput.add(valueReadFromInput);
 			}
 		}

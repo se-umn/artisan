@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -61,6 +62,7 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 
 	}
 
+	@Ignore
 	@Test
 	@Category(SystemTest.class)
 	public void instrumentAndTrace() throws URISyntaxException, IOException, InterruptedException {
@@ -102,15 +104,18 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 		//
 
 		String[] systemTests = new String[] { //
-				"org.employee.systemtest.TestAdminLoginWithEmptyDb", //
+//				"org.employee.systemtest.TestAdminLoginWithEmptyDb", //
 				"org.employee.systemtest.TestAdminLoginWithNonEmptyDb", //
-				"org.employee.systemtest.TestEmployeeLogin", //
-				"org.employee.systemtest.TestRegisterANewSeniorSoftwareEnginner", //
-				"org.employee.systemtest.TestRegisterANewSoftwareEnginner", //
-				"org.employee.systemtest.TestRegisterANewSoftwareTrainee", //
-				"org.employee.systemtest.TestStartAndExit"//
+//				"org.employee.systemtest.TestEmployeeLogin", //
+//				"org.employee.systemtest.TestRegisterANewSeniorSoftwareEnginner", //
+//				"org.employee.systemtest.TestRegisterANewSoftwareEnginner", //
+//				"org.employee.systemtest.TestRegisterANewSoftwareTrainee", //
+//				"org.employee.systemtest.TestStartAndExit"//
 
 		};
+		
+		
+		System.out.println("InstrumentEmployeeTestAndRunSystemTest.instrumentAndTrace()\n\n\n\n");
 		for (String systemTest : systemTests) {
 			runSystemTest( systemTest, outputDir, jarFiles);
 		}
@@ -141,7 +146,7 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 		System.out.println("InstrumentEmployeeTest.instrumentAndTraceTestSubjects()" + processBuilder.command());
 
 		// This causes problems wher run on command line
-		// processBuilder.inheritIO();
+		 processBuilder.inheritIO();
 
 		Process process = processBuilder.start();
 

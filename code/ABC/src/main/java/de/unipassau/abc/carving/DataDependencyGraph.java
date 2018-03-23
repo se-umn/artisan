@@ -3,6 +3,7 @@ package de.unipassau.abc.carving;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Paint;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -23,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Function;
 
 import de.unipassau.abc.carving.exceptions.CarvingException;
+import de.unipassau.abc.tracing.XMLDumper;
 import de.unipassau.abc.utils.GraphUtility;
 import de.unipassau.abc.utils.JimpleUtils;
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
@@ -33,6 +35,8 @@ import edu.uci.ics.jung.visualization.VisualizationViewer;
 import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
 import soot.Local;
 import soot.Value;
+import soot.jimple.NullConstant;
+import soot.jimple.StringConstant;
 
 /**
  * @author gambi
@@ -85,17 +89,32 @@ public class DataDependencyGraph {
 
 			if (JimpleUtils.isPrimitive(formalParameters[position])) {
 				node = PrimitiveNodeFactory.get(formalParameters[position], actualParameters[position]);
-				setValueFor(node, ((ValueNode) node).getData());
-			} else if (actualParameters[position] == null) {
-				node = NullNodeFactory.get(formalParameters[position]);
-				setValueFor(node, ((ValueNode) node).getData());
-			} else if (JimpleUtils.isString(formalParameters[position])) {
-				// We store non null string by Value
-				node = StringNodeFactory.get(actualParameters[position]);
-				setValueFor(node, ((ValueNode) node).getData());
-			} else {
-				node = new ObjectInstance(actualParameters[position]);
+				setSootValueFor(node, ((ValueNode) node).getData());
 			}
+			// else if (actualParameters[position].equals("java.lang.String@0"))
+			// {
+			// NULL string
+			// node = NullNodeFactory.get("java.lang.String");
+			// setSootValueFor(node, ((ValueNode) node).getData());
+			// }
+			else if (actualParameters[position].split("@").length == 2) {
+				// Objects
+				if (JimpleUtils.isNull(actualParameters[position])) {
+					// Null objects
+					// Not even sure that at this point here this can be null !
+					System.out.println("DataDependencyGraph.addMethodInvocation() Got null " + methodInvocation + " "
+							+ actualParameters[position]);
+					// Null parameter
+					node = NullNodeFactory.get(formalParameters[position]);
+					setSootValueFor(node, ((ValueNode) node).getData());
+				} else {
+					node = new ObjectInstance(actualParameters[position]);
+				}
+			}
+			// else {
+			// Regular Strings
+			// node = StringNodeFactory.get(actualParameters[position]);
+			// }
 
 			// DANGLING OBJECTS !
 			if (!graph.containsVertex(node)) {
@@ -110,6 +129,7 @@ public class DataDependencyGraph {
 			graph.addEdge(DATA_DEPENDENCY_PREFIX + "_" + position + "_" + id.getAndIncrement(), node, methodInvocation,
 					EdgeType.DIRECTED);
 		}
+
 	}
 
 	// HERE We need to check if this data note is not yet define, if
@@ -122,20 +142,15 @@ public class DataDependencyGraph {
 	// force "System.in"
 	private ObjectInstance handleDanglingObjectInstance(ObjectInstance node) {
 
-		// Check if this is System.in mocking
-		if (((ObjectInstance) node).getType()
+		if (JimpleUtils.isNull(node.getObjectId())) {
+			System.out.println("Call a method on null object... NPE?!");
+			// Null parameter
+			setSootValueFor(node, NullConstant.v());
+		} else if (((ObjectInstance) node).getType()
 				.startsWith("org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock")) {
+			// Check if this is System.in mocking
 			return ObjectInstance.SystemIn();
 		} else if (((ObjectInstance) node).getType().endsWith("[]")) {
-			// Check if this is an array... Shall we default to
-			// empty array ?! or null ?
-			// Otherwise, we might need to look at their serialized
-			// form ?!
-			
-//			System.out.println("DataDependencyGraph.addMethodInvocation() It's an array of type "
-//					+ ((ObjectInstance) node).getType().replace("[]", ""));
-//			System.out.println("DataDependencyGraph.addMethodInvocation() WE SKIP ARRAY FOR THE MOMENT");
-			//
 			return node;
 		} else {
 			// For some reason, the tracer reports an interface
@@ -157,28 +172,13 @@ public class DataDependencyGraph {
 				// TODO Check interface !
 				System.out.println("DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with " + alias);
 				return alias;
-			} else {
-//				// FIXME IS THIS REALLY NECESSARY ?
-//				try {
-//					@SuppressWarnings("rawtypes")
-//					Class actualClass = Class.forName(((ObjectInstance) node).getType());
-//					if (InputStream.class.isAssignableFrom(actualClass)) {
-//						// System.out.println("DataDependencyGraph.addMethodInvocation()
-//						// FIRST SEEN " + node);
-//						return ObjectInstance.SystemIn();
-//						// System.out.println("DataDependencyGraph.addMethodInvocation()
-//						// Patch with " + node);
-//					}
-//				} catch (ClassNotFoundException e) {
-//					// TODO Auto-generated catch block
-//					e.printStackTrace();
-//				}
 			}
 		}
 
 		System.out.println("DataDependencyGraph.handleDanglingObjectInstance() Return the original node");
 		// Worst case return the original node
 		return node;
+
 	}
 
 	// TODO We might need to check that there no 2 objects with same id...
@@ -210,18 +210,26 @@ public class DataDependencyGraph {
 		if (JimpleUtils.isVoid(formalReturnValue)) {
 			return;
 		} else if (JimpleUtils.isPrimitive(formalReturnValue)) {
-			// If returnValue is null then it;s a problem, raise the exception
-			// is the way to go !
 			node = PrimitiveNodeFactory.get(formalReturnValue, returnValue);
-			setValueFor(node, ((ValueNode) node).getData());
-		} else if (returnValue == null) {
+			setSootValueFor(node, ((ValueNode) node).getData());
+		}
+		// else if (JimpleUtils.isString(formalReturnValue)) {
+		// // FIXME How to handle NULL string?
+		// node = StringNodeFactory.get(returnValue);
+		// System.out.println("DataDependencyGraph.addDataDependencyOnReturn()
+		// NEW STRING NODE " + node);
+		// }
+		else if (JimpleUtils.isNull(returnValue)) {
+			System.out.println("DataDependencyGraph.addDataDependencyOnReturn() Capture a null return value");
 			node = NullNodeFactory.get(formalReturnValue);
-			setValueFor(node, ((ValueNode) node).getData());
-		} else if (JimpleUtils.isString(formalReturnValue)) {
-			// Note: We store non null string by Value
-			node = StringNodeFactory.get(returnValue);
-			setValueFor(node, ((ValueNode) node).getData());
-		} else {
+			setSootValueFor(node, ((ValueNode) node).getData());
+		}
+		// else if (JimpleUtils.isString(formalReturnValue)) {
+		// // Note: We store non null string by Value
+		// node = StringNodeFactory.get(returnValue);
+		// setSootValueFor(node, ((ValueNode) node).getData());
+		// }
+		else {
 			node = new ObjectInstance(returnValue);
 		}
 
@@ -244,7 +252,16 @@ public class DataDependencyGraph {
 			graph.addVertex(methodInvocation);
 		}
 
-		ObjectInstance node = new ObjectInstance(objectInstanceId);
+		// Handle Strings
+		ObjectInstance node = null;
+		// if
+		// (JimpleUtils.isString(JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod())))
+		// {
+		// node = StringNodeFactory.get(objectInstanceId);
+		// }
+		// else {
+		node = new ObjectInstance(objectInstanceId);
+		// }
 
 		if (!graph.containsVertex(node)) {
 			if (node instanceof ObjectInstance) {
@@ -446,8 +463,27 @@ public class DataDependencyGraph {
 					Set<String> dataDependencyEdges = new HashSet<String>(graph.getInEdges(node));
 					for (String edge : dataDependencyEdges) {
 						if (edge.startsWith(OWNERSHIP_DEPENDENCY_PREFIX)) {
-							// graph.getIncidentVertices(edge);
-							return (Local) getValueFor((ObjectInstance) graph.getOpposite(node, edge));
+
+							ObjectInstance objectInstance = (ObjectInstance) graph.getOpposite(node, edge);
+							if (JimpleUtils.isString(objectInstance.getType())) {
+								System.out.println("DataDependencyGraph.getReturnObjectLocalFor()\n\n\n Load from XML "
+										+ methodInvocation.getXmlDumpForReturn());
+								Value stringValue = null;
+								try {
+									stringValue = StringConstant
+											.v((String) XMLDumper.loadObject(methodInvocation.getXmlDumpForReturn()));
+									// Cache it ?
+									setSootValueFor(objectInstance, stringValue);
+								} catch (IOException e) {
+									// TODO Auto-generated catch block
+									e.printStackTrace();
+									logger.error("Swallow: " + e);
+								}
+								return (Local) stringValue;
+							} else {
+								return (Local) getSootValueFor(objectInstance);
+							}
+
 						}
 					}
 				}
@@ -486,7 +522,27 @@ public class DataDependencyGraph {
 							if (returnValue instanceof ValueNode) {
 								return ((ValueNode) returnValue).getData();
 							} else if (returnValue instanceof ObjectInstance) {
-								return getValueFor((ObjectInstance) returnValue);
+
+								ObjectInstance objectInstance = (ObjectInstance) returnValue;
+								if (JimpleUtils.isString(objectInstance.getType())) {
+									System.out.println(
+											"DataDependencyGraph.getReturnObjectLocalFor()\n\n\n Load from XML "
+													+ methodInvocation.getXmlDumpForReturn());
+									Value stringValue = null;
+									try {
+										stringValue = StringConstant.v(
+												(String) XMLDumper.loadObject(methodInvocation.getXmlDumpForReturn()));
+										// Cache it ?
+										setSootValueFor(objectInstance, stringValue);
+									} catch (IOException e) {
+										// TODO Auto-generated catch block
+										e.printStackTrace();
+										logger.error("Swallow: " + e);
+									}
+									return stringValue;
+								} else {
+									return getSootValueFor((ObjectInstance) returnValue);
+								}
 							}
 						}
 					}
@@ -499,7 +555,7 @@ public class DataDependencyGraph {
 		}
 		// Can this be a null value, it's a value that we did not tracked (from
 		// invokeStmts that do not have an assignment)
-		logger.info("Cannot find ReturnObjectLocalFor for " + methodInvocation.getJimpleMethod());
+		logger.warn("Cannot find ReturnObjectLocalFor for " + methodInvocation.getJimpleMethod());
 		return null;
 	}
 
@@ -537,13 +593,12 @@ public class DataDependencyGraph {
 					// the preconditions/parameters to this method invocation
 					DataNode dn = (DataNode) (graph.getOpposite(methodInvocation, incomingEdge));
 
-					parameters[position] = getValueFor(dn);
+					parameters[position] = getSootValueFor(dn);
 
-					// System.out.println("DataDependencyGraph.getParametersFor()
-					// Processing inEdge " + incomingEdge
-					// + " position " + position + " corresponds to " +
-					// graph.getOpposite(methodInvocation, incomingEdge)
-					// + " which has value " + getValueFor(dn));
+					System.out.println(
+							"DataDependencyGraph.getParametersFor() Processing inEdge " + incomingEdge + " position "
+									+ position + " corresponds to " + graph.getOpposite(methodInvocation, incomingEdge)
+									+ " which has value " + getSootValueFor(dn));
 				}
 			}
 			return Arrays.asList(parameters);
@@ -632,11 +687,14 @@ public class DataDependencyGraph {
 		return null;
 	}
 
-	public void setValueFor(DataNode node, Value localVariable) {
+	public void setSootValueFor(DataNode node, Value localVariable) {
+		System.out.println("DataDependencyGraph.setSootValueFor() " + node + " " + localVariable);
 		additionalData.put(node, localVariable);
 	}
 
-	public Value getValueFor(DataNode node) {
+	public Value getSootValueFor(DataNode node) {
+		// For the strings this can be null, so we look it up in the XML !
+
 		return additionalData.get(node);
 	}
 
@@ -704,10 +762,10 @@ public class DataDependencyGraph {
 		for (GraphNode node : graph.getVertices()) {
 			if (node instanceof MethodInvocation) {
 				MethodInvocation mi = (MethodInvocation) node;
-				
-				System.out.println("DataDependencyGraph.refine() " + mi + " belongsToExternalInterface() " + mi.belongsToExternalInterface());
-				
-				
+
+				System.out.println("DataDependencyGraph.refine() " + mi + " belongsToExternalInterface() "
+						+ mi.belongsToExternalInterface());
+
 				if (!connectedMethodInvocations.contains(mi) && !mi.belongsToExternalInterface()) {
 					unconnected.add(mi);
 				}

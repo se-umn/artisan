@@ -77,6 +77,8 @@ public class Carver {
 			return MethodInvocationMatcher.byMethodLiteral(regEx);
 		case "regex":
 			return MethodInvocationMatcher.byMethod(regEx);
+		case "invocation":
+			return MethodInvocationMatcher.byMethodInvocation(regEx);
 		case "return":
 			return MethodInvocationMatcher.byReturnType(regEx);
 		case "instance":
@@ -158,8 +160,8 @@ public class Carver {
 		{
 			// Default Interfaces are the one for Files, Network, etc. ?
 			// External interfaces are defined by Class
-			externalInterfaces.add("java.util.Scanner");
-			externalInterfaces.add("java.nio.file.Path");
+//			externalInterfaces.add("java.util.Scanner");
+//			externalInterfaces.add("java.nio.file.Path");
 		}
 
 		List<String> pureMethods = new ArrayList<>();

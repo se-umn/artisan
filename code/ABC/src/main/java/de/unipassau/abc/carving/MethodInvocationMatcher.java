@@ -199,7 +199,7 @@ public class MethodInvocationMatcher {
 
 		final Matcher classMatcher = classPattern.matcher(JimpleUtils.getClassNameForMethod(jimpleMethod));
 		if (!classMatcher.find()) {
-			logger.trace(methodInvocation + " does not match classPatternMatcher " + classPattern);
+//			logger.trace(methodInvocation + " does not match classPatternMatcher " + classPattern);
 			return false;
 		} else if (returnPattern == null) {
 			return true;
@@ -209,7 +209,7 @@ public class MethodInvocationMatcher {
 
 		final Matcher returnMatcher = returnPattern.matcher(JimpleUtils.getReturnType(jimpleMethod));
 		if (!returnMatcher.find()) {
-			logger.trace(methodInvocation + " does not match returnPatternMatcher " + returnPattern);
+//			logger.trace(methodInvocation + " does not match returnPatternMatcher " + returnPattern);
 			return false;
 		} else if (methodPattern == null) {
 			return true;
@@ -252,6 +252,11 @@ public class MethodInvocationMatcher {
 	// having around null objects
 	public static MethodInvocationMatcher noMatch() {
 		return new NoMatchMethodInvocationMatcher();
+	}
+
+	public static MethodInvocationMatcher byMethodInvocation(String regEx) {
+		MethodInvocation methodInvocation = new MethodInvocation(regEx.split("_")[0], Integer.parseInt(regEx.split("_")[1]));
+		return fromMethodInvocation(methodInvocation);
 	}
 
 }

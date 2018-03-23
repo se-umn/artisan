@@ -4,16 +4,19 @@ import soot.Value;
 import soot.jimple.StringConstant;
 
 // This could be easily a PrimitiveValue node
-public class StringValue implements ValueNode {
+public class StringNode extends ObjectInstance implements ValueNode {
 	
-	private int id;
-	private String value;
+	public StringNode(String objectId) {
+		super(objectId);
+	}
 	
-	public StringValue(int id, String value) {
-		this.id = id;
+	public StringNode(int id, String value) {
+		this("java.lang.String@"+id);
 		this.value = value;
 	}
 
+	private String value;
+	
 	@Override
 	public Value getData() {
 		return StringConstant.v(value);
@@ -23,7 +26,6 @@ public class StringValue implements ValueNode {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + id;
 		result = prime * result + ((value == null) ? 0 : value.hashCode());
 		return result;
 	}
@@ -36,9 +38,7 @@ public class StringValue implements ValueNode {
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		StringValue other = (StringValue) obj;
-		if (id != other.id)
-			return false;
+		StringNode other = (StringNode) obj;
 		if (value == null) {
 			if (other.value != null)
 				return false;

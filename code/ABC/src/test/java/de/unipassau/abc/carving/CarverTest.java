@@ -42,10 +42,14 @@ public class CarverTest {
 			Carver carver = new Carver();
 			File outputDirectory = temporaryFolderRule.newFolder();
 			
-			String jimpleMethodToCarve = "org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>"; //
+//			String jimpleMethodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>"; //
+			String jimpleMethodToCarve = "<org.employee.DummyObjectToPassAsParameter: void <init>()>";
 			String traceFile = "/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut/trace.txt";
-//			String carveBy = "method=" + jimpleMethodToCarve;
-			String carveBy = "class=org.employee.Employee";
+			String carveBy = "method=" + jimpleMethodToCarve;
+//			String carveBy = "class=org.employee.Employee";
+//			String carveBy = "class=DummyObjectToPassAsParameter";
+//			String carveBy = "package=org.employee";
+//			String carveBy = "invocation=<org.employee.DummyObjectToPassAsParameter: void <init>()>_40";
 			String[] args = new String[] {
 					"--carve-by", carveBy,
 					// String traceFile =
@@ -55,11 +59,13 @@ public class CarverTest {
 					// String outputDir =
 					"--output-to", outputDirectory.getAbsolutePath(),
 					// List the external interfaces here
-					"--external", "org.junit.rules.TemporaryFolder", "java.nio.file.Files"};
+					"--external", "java.io.File", "java.nio.file.Path", "java.nio.file.Files"// Interface to File system
+					//"org.junit.rules.TemporaryFolder", "java.nio.file.Files"
+					};
 			//
 			carver.main(args);
 			//
-			assertEquals(1, ABCTestUtils.countFiles(outputDirectory, ".java"));
+			//assertEquals(5, ABCTestUtils.countFiles(outputDirectory, ".java"));
 
 			ABCTestUtils.printJavaClasses(outputDirectory);
 		} catch (Throwable e) {
