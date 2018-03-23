@@ -37,6 +37,10 @@ import soot.util.Chain;
 // Taken from FuzzDroid
 public class UtilInstrumenter {
 
+	/*
+	 * In case parameters contains StringConstant we force those to be linked to
+	 * a local so they get properly initialized
+	 */
 	public static Pair<Value, List<Unit>> generateParameterArray(Type arrayType, List<Value> parameterList, Body body) {
 		try {
 			List<Unit> generated = new ArrayList<Unit>();
@@ -58,12 +62,15 @@ public class UtilInstrumenter {
 					System.out.println("UtilInstrumenter.generateParameterArray() Right side is also an array element "
 							+ parameterList.get(i));
 					// Probably we need to extract it to a local
-					rightSide = generateCorrectObjectFromArrayRef( body, (ArrayRef)parameterList.get(i), generated);
+					rightSide = generateCorrectObjectFromArrayRef(body, (ArrayRef) parameterList.get(i), generated);
 				} else {
+
 					rightSide = generateCorrectObject(body, parameterList.get(i), generated);
 				}
-				System.out.println("UtilInstrumenter.generateParameterArray() left " + leftSide);
-				System.out.println("UtilInstrumenter.generateParameterArray() right " + rightSide);
+				// System.out.println("UtilInstrumenter.generateParameterArray()
+				// left " + leftSide);
+				// System.out.println("UtilInstrumenter.generateParameterArray()
+				// right " + rightSide);
 
 				Unit parameterInArray = Jimple.v().newAssignStmt(leftSide, rightSide);
 				generated.add(parameterInArray);
@@ -78,14 +85,15 @@ public class UtilInstrumenter {
 	}
 
 	public static Value generateCorrectObjectFromArrayRef(Body body, ArrayRef arrayRef, List<Unit> generated) {
-		// Write some code to extract the element of the array into a variable and then pass it along to the 
+		// Write some code to extract the element of the array into a variable
+		// and then pass it along to the
 		// generateCorrectObject
-		
-		Local arrayElement = generateFreshLocal(body, arrayRef.getType() );
+
+		Local arrayElement = generateFreshLocal(body, arrayRef.getType());
 		Unit arrayElementAssignStmt = Jimple.v().newAssignStmt(arrayElement, arrayRef);
 		generated.add(arrayElementAssignStmt);
 		// Chain the call
-		return generateCorrectObject(body,arrayElement, generated);
+		return generateCorrectObject(body, arrayElement, generated);
 	}
 
 	/**
