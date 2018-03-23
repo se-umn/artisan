@@ -7,21 +7,28 @@ import java.nio.file.Files;
 public class StringHandlingClass {
 
 	public static void main(String[] args) throws IOException {
-		String aString = "TEMP";
-		/*
-		 * If we invoke some method on aString, this might result in capturing
-		 * without capturing its return value, we force the ASSIGN:
-		 * aString.getBytes(). Otherwise the constant value are simply passed as parameter !
-		 * 
-		 * In case the ASSIGN is generated, then we track the INIT method for the string.
-		 */
+
+		// This works
+		// String aString = "TEMP";
+		// File tempFile = Files.createTempFile(aString, "BAR").toFile();
+		// tempFile.deleteOnExit();
+		// System.out.println("StringHandlingClass.main() The file is " +
+		// tempFile.toString());
+		// This works
+		// String[] stringArray = new String[3];
+		// stringArray[0] = "Array0";
+
+		// Solved by instrumenting also InvokeStmt
 		//
-		File tempFile = Files.createTempFile(aString, "BAR").toFile();
-		tempFile.deleteOnExit();
-		System.out.println("StringHandlingClass.main() The file is " + tempFile.toString());
-		
-		String bString = "Ciccio";
-		bString.getBytes();
+		// File usernameFile = new File("username.txt");
+		// This not sure
+		File workingDir = Files.createTempDirectory("TEMP").toFile();
+		File usernameFile = new File(workingDir, "username.txt");
+		usernameFile.createNewFile();
+
+		String usernameFileContent = "123";
+		// THis returns the same path provided as input
+		Files.write(usernameFile.toPath(), usernameFileContent.getBytes());
 
 	}
 }

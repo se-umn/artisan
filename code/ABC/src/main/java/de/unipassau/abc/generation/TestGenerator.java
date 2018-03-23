@@ -22,6 +22,7 @@ import de.unipassau.abc.carving.MethodInvocationMatcher;
 import de.unipassau.abc.carving.ObjectInstance;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Pair;
+import de.unipassau.abc.tracing.XMLDumper;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.Local;
 import soot.Modifier;
@@ -41,6 +42,7 @@ import soot.jimple.Jimple;
 import soot.jimple.JimpleBody;
 import soot.jimple.NewArrayExpr;
 import soot.jimple.Stmt;
+import soot.jimple.StringConstant;
 import soot.jimple.toolkits.annotation.j5anno.AnnotationGenerator;
 import soot.util.Chain;
 
@@ -63,6 +65,7 @@ public class TestGenerator {
 	 * @return
 	 * @throws IOException
 	 * @throws InterruptedException
+	 * @throws CarvingException
 	 */
 	public Collection<SootClass> generateTestCases(List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests)
 			throws IOException, InterruptedException {
@@ -92,9 +95,13 @@ public class TestGenerator {
 			}
 			SootClass testClass = testClasses.get(classUnderTest);
 
+			try{
 			// TODO For the moment we name tests after their position and MUT
 			// ,i.e., last element
 			generateAndAddTestMethodToTestClass(testClass, carvedTest);
+			}catch (CarvingException e) {
+				logger.warn("Cannot generate test ", e);
+			}
 		}
 
 		return testClasses.values();
@@ -109,7 +116,7 @@ public class TestGenerator {
 	 * already an equivalent one
 	 */
 	private void generateAndAddTestMethodToTestClass(SootClass testClass,
-			Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest) {
+			Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest) throws CarvingException  {
 
 		// For each element in the DataDependencyGraph create
 		ExecutionFlowGraph executionFlowGraph = carvedTest.getFirst();
@@ -236,31 +243,39 @@ public class TestGenerator {
 					logger.trace("  >>>> Create a new local variable " + localVariable + " of type " + type
 							+ " and node " + node + " " + node.hashCode());
 
-					if (type.equals("java.lang.String")) {
-						
-						
-//						todo this does not work
-						
-						
-						try {
-							// Does this string have an INIT method ? If so,
-							// this should be invoked later (note that we need a
-							// PATCH)
-							dataDependencyGraph.getInitMethodInvocationFor(node);
-							System.out.println(
-									"TestGenerator.generateAndAddTestMethodToTestClass() STRING HAS INIT METHOD");
-							// So we force the initialization by reading the
-							// value (from XML)
-							units.add(
-									Jimple.v().newAssignStmt(localVariable, dataDependencyGraph.getSootValueFor(node)));
-						} catch (CarvingException e1) {
-//							logger.trace("  >>>> " + localVariable + " have no INIT method?");
-//							System.out.println("TestGenerator.generateAndAddTestMethodToTestClass()" + dataDependencyGraph.getMethodInvocationsForOwner( node ));
-							// THIS STRING HAS NO INIT METHOD, FOR EXAMPLE IT WAS A PARAMETER TO A CALL... --> INSTRUMENTATION SHALL BE IMPROVED !!
-							units.add(
-									Jimple.v().newAssignStmt(localVariable, dataDependencyGraph.getSootValueFor(node)));
-						}
-					}
+					// if (type.equals("java.lang.String")) {
+					//
+					//
+					//// todo this does not work
+					//
+					//
+					// try {
+					// // Does this string have an INIT method ? If so,
+					// // this should be invoked later (note that we need a
+					// // PATCH)
+					// dataDependencyGraph.getInitMethodInvocationFor(node);
+					// System.out.println(
+					// "TestGenerator.generateAndAddTestMethodToTestClass()
+					// STRING HAS INIT METHOD");
+					// // So we force the initialization by reading the
+					// // value (from XML)
+					// units.add(
+					// Jimple.v().newAssignStmt(localVariable,
+					// dataDependencyGraph.getSootValueFor(node)));
+					// } catch (CarvingException e1) {
+					//// logger.trace(" >>>> " + localVariable + " have no INIT
+					// method?");
+					//// System.out.println("TestGenerator.generateAndAddTestMethodToTestClass()"
+					// + dataDependencyGraph.getMethodInvocationsForOwner( node
+					// ));
+					// // THIS STRING HAS NO INIT METHOD, FOR EXAMPLE IT WAS A
+					// PARAMETER TO A CALL... --> INSTRUMENTATION SHALL BE
+					// IMPROVED !!
+					// units.add(
+					// Jimple.v().newAssignStmt(localVariable,
+					// dataDependencyGraph.getSootValueFor(node)));
+					// }
+					// }
 					dataDependencyGraph.setSootValueFor(node, localVariable);
 
 				}
@@ -363,7 +378,7 @@ public class TestGenerator {
 	 * 
 	 */
 	private void addUnitFor(Chain<Unit> units, MethodInvocation methodInvocation, Local objLocal,
-			List<Value> parametersValues, Local returnObjLocal) {
+			List<Value> parametersValues, Local returnObjLocal) throws CarvingException {
 		logger.trace("Processing method invocation " + methodInvocation.getJimpleMethod() + " -- "
 				+ methodInvocation.getInvocationType() + " on local " + objLocal + " with params " + parametersValues
 				+ " to return " + returnObjLocal);
@@ -441,6 +456,28 @@ public class TestGenerator {
 					units.add(callStmt);
 				}
 				break;
+			/// THE FOLLOWING ARE THE ARTIFICIAL CALLS THAT ABC GENERATED
+			case "StringOperation":
+				System.out.println("String initialization");// TODO There might
+															// be more
+															// operations here?
+				// <init>() Assign the value of this string with the load value
+				// loaded from the XML ?
+				if (returnObjLocal != null) {
+					throw new CarvingException("String <init> should not return a value !");
+				} else {
+					try {
+						// This is actually an assignment
+						String xmlContent = (String) XMLDumper.loadObject(methodInvocation.getXmlDumpForOwner());
+						Stmt callStmt = jimple.newAssignStmt(objLocal, StringConstant.v(xmlContent));
+						units.add(callStmt);
+					} catch (Throwable e) {
+						throw new CarvingException("Cannot find a dumped value for string " + objLocal + " in file " + methodInvocation.getXmlDumpForOwner(), e);
+					}
+				}
+				break;
+			// case "ArrayOperation":
+			// break;
 			default:
 				logger.error("Unexpected Invocation type " + methodInvocation.getInvocationType());
 				throw new NotImplementedException("Unexpected Invocation type " + methodInvocation.getInvocationType());

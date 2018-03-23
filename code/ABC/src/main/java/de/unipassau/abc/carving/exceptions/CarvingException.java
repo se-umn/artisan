@@ -11,4 +11,8 @@ public class CarvingException extends Exception {
 	public CarvingException(String message) {
 		super(message);
 	}
+
+	public CarvingException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

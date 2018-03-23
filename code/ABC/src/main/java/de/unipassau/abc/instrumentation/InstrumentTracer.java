@@ -188,7 +188,9 @@ public class InstrumentTracer {
 		String stringPhaseName = "jtp.preprocessingInstrumentation";
 		String mainPhaseName = "jtp.mainInstrumentation";
 
+		// Unboxes and prepare string constants
 		PackManager.v().getPack("jtp").add(new Transform(stringPhaseName, new StringConstantBoxingBodyTransformer()));
+		// Adds the calls to the tracer 
 		PackManager.v().getPack("jtp").add(new Transform(mainPhaseName, new ABCBodyTranformer()));
 
 		// Supporting jars are Xstream and trace

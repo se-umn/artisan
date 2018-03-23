@@ -465,24 +465,28 @@ public class DataDependencyGraph {
 						if (edge.startsWith(OWNERSHIP_DEPENDENCY_PREFIX)) {
 
 							ObjectInstance objectInstance = (ObjectInstance) graph.getOpposite(node, edge);
-							if (JimpleUtils.isString(objectInstance.getType())) {
-								System.out.println("DataDependencyGraph.getReturnObjectLocalFor()\n\n\n Load from XML "
-										+ methodInvocation.getXmlDumpForReturn());
-								Value stringValue = null;
-								try {
-									stringValue = StringConstant
-											.v((String) XMLDumper.loadObject(methodInvocation.getXmlDumpForReturn()));
-									// Cache it ?
-									setSootValueFor(objectInstance, stringValue);
-								} catch (IOException e) {
-									// TODO Auto-generated catch block
-									e.printStackTrace();
-									logger.error("Swallow: " + e);
-								}
-								return (Local) stringValue;
-							} else {
-								return (Local) getSootValueFor(objectInstance);
-							}
+							// if
+							// (JimpleUtils.isString(objectInstance.getType()))
+							// {
+							// System.out.println("DataDependencyGraph.getReturnObjectLocalFor()\n\n\n
+							// Load from XML "
+							// + methodInvocation.getXmlDumpForReturn());
+							// Value stringValue = null;
+							// try {
+							// stringValue = StringConstant
+							// .v((String)
+							// XMLDumper.loadObject(methodInvocation.getXmlDumpForReturn()));
+							// // Cache it ?
+							// setSootValueFor(objectInstance, stringValue);
+							// } catch (IOException e) {
+							// // TODO Auto-generated catch block
+							// e.printStackTrace();
+							// logger.error("Swallow: " + e);
+							// }
+							// return (Local) stringValue;
+							// } else {
+							return (Local) getSootValueFor(objectInstance);
+							// }
 
 						}
 					}

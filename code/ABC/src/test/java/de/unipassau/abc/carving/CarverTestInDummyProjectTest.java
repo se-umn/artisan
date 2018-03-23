@@ -12,6 +12,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
+import de.unipassau.abc.tracing.XMLDumper;
 import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.abc.utils.SystemTest;
@@ -29,12 +30,25 @@ public class CarverTestInDummyProjectTest {
 	public void testCarvingManually() throws IOException, InterruptedException {
 
 		try {
+			
+			// REMEBER THE XML DIRECTORY TO READ FROM !
+			System.setProperty(XMLDumper.DUMP_DIR_PROPERTY_NAME, "/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut");
+			
+			
 			Carver carver = new Carver();
+			
+			
+			
+			
 			File outputDirectory = temporaryFolderRule.newFolder();
 			
-			String traceFile = "./src/test/resources/ArrayHandlingClass-trace.txt";
+//			String traceFile = "./src/test/resources/ArrayHandlingClass-trace.txt";
+			String traceFile = "./src/test/resources/StringHandlingClass-trace.txt";
 //			String carveBy = "method=" + "<de.unipassau.abc.testsubject2.ArrayHandlingClass: void callMeMaybe(java.lang.String[])>";
-			String carveBy = "package=" + "de.unipassau.abc.testsubject2.ArrayHandlingClass";
+//			String carveBy = "class=" + "de.unipassau.abc.testsubject2.ArrayHandlingClass";
+//			String carveBy = "package=" + "de.unipassau.abc.testsubject2.ArrayHandling";
+//			String carveBy = "package=" + "de.unipassau.abc.testsubject3";
+			String carveBy = "method=" + "<java.nio.file.Files: java.nio.file.Path write(java.nio.file.Path,byte[],java.nio.file.OpenOption[])>";
 			String[] args = new String[] {
 					"--carve-by", carveBy,
 					// String traceFile =
@@ -44,11 +58,12 @@ public class CarverTestInDummyProjectTest {
 					// String outputDir =
 					"--output-to", outputDirectory.getAbsolutePath(),
 					// List the external interfaces here
-					"--external", "org.junit.rules.TemporaryFolder", "java.nio.file.Files"};
+					"--external", "org.junit.rules.TemporaryFolder", "java.nio.file.Files", "java.nio.file.Path", "java.io.File"
+					};
 			//
 			carver.main(args);
 			//
-			assertEquals(1, ABCTestUtils.countFiles(outputDirectory, ".java"));
+//			assertEquals(1, ABCTestUtils.countFiles(outputDirectory, ".java"));
 
 			ABCTestUtils.printJavaClasses(outputDirectory);
 		} catch (Throwable e) {

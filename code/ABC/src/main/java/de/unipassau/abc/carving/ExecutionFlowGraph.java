@@ -121,7 +121,7 @@ public class ExecutionFlowGraph {
 		VisualizationViewer<MethodInvocation, String> vv = new VisualizationViewer<MethodInvocation, String>(
 				new KKLayout<MethodInvocation, String>(graph));
 
-		vv.setPreferredSize(new Dimension(1000, 800));
+		vv.setPreferredSize(new Dimension(2000, 1600));
 		vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller());
 		// vv.getRenderContext().setVertexLabelTransformer(new
 		// ToStringLabeller() {

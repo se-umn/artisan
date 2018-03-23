@@ -24,19 +24,20 @@ import com.thoughtworks.xstream.XStream;
  */
 public class XMLDumper {
 
+	public static final String DUMP_DIR_PROPERTY_NAME = "dump.output";
 	private static File dumpDirectory;
 	static {
 		try {
 
 			// USE A CONSTANT FOR THIS !
-			if (System.getProperty("dump.output") != null) {
-				dumpDirectory = new File(System.getProperty("dump.output"));
-			} else if (System.getenv("dump.output") != null) {
-				dumpDirectory = new File(System.getenv("dump.output"));
+			if (System.getProperty(DUMP_DIR_PROPERTY_NAME) != null) {
+				dumpDirectory = new File(System.getProperty(DUMP_DIR_PROPERTY_NAME));
+			} else if (System.getenv(DUMP_DIR_PROPERTY_NAME) != null) {
+				dumpDirectory = new File(System.getenv(DUMP_DIR_PROPERTY_NAME));
 			} else {
 				dumpDirectory = Files.createTempDirectory("tmp-dump").toFile();
 			}
-			System.out.println("**** Dump XML Values to " + dumpDirectory);
+			System.out.println("**** Dump and Load XML Values directory " + dumpDirectory);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
