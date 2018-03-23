@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.mockito.internal.stubbing.answers.ThrowsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,7 +83,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 			MethodInvocation methodInvocationToCarve, boolean minimalCarve) throws CarvingException {
 
 		if (!minimalCarve) {
-			logger.info("Carving " + methodInvocationToCarve);
+			logger.info("Carving " + methodInvocationToCarve + " Trace size " + executionFlowGraph.getOrderedMethodInvocations().size());
 		}
 
 		/*
@@ -280,10 +279,11 @@ public class Level_0_MethodCarver implements MethodCarver {
 			 */
 
 			for (Iterator<MethodInvocation> retCallIterator = returningCallsForObjectInstance
-					.iterator(); retCallIterator.hasNext(); ) {
+					.iterator(); retCallIterator.hasNext();) {
 				MethodInvocation retCall = retCallIterator.next();
 				if (subGraphFromPastExecution.getObjectInstancesAsParametersOf(retCall).contains(objectInstance)) {
-					System.out.println(">>> The method " + retCall + " returns one of its parameters " + objectInstance);
+					System.out
+							.println(">>> The method " + retCall + " returns one of its parameters " + objectInstance);
 					retCallIterator.remove();
 				}
 			}
@@ -311,7 +311,11 @@ public class Level_0_MethodCarver implements MethodCarver {
 			if (returningCallsForObjectInstance.size() != 0) {
 				returningCalls.put(objectInstance, returningCallsForObjectInstance);
 			} else {
-				throw new CarvingException("Cannot find either INIT or returning calls for " + objectInstance);
+				// There no init call or method returning public static
+				// instances like System.in
+				if (!objectInstance.equals(ObjectInstance.SystemIn())) {
+					throw new CarvingException("Cannot find either INIT or returning calls for " + objectInstance);
+				}
 			}
 
 		}
@@ -325,8 +329,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 				.cartesianProduct(new ArrayList<>(returningCalls.values()));
 
 		if (fullCartesianProduct.size() > 1000) {
-			logger.warn("The cartesian products of object instance is too big. Expect scalability issue "
-					+ fullCartesianProduct);
+			logger.warn("The cartesian products of object instance is too big " + fullCartesianProduct.size()
+					+ ". Expect scalability issue !");
+			// + fullCartesianProduct);
 		}
 
 		for (List<MethodInvocation> combination : fullCartesianProduct) {
@@ -603,20 +608,22 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
 
-			// How is possible that some invocations are in the data dep graph
-			// both not in the execution before refinement ?
-			Set<MethodInvocation> connectedMethodInvocations = carvedTest.getSecond()
+			DataDependencyGraph dataDependencyGraph = carvedTest.getSecond();
+			ExecutionFlowGraph executionFlowGraph = carvedTest.getFirst();
+			
+			// This is the CORE of the carved test
+			Set<MethodInvocation> coreMethodInvocations = dataDependencyGraph
 					.getWeaklyConnectedComponentContaining(methodInvocationUnderTest);
 
-			// WHERE THE EXTERNAL INTERFACES COMES TO PLACE ?
-
-			logger.trace(" Connected invocations  " + connectedMethodInvocations);
-			// Remove from the execution graph and data dependency graph all the
-			// invocations and object instances that are not connected in any
-			// way to methodInvocation, unless they below (or contain?) calls to
-			// external libraries?
-			carvedTest.getFirst().refine(connectedMethodInvocations);
-			carvedTest.getSecond().refine(connectedMethodInvocations);
+			// This is to consider external interfaces and their preconditions
+			for( MethodInvocation methodInvocation : executionFlowGraph.getOrderedMethodInvocations()){
+				if( methodInvocation.belongsToExternalInterface()){
+					coreMethodInvocations.addAll( dataDependencyGraph.getWeaklyConnectedComponentContaining(methodInvocation));
+				}
+			}
+			
+			dataDependencyGraph.refine(coreMethodInvocations);
+			executionFlowGraph.refine(coreMethodInvocations);
 		}
 	}
 

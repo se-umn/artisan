@@ -526,20 +526,22 @@ public class DataDependencyGraph {
 							if (returnValue instanceof ValueNode) {
 								return ((ValueNode) returnValue).getData();
 							} else if (returnValue instanceof ObjectInstance) {
-
+								// Not 100% sure about this
 								ObjectInstance objectInstance = (ObjectInstance) returnValue;
 								if (JimpleUtils.isString(objectInstance.getType())) {
-									System.out.println(
-											"DataDependencyGraph.getReturnObjectLocalFor()\n\n\n Load from XML "
-													+ methodInvocation.getXmlDumpForReturn());
+									// System.out.println(
+									// "DataDependencyGraph.getReturnObjectLocalFor()\n\n\n
+									// Load from XML "
+									// +
+									// methodInvocation.getXmlDumpForReturn());
 									Value stringValue = null;
 									try {
 										stringValue = StringConstant.v(
 												(String) XMLDumper.loadObject(methodInvocation.getXmlDumpForReturn()));
-										// Cache it ?
+										// // Cache it ?
 										setSootValueFor(objectInstance, stringValue);
 									} catch (IOException e) {
-										// TODO Auto-generated catch block
+										// // TODO Auto-generated catch block
 										e.printStackTrace();
 										logger.error("Swallow: " + e);
 									}
@@ -723,7 +725,9 @@ public class DataDependencyGraph {
 		return (incomingEdges != null) ? incomingEdges : new HashSet<String>();
 	}
 
+	/// Note that static instances have no init method ...
 	public MethodInvocation getInitMethodInvocationFor(ObjectInstance objectInstance) throws CarvingException {
+
 		// include the init call
 		for (String outgoingEdge : graph.getOutEdges(objectInstance)) {
 			if (outgoingEdge.startsWith(OWNERSHIP_DEPENDENCY_PREFIX)) {
@@ -761,20 +765,18 @@ public class DataDependencyGraph {
 	}
 
 	// This works similarly to subGraph but directly on this object
-	public void refine(Set<MethodInvocation> connectedMethodInvocations) {
+	public void refine(Set<MethodInvocation> requiredMethodInvocations) {
 		Set<MethodInvocation> unconnected = new HashSet<>();
 		for (GraphNode node : graph.getVertices()) {
 			if (node instanceof MethodInvocation) {
 				MethodInvocation mi = (MethodInvocation) node;
 
-				System.out.println("DataDependencyGraph.refine() " + mi + " belongsToExternalInterface() "
-						+ mi.belongsToExternalInterface());
-
-				if (!connectedMethodInvocations.contains(mi) && !mi.belongsToExternalInterface()) {
+				if (!requiredMethodInvocations.contains(mi)) {
 					unconnected.add(mi);
 				}
 			}
 		}
+		
 		// This remove the node and the corresponding edges
 		for (MethodInvocation mi : unconnected) {
 			logger.trace("DataDependencyGraph.refine() Removing " + mi + " as unconnected ");

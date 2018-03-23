@@ -272,20 +272,21 @@ public class ExecutionFlowGraph {
 	/*
 	 * Keep only the invocations that can be found in the provide set
 	 */
-	public void refine(Set<MethodInvocation> connectedMethodInvocations) {
+	public void refine(Set<MethodInvocation> requiredMethodInvocations) {
 
 		// VERIFY. Does this graph contains the connectedMethodInvocation
-		if (!graph.getVertices().containsAll(connectedMethodInvocations)) {
+		if (!graph.getVertices().containsAll(requiredMethodInvocations)) {
 			// Only in debugging mode visualize();
 			throw new RuntimeException(
-					" Connected Method invocations " + connectedMethodInvocations + " are not in the graph ?!" + graph);
+					" Connected Method invocations " + requiredMethodInvocations + " are not in the graph ?!" + graph);
 		}
 
+		
 		Set<MethodInvocation> unconnected = new HashSet<>();
 		for (MethodInvocation node : graph.getVertices()) {
 
-			if (!connectedMethodInvocations.contains(node) && !node.belongsToExternalInterface()) {
-				logger.debug("ExecutionFlowGraph.refine() Remove " + node + " as unconnected");
+			if (!requiredMethodInvocations.contains(node) ) {
+				logger.debug("ExecutionFlowGraph.refine() Remove " + node + " as not required");
 				unconnected.add(node);
 			}
 
@@ -306,7 +307,7 @@ public class ExecutionFlowGraph {
 					// At least one element (actually, only one)
 					firstMethodInvocation = successors.iterator().next();
 				}
-				logger.debug("ExecutionFlowGraph.refine() Updated firstMethodInvocation to " + firstMethodInvocation);
+				logger.trace("ExecutionFlowGraph.refine() Updated firstMethodInvocation to " + firstMethodInvocation);
 			}
 
 			if (successors == null || successors.isEmpty()) {
@@ -318,7 +319,7 @@ public class ExecutionFlowGraph {
 					// At least one element (actually, only one)
 					lastMethodInvocation = predecessors.iterator().next();
 				}
-				logger.debug("ExecutionFlowGraph.refine() Updated lastMethodInvocation to " + lastMethodInvocation);
+				logger.trace("ExecutionFlowGraph.refine() Updated lastMethodInvocation to " + lastMethodInvocation);
 
 			}
 
@@ -329,7 +330,7 @@ public class ExecutionFlowGraph {
 			flowEdges.addAll(graph.getOutEdges(mi));
 
 			for (String flowEdge : flowEdges) {
-				logger.debug("ExecutionFlowGraph.refine() Removing Edge " + flowEdge);
+				logger.trace("ExecutionFlowGraph.refine() Removing Edge " + flowEdge);
 				graph.removeEdge(flowEdge);
 			}
 			// Really its just one
@@ -338,7 +339,7 @@ public class ExecutionFlowGraph {
 					int edgeID = id.getAndIncrement();
 					String edgeLabel = "ExecutionDependency-" + edgeID;
 					boolean added = graph.addEdge(edgeLabel, predecessor, successor, EdgeType.DIRECTED);
-					logger.debug("ExecutionFlowGraph.refine() Introducing replacemente edge "
+					logger.trace("ExecutionFlowGraph.refine() Introducing replacemente edge "
 							+ graph.getEndpoints(edgeLabel) + " added  " + added);
 				}
 			}

@@ -211,7 +211,8 @@ public class Carver {
 		//
 		{
 			// TODO Additional pure methods... this is TRICKY !
-			purityMatchers.add(MethodInvocationMatcher.byClass("java.lang.StringBuilder"));
+			// With this we'll kill the data flow from String, and string that are returned from pure methods are discarded...
+//			purityMatchers.add(MethodInvocationMatcher.byClass("java.lang.StringBuilder"));
 		}
 
 		setupSoot(projectJars);

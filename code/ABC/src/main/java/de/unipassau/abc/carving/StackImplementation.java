@@ -20,10 +20,7 @@ import org.slf4j.LoggerFactory;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.tracing.Trace;
 import de.unipassau.abc.utils.JimpleUtils;
-import soot.Modifier;
 import soot.Scene;
-import soot.SootClass;
-import soot.SootMethod;
 
 /**
  * @author gambi

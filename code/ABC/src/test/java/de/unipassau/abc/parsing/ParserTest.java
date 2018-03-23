@@ -1,6 +1,7 @@
 package de.unipassau.abc.parsing;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -10,11 +11,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.event.Level;
 
 import de.unipassau.abc.carving.CallGraph;
+import de.unipassau.abc.carving.Carver;
 import de.unipassau.abc.carving.DataDependencyGraph;
 import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocationMatcher;
@@ -23,18 +27,38 @@ import de.unipassau.abc.carving.StackImplementation;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
+import soot.G;
 
 public class ParserTest {
+
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevel = new Slf4jSimpleLoggerRule(Level.TRACE);
+
+	@BeforeClass
+	public static void setupSoot() {
+		Carver.setupSoot(Collections.EMPTY_LIST);
+	}
+
+	@AfterClass
+	public static void resetSoot() {
+		G.reset();
+	}
 
 	@Test
 	public void testParseStaticMethodStartWithArrayParameters() throws FileNotFoundException, IOException {
 		List<String> lines = new ArrayList<>();
+		lines.add("[>];ArrayOperation;<java.nio.file.attribute.FileAttribute[]: void <init>(int)>;(0)");
 		lines.add(
-				"[>];StaticInvokeExpr;<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.lang.String,java.nio.file.attribute.FileAttribute[])>;(TEMP,java.nio.file.attribute.FileAttribute[]@722676897)");
+				"[||];<java.nio.file.attribute.FileAttribute[]: void <init>(int)>;/var/folders/jf/9l21bwgd7czdw8jm38z2pr3m0000gq/T/tmp-dump8070163515588955062/f5860eaa-f79e-4a0e-b7c9-a92a206bc837.xml;java.nio.file.attribute.FileAttribute[]@1148232870");
+		lines.add("[<];<java.nio.file.attribute.FileAttribute[]: void <init>(int)>;;");
+		lines.add("[>];StringOperation;<java.lang.String: void <init>()>");
 		lines.add(
-				"[<];<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.lang.String,java.nio.file.attribute.FileAttribute[])>;/Users/gambi/Documents/Passau/Research/action-based-test-carving/code/ABC/scripts/./tracingOut/8058f1ab-1299-41b0-a03c-9a80d1333207.xml;java.nio.file.Path@71853550;");
+				"[||];<java.lang.String: void <init>()>;/var/folders/jf/9l21bwgd7czdw8jm38z2pr3m0000gq/T/tmp-dump8070163515588955062/bdf9d744-f081-4e94-b862-f9566851d393.xml;java.lang.String@2127000850");
+		lines.add("[<];<java.lang.String: void <init>()>;;");
+		lines.add(
+				"[>];StaticInvokeExpr;<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.lang.String,java.nio.file.attribute.FileAttribute[])>;(java.lang.String@2127000850,java.nio.file.attribute.FileAttribute[]@1148232870)");
+		lines.add(
+				"[<];<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.lang.String,java.nio.file.attribute.FileAttribute[])>;/var/folders/jf/9l21bwgd7czdw8jm38z2pr3m0000gq/T/tmp-dump8070163515588955062/023240bb-ae6e-44c1-94d5-5d5f07c44e66.xml;java.nio.file.Path@402942061;");
 
 		// Write to File
 		File tmpTraceFile = ABCTestUtils.writeTraceToTempFile(lines);
@@ -50,23 +74,33 @@ public class ParserTest {
 	@Test
 	public void testParsingWithAlias() throws FileNotFoundException, IOException {
 		List<String> lines = new ArrayList<>();
+		lines.add("[>];ArrayOperation;<java.nio.file.attribute.FileAttribute[]: void <init>(int)>;(0)");
 		lines.add(
-				"[>];StaticInvokeExpr;<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.lang.String,java.nio.file.attribute.FileAttribute[])>;(TEMP,java.nio.file.attribute.FileAttribute[]@1819937367)");
+				"[||];<java.nio.file.attribute.FileAttribute[]: void <init>(int)>;/var/folders/jf/9l21bwgd7czdw8jm38z2pr3m0000gq/T/tmp-dump8070163515588955062/f5860eaa-f79e-4a0e-b7c9-a92a206bc837.xml;java.nio.file.attribute.FileAttribute[]@1148232870");
+		lines.add("[<];<java.nio.file.attribute.FileAttribute[]: void <init>(int)>;;");
+		lines.add("[>];StringOperation;<java.lang.String: void <init>()>");
 		lines.add(
-				"[<];<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.lang.String,java.nio.file.attribute.FileAttribute[])>;/Users/gambi/Documents/Passau/Research/action-based-test-carving/code/ABC/scripts/./tracingOut/949d221c-55ed-40a1-82ca-56cf7cda8eff.xml;java.nio.file.Path@1360263927;");
+				"[||];<java.lang.String: void <init>()>;/var/folders/jf/9l21bwgd7czdw8jm38z2pr3m0000gq/T/tmp-dump8070163515588955062/bdf9d744-f081-4e94-b862-f9566851d393.xml;java.lang.String@2127000850");
+		lines.add("[<];<java.lang.String: void <init>()>;;");
+		lines.add(
+				"[>];StaticInvokeExpr;<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.lang.String,java.nio.file.attribute.FileAttribute[])>;(java.lang.String@2127000850,java.nio.file.attribute.FileAttribute[]@1148232870)");
+		lines.add(
+				"[<];<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.lang.String,java.nio.file.attribute.FileAttribute[])>;/var/folders/jf/9l21bwgd7czdw8jm38z2pr3m0000gq/T/tmp-dump8070163515588955062/023240bb-ae6e-44c1-94d5-5d5f07c44e66.xml;java.nio.file.Path@402942061;");
 		lines.add("[>];InterfaceInvokeExpr;<java.nio.file.Path: java.io.File toFile()>");
 		lines.add(
-				"[||];<java.nio.file.Path: java.io.File toFile()>;/Users/gambi/Documents/Passau/Research/action-based-test-carving/code/ABC/scripts/./tracingOut/7e68ce4b-5124-40e5-8904-7ae28a984973.xml;sun.nio.fs.UnixPath@1360263927");
+				"[||];<java.nio.file.Path: java.io.File toFile()>;/var/folders/jf/9l21bwgd7czdw8jm38z2pr3m0000gq/T/tmp-dump8070163515588955062/e67d3b19-6e38-44ed-ae31-38d7aee61910.xml;sun.nio.fs.UnixPath@402942061");
 		lines.add(
-				"[<];<java.nio.file.Path: java.io.File toFile()>;/Users/gambi/Documents/Passau/Research/action-based-test-carving/code/ABC/scripts/./tracingOut/20d5759b-8c4c-41c7-8e79-26c436fa2dcb.xml;java.io.File@1784808357;");
+				"[<];<java.nio.file.Path: java.io.File toFile()>;/var/folders/jf/9l21bwgd7czdw8jm38z2pr3m0000gq/T/tmp-dump8070163515588955062/000990d3-b542-40f2-a685-09de1a94634f.xml;java.io.File@1777763698;");
 
 		// Write to File
 		File tmpTraceFile = ABCTestUtils.writeTraceToTempFile(lines);
 
-		List<MethodInvocationMatcher> noMatchListAsPurity = Collections.singletonList(MethodInvocationMatcher.noMatch());
-		List<MethodInvocationMatcher> externalInterfaceMatcher = Collections.singletonList(MethodInvocationMatcher.byClass("java.nio.file.Files"));
-		StackImplementation stackImplementation = new StackImplementation( noMatchListAsPurity);
-		
+		List<MethodInvocationMatcher> noMatchListAsPurity = Collections
+				.singletonList(MethodInvocationMatcher.noMatch());
+		List<MethodInvocationMatcher> externalInterfaceMatcher = Collections
+				.singletonList(MethodInvocationMatcher.byClass("java.nio.file.Files"));
+		StackImplementation stackImplementation = new StackImplementation(noMatchListAsPurity);
+
 		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTraces = stackImplementation
 				.parseTrace(tmpTraceFile.getAbsolutePath(), externalInterfaceMatcher);
 
@@ -74,7 +108,7 @@ public class ParserTest {
 		//
 		DataDependencyGraph dataDependencyGraph = parsedTraces.values().iterator().next().getSecond();
 		ObjectInstance alias = new ObjectInstance("sun.nio.fs.UnixPath@1360263927");
-		
-		assertFalse("Data Dep Graph contains alias!", dataDependencyGraph.getObjectInstances().contains( alias ));
+
+		assertFalse("Data Dep Graph contains alias!", dataDependencyGraph.getObjectInstances().contains(alias));
 	}
 }

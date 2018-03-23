@@ -36,7 +36,6 @@ import soot.Value;
 import soot.VoidType;
 import soot.jimple.ArrayRef;
 import soot.jimple.AssignStmt;
-import soot.jimple.IntConstant;
 import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
 import soot.jimple.JimpleBody;
@@ -181,8 +180,12 @@ public class TestGenerator {
 				Local localVariable = Jimple.v().newLocal(localName + localId, RefType.v(type));
 				body.getLocals().add(localVariable);
 
+				logger.trace("  >>>> Create a new local variable " + localVariable + " of type " + type
+						+ " and node " + node + " " + node.hashCode());
+
 				dataDependencyGraph.setSootValueFor(node, localVariable);
 
+				
 				// Initialize the local with the assignment
 				units.add(Jimple.v().newAssignStmt(localVariable, Jimple.v().newStaticFieldRef(
 						Scene.v().getField("<java.lang.System: java.io.InputStream in>").makeRef())));
@@ -213,16 +216,6 @@ public class TestGenerator {
 					Local newArrayLocal = Jimple.v().newLocal(variableName + localId, variableType);
 					body.getLocals().add(newArrayLocal);
 
-					// name the array
-					// Create an array to host the values
-					// TODO: THIS IS WRONG BUT CANNOT SEE OTHER SOLUYTION NOW !
-//					NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(variableType, // RefType.v("java.lang.Object"),
-//							IntConstant.v(0));
-					// Add the instruction to create the empty array
-//					Unit newAssignStmt = Jimple.v().newAssignStmt(newArrayLocal, arrayExpr);
-//					units.add(newAssignStmt);
-
-					// Debug
 					logger.trace("  >>>> Create a new local ARRAY variable " + newArrayLocal + " of type " + type
 							+ " and node " + node + " " + node.hashCode());
 					//
@@ -243,39 +236,6 @@ public class TestGenerator {
 					logger.trace("  >>>> Create a new local variable " + localVariable + " of type " + type
 							+ " and node " + node + " " + node.hashCode());
 
-					// if (type.equals("java.lang.String")) {
-					//
-					//
-					//// todo this does not work
-					//
-					//
-					// try {
-					// // Does this string have an INIT method ? If so,
-					// // this should be invoked later (note that we need a
-					// // PATCH)
-					// dataDependencyGraph.getInitMethodInvocationFor(node);
-					// System.out.println(
-					// "TestGenerator.generateAndAddTestMethodToTestClass()
-					// STRING HAS INIT METHOD");
-					// // So we force the initialization by reading the
-					// // value (from XML)
-					// units.add(
-					// Jimple.v().newAssignStmt(localVariable,
-					// dataDependencyGraph.getSootValueFor(node)));
-					// } catch (CarvingException e1) {
-					//// logger.trace(" >>>> " + localVariable + " have no INIT
-					// method?");
-					//// System.out.println("TestGenerator.generateAndAddTestMethodToTestClass()"
-					// + dataDependencyGraph.getMethodInvocationsForOwner( node
-					// ));
-					// // THIS STRING HAS NO INIT METHOD, FOR EXAMPLE IT WAS A
-					// PARAMETER TO A CALL... --> INSTRUMENTATION SHALL BE
-					// IMPROVED !!
-					// units.add(
-					// Jimple.v().newAssignStmt(localVariable,
-					// dataDependencyGraph.getSootValueFor(node)));
-					// }
-					// }
 					dataDependencyGraph.setSootValueFor(node, localVariable);
 
 				}
@@ -287,7 +247,18 @@ public class TestGenerator {
 		List<MethodInvocation> orderedMethodInvocations = executionFlowGraph.getOrderedMethodInvocations();
 		// By definition the MUT is the last invoked
 		MethodInvocation methodInvocationToCarve = executionFlowGraph.getLastMethodInvocation();
+		
+		// This one should contain the <init> functions as well... 
 		for (MethodInvocation methodInvocation : orderedMethodInvocations) {
+			System.out.println( methodInvocation );
+		}
+		
+		// Build the test body
+		for (MethodInvocation methodInvocation : orderedMethodInvocations) {
+			
+			/// Do we have <init> calls here ?!
+			
+			
 
 			// Get the object upon which we invoke the method
 			Local objLocal = dataDependencyGraph.getObjectLocalFor(methodInvocation);
@@ -300,6 +271,7 @@ public class TestGenerator {
 
 			// Store the return value to build the data dependencies
 			Value returnValue = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
+			//
 			Local actualReturnValue = null;
 			if (returnValue instanceof Local) {
 				actualReturnValue = (Local) returnValue;
@@ -379,6 +351,7 @@ public class TestGenerator {
 	 */
 	private void addUnitFor(Chain<Unit> units, MethodInvocation methodInvocation, Local objLocal,
 			List<Value> parametersValues, Local returnObjLocal) throws CarvingException {
+		
 		logger.trace("Processing method invocation " + methodInvocation.getJimpleMethod() + " -- "
 				+ methodInvocation.getInvocationType() + " on local " + objLocal + " with params " + parametersValues
 				+ " to return " + returnObjLocal);
