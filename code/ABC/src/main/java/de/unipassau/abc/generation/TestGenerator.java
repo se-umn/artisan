@@ -209,18 +209,18 @@ public class TestGenerator {
 
 					variableName = variableName + "Array";
 
-					// name the array
-					// Create an array to host the values
-					// TODO: THIS IS WRONG BUT CANNOT SEE OTHER SOLUYTION NOW !
-					NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(variableType, // RefType.v("java.lang.Object"),
-							IntConstant.v(0));
 
 					Local newArrayLocal = Jimple.v().newLocal(variableName + localId, variableType);
 					body.getLocals().add(newArrayLocal);
 
+					// name the array
+					// Create an array to host the values
+					// TODO: THIS IS WRONG BUT CANNOT SEE OTHER SOLUYTION NOW !
+//					NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(variableType, // RefType.v("java.lang.Object"),
+//							IntConstant.v(0));
 					// Add the instruction to create the empty array
-					Unit newAssignStmt = Jimple.v().newAssignStmt(newArrayLocal, arrayExpr);
-					units.add(newAssignStmt);
+//					Unit newAssignStmt = Jimple.v().newAssignStmt(newArrayLocal, arrayExpr);
+//					units.add(newAssignStmt);
 
 					// Debug
 					logger.trace("  >>>> Create a new local ARRAY variable " + newArrayLocal + " of type " + type
