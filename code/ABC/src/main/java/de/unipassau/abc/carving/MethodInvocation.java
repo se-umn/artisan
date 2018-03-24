@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import soot.tagkit.Tag;
 
-public class MethodInvocation implements GraphNode {
+public class MethodInvocation implements GraphNode, Comparable<MethodInvocation> {
 
 	private final static Logger logger = LoggerFactory.getLogger( MethodInvocation.class);
 	
@@ -138,6 +138,12 @@ public class MethodInvocation implements GraphNode {
 	
 	public boolean isPrivate() {
 		return isPrivate;
+	}
+
+	// This define the order as in the execution graph
+	@Override
+	public int compareTo(MethodInvocation o) {
+		return getInvocationCount() - o.getInvocationCount();
 	}
 
 }

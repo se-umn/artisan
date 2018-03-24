@@ -27,8 +27,13 @@ import edu.uci.ics.jung.graph.SparseMultigraph;
 import edu.uci.ics.jung.graph.util.EdgeType;
 import edu.uci.ics.jung.visualization.VisualizationViewer;
 import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
-import soot.Type;
 
+/**
+ * Using strings inside the edge makes this really memory intensive (string buffer, and CG goes nuts)
+ * Maybe we can optimize this? In the end, all those objects are Immutable...
+ * @author gambi
+ *
+ */
 public class ExecutionFlowGraph {
 
 	private final Logger logger = LoggerFactory.getLogger(ExecutionFlowGraph.class);

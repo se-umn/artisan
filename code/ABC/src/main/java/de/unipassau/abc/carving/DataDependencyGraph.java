@@ -7,8 +7,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +25,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 
-import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.tracing.XMLDumper;
 import de.unipassau.abc.utils.GraphUtility;
 import de.unipassau.abc.utils.JimpleUtils;
@@ -439,7 +440,7 @@ public class DataDependencyGraph {
 
 	public Collection<ObjectInstance> getObjectInstances() {
 		Collection<ObjectInstance> objectInstances = new ArrayList<>();
-		// This probably is a copy... "view"
+		// This is a shallow copy
 		for (GraphNode node : graph.getVertices()) {
 			if (node instanceof ObjectInstance) {
 				objectInstances.add((ObjectInstance) node);
@@ -465,28 +466,7 @@ public class DataDependencyGraph {
 						if (edge.startsWith(OWNERSHIP_DEPENDENCY_PREFIX)) {
 
 							ObjectInstance objectInstance = (ObjectInstance) graph.getOpposite(node, edge);
-							// if
-							// (JimpleUtils.isString(objectInstance.getType()))
-							// {
-							// System.out.println("DataDependencyGraph.getReturnObjectLocalFor()\n\n\n
-							// Load from XML "
-							// + methodInvocation.getXmlDumpForReturn());
-							// Value stringValue = null;
-							// try {
-							// stringValue = StringConstant
-							// .v((String)
-							// XMLDumper.loadObject(methodInvocation.getXmlDumpForReturn()));
-							// // Cache it ?
-							// setSootValueFor(objectInstance, stringValue);
-							// } catch (IOException e) {
-							// // TODO Auto-generated catch block
-							// e.printStackTrace();
-							// logger.error("Swallow: " + e);
-							// }
-							// return (Local) stringValue;
-							// } else {
 							return (Local) getSootValueFor(objectInstance);
-							// }
 
 						}
 					}
@@ -726,7 +706,7 @@ public class DataDependencyGraph {
 	}
 
 	/// Note that static instances have no init method ...
-	public MethodInvocation getInitMethodInvocationFor(ObjectInstance objectInstance) throws CarvingException {
+	public MethodInvocation getInitMethodInvocationFor(ObjectInstance objectInstance) {
 
 		// include the init call
 		for (String outgoingEdge : graph.getOutEdges(objectInstance)) {
@@ -741,11 +721,12 @@ public class DataDependencyGraph {
 			}
 		}
 
+		return null;
 		// NOTE: For some object there's no INIT call, but there might be a call
 		// which RETURN them. Especially if this call which returns them is an
 		// EXTERNAL INTERFACE
-
-		throw new CarvingException("Cannot find INIT call for " + objectInstance);
+		// throw new CarvingException("Cannot find INIT call for " +
+		// objectInstance);
 	}
 
 	public Set<MethodInvocation> getMethodInvocationsWhichReturn(ObjectInstance objectInstance) {
@@ -776,7 +757,7 @@ public class DataDependencyGraph {
 				}
 			}
 		}
-		
+
 		// This remove the node and the corresponding edges
 		for (MethodInvocation mi : unconnected) {
 			logger.trace("DataDependencyGraph.refine() Removing " + mi + " as unconnected ");
@@ -826,6 +807,80 @@ public class DataDependencyGraph {
 			return false;
 
 		return GraphUtility.areDataDependencyGraphsEqual(graph, other.graph);
+	}
+
+	/**
+	 * Return all the object instances which have at least one invocation before
+	 * the methodInvocationToCarve and TODO belongs to external interface.
+	 * 
+	 * @param methodInvocationToCarve
+	 * @return
+	 */
+	@Deprecated
+	public Set<ObjectInstance> getObjectInstancesUsedBefore(MethodInvocation methodInvocationToCarve) {
+		Set<ObjectInstance> objectInstances = new HashSet<>();
+		for (ObjectInstance objectInstance : getObjectInstances()) {
+			// Check if any of this invocation was before the given one
+			List<MethodInvocation> mi = new ArrayList<>(getMethodInvocationsForOwner(objectInstance));
+			Collections.sort(mi);
+
+			Iterator<MethodInvocation> iterator = mi.iterator();
+			while (iterator.hasNext()) {
+				if (iterator.next().getInvocationCount() < methodInvocationToCarve.getInvocationCount()) {
+					objectInstances.add(objectInstance);
+					break;
+				}
+			}
+		}
+
+		return objectInstances;
+	}
+
+	@Deprecated
+	public Set<ObjectInstance> getObjectInstancesUsedBeforeByExternalInterfaces(
+			MethodInvocation methodInvocationToCarve) {
+		Set<ObjectInstance> objectInstances = new HashSet<>();
+		for (ObjectInstance objectInstance : getObjectInstances()) {
+
+			// Check if any of this invocation was before the given one
+			// What about parameters?
+			List<MethodInvocation> miForObjectInstance = new ArrayList<>(getMethodInvocationsForOwner(objectInstance));
+			// Includes the constructor
+			miForObjectInstance.addAll(getMethodInvocationsWhichReturn(objectInstance));
+			// Parameter
+			miForObjectInstance.addAll(getMethodInvocationsWhichUse(objectInstance));
+
+			Collections.sort(miForObjectInstance);
+
+			Iterator<MethodInvocation> iterator = miForObjectInstance.iterator();
+			while (iterator.hasNext()) {
+				MethodInvocation mi = iterator.next();
+				// We do not care about objects that
+				if (!mi.belongsToExternalInterface()) {
+					continue;
+				} else if (mi.getInvocationCount() < methodInvocationToCarve.getInvocationCount()) {
+					objectInstances.add(objectInstance);
+					break;
+				}
+			}
+		}
+		return objectInstances;
+	}
+
+	/**
+	 * Return all the method calls which have the given object as parameter
+	 * 
+	 * @param objectInstance
+	 * @return
+	 */
+	public Set<MethodInvocation> getMethodInvocationsWhichUse(ObjectInstance objectInstance) {
+		Set<MethodInvocation> methodInvocations = new HashSet<>();
+		for (String edge : graph.getOutEdges(objectInstance)) {
+			if (edge.startsWith(DATA_DEPENDENCY_PREFIX)) {
+				methodInvocations.add((MethodInvocation) graph.getOpposite(objectInstance, edge));
+			}
+		}
+		return methodInvocations;
 	}
 
 }

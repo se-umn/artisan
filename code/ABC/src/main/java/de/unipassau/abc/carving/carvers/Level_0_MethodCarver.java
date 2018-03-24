@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -41,6 +42,10 @@ public class Level_0_MethodCarver implements MethodCarver {
 	// private final MethodInvocationMatcher excludeJavaLang =
 	// MethodInvocationMatcher.byPackage("java");
 	// TODO We need to exclude also PRIVATE method !
+
+	// Computing the cartesian product of preconditions is
+	// empensive, especially if we carve over and over the same preconditions
+	private Map<MethodInvocation, List<MethodInvocation>> preconditionCache = new HashMap<>();
 
 	/**
 	 * 
@@ -83,7 +88,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 			MethodInvocation methodInvocationToCarve, boolean minimalCarve) throws CarvingException {
 
 		if (!minimalCarve) {
-			logger.info("Carving " + methodInvocationToCarve + " Trace size " + executionFlowGraph.getOrderedMethodInvocations().size());
+			logger.info("Carving " + methodInvocationToCarve + " Trace size "
+					+ executionFlowGraph.getOrderedMethodInvocations().size());
 		}
 
 		/*
@@ -145,12 +151,12 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 			// For some instances, there's no INIT call, tho there's calls which
 			// return it.
-			try {
-				MethodInvocation constructor = subGraphFromPastExecution // dataDependencyGraph
-						.getInitMethodInvocationFor(subGraphFromPastExecution // dataDependencyGraph
-								.getOwnerFor(methodInvocationToCarve));
+			MethodInvocation constructor = subGraphFromPastExecution // dataDependencyGraph
+					.getInitMethodInvocationFor(subGraphFromPastExecution // dataDependencyGraph
+							.getOwnerFor(methodInvocationToCarve));
+			if (constructor != null) {
 				constructors.add(constructor);
-			} catch (CarvingException e) {
+			} else {
 				logger.info("We cannot find an INIT call for this object "
 						+ subGraphFromPastExecution.getOwnerFor(methodInvocationToCarve));
 
@@ -183,20 +189,20 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// DIRECT PARAMETERS
 		for (ObjectInstance dataDependency : subGraphFromPastExecution // dataDependencyGraph
 				.getObjectInstancesAsParametersOf(methodInvocationToCarve)) {
-			try {
 
-				// Static instances like Syste.in have no init calls
-				// DO WE STILL NEED THIS PATCH ?!
-				if (dataDependency.equals(ObjectInstance.SystemIn())) {
-					logger.debug("Level_0_MethodCarver.level0TestCarving() No INIT call for static instances "
-							+ dataDependency);
-					continue;
-				}
+			// Static instances like Syste.in have no init calls
+			// DO WE STILL NEED THIS PATCH ?!
+			if (dataDependency.equals(ObjectInstance.SystemIn())) {
+				logger.debug(
+						"Level_0_MethodCarver.level0TestCarving() No INIT call for static instances " + dataDependency);
+				continue;
+			}
 
-				MethodInvocation constructor = subGraphFromPastExecution // dataDependencyGraph
-						.getInitMethodInvocationFor(dataDependency);
+			MethodInvocation constructor = subGraphFromPastExecution // dataDependencyGraph
+					.getInitMethodInvocationFor(dataDependency);
+			if (constructor != null) {
 				constructors.add(constructor);
-			} catch (CarvingException e) {
+			} else {
 				logger.info("We cannot find an INIT call for this object " + dataDependency);
 
 				// Take the first invocation which returns the object instead
@@ -256,6 +262,22 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// which then we filter away... On the other size, if we do not consider
 		// this, how do we include calls to external libraries, maybe simply by
 		// looking into the exec graph ?
+
+		System.out.println("Level_0_MethodCarver.level0TestCarving() All object instances : "
+				+ subGraphFromPastExecution.getObjectInstances().size());
+		// XXX We try to use the following methods to reduce the amount of
+		// ObjectInstances considered, but failed to create some preconditions
+		// and generated wrong test cases:
+		// System.out.println("Level_0_MethodCarver.level0TestCarving() Object
+		// used before : "
+		// +
+		// subGraphFromPastExecution.getObjectInstancesUsedBefore(methodInvocationToCarve).size());
+		// System.out.println("Level_0_MethodCarver.level0TestCarving() Object
+		// used before by external interfaces : "
+		// +
+		// subGraphFromPastExecution.getObjectInstancesUsedBeforeByExternalInterfaces(methodInvocationToCarve)
+		// .size());
+
 		for (ObjectInstance objectInstance : subGraphFromPastExecution.getObjectInstances()) {
 
 			Set<MethodInvocation> returningCallsForObjectInstance = subGraphFromPastExecution // dataDependencyGraph
@@ -288,20 +310,17 @@ public class Level_0_MethodCarver implements MethodCarver {
 				}
 			}
 
-			try {
-				// Here we need to include the constructors as well to create
-				// the cross products. Note that sometimes, because the
-				// instrumentation cannot cover "everything" we might not be
-				// able to initialize
-				// all the instances: For example:
-				// org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock@463345942
-				// Still we like to carve out some test
-				returningCallsForObjectInstance.add(subGraphFromPastExecution // dataDependencyGraph
-						.getInitMethodInvocationFor(objectInstance));
-
-			} catch (CarvingException e) { // TODO Factor this into a app
-				// specific exception
-				// logger.debug("Swallow : " + e);
+			// Here we need to include the constructors as well to create
+			// the cross products. Note that sometimes, because the
+			// instrumentation cannot cover "everything" we might not be
+			// able to initialize
+			// all the instances: For example:
+			// org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock@463345942
+			// Still we like to carve out some test
+			MethodInvocation init = subGraphFromPastExecution // dataDependencyGraph
+					.getInitMethodInvocationFor(objectInstance);
+			if (init != null) {
+				returningCallsForObjectInstance.add(init);
 			}
 
 			// System.out.println("Level_0_MethodCarver.level0TestCarving() " +
@@ -323,8 +342,33 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// And generate the possible combinations by computing the Cartesian
 		// Product of those calls per. For each call generate a new carvedTest
 		/// FIXME This becomes HUGE, probably we shall consider some
-		// optimization !
+		// optimization ?
 		// See: #39
+		// The problem is rooted in the fact that many StringBuilder are
+		// generated and re-generated all over the places. Those do not usually impact the final results...
+		// For example System.out.println("A " + foo()); is handled by generating a StringBuilder.
+		// TODO: In case it turns out to be a problem, simply discard combinations of StringBuilder, or StringBuilders entirely
+		
+
+		// Pre select the returnin calls to reduce the number of their
+		// combination, since ATM there's no evidence this will impact the
+		// quality of the results. Ideally this might have an impact on the SIZE
+		// of the carved test case because we might invoke less calls to setup
+		// the preconditions (e.g., use Factory methods) or avoid to generate
+		// impossible tests (private methods? )
+		//
+
+		for (Entry<ObjectInstance, Set<MethodInvocation>> entry : returningCalls.entrySet()) {
+			if (entry.getValue().size() > 1) {
+				// Pick the first call, the one which has smaller id
+				// System.out.println("Level_0_MethodCarver.level0TestCarving()
+				// Pre-select returning call for: " + entry.getKey() );
+				MethodInvocation preSelected = Collections.min(entry.getValue());
+				entry.getValue().clear();
+				entry.getValue().add(preSelected);
+			}
+		}
+
 		Set<List<MethodInvocation>> fullCartesianProduct = Sets
 				.cartesianProduct(new ArrayList<>(returningCalls.values()));
 
@@ -405,47 +449,15 @@ public class Level_0_MethodCarver implements MethodCarver {
 				logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Must Ensure preconditions of "
 						+ returnCall);
 
-				if (dataDependencyGraph.getOwnerFor(returnCall) != null || //
-						!dataDependencyGraph.getObjectInstancesAsParametersOf(returnCall).isEmpty()) {
-
-					// This might return an empty set of precondition for calls
-					// that are subsumed, like constructors of super- and sub-
-					// classes.
-					// TODO Try to see if you can avoid doing the precondition
-					// check for those specific cases (which might be also
-					// chains)
-
-					try {
-						List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedPreconditions = level0TestCarving(
-								returnCall, true);
-
-						if (!carvedPreconditions.isEmpty()) {
-							List<MethodInvocation> preconditions = carvedPreconditions.get(0).getFirst()
-									.getOrderedMethodInvocations();
-							// Here we do not really care about data dep, since
-							// the
-							// later
-							// call should include them as well !
-							logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Preconditions are : "
-									+ preconditions);
-							// At this point we need to recompute the
-							// dataDependencyGraph to include any deps on
-							// preconditions
-							// Which basically consist on carving them ?
-							_backwardSlice.addAll(preconditions);
-						} else {
-							logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Method " + returnCall
-									+ " has no preconditions");
-						}
-					} catch (CarvingException e) {
-						logger.error("Cannot compute preconditions for return call " + returnCall);
-						System.out
-								.println("Level_0_MethodCarver.generateSingleTestCaseFromSliceFor() WHAT TO DO NOW ?");
-					}
-				} else {
-					logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Method " + returnCall
-							+ " has no preconditions");
+				if (!preconditionCache.containsKey(returnCall)) {
+					preconditionCache.put(returnCall, computePreconditionsFor(returnCall));
 				}
+
+				// At this point we need to recompute the
+				// dataDependencyGraph to include any deps on
+				// preconditions
+				// Which basically consist on carving them ?
+				_backwardSlice.addAll(preconditionCache.get(returnCall));
 			}
 		}
 
@@ -518,6 +530,55 @@ public class Level_0_MethodCarver implements MethodCarver {
 		DataDependencyGraph carvedDataDependencyGraph = dataDependencyGraph.getSubGraph(carvedExecutionGraph);
 
 		return new Pair<ExecutionFlowGraph, DataDependencyGraph>(carvedExecutionGraph, carvedDataDependencyGraph);
+	}
+
+	private List<MethodInvocation> computePreconditionsFor(MethodInvocation returnCall) {
+
+		List<MethodInvocation> preconditions = new ArrayList<>();
+
+		if (dataDependencyGraph.getOwnerFor(returnCall) != null || //
+				!dataDependencyGraph.getObjectInstancesAsParametersOf(returnCall).isEmpty()) {
+
+			// This might return an empty set of precondition for calls
+			// that are subsumed, like constructors of super- and sub-
+			// classes.
+			// TODO Try to see if you can avoid doing the precondition
+			// check for those specific cases (which might be also
+			// chains)
+
+			try {
+				List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedPreconditions = level0TestCarving(returnCall,
+						true);
+
+				if (!carvedPreconditions.isEmpty()) {
+					//
+					preconditions.addAll(carvedPreconditions.get(0).getFirst().getOrderedMethodInvocations());
+
+					/*
+					 * Here we do not really care about data dep, since the
+					 * later call should include them as well !?
+					 */
+					logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Preconditions are : "
+							+ preconditions);
+
+					if (carvedPreconditions.size() > 1) {
+						System.out.println("Level_0_MethodCarver.computePreconditionsFor() MULTIPLE PRECONDITIONS FOR "
+								+ returnCall);
+					}
+				} else {
+					logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Method " + returnCall
+							+ " has no preconditions");
+				}
+			} catch (CarvingException e) {
+				logger.error("Cannot compute preconditions for return call " + returnCall);
+				e.printStackTrace();
+				System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSliceFor() WHAT TO DO NOW ?");
+			}
+		} else {
+			logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Method " + returnCall
+					+ " has no preconditions");
+		}
+		return preconditions;
 	}
 
 	/**
@@ -610,18 +671,19 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 			DataDependencyGraph dataDependencyGraph = carvedTest.getSecond();
 			ExecutionFlowGraph executionFlowGraph = carvedTest.getFirst();
-			
+
 			// This is the CORE of the carved test
 			Set<MethodInvocation> coreMethodInvocations = dataDependencyGraph
 					.getWeaklyConnectedComponentContaining(methodInvocationUnderTest);
 
 			// This is to consider external interfaces and their preconditions
-			for( MethodInvocation methodInvocation : executionFlowGraph.getOrderedMethodInvocations()){
-				if( methodInvocation.belongsToExternalInterface()){
-					coreMethodInvocations.addAll( dataDependencyGraph.getWeaklyConnectedComponentContaining(methodInvocation));
+			for (MethodInvocation methodInvocation : executionFlowGraph.getOrderedMethodInvocations()) {
+				if (methodInvocation.belongsToExternalInterface()) {
+					coreMethodInvocations
+							.addAll(dataDependencyGraph.getWeaklyConnectedComponentContaining(methodInvocation));
 				}
 			}
-			
+
 			dataDependencyGraph.refine(coreMethodInvocations);
 			executionFlowGraph.refine(coreMethodInvocations);
 		}
