@@ -11,6 +11,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -25,6 +27,7 @@ import de.unipassau.abc.generation.TestGenerator;
 import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.JimpleUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
+import soot.G;
 import soot.SootClass;
 
 public class CarveWithExpansionsTest {
@@ -43,6 +46,16 @@ public class CarveWithExpansionsTest {
 
 	private final List<MethodInvocationMatcher> emptyMethodInvocationMatcherList = new ArrayList<MethodInvocationMatcher>();
 
+	
+//	@Before
+//	public void setupSoot(){
+//		Carver.setupSoot( Collections.EMPTY_LIST);
+//	}
+//	@After
+//	public void resetSoot(){
+//		G.reset();
+//	}
+	
 	@Test
 	public void testExpansionWithSimpleStatic() throws FileNotFoundException, IOException, InterruptedException {
 		File traceFile = new File("./src/test/resources/DummySystemTestGetSimple-trace.txt");

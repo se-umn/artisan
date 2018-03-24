@@ -132,7 +132,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	}
 
 	public void setPrivate(boolean isPrivate) {
-		System.out.println( toString() + " isPrivate ? " + isPrivate );
+//		System.out.println( toString() + " isPrivate ? " + isPrivate );
 		this.isPrivate = isPrivate;
 	}
 	

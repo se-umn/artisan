@@ -51,12 +51,15 @@ public class ByReturnWithExclusionCarverTest {
 					// String projectJar =
 					"--project-jar", "./src/test/resources/Employee.jar",
 					// String outputDir =
-					"--output-to", outputDirectory.getAbsolutePath() };
+					"--output-to", outputDirectory.getAbsolutePath() , //
+					"--external", //
+					"java.io.File", "java.nio.file.Path", "java.nio.file.Files", "org.junit.rules.TemporaryFolder",
+					"java.util.Scanner" };
 			//
 			carver.main(args);
 
 			int count = ABCTestUtils.countFiles(outputDirectory, ".class");
-			assertEquals(2, count);
+			assertEquals(3, count);
 
 			// TODO Make assertion on Java classes, for example, can they be
 			// compiled ? Can they be executed? Do they produce a green test

@@ -268,8 +268,8 @@ public class MockingGenerator {
 		CallGraph callGraph = parsedTrace.getThird();
 		
 		Set<MethodInvocation> subsequentCalls = callGraph.getMethodInvocationsSubsumedBy( methodInvocationToBeCarved );
-		System.out.println("MockingGenerator.collectExpectedSystemExitValue() Calls subsumed by " + methodInvocationToBeCarved );
-		System.out.println("		" + subsequentCalls );
+//		System.out.println("MockingGenerator.collectExpectedSystemExitValue() Calls subsumed by " + methodInvocationToBeCarved );
+//		System.out.println("		" + subsequentCalls );
 
 		for (MethodInvocation methodInvocation : subsequentCalls) {
 			if (systemExitMethodMatcher.matches(methodInvocation)) {
@@ -304,8 +304,8 @@ public class MockingGenerator {
 			}
 		}
 
-		System.out.println("MockingGenerator.findParsedSystemTest() Cannot find any system test for test method "
-				+ methodInvocationToBeCarved);
+//		System.out.println("MockingGenerator.findParsedSystemTest() Cannot find any system test for test method "
+//				+ methodInvocationToBeCarved);
 		return null;
 	}
 
@@ -425,7 +425,7 @@ public class MockingGenerator {
 //					// methodInvocation.getXmlDumpForReturn());
 //					Value stringValue = null;
 				if( valueReadFromInput == null ){
-					System.out.println("MockingGenerator.collectValuesReadFromInput() >>> Null ?! ");
+//					System.out.println("MockingGenerator.collectValuesReadFromInput() >>> Null ?! ");
 					try {
 						valueReadFromInput = StringConstant.v(
 								(String) XMLDumper.loadObject(methodInvocation.getXmlDumpForReturn()));
@@ -438,7 +438,7 @@ public class MockingGenerator {
 					}
 				}
 				
-				System.out.println("MockingGenerator.collectValuesReadFromInput() " + methodInvocation + " --> " + valueReadFromInput );
+				logger.debug("MockingGenerator.collectValuesReadFromInput() " + methodInvocation + " --> " + valueReadFromInput );
 				
 				valuesFromInput.add(valueReadFromInput);
 			}

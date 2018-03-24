@@ -293,6 +293,7 @@
 							<groups>de.unipassau.abc.utils.SystemTest</groups>
 							<!-- Do not clog the console but write to output files -->
 							<redirectTestOutputToFile>true</redirectTestOutputToFile>
+						        <argLine>-Xmx4g -Xms512m -XX:+UseParallelGC -XX:NewRatio=2</argLine>
 						</configuration>
 					</plugin>
 				</plugins>

@@ -3,7 +3,6 @@ package de.unipassau.abc.carving;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Paint;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -25,7 +24,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 
-import de.unipassau.abc.tracing.XMLDumper;
 import de.unipassau.abc.utils.GraphUtility;
 import de.unipassau.abc.utils.JimpleUtils;
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
@@ -37,7 +35,6 @@ import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
 import soot.Local;
 import soot.Value;
 import soot.jimple.NullConstant;
-import soot.jimple.StringConstant;
 
 /**
  * @author gambi
@@ -103,8 +100,8 @@ public class DataDependencyGraph {
 				if (JimpleUtils.isNull(actualParameters[position])) {
 					// Null objects
 					// Not even sure that at this point here this can be null !
-					System.out.println("DataDependencyGraph.addMethodInvocation() Got null " + methodInvocation + " "
-							+ actualParameters[position]);
+//					System.out.println("DataDependencyGraph.addMethodInvocation() Got null " + methodInvocation + " "
+//							+ actualParameters[position]);
 					// Null parameter
 					node = NullNodeFactory.get(formalParameters[position]);
 					setSootValueFor(node, ((ValueNode) node).getData());
@@ -144,7 +141,7 @@ public class DataDependencyGraph {
 	private ObjectInstance handleDanglingObjectInstance(ObjectInstance node) {
 
 		if (JimpleUtils.isNull(node.getObjectId())) {
-			System.out.println("Call a method on null object... NPE?!");
+//			System.out.println("Call a method on null object... NPE?!");
 			// Null parameter
 			setSootValueFor(node, NullConstant.v());
 		} else if (((ObjectInstance) node).getType()
@@ -171,12 +168,12 @@ public class DataDependencyGraph {
 			ObjectInstance alias = getVertexById(((ObjectInstance) node).getObjectId());
 			if (alias != null) {
 				// TODO Check interface !
-				System.out.println("DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with " + alias);
+				logger.info("DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with " + alias);
 				return alias;
 			}
 		}
 
-		System.out.println("DataDependencyGraph.handleDanglingObjectInstance() Return the original node");
+//		System.out.println("DataDependencyGraph.handleDanglingObjectInstance() Return the original node");
 		// Worst case return the original node
 		return node;
 
@@ -221,7 +218,7 @@ public class DataDependencyGraph {
 		// NEW STRING NODE " + node);
 		// }
 		else if (JimpleUtils.isNull(returnValue)) {
-			System.out.println("DataDependencyGraph.addDataDependencyOnReturn() Capture a null return value");
+//			System.out.println("DataDependencyGraph.addDataDependencyOnReturn() Capture a null return value");
 			node = NullNodeFactory.get(formalReturnValue);
 			setSootValueFor(node, ((ValueNode) node).getData());
 		}
@@ -559,7 +556,7 @@ public class DataDependencyGraph {
 
 					parameters[position] = getSootValueFor(dn);
 
-					System.out.println(
+					logger.debug(
 							"DataDependencyGraph.getParametersFor() Processing inEdge " + incomingEdge + " position "
 									+ position + " corresponds to " + graph.getOpposite(methodInvocation, incomingEdge)
 									+ " which has value " + getSootValueFor(dn));
@@ -568,9 +565,9 @@ public class DataDependencyGraph {
 			return Arrays.asList(parameters);
 		} catch (Throwable e) {
 			e.printStackTrace();
-			System.out.println("DataDependencyGraph.getParametersSootValueFor() In Edges for " + methodInvocation + " "
-					+ graph.getInEdges(methodInvocation));
-			System.out.println("DataDependencyGraph.getParametersSootValueFor() " + graph);
+//			System.out.println("DataDependencyGraph.getParametersSootValueFor() In Edges for " + methodInvocation + " "
+//					+ graph.getInEdges(methodInvocation));
+//			System.out.println("DataDependencyGraph.getParametersSootValueFor() " + graph);
 			throw e;
 		}
 	}
@@ -652,7 +649,7 @@ public class DataDependencyGraph {
 	}
 
 	public void setSootValueFor(DataNode node, Value localVariable) {
-		System.out.println("DataDependencyGraph.setSootValueFor() " + node + " " + localVariable);
+//		System.out.println("DataDependencyGraph.setSootValueFor() " + node + " " + localVariable);
 		additionalData.put(node, localVariable);
 	}
 

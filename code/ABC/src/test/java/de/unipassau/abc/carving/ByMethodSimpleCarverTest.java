@@ -35,12 +35,14 @@ public class ByMethodSimpleCarverTest {
 	public void testCarvingByMethodSimple() throws IOException, InterruptedException {
 		// <org.employee.Validation: int
 		// numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>
-//		String jimpleMethodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String)>";
-		 String jimpleMethodToCarve = "<org.employee.EmployeeMetaData: void addMeta()>";
+		// String jimpleMethodToCarve = "<org.employee.Validation: int
+		// numberValidation(java.lang.String)>";
+		String jimpleMethodToCarve = "<org.employee.EmployeeMetaData: void addMeta()>";
 
-		 String traceFile ="./src/test/resources/Employee-trace.txt";
-		 // TODO Mark this with a DebugTest otherwise:
-//		String traceFile = "/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut/trace.txt";
+		String traceFile = "./src/test/resources/Employee-trace.txt";
+		// TODO Mark this with a DebugTest otherwise:
+		// String traceFile =
+		// "/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut/trace.txt";
 		try {
 			Carver carver = new Carver();
 			File outputDirectory = temporaryFolderRule.newFolder();
@@ -53,7 +55,8 @@ public class ByMethodSimpleCarverTest {
 					// String outputDir =
 					"--output-to", outputDirectory.getAbsolutePath(),
 					// Define External interfaces
-					"--external", "java.util.Scanner" };
+					"--external", "java.io.File", "java.nio.Path", "java.util.Scanner", "java.nio.file.Files",
+					"org.junit.contrib.java.lang.system.ExpectedSystemExit" };
 			//
 			carver.main(args);
 			//

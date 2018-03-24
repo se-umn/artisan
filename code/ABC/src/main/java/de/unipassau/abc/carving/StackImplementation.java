@@ -103,7 +103,7 @@ public class StackImplementation implements TraceParser {
 
 		} catch (Throwable e) {
 			// This fails for java classes
-			System.out.println("StackImplementation.parseMethodStart() Swallow:  " + e);
+			logger.info("StackImplementation.parseMethodStart() Swallow:  " + e);
 //			e.printStackTrace();
 		}
 

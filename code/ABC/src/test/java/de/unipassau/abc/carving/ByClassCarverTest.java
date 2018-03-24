@@ -59,7 +59,8 @@ public class ByClassCarverTest {
 					// String projectJar =
 					"--project-jar", "./src/test/resources/Employee.jar",
 					// String outputDir =
-					"--output-to", outputDirectory.getAbsolutePath(), "--external", //
+					"--output-to", outputDirectory.getAbsolutePath(), //
+					"--external", //
 					"java.io.File", "java.nio.file.Path", "java.nio.file.Files", "org.junit.rules.TemporaryFolder",
 					"java.util.Scanner" };
 			//

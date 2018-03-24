@@ -125,17 +125,20 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// Carve by Time => "Before"
 		List<MethodInvocation> executioneBefore = executionFlowGraph
 				.getOrderedMethodInvocationsBefore(methodInvocationToCarve);
-		
-		// Extract relevant Data Dependencies from "Before" - External interfaces ?
+
+		// Extract relevant Data Dependencies from "Before" - External
+		// interfaces ?
 		DataDependencyGraph subGraphFromPastExecution = dataDependencyGraph.getSubGraph(executioneBefore);
 
 		// Do the carving by following the method invocations chain
 		Set<MethodInvocation> backwardSlice = new HashSet<>(executioneBefore);
 		backwardSlice.retainAll(subGraphFromPastExecution.getMethodInvocationsRecheableFrom(methodInvocationToCarve));
 
-		// TODO At this point include all the calls that are made to external interfaces BEFORE methodInvocationToCarve
-		backwardSlice.addAll( executionFlowGraph.getOrderedMethodInvocationsToExternalInterfaceBefore(methodInvocationToCarve));
-		
+		// TODO At this point include all the calls that are made to external
+		// interfaces BEFORE methodInvocationToCarve
+		backwardSlice.addAll(
+				executionFlowGraph.getOrderedMethodInvocationsToExternalInterfaceBefore(methodInvocationToCarve));
+
 		// The backwardSlice is the slice which contains the MUT-centric view of
 		// the execution. It disregards the location of methods which have
 		// potential impact on the CUT.
@@ -161,7 +164,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 			if (constructor != null) {
 				constructors.add(constructor);
 			} else {
-				logger.info("We cannot find an INIT call for this object "
+				logger.debug("We cannot find an INIT call for this object "
 						+ subGraphFromPastExecution.getOwnerFor(methodInvocationToCarve));
 
 				// Take the first invocation which returns the object instead
@@ -207,7 +210,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 			if (constructor != null) {
 				constructors.add(constructor);
 			} else {
-				logger.info("We cannot find an INIT call for this object " + dataDependency);
+				logger.debug("We cannot find an INIT call for this object " + dataDependency);
 
 				// Take the first invocation which returns the object instead
 				List<MethodInvocation> methodInvocationsWhichReturnTheDataDependency = new ArrayList<>(
@@ -222,7 +225,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 								}
 							}));
 				} catch (Throwable e1) {
-					logger.info("We cannot find a call which returns this object " + dataDependency);
+					logger.error("We cannot find a call which returns this object " + dataDependency);
 					// TODO: handle exception
 					throw new CarvingException(
 							"Object " + dataDependency + " which is the owner of the method to carve "
@@ -267,7 +270,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// this, how do we include calls to external libraries, maybe simply by
 		// looking into the exec graph ?
 
-		System.out.println("Level_0_MethodCarver.level0TestCarving() All object instances : "
+		logger.trace("Level_0_MethodCarver.level0TestCarving() All object instances : "
 				+ subGraphFromPastExecution.getObjectInstances().size());
 		// XXX We try to use the following methods to reduce the amount of
 		// ObjectInstances considered, but failed to create some preconditions
@@ -304,11 +307,11 @@ public class Level_0_MethodCarver implements MethodCarver {
 			 * 
 			 */
 
-			for (Iterator<MethodInvocation> retCallIterator = returningCallsForObjectInstance.iterator(); retCallIterator.hasNext();) {
+			for (Iterator<MethodInvocation> retCallIterator = returningCallsForObjectInstance
+					.iterator(); retCallIterator.hasNext();) {
 				MethodInvocation retCall = retCallIterator.next();
 				if (subGraphFromPastExecution.getObjectInstancesAsParametersOf(retCall).contains(objectInstance)) {
-					System.out
-							.println(">>> The method " + retCall + " returns one of its parameters " + objectInstance);
+					logger.info("The method " + retCall + " returns one of its parameters " + objectInstance);
 					retCallIterator.remove();
 				}
 			}
@@ -348,10 +351,12 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// optimization ?
 		// See: #39
 		// The problem is rooted in the fact that many StringBuilder are
-		// generated and re-generated all over the places. Those do not usually impact the final results...
-		// For example System.out.println("A " + foo()); is handled by generating a StringBuilder.
-		// TODO: In case it turns out to be a problem, simply discard combinations of StringBuilder, or StringBuilders entirely
-		
+		// generated and re-generated all over the places. Those do not usually
+		// impact the final results...
+		// For example System.out.println("A " + foo()); is handled by
+		// generating a StringBuilder.
+		// TODO: In case it turns out to be a problem, simply discard
+		// combinations of StringBuilder, or StringBuilders entirely
 
 		// Pre select the returnin calls to reduce the number of their
 		// combination, since ATM there's no evidence this will impact the
@@ -360,18 +365,16 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// the preconditions (e.g., use Factory methods) or avoid to generate
 		// impossible tests (private methods? )
 		//
-		
-		
-		/// THERE is also another case: external interface which use data but produce none are not considered here !
-		// We should be
 
 		for (Entry<ObjectInstance, Set<MethodInvocation>> entry : returningCalls.entrySet()) {
-			if (entry.getValue().size() > 1) {
-				// Pick the first call, the one which has smaller id
-//				 System.out.println(">>>> Level_0_MethodCarver.level0TestCarving() Pre-select returning call for: " + entry.getKey() );
+			if (entry.getKey().getType().equals("java.lang.StringBuilder")) {
+//			if (entry.getValue().size() > 1) {
+//				System.out.println(">>>> Level_0_MethodCarver.level0TestCarving() Pre-select returning call for: "
+//						+ entry.getKey());
 				MethodInvocation preSelected = Collections.min(entry.getValue());
 				entry.getValue().clear();
 				entry.getValue().add(preSelected);
+
 			}
 		}
 
@@ -387,7 +390,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 		for (List<MethodInvocation> combination : fullCartesianProduct) {
 			try {
-				
+
 				Pair<ExecutionFlowGraph, DataDependencyGraph> testCase = generateSingleTestCaseFromSliceFor(
 						methodInvocationToCarve, backwardSlice, combination);
 				//
@@ -421,12 +424,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 			}
 		}
 
-		
-		///// At this point we consider the calls to external interfaces and carve them as well !
-		
-		
-		
-		
+		///// At this point we consider the calls to external interfaces and
+		///// carve them as well !
+
 		return carvedTestsForMethodInvocation;
 	}
 
@@ -441,7 +441,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// short-circuit here probably
 
 		// Already at this point there no more ref to Files.write !!
-		
+
 		// Create a local copy of the backwardSlide. This is the "minimal slice"
 		Set<MethodInvocation> _backwardSlice = new HashSet<>(backwardSlice);
 		// Explicitly Include the returning calls
@@ -467,7 +467,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 				if (!preconditionCache.containsKey(returnCall)) {
 					List<MethodInvocation> preconditions = computePreconditionsFor(returnCall);
-					
+
 					preconditionCache.put(returnCall, preconditions);
 				}
 
@@ -580,7 +580,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 							+ preconditions);
 
 					if (carvedPreconditions.size() > 1) {
-						System.out.println("Level_0_MethodCarver.computePreconditionsFor() MULTIPLE PRECONDITIONS FOR "
+						logger.error("Level_0_MethodCarver.computePreconditionsFor() MULTIPLE PRECONDITIONS FOR "
 								+ returnCall);
 					}
 				} else {
@@ -590,7 +590,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 			} catch (CarvingException e) {
 				logger.error("Cannot compute preconditions for return call " + returnCall);
 				e.printStackTrace();
-				System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSliceFor() WHAT TO DO NOW ?");
+//				System.out.println("Level_0_MethodCarver.generateSingleTestCaseFromSliceFor() WHAT TO DO NOW ?");
 			}
 		} else {
 			logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Method " + returnCall
@@ -697,17 +697,14 @@ public class Level_0_MethodCarver implements MethodCarver {
 			// This is to consider external interfaces and their preconditions
 			for (MethodInvocation methodInvocation : executionFlowGraph.getOrderedMethodInvocations()) {
 				if (methodInvocation.belongsToExternalInterface()) {
-					System.out.println("Level_0_MethodCarver.simplify() " + methodInvocation + " external");
-					coreMethodInvocations.add( methodInvocation );
+					coreMethodInvocations.add(methodInvocation);
 					coreMethodInvocations
 							.addAll(dataDependencyGraph.getWeaklyConnectedComponentContaining(methodInvocation));
-				}else {
-					System.out.println("Level_0_MethodCarver.simplify() " + methodInvocation + " does not belong to external"); 
-					
 				}
 			}
-			
-			// This is to consider the external interfaces which are static invocations
+
+			// This is to consider the external interfaces which are static
+			// invocations
 
 			dataDependencyGraph.refine(coreMethodInvocations);
 			executionFlowGraph.refine(coreMethodInvocations);

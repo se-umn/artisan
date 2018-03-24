@@ -249,9 +249,9 @@ public class TestGenerator {
 		MethodInvocation methodInvocationToCarve = executionFlowGraph.getLastMethodInvocation();
 		
 		// This one should contain the <init> functions as well... 
-		for (MethodInvocation methodInvocation : orderedMethodInvocations) {
-			System.out.println( methodInvocation );
-		}
+//		for (MethodInvocation methodInvocation : orderedMethodInvocations) {
+//			System.out.println( methodInvocation );
+//		}
 		
 		// Build the test body
 		for (MethodInvocation methodInvocation : orderedMethodInvocations) {
@@ -431,7 +431,7 @@ public class TestGenerator {
 				break;
 			/// THE FOLLOWING ARE THE ARTIFICIAL CALLS THAT ABC GENERATED
 			case "StringOperation":
-				System.out.println("String initialization");// TODO There might
+//				System.out.println("String initialization");// TODO There might
 															// be more
 															// operations here?
 				// <init>() Assign the value of this string with the load value
