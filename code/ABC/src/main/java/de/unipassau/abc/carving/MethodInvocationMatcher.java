@@ -44,7 +44,7 @@ public class MethodInvocationMatcher {
 	// methodName, ( list of (package class and name for parameter)>
 	// <[*.*] [*.*] [*]
 
-	private final Pattern classPattern;
+	private /*final*/ Pattern classPattern;
 	private final Pattern returnPattern;
 	private final Pattern methodPattern;
 	private final Pattern[] parameterPatterns;
@@ -71,19 +71,19 @@ public class MethodInvocationMatcher {
 	}
 
 	public static MethodInvocationMatcher byMethodLiteral(String jimpleMethod) {
-		
+
 		// Build the array for parameters
 		String[] _params = JimpleUtils.getParameterList(jimpleMethod);
-		Pattern[] params = new Pattern[ _params.length ];
-		for(int i = 0; i < params.length; i++){
-			params[i] = Pattern.compile( Pattern.quote( _params[i]));
+		Pattern[] params = new Pattern[_params.length];
+		for (int i = 0; i < params.length; i++) {
+			params[i] = Pattern.compile(Pattern.quote(_params[i]));
 		}
-		
+
 		return new MethodInvocationMatcher(//
-				Pattern.compile( Pattern.quote(JimpleUtils.getClassNameForMethod(jimpleMethod))), //
-				Pattern.compile( Pattern.quote(JimpleUtils.getReturnType(jimpleMethod))), //
-						Pattern.compile( Pattern.quote(JimpleUtils.getMethodName(jimpleMethod))), //
-								params);
+				Pattern.compile(Pattern.quote(JimpleUtils.getClassNameForMethod(jimpleMethod))), //
+				Pattern.compile(Pattern.quote(JimpleUtils.getReturnType(jimpleMethod))), //
+				Pattern.compile(Pattern.quote(JimpleUtils.getMethodName(jimpleMethod))), //
+				params);
 	}
 
 	public static MethodInvocationMatcher byInstance(ObjectInstance objectInstance) {
@@ -199,7 +199,8 @@ public class MethodInvocationMatcher {
 
 		final Matcher classMatcher = classPattern.matcher(JimpleUtils.getClassNameForMethod(jimpleMethod));
 		if (!classMatcher.find()) {
-//			logger.trace(methodInvocation + " does not match classPatternMatcher " + classPattern);
+			// logger.trace(methodInvocation + " does not match
+			// classPatternMatcher " + classPattern);
 			return false;
 		} else if (returnPattern == null) {
 			return true;
@@ -209,7 +210,8 @@ public class MethodInvocationMatcher {
 
 		final Matcher returnMatcher = returnPattern.matcher(JimpleUtils.getReturnType(jimpleMethod));
 		if (!returnMatcher.find()) {
-//			logger.trace(methodInvocation + " does not match returnPatternMatcher " + returnPattern);
+			// logger.trace(methodInvocation + " does not match
+			// returnPatternMatcher " + returnPattern);
 			return false;
 		} else if (methodPattern == null) {
 			return true;
@@ -255,8 +257,15 @@ public class MethodInvocationMatcher {
 	}
 
 	public static MethodInvocationMatcher byMethodInvocation(String regEx) {
-		MethodInvocation methodInvocation = new MethodInvocation(regEx.split("_")[0], Integer.parseInt(regEx.split("_")[1]));
+		MethodInvocation methodInvocation = new MethodInvocation(regEx.split("_")[0],
+				Integer.parseInt(regEx.split("_")[1]));
 		return fromMethodInvocation(methodInvocation);
+	}
+
+	public static MethodInvocationMatcher byClassLiteral(String regEx) {
+		MethodInvocationMatcher literalClass = new MethodInvocationMatcher();
+		literalClass.classPattern = Pattern.compile( Pattern.quote(regEx) + "$");
+		return literalClass;
 	}
 
 }

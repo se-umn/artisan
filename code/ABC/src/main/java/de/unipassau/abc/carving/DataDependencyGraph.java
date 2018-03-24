@@ -506,29 +506,7 @@ public class DataDependencyGraph {
 							if (returnValue instanceof ValueNode) {
 								return ((ValueNode) returnValue).getData();
 							} else if (returnValue instanceof ObjectInstance) {
-								// Not 100% sure about this
-								ObjectInstance objectInstance = (ObjectInstance) returnValue;
-								if (JimpleUtils.isString(objectInstance.getType())) {
-									// System.out.println(
-									// "DataDependencyGraph.getReturnObjectLocalFor()\n\n\n
-									// Load from XML "
-									// +
-									// methodInvocation.getXmlDumpForReturn());
-									Value stringValue = null;
-									try {
-										stringValue = StringConstant.v(
-												(String) XMLDumper.loadObject(methodInvocation.getXmlDumpForReturn()));
-										// // Cache it ?
-										setSootValueFor(objectInstance, stringValue);
-									} catch (IOException e) {
-										// // TODO Auto-generated catch block
-										e.printStackTrace();
-										logger.error("Swallow: " + e);
-									}
-									return stringValue;
-								} else {
-									return getSootValueFor((ObjectInstance) returnValue);
-								}
+								return getSootValueFor((ObjectInstance) returnValue);
 							}
 						}
 					}

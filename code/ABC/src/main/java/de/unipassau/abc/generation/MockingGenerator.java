@@ -1,5 +1,6 @@
 package de.unipassau.abc.generation;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -20,6 +21,7 @@ import de.unipassau.abc.carving.MethodInvocationMatcher;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.instrumentation.UtilInstrumenter;
+import de.unipassau.abc.tracing.XMLDumper;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.Body;
 import soot.Local;
@@ -36,6 +38,7 @@ import soot.Value;
 import soot.VoidType;
 import soot.jimple.Jimple;
 import soot.jimple.JimpleBody;
+import soot.jimple.StringConstant;
 import soot.jimple.toolkits.annotation.j5anno.AnnotationGenerator;
 import soot.tagkit.Tag;
 
@@ -412,7 +415,31 @@ public class MockingGenerator {
 			if (scannerNextMethodMatcher.matches(methodInvocation)) {
 				
 				Value valueReadFromInput = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
+				// NOT SURE WHY FOR SCANNER WE GOT A NULL valueReadFromInput
+//				ObjectInstance objectInstance = (ObjectInstance) returnValue;
+//				if (JimpleUtils.isString(objectInstance.getType())) {
+//					// System.out.println(
+//					// "DataDependencyGraph.getReturnObjectLocalFor()\n\n\n
+//					// Load from XML "
+//					// +
+//					// methodInvocation.getXmlDumpForReturn());
+//					Value stringValue = null;
+				if( valueReadFromInput == null ){
+					System.out.println("MockingGenerator.collectValuesReadFromInput() >>> Null ?! ");
+					try {
+						valueReadFromInput = StringConstant.v(
+								(String) XMLDumper.loadObject(methodInvocation.getXmlDumpForReturn()));
+//						// // Cache it ?
+//						setSootValueFor(objectInstance, stringValue);
+					} catch (IOException e) {
+//						// // TODO Auto-generated catch block
+						e.printStackTrace();
+						logger.error("Swallow: " + e);
+					}
+				}
+				
 				System.out.println("MockingGenerator.collectValuesReadFromInput() " + methodInvocation + " --> " + valueReadFromInput );
+				
 				valuesFromInput.add(valueReadFromInput);
 			}
 		}
