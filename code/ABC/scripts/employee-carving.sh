@@ -15,15 +15,16 @@ PROJECT_JAR="../../../test-subjects/Examples/Employee/target/Employee-0.0.1-SNAP
 DEFAULT_CARVE_BY="package=org.employee"
 
 # Note that org.junit.rules.TemporaryFolde is broken at the moment
-DEFAULT_EXTERNAL_INTERFACES="java.util.Scanner org.junit.rules.TemporaryFolder java.nio.file.Files"
+DEFAULT_EXTERNAL_INTERFACES="java.io.File java.nio.Path java.util.Scanner java.nio.file.Files org.junit.contrib.java.lang.system.ExpectedSystemExit"
 
 # Inputs
 TRACE_FILE=${1-"./tracingOut/trace.txt"}
 CARVE_BY=${2:-"${DEFAULT_CARVE_BY}"}
-EXTERNAL_INTERFACES=${3:-"${DEFAULT_EXTERNAL_INTERFACES}"}
+EXTERNAL_INTERFACES=${3:-${DEFAULT_EXTERNAL_INTERFACES}}
 
-# Additional options for the carve command
-export JAVA_OPTS="-Dorg.slf4j.simpleLogger.defaultLogLevel=TRACE"
+# Additional options for the carve command - mostly random choice for CG
+export JAVA_OPTS="-Xmx4g -Xms512m -XX:+UseParallelGC -XX:NewRatio=2 -verbose:gc
+-Dorg.slf4j.simpleLogger.defaultLogLevel=INFO"
 
 set -x
 

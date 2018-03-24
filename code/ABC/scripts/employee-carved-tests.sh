@@ -55,5 +55,6 @@ java \
 ### Generate the REPORT. HTML for us, XML for later processing
 java -jar ${JACOCO_CLI} report ${JACOCO_EXEC} \
     --classfiles ${PROJECT_CP} \
+    --name "Employee Carved Tests Coverage Report" \
     --html ${JACOCO_HTML_REPORT} \
     --xml ${JACOCO_XML_REPORT}

@@ -95,8 +95,8 @@ public class StackImplementation implements TraceParser {
 			if (!typeOfInvocation.equals("ArrayOperation") ) {
 				// This might be required to get to the method in the first
 				// place
-				System.out.println(
-						"StackImplementation.parseMethodStart() Checking method visibility: " + methodInvocation);
+//				System.out.println(
+//						"StackImplementation.parseMethodStart() Checking method visibility: " + methodInvocation);
 				Scene.v().loadClassAndSupport(JimpleUtils.getClassNameForMethod(jimpleMethod));
 				methodInvocation.setPrivate(Scene.v().getMethod(jimpleMethod).isPrivate());
 			}

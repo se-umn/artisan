@@ -337,8 +337,8 @@ public class DataDependencyGraph {
 		return graph.containsVertex(mi);
 	}
 
-	// Return all the nodes that are reacheable by anymeans from the method
-	// under test
+	// Return all the nodes that are reacheable by any means from the method
+	// under test. This does not include the methodInvocation
 	public Set<MethodInvocation> getWeaklyConnectedComponentContaining(MethodInvocation methodInvocation) {
 		// Find all the Method invocation nodes that are reachable via
 		// Dependency Graph from the method invocation

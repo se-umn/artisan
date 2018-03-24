@@ -31,6 +31,8 @@ INSTR_CP="./sootOutput"
 PROJECT_CP="../../../test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHOT.jar"
 TEST_CP="../../../test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHOT-tests.jar"
 
+PROJECT_SRC="../../../test-subjects/Examples/Employee/src"
+
 # We require JUnit and Hamcrest for the tests, plus system-rules for mocking input to System.in
 JUNIT_CP="/Users/gambi/.m2/repository/junit/junit/4.12/junit-4.12.jar:/Users/gambi/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar:/Users/gambi/.m2/repository/com/github/stefanbirkner/system-rules/1.17.0/system-rules-1.17.0.jar"
 
@@ -38,13 +40,12 @@ JUNIT_CP="/Users/gambi/.m2/repository/junit/junit/4.12/junit-4.12.jar:/Users/gam
 SUPPORTING_JARS="../libs/trace.jar:../src/test/resources/xmlpull-1.1.3.1.jar:../src/test/resources/xstream-1.4.10.jar:../src/test/resources/xpp3_min-1.1.4c.jar"
 
 # Here's the list of system tests to execute
-#SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestAdminLoginWithEmptyDb"
-#SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestAdminLoginWithNonEmptyDb"
-#SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestEmployeeLogin"
-#SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSeniorSoftwareEnginner"
-#SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSoftwareEnginner"
-#SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSoftwareTrainee"
-
+SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestAdminLoginWithEmptyDb"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestAdminLoginWithNonEmptyDb"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestEmployeeLogin"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSeniorSoftwareEnginner"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSoftwareEnginner"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSoftwareTrainee"
 SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestStartAndExit"
 
 # Code coverage libraries
@@ -62,7 +63,9 @@ java \
 
 ### Generate the REPORT. HTML for us, XML for later processing
 java -jar ${JACOCO_CLI} report ${JACOCO_EXEC} \
+    --sourcefiles ${PROJECT_SRC} \
     --classfiles ${PROJECT_CP} \
+    --name "Employee System Tests Coverage Report" \
     --html ${JACOCO_HTML_REPORT} \
     --xml ${JACOCO_XML_REPORT}
 

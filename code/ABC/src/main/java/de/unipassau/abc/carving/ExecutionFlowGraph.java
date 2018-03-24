@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,8 +30,10 @@ import edu.uci.ics.jung.visualization.VisualizationViewer;
 import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
 
 /**
- * Using strings inside the edge makes this really memory intensive (string buffer, and CG goes nuts)
- * Maybe we can optimize this? In the end, all those objects are Immutable...
+ * Using strings inside the edge makes this really memory intensive (string
+ * buffer, and CG goes nuts) Maybe we can optimize this? In the end, all those
+ * objects are Immutable...
+ * 
  * @author gambi
  *
  */
@@ -215,12 +218,12 @@ public class ExecutionFlowGraph {
 	}
 
 	public List<MethodInvocation> getOrderedMethodInvocationsBefore(MethodInvocation methodInvocation) {
-		
-		if( ! graph.containsVertex( methodInvocation ) ){
+
+		if (!graph.containsVertex(methodInvocation)) {
 			logger.info("Method invocation " + methodInvocation + " not in the execution graph");
 			return Collections.<MethodInvocation>emptyList();
-		}	
-		
+		}
+
 		List<MethodInvocation> predecessorsOf = new ArrayList<>();
 		for (MethodInvocation mi : getPredecessors(methodInvocation)) {
 			predecessorsOf.addAll(getOrderedMethodInvocationsBefore(mi));
@@ -286,11 +289,10 @@ public class ExecutionFlowGraph {
 					" Connected Method invocations " + requiredMethodInvocations + " are not in the graph ?!" + graph);
 		}
 
-		
 		Set<MethodInvocation> unconnected = new HashSet<>();
 		for (MethodInvocation node : graph.getVertices()) {
 
-			if (!requiredMethodInvocations.contains(node) ) {
+			if (!requiredMethodInvocations.contains(node)) {
 				logger.debug("ExecutionFlowGraph.refine() Remove " + node + " as not required");
 				unconnected.add(node);
 			}
@@ -406,13 +408,28 @@ public class ExecutionFlowGraph {
 	}
 
 	// Maybe use a Comparator ?
-	// True if method1 was executed before method 2. If they are the same, we do not return it?
+	// True if method1 was executed before method 2. If they are the same, we do
+	// not return it?
 	public boolean isBefore(MethodInvocation methodInvocation1, MethodInvocation methodInvocation2) {
 		return methodInvocation1.getInvocationCount() <= methodInvocation2.getInvocationCount();
 	}
 
 	public boolean contains(MethodInvocation methodInvocation) {
 		return graph.containsVertex(methodInvocation);
+	}
+
+	public List<MethodInvocation> getOrderedMethodInvocationsToExternalInterfaceBefore(
+			MethodInvocation methodInvocationToCarve) {
+		List<MethodInvocation> all = new ArrayList<>(getOrderedMethodInvocationsBefore(methodInvocationToCarve));
+		// Now remove everything not an external interface
+		Iterator<MethodInvocation> iterator = all.iterator();
+		while (iterator.hasNext()) {
+			MethodInvocation methodInvocation = iterator.next();
+			if (!methodInvocation.belongsToExternalInterface()) {
+				iterator.remove();
+			}
+		}
+		return all;
 	}
 
 }
