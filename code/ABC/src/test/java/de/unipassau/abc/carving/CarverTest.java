@@ -33,7 +33,7 @@ public class CarverTest {
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.WARN);
 
 	@Test
 	@Category(ManualTest.class)
@@ -44,15 +44,22 @@ public class CarverTest {
 			File outputDirectory = temporaryFolderRule.newFolder();
 			
 //			String jimpleMethodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>"; //
-			String jimpleMethodToCarve = "<org.employee.DummyObjectToPassAsParameter: void <init>()>";
+//			String jimpleMethodToCarve = "<org.employee.DummyObjectToPassAsParameter: void <init>()>";
 			String traceFile = "/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut/trace.txt";
 //			String carveBy = "method=" + jimpleMethodToCarve;
 //			String carveBy = "class=DummyObjectToPassAsParameter";
 //			String carveBy = "package=org.employee";
 //			String carveBy = "invocation=<org.employee.DummyObjectToPassAsParameter: void <init>()>_40";
-//			String carveBy = "class=org.employee.FileRead";
+			
+			/*
+			 * This requires a setup of a file by means of Files.write, which is an external interface
+			 */
+			String carveBy = "class=org.employee.FileRead";
 //			String carveBy = "invocation=<org.employee.FileRead: void <init>(java.io.File)>_290";
-			String carveBy = "invocation=<org.employee.FileRead: void <init>(java.io.File)>_96";
+//			String carveBy = "invocation=<org.employee.FileRead: void <init>(java.io.File)>_96";
+			
+//			String carveBy = "invocation=<org.employee.SoftwareTrainee: void calcCal()>_919";
+			
 			// FIXME : If the call is direct, the parameters are OK. If it belongs to external interface, is not...
 //			String carveBy = "invocation=<java.nio.file.Files: java.nio.file.Path write(java.nio.file.Path,byte\\[\\],java.nio.file.OpenOption\\[\\])>_210";
 			String[] args = new String[] {
@@ -64,8 +71,7 @@ public class CarverTest {
 					// String outputDir =
 					"--output-to", outputDirectory.getAbsolutePath(),
 					// List the external interfaces here
-					"--external", "java.io.File", "java.nio.file.Path", "java.nio.file.Files"// Interface to File system
-					//"org.junit.rules.TemporaryFolder", "java.nio.file.Files"
+					"--external", "java.io.File", "java.nio.file.Path", "java.nio.file.Files"
 					};
 			//
 			carver.main(args);

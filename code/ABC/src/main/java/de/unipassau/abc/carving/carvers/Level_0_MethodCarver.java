@@ -5,9 +5,11 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 
@@ -113,6 +115,10 @@ public class Level_0_MethodCarver implements MethodCarver {
 		Collections.sort(orderedSlice);
 		// The last method is the one to carve
 		MethodInvocation methodInvocationToCarve = Collections.max(orderedSlice);
+
+		System.out
+				.println("\n\n generateCarvedTestFromSlice() for " + methodInvocationToCarve + " from " + orderedSlice);
+
 		// Eventually remove the subsumed Calls
 		Set<MethodInvocation> subsumedCalls = new HashSet<>();
 		for (MethodInvocation mi : orderedSlice) {
@@ -151,8 +157,15 @@ public class Level_0_MethodCarver implements MethodCarver {
 		}
 
 		// Delete from the slice all those calls that will be done nevertheless
-		orderedSlice.removeAll(subsumedCalls);
-		logger.info("Generate a test from slice : " + orderedSlice);
+		Iterator<MethodInvocation> iterator = subsumedCalls.iterator();
+		while (iterator.hasNext()) {
+			MethodInvocation toRemove = iterator.next();
+			System.out.println("\t -- Removing " + toRemove);
+			orderedSlice.remove(toRemove);
+		}
+
+		logger.info("Generate the following test from slice : " + orderedSlice);
+
 		return new Pair<ExecutionFlowGraph, DataDependencyGraph>(executionFlowGraph.getSubGraph(orderedSlice),
 				dataDependencyGraph.getSubGraph(orderedSlice));
 	}
@@ -170,98 +183,167 @@ public class Level_0_MethodCarver implements MethodCarver {
 				try {
 					carvedTests.add(generateCarvedTestFromSlice(task.getFirst()));
 				} catch (NotALevel0TestCaseException e) {
-					logger.info("Skip test generation, because test in not valid" + e.getMessage());
+					e.printStackTrace();
+					logger.info("Skip test generation, because test in not valid " + e.getSubsumedMethodInvocation()
+							+ " was subsumed by " + e.getSubsumingMethodInvocation() + " via " + e.getSubsumingPath());
 				}
 			} else {
+				// Carving include dependencies on methods and depednencies on
+				// data.
+				// We need to ensure not only that we use the right data, but
+				// also that these data are in the right state.
+				// We recreate the state for each data by including in the slice
+				// the calls on it that we observed before its use
+
 				// For any method invocation in getSecond() we need to collect
 				// their preconditions.
-				Set<ObjectInstance> dataDependencies = new HashSet<>();
+				Map<MethodInvocation, Set<ObjectInstance>> dataDependencies = new HashMap<>();
+				Set<MethodInvocation> methodDependencies = new HashSet<>();
 
-				// Collect the data dependencies
 				for (MethodInvocation methodInvocation : task.getSecond()) {
 
+					/*
+					 * 1 - Include all the invocations that happen before
+					 * (Execution graph). this excludes methods that happened
+					 * after MUT
+					 */
+					// Carve by Time => "Before"
+					List<MethodInvocation> executioneBefore = executionFlowGraph
+							.getOrderedMethodInvocationsBefore(methodInvocation);
+
+					/*
+					 * 2 - Create a data dependency sub graph which contains
+					 * only the data used Before the method
+					 */
+					DataDependencyGraph subGraphFromPastExecution = dataDependencyGraph.getSubGraph(executioneBefore);
+
+					/*
+					 * 3 - Include all the invocations made on any data
+					 * dependency of this method to ensure we set the
+					 * dependencies right before calling the method
+					 */
+
+					// Do the carving by following the method invocations chain
+					Set<MethodInvocation> backwardSlice = new HashSet<>(executioneBefore);
+					backwardSlice
+							.retainAll(subGraphFromPastExecution.getMethodInvocationsRecheableFrom(methodInvocation));
+					/*
+					 * The backwardSlice is the slice which contains the
+					 * MUT-centric view of the execution. It disregards the
+					 * location of methods which have potential impa
+					 */
+
+					// At this point include all the calls that are made
+					// external interfaces BEFORE methodInvocationToCarve
+					backwardSlice.addAll(
+							executionFlowGraph.getOrderedMethodInvocationsToExternalInterfaceBefore(methodInvocation));
+					
+					// Accumulate the backwardSlice in the worklist
+					methodDependencies.addAll(backwardSlice);
+
+					// Now accumulate the data dependencies for the method under
+					// carving
 					if (methodInvocation.isStatic()) {
 						// Static calls require only parameters if any
 						if (JimpleUtils.getParameterList(methodInvocation.getJimpleMethod()).length > 0) {
-							List<ObjectInstance> parameters = dataDependencyGraph.getParametersOf(methodInvocation);
+							Set<ObjectInstance> parameters = new HashSet<>(
+									dataDependencyGraph.getParametersOf(methodInvocation));
+							//
 							System.out.println("Level_0_MethodCarver.level0TestCarving() dependencies for "
 									+ methodInvocation + " are " + parameters);
-							dataDependencies.addAll(parameters);
+							//
+							dataDependencies.put(methodInvocation, parameters);
 						}
 
 					} else if (methodInvocation.getJimpleMethod().contains(": void <init>(")) {
+						Set<ObjectInstance> deps = new HashSet<>();
 						// If the method is a constructor the preconditions are
 						// the parameters, no parameters means no preconditions
 						ObjectInstance owner = dataDependencyGraph.getOwnerFor(methodInvocation);
 						System.out.println("Level_0_MethodCarver.level0TestCarving() Owner for " + methodInvocation
 								+ " is " + owner);
-						dataDependencies.add(owner);
+						deps.add(owner);
 						//
 						if (JimpleUtils.getParameterList(methodInvocation.getJimpleMethod()).length > 0) {
 							List<ObjectInstance> parameters = dataDependencyGraph.getParametersOf(methodInvocation);
 							System.out.println("Level_0_MethodCarver.level0TestCarving() dependencies for "
 									+ methodInvocation + " are " + parameters);
-							dataDependencies.addAll(parameters);
+							deps.addAll(parameters);
 						}
 
+						dataDependencies.put(methodInvocation, deps);
+
 					} else {
+						Set<ObjectInstance> deps = new HashSet<>();
 						ObjectInstance owner = dataDependencyGraph.getOwnerFor(methodInvocation);
 						System.out.println("Level_0_MethodCarver.level0TestCarving() Owner for " + methodInvocation
 								+ " is " + owner);
-						dataDependencies.add(owner);
+						deps.add(owner);
 						// Regular invocations require parameters and the
 						// constructor if the constructor is not there yet
 						if (JimpleUtils.getParameterList(methodInvocation.getJimpleMethod()).length > 0) {
 							List<ObjectInstance> parameters = dataDependencyGraph.getParametersOf(methodInvocation);
+
 							System.out.println("Level_0_MethodCarver.level0TestCarving() dependencies for "
 									+ methodInvocation + " are " + parameters);
-							dataDependencies.addAll(parameters);
+
+							deps.addAll(parameters);
 						}
+
+						dataDependencies.put(methodInvocation, deps);
 					}
 				}
 
 				Map<ObjectInstance, Set<MethodInvocation>> methodsWhichReturnTheObjects = new HashMap<>();
-				//
-				//
-				// // For each of these dependencies we need to collect the
-				// // returning calls
-				// List<MethodInvocation> methodInvocationsBefore =
-				// executionFlowGraph
-				// .getOrderedMethodInvocationsBefore(methodInvocation);
-				// DataDependencyGraph dataDependencyGraphBefore =
-				// dataDependencyGraph
-				// .getSubGraph(methodInvocationsBefore);
-				// // Collect the call which can return any of those data,
-				// // BEFORE
 
-				// TODO
+				// TODO Not sure about this...
 				DataDependencyGraph dataDependencyGraphBefore = dataDependencyGraph;
 
-				for (ObjectInstance data : dataDependencies) {
+				for (Entry<MethodInvocation, Set<ObjectInstance>> entry : dataDependencies.entrySet()) {
+					for (ObjectInstance data : entry.getValue()) {
 
-					if (data.equals(ObjectInstance.SystemIn())) {
-						continue;
-					}
+						if (data.equals(ObjectInstance.SystemIn())) {
+							continue;
+						}
 
-					Set<MethodInvocation> methodsWhichReturnTheObject = new HashSet<>();
-					MethodInvocation constructor = dataDependencyGraphBefore.getInitMethodInvocationFor(data);
-					if (constructor != null) {
-						methodsWhichReturnTheObject.add(constructor);
-					}
-					methodsWhichReturnTheObject.addAll(dataDependencyGraphBefore.getMethodInvocationsWhichReturn(data));
-					/*
-					 * Verify that for each data dependency there's at least one
-					 * call which returns it
-					 */
-					if (methodsWhichReturnTheObject.isEmpty()) {
+						Set<MethodInvocation> methodsWhichReturnTheObject = new HashSet<>();
+						MethodInvocation constructor = dataDependencyGraphBefore.getInitMethodInvocationFor(data);
+						if (constructor != null) { // If we match this by time
+													// we stumble upon the fact
+													// that super() is called
+													// after <init>
+							// Consider only those methods BEFORE or the SAME
+							methodsWhichReturnTheObject.add(constructor);
+						}
 
-						// If this is a static
-						throw new CarvingException(
-								"Object " + data + " required for carving " + workList + " comes out of the blue !");
-					} else {
-						methodsWhichReturnTheObjects.put(data, methodsWhichReturnTheObject);
+						for (MethodInvocation returning : dataDependencyGraphBefore
+								.getMethodInvocationsWhichReturn(data)) {
+							if (returning.compareTo(entry.getKey()) <= 0) {
+								methodsWhichReturnTheObject.add(returning);
+							} else {
+								System.out.println(">>>> " + returning + " discarded as violates BEFORE USE");
+							}
+						}
+						/*
+						 * Verify that for each data dependency there's at least
+						 * one call which returns it
+						 */
+						if (methodsWhichReturnTheObject.isEmpty()) {
+
+							// If this is a static
+							throw new CarvingException("Object " + data + " required for carving " + workList
+									+ " comes out of the blue !");
+						} else {
+							// Those cannot be later than the user of the data !
+							methodsWhichReturnTheObjects.put(data, methodsWhichReturnTheObject);
+							System.out.println("Level_0_MethodCarver.level0TestCarving() methodsWhichReturn " + data
+									+ " are " + methodsWhichReturnTheObject);
+						}
 					}
 				}
+
+				System.out.println(
+						"Level_0_MethodCarver.level0TestCarving() Method Dependencies are " + methodDependencies);
 
 				// Full cartesian
 				Set<List<MethodInvocation>> fullCartesianProduct = Sets
@@ -269,6 +351,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 				// A new task for each sub-combination
 				for (List<MethodInvocation> combination : fullCartesianProduct) {
+
+					System.out.println("Level_0_MethodCarver.level0TestCarving() Combination is " + combination);
+
 					// Move the method invocations considered so far in the
 					// done list
 					Set<MethodInvocation> workDone = new HashSet<>(task.getFirst());
@@ -276,6 +361,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 					// The combination of the methods which provide the data
 					// for this round are the one to add
 					Set<MethodInvocation> workToDo = new HashSet<>(combination);
+					// We add to the backward slice computed before. This is the
+					// same for each combination.
+					workToDo.addAll(methodDependencies);
 					// Avoid to repeat work already done
 					workToDo.removeAll(workDone);
 					//
@@ -842,7 +930,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 	// ///// carve them as well !
 	//
 	// return carvedTestsForMethodInvocation;
-//	}
+	// }
 
 	private Pair<ExecutionFlowGraph, DataDependencyGraph> generateSingleTestCaseFromSliceFor(
 			MethodInvocation methodInvocationToCarve, Set<MethodInvocation> backwardSlice,
@@ -1034,6 +1122,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestsPetMethodInvocation = new ArrayList<>();
 
 			try {
+				System.out.println("\n\n====================================================");
+				System.out.println("Starting the carve of " + methodInvocationUnderTest);
+				System.out.println("====================================================\n");
 				carvedTestsPetMethodInvocation.addAll(level0TestCarving(methodInvocationUnderTest));
 
 				// Simplify the carved tests: Following the data dependencies we
@@ -1118,7 +1209,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 			}
 
 			// This is to consider the external interfaces which are static
-			// invocations
+			// invocations ?
 
 			dataDependencyGraph.refine(coreMethodInvocations);
 			executionFlowGraph.refine(coreMethodInvocations);

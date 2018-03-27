@@ -8,11 +8,11 @@ if [ ! -d ./sootOutput ]; then
 fi
 
 
-INST_SYSTEM_TESTS_LOG=./logs/employee-system-tests.log
-SYSTEM_TESTS_LOG=./logs/employee-system-tests-coverage.log
-JACOCO_EXEC=./coverage/employee-system-tests.exec
-JACOCO_XML_REPORT=./coverage/employee-system-tests.xml
-JACOCO_HTML_REPORT=./coverage/employee-system-tests-report
+INST_SYSTEM_TESTS_LOG=./logs/hotelme-system-tests.log
+SYSTEM_TESTS_LOG=./logs/hotelme-system-tests-coverage.log
+JACOCO_EXEC=./coverage/hotelme-system-tests.exec
+JACOCO_XML_REPORT=./coverage/hotelme-system-tests.xml
+JACOCO_HTML_REPORT=./coverage/hotelme-system-tests-report
 
 # CLEAN UP FILES
 rm ${SYSTEM_TESTS_LOG}
@@ -28,10 +28,10 @@ rm -r ${JACOCO_HTML_REPORT}
 INSTR_CP="./sootOutput"
 
 # We require system test cases packages as jar
-PROJECT_CP="../../../test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHOT.jar"
-TEST_CP="../../../test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHOT-tests.jar"
+PROJECT_JAR="../../../test-subjects/CommandLineUtilities/HotelMe/target/HotelReservationSystem-0.0.1-SNAPSHOT.jar"
+TEST_CP="../../../test-subjects/CommandLineUtilities/HotelMe/target/HotelReservationSystem-0.0.1-SNAPSHOT-tests.jar"
 
-PROJECT_SRC="../../../test-subjects/Examples/Employee/src"
+PROJECT_CP="${PROJECT_JAR}:/Users/gambi/.m2/repository/joda-time/joda-time/2.9.4/joda-time-2.9.4.jar:/Users/gambi/.m2/repository/mysql/mysql-connector-java/5.1.39/mysql-connector-java-5.1.39.jar"
 
 # We require JUnit and Hamcrest for the tests, plus system-rules for mocking input to System.in
 JUNIT_CP="/Users/gambi/.m2/repository/junit/junit/4.12/junit-4.12.jar:/Users/gambi/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar:/Users/gambi/.m2/repository/com/github/stefanbirkner/system-rules/1.17.0/system-rules-1.17.0.jar"
@@ -40,13 +40,8 @@ JUNIT_CP="/Users/gambi/.m2/repository/junit/junit/4.12/junit-4.12.jar:/Users/gam
 SUPPORTING_JARS="../libs/trace.jar:../src/test/resources/xmlpull-1.1.3.1.jar:../src/test/resources/xstream-1.4.10.jar:../src/test/resources/xpp3_min-1.1.4c.jar"
 
 # Here's the list of system tests to execute
-SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestAdminLoginWithEmptyDb"
-SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestAdminLoginWithNonEmptyDb"
-SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestEmployeeLogin"
-SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSeniorSoftwareEnginner"
-SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSoftwareEnginner"
-SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSoftwareTrainee"
-SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestStartAndExit"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.hotelme.systemtests.TestHotelExit"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.hotelme.systemtests.TestHotelSignUp"
 
 # Code coverage libraries
 JACOCO_AGENT="../libs/jacocoagent.jar"
@@ -61,17 +56,16 @@ java \
                 ${SYSTEM_TESTS} \
                     2>&1 | tee ${SYSTEM_TESTS_LOG}
 
+# For some reason this does not create an HTML report
 ### Generate the REPORT. HTML for us, XML for later processing
 java -jar ${JACOCO_CLI} report ${JACOCO_EXEC} \
-    --sourcefiles ${PROJECT_SRC} \
-    --classfiles ${PROJECT_CP} \
-    --name "Employee System Tests Coverage Report" \
+    --classfiles ${PROJECT_JAR} \
+    --name "Hotel Reservation System Tests Coverage Report" \
     --html ${JACOCO_HTML_REPORT} \
     --xml ${JACOCO_XML_REPORT}
 
 ### Run the instrumented files to generate the trace. Those are default folder
 JAVA_OPTS="-Dtrace.output=./tracingOut -Ddump.output=./tracingOut"
-#JAVA_OPTS="-Dtrace.output=/Users/gambi/Documents/Passau/Research/action-based-test-carving/code/ABC/src/test/resources/Employee/tracingOut -Ddump.output=/Users/gambi/Documents/Passau/Research/action-based-test-carving/code/ABC/src/test/resources/Employee/tracingOut"
 
 java \
 	-cp ${INSTR_CP}:${PROJECT_CP}:${TEST_CP}:${JUNIT_CP}:${SUPPORTING_JARS} \
