@@ -92,28 +92,33 @@ public class StackImplementation implements TraceParser {
 		// Check with soot ?
 		try {
 
-			if (!typeOfInvocation.equals("ArrayOperation") ) {
+			if (!typeOfInvocation.equals("ArrayOperation")) {
 				// This might be required to get to the method in the first
 				// place
-//				System.out.println(
-//						"StackImplementation.parseMethodStart() Checking method visibility: " + methodInvocation);
+				// System.out.println(
+				// "StackImplementation.parseMethodStart() Checking method
+				// visibility: " + methodInvocation);
 				Scene.v().loadClassAndSupport(JimpleUtils.getClassNameForMethod(jimpleMethod));
 				methodInvocation.setPrivate(Scene.v().getMethod(jimpleMethod).isPrivate());
 			}
 
 		} catch (Throwable e) {
+			
+			
 			// This fails for java classes
 			logger.info("StackImplementation.parseMethodStart() Swallow:  " + e);
-//			e.printStackTrace();
+			// e.printStackTrace();
 		}
 
 		// Check if this method belongs to an external interface
 		for (MethodInvocationMatcher externalInterfaceMatcher : externalInterfaceMatchers) {
 			if (externalInterfaceMatcher.matches(methodInvocation)) {
 				methodInvocation.setBelongsToExternalInterface(true);
-			} else {
-				System.out.println(externalInterfaceMatcher + " does not match " + methodInvocation);
 			}
+			// else {
+			// System.out.println(externalInterfaceMatcher + " does not match "
+			// + methodInvocation);
+			// }
 		}
 
 		if (isPure(methodInvocation)) {
@@ -121,7 +126,9 @@ public class StackImplementation implements TraceParser {
 			pureMethod = methodInvocation;
 			logger.trace("StackImplementation.parseMethodEnd() Switch PURITY ON");
 		}
-
+		
+		
+		
 		logger.trace("InvocationType for " + jimpleMethod + " is " + typeOfInvocation);
 
 		String returnType = jimpleMethod.replace('<', ' ').replace('>', ' ').trim().split(" ")[1];

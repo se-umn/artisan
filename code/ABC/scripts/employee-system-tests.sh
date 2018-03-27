@@ -70,7 +70,9 @@ java -jar ${JACOCO_CLI} report ${JACOCO_EXEC} \
     --xml ${JACOCO_XML_REPORT}
 
 ### Run the instrumented files to generate the trace. Those are default folder
-JAVA_OPTS="-Dtrace.output=./tracingOut -Ddump.output=./tracingOut"
+#JAVA_OPTS="-Dtrace.output=./tracingOut -Ddump.output=./tracingOut"
+#JAVA_OPTS="-Dtrace.output=./tracingOut -Ddump.output=./tracingOut"
+JAVA_OPTS="-Dtrace.output=/Users/gambi/Documents/Passau/Research/action-based-test-carving/code/ABC/src/test/resources/Employee/tracingOut -Ddump.output=/Users/gambi/Documents/Passau/Research/action-based-test-carving/code/ABC/src/test/resources/Employee/tracingOut"
 
 java \
 	-cp ${INSTR_CP}:${PROJECT_CP}:${TEST_CP}:${JUNIT_CP}:${SUPPORTING_JARS} \

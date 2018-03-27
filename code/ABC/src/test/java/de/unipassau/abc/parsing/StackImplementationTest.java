@@ -19,6 +19,7 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
@@ -31,6 +32,7 @@ import de.unipassau.abc.carving.StackImplementation;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.tracing.Trace;
 import de.unipassau.abc.utils.ABCTestUtils;
+import de.unipassau.abc.utils.ManualTest;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import soot.G;
 
@@ -100,8 +102,8 @@ public class StackImplementationTest {
 		// System.out.println("StackImplementationTest.testTraceParseWithTraceFromTestSubject()");
 	}
 
-//	@Ignore /* THIS HAS HARDCODED VALUES ! MOSTLY FOR DEBUGGING */
 	@Test
+	@Category(ManualTest.class)
 	public void testTraceParseWithSystemIn() throws FileNotFoundException, IOException {
 		File traceFile = new File("/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut/trace.txt");
 

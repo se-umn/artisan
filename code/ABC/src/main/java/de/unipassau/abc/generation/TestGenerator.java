@@ -94,11 +94,12 @@ public class TestGenerator {
 			}
 			SootClass testClass = testClasses.get(classUnderTest);
 
-			try{
-			// TODO For the moment we name tests after their position and MUT
-			// ,i.e., last element
-			generateAndAddTestMethodToTestClass(testClass, carvedTest);
-			}catch (CarvingException e) {
+			try {
+				// TODO For the moment we name tests after their position and
+				// MUT
+				// ,i.e., last element
+				generateAndAddTestMethodToTestClass(testClass, carvedTest);
+			} catch (CarvingException e) {
 				logger.warn("Cannot generate test ", e);
 			}
 		}
@@ -115,7 +116,7 @@ public class TestGenerator {
 	 * already an equivalent one
 	 */
 	private void generateAndAddTestMethodToTestClass(SootClass testClass,
-			Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest) throws CarvingException  {
+			Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest) throws CarvingException {
 
 		// For each element in the DataDependencyGraph create
 		ExecutionFlowGraph executionFlowGraph = carvedTest.getFirst();
@@ -169,7 +170,7 @@ public class TestGenerator {
 				// System.out.println("TestGenerator.generateAndAddTestMethodToTestClass()
 				// Patch for System.in");
 				// Generate a local for system in
-				int localId = localMap.get(type).getAndIncrement();
+				String localId = String.format("%02d", localMap.get(type).getAndIncrement());
 
 				type = "java.io.InputStream";
 				String localName = RefType.v(type).getClassName();
@@ -180,12 +181,11 @@ public class TestGenerator {
 				Local localVariable = Jimple.v().newLocal(localName + localId, RefType.v(type));
 				body.getLocals().add(localVariable);
 
-				logger.trace("  >>>> Create a new local variable " + localVariable + " of type " + type
-						+ " and node " + node + " " + node.hashCode());
+				logger.trace("  >>>> Create a new local variable " + localVariable + " of type " + type + " and node "
+						+ node + " " + node.hashCode());
 
 				dataDependencyGraph.setSootValueFor(node, localVariable);
 
-				
 				// Initialize the local with the assignment
 				units.add(Jimple.v().newAssignStmt(localVariable, Jimple.v().newStaticFieldRef(
 						Scene.v().getField("<java.lang.System: java.io.InputStream in>").makeRef())));
@@ -194,7 +194,7 @@ public class TestGenerator {
 				if (!localMap.containsKey(type)) {
 					localMap.put(type, new AtomicInteger(0));
 				}
-				int localId = localMap.get(type).getAndIncrement();
+				String localId = String.format("%02d", localMap.get(type).getAndIncrement());
 
 				// ARRAYS ARE STORES LIKE <className>[] and not as
 				// [L<classname>;
@@ -212,7 +212,6 @@ public class TestGenerator {
 
 					variableName = variableName + "Array";
 
-
 					Local newArrayLocal = Jimple.v().newLocal(variableName + localId, variableType);
 					body.getLocals().add(newArrayLocal);
 
@@ -221,6 +220,7 @@ public class TestGenerator {
 					//
 					dataDependencyGraph.setSootValueFor(node, newArrayLocal);
 				} else {
+
 					variableType = RefType.v(type);
 					variableName = variableType.getClassName();
 					//
@@ -233,9 +233,10 @@ public class TestGenerator {
 					body.getLocals().add(localVariable);
 
 					// Debug
-					logger.trace("  >>>> Create a new local variable " + localVariable + " of type " + type
+					System.out.println("  >>>> Create a new local variable " + localVariable + " of type " + type
 							+ " and node " + node + " " + node.hashCode());
 
+					// String initialization ? This should be called later ?
 					dataDependencyGraph.setSootValueFor(node, localVariable);
 
 				}
@@ -247,18 +248,16 @@ public class TestGenerator {
 		List<MethodInvocation> orderedMethodInvocations = executionFlowGraph.getOrderedMethodInvocations();
 		// By definition the MUT is the last invoked
 		MethodInvocation methodInvocationToCarve = executionFlowGraph.getLastMethodInvocation();
-		
-		// This one should contain the <init> functions as well... 
-//		for (MethodInvocation methodInvocation : orderedMethodInvocations) {
-//			System.out.println( methodInvocation );
-//		}
-		
+
+		// This one should contain the <init> functions as well...
+		// for (MethodInvocation methodInvocation : orderedMethodInvocations) {
+		// System.out.println( methodInvocation );
+		// }
+
 		// Build the test body
 		for (MethodInvocation methodInvocation : orderedMethodInvocations) {
-			
+
 			/// Do we have <init> calls here ?!
-			
-			
 
 			// Get the object upon which we invoke the method
 			Local objLocal = dataDependencyGraph.getObjectLocalFor(methodInvocation);
@@ -271,6 +270,9 @@ public class TestGenerator {
 
 			// Store the return value to build the data dependencies
 			Value returnValue = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
+
+			System.out.println("Generating  " + methodInvocation + " owner " + objLocal + " parameters "
+					+ parametersValues + " with return value " + returnValue);
 			//
 			Local actualReturnValue = null;
 			if (returnValue instanceof Local) {
@@ -351,110 +353,122 @@ public class TestGenerator {
 	 */
 	private void addUnitFor(Chain<Unit> units, MethodInvocation methodInvocation, Local objLocal,
 			List<Value> parametersValues, Local returnObjLocal) throws CarvingException {
-		
+
 		logger.trace("Processing method invocation " + methodInvocation.getJimpleMethod() + " -- "
 				+ methodInvocation.getInvocationType() + " on local " + objLocal + " with params " + parametersValues
 				+ " to return " + returnObjLocal);
 
 		Jimple jimple = Jimple.v();
 
-		// Here we need to handle the fact that ArrayOperations are an artefact
-		// of ABC
-		if (MethodInvocationMatcher.byMethod("<.*\\[\\]: void <init>(int)>").matches(methodInvocation)) {
-			// Create an array to host the values
-			String arrayType = JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod()).replace("[]", "");
-			NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(RefType.v(arrayType), parametersValues.get(0));
+		// This is supposed to be the constructor !
+		SootMethod method = null;
+		switch (methodInvocation.getInvocationType()) {
+		case "SpecialInvokeExpr":
+			method = Scene.v().getMethod(methodInvocation.getJimpleMethod());
+			// This is a constructor so I need to call new and then <init>
+			// with
+			// the right parameteres
+			RefType cType = RefType.v(JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod()));
+			// Call "new"
+			Stmt assignToNew = jimple.newAssignStmt(objLocal, jimple.newNewExpr(cType));
+			// Call init + parameters
+			InvokeStmt invokeStmt = jimple
+					.newInvokeStmt(jimple.newSpecialInvokeExpr(objLocal, method.makeRef(), parametersValues));
 
-			units.add(Jimple.v().newAssignStmt(objLocal, arrayExpr));
-
-		} else if (MethodInvocationMatcher.byMethod("<.*\\[\\]: void store(int,.*)>").matches(methodInvocation)) {
-			// Assign in position the value
-			ArrayRef arrayRef1 = Jimple.v().newArrayRef(objLocal, parametersValues.get(0));
-			AssignStmt assignStmt1 = Jimple.v().newAssignStmt(arrayRef1, parametersValues.get(1));
-			units.add(assignStmt1);
-		} else {
-
-			// This is supposed to be the constructor !
-			SootMethod method = Scene.v().getMethod(methodInvocation.getJimpleMethod());
-
-			switch (methodInvocation.getInvocationType()) {
-			case "SpecialInvokeExpr":
-				// This is a constructor so I need to call new and then <init>
-				// with
-				// the right parameteres
-				RefType cType = RefType.v(JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod()));
-				// Call "new"
-				Stmt assignToNew = jimple.newAssignStmt(objLocal, jimple.newNewExpr(cType));
-				// Call init + parameters
-				InvokeStmt invokeStmt = jimple
-						.newInvokeStmt(jimple.newSpecialInvokeExpr(objLocal, method.makeRef(), parametersValues));
-
-				// This automatically captures the return value of <init> in
-				// case we
-				// need it for regression assertions
-				units.add(assignToNew);
-				units.add(invokeStmt);
-				break;
-			case "VirtualInvokeExpr":
-				if (returnObjLocal != null) {
-					Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
-							jimple.newVirtualInvokeExpr(objLocal, method.makeRef(), parametersValues));
-					units.add(assignStmt);
-				} else {
-					Stmt callStmt = jimple
-							.newInvokeStmt(jimple.newVirtualInvokeExpr(objLocal, method.makeRef(), parametersValues));
-					units.add(callStmt);
-				}
-				break;
-
-			case "StaticInvokeExpr":
-				if (returnObjLocal != null) {
-					final Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
-							jimple.newStaticInvokeExpr(method.makeRef(), parametersValues));
-					units.add(assignStmt);
-				} else {
-					final Stmt callStmt = jimple
-							.newInvokeStmt(jimple.newStaticInvokeExpr(method.makeRef(), parametersValues));
-					units.add(callStmt);
-				}
-				break;
-			case "InterfaceInvokeExpr":
-				if (returnObjLocal != null) {
-					Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
-							jimple.newInterfaceInvokeExpr(objLocal, method.makeRef(), parametersValues));
-					units.add(assignStmt);
-				} else {
-					Stmt callStmt = jimple
-							.newInvokeStmt(jimple.newInterfaceInvokeExpr(objLocal, method.makeRef(), parametersValues));
-					units.add(callStmt);
-				}
-				break;
-			/// THE FOLLOWING ARE THE ARTIFICIAL CALLS THAT ABC GENERATED
-			case "StringOperation":
-//				System.out.println("String initialization");// TODO There might
-															// be more
-															// operations here?
-				// <init>() Assign the value of this string with the load value
-				// loaded from the XML ?
-				if (returnObjLocal != null) {
-					throw new CarvingException("String <init> should not return a value !");
-				} else {
-					try {
-						// This is actually an assignment
-						String xmlContent = (String) XMLDumper.loadObject(methodInvocation.getXmlDumpForOwner());
-						Stmt callStmt = jimple.newAssignStmt(objLocal, StringConstant.v(xmlContent));
-						units.add(callStmt);
-					} catch (Throwable e) {
-						throw new CarvingException("Cannot find a dumped value for string " + objLocal + " in file " + methodInvocation.getXmlDumpForOwner(), e);
-					}
-				}
-				break;
-			// case "ArrayOperation":
-			// break;
-			default:
-				logger.error("Unexpected Invocation type " + methodInvocation.getInvocationType());
-				throw new NotImplementedException("Unexpected Invocation type " + methodInvocation.getInvocationType());
+			// This automatically captures the return value of <init> in
+			// case we
+			// need it for regression assertions
+			units.add(assignToNew);
+			units.add(invokeStmt);
+			break;
+		case "VirtualInvokeExpr":
+			method = Scene.v().getMethod(methodInvocation.getJimpleMethod());
+			if (returnObjLocal != null) {
+				Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
+						jimple.newVirtualInvokeExpr(objLocal, method.makeRef(), parametersValues));
+				units.add(assignStmt);
+			} else {
+				Stmt callStmt = jimple
+						.newInvokeStmt(jimple.newVirtualInvokeExpr(objLocal, method.makeRef(), parametersValues));
+				units.add(callStmt);
 			}
+			break;
+
+		case "StaticInvokeExpr":
+			method = Scene.v().getMethod(methodInvocation.getJimpleMethod());
+			if (returnObjLocal != null) {
+				final Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
+						jimple.newStaticInvokeExpr(method.makeRef(), parametersValues));
+				units.add(assignStmt);
+			} else {
+				final Stmt callStmt = jimple
+						.newInvokeStmt(jimple.newStaticInvokeExpr(method.makeRef(), parametersValues));
+				units.add(callStmt);
+			}
+			break;
+		case "InterfaceInvokeExpr":
+			method = Scene.v().getMethod(methodInvocation.getJimpleMethod());
+			if (returnObjLocal != null) {
+				Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
+						jimple.newInterfaceInvokeExpr(objLocal, method.makeRef(), parametersValues));
+				units.add(assignStmt);
+			} else {
+				Stmt callStmt = jimple
+						.newInvokeStmt(jimple.newInterfaceInvokeExpr(objLocal, method.makeRef(), parametersValues));
+				units.add(callStmt);
+			}
+			break;
+		/// THE FOLLOWING ARE THE ARTIFICIAL CALLS THAT ABC GENERATED
+		case "StringOperation":
+			System.out.println("String initialization " + methodInvocation);
+			if (returnObjLocal != null) {
+				throw new CarvingException("String <init> should not return a value !");
+			} else {
+				try {
+					// This is actually an assignment
+					String xmlContent = (String) XMLDumper.loadObject(methodInvocation.getXmlDumpForOwner());
+					Stmt callStmt = jimple.newAssignStmt(objLocal, StringConstant.v(xmlContent));
+					units.add(callStmt);
+					System.out.println("Added " + callStmt);
+				} catch (Throwable e) {
+					throw new CarvingException("Cannot find a dumped value for string " + objLocal + " in file "
+							+ methodInvocation.getXmlDumpForOwner(), e);
+				}
+			}
+			break;
+		 case "ArrayOperation":
+			 
+			// Here we need to handle the fact that ArrayOperations are an artefact
+				// of ABC
+				if (MethodInvocationMatcher.byMethod("<.*\\[\\]: void <init>(int)>").matches(methodInvocation)) {
+					// Create an array to host the values
+					System.out.println("TestGenerator.addUnitFor() INIT ARRAY " + objLocal );
+					String arrayType = JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod()).replace("[]", "");
+					NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(RefType.v(arrayType), parametersValues.get(0));
+					Stmt arrayAssignment = Jimple.v().newAssignStmt(objLocal, arrayExpr);
+					units.add( arrayAssignment );
+					System.out.println("TestGenerator.addUnitFor() " + arrayAssignment );
+				} else if (MethodInvocationMatcher.byMethod("<.*\\[\\]: void store(int,.*)>").matches(methodInvocation)) {
+					// Assign in position the value
+					System.out.println("TestGenerator.addUnitFor() STORE ARRAY " + objLocal + " " + parametersValues.get(0) + " " + parametersValues.get(1));
+					ArrayRef arrayRef1 = Jimple.v().newArrayRef(objLocal, parametersValues.get(0));
+					AssignStmt assignStmt1 = Jimple.v().newAssignStmt(arrayRef1, parametersValues.get(1));
+					units.add(assignStmt1);
+					System.out.println("TestGenerator.addUnitFor() " + assignStmt1);
+				} else if (MethodInvocationMatcher.byMethod("<.*\\[\\]: .* get(int)>").matches(methodInvocation)) {
+					// TODO Access the value at position ?
+//					System.out.println("TestGenerator.addUnitFor() GET ARRAY ELEMENT " + objLocal + " " + parametersValues.get(0) + " Disabled");
+					ArrayRef arrayRef1 = Jimple.v().newArrayRef(objLocal, parametersValues.get(0));
+					AssignStmt assignStmt1 = Jimple.v().newAssignStmt(returnObjLocal, arrayRef1);
+					units.add(assignStmt1);
+					System.out.println("TestGenerator.addUnitFor() " + assignStmt1);
+				} else {
+					System.out.println("ERROR WRONG " + methodInvocation );
+				}
+		 break;
+		default:
+			logger.error("Unexpected Invocation type " + methodInvocation.getInvocationType());
+			throw new NotImplementedException("Unexpected Invocation type " + methodInvocation.getInvocationType());
 		}
 	}
 

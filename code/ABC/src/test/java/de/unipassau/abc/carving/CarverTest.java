@@ -13,6 +13,7 @@ import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
 import de.unipassau.abc.utils.ABCTestUtils;
+import de.unipassau.abc.utils.ManualTest;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.abc.utils.SystemTest;
 
@@ -35,7 +36,7 @@ public class CarverTest {
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
 	@Test
-	@Category(SystemTest.class)
+	@Category(ManualTest.class)
 	public void testCarvingManually() throws IOException, InterruptedException {
 
 		try {

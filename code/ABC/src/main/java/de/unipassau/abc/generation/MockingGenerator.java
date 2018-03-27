@@ -87,20 +87,25 @@ public class MockingGenerator {
 			if (testClass.declaresMethodByName("<init>")) {
 				testClassInitializer = testClass.getMethodByName("<init>");
 			} else {
-				// FIXME apparently here we shall call supet() or this() ?
 				testClassInitializer = new SootMethod("<init>", Collections.<Type>emptyList(), VoidType.v(),
 						Modifier.PUBLIC);
 				// Build the body from the input list of statements
 				JimpleBody body = Jimple.v().newBody(testClassInitializer);
+
 				testClassInitializer.setActiveBody(body);
 				testClass.addMethod(testClassInitializer);
 				//
 				body.insertIdentityStmts();
 
-				// TODO Insert this call -> super();
-				//         specialinvoke r0.<java.lang.Object: void <init>()>();
+				// Get the super class
+				SootClass superClass = Scene.v().loadClassAndSupport("java.lang.Object");
+				testClass.setSuperclass(superClass);
 
-				
+				body.getUnits().add(Jimple.v().newInvokeStmt(Jimple.v().newSpecialInvokeExpr(body.getThisLocal(),
+						Scene.v().getMethod("<java.lang.Object: void <init>()>").makeRef())));
+				// TODO Insert this call -> super();
+				// specialinvoke r0.<java.lang.Object: void <init>()>();
+
 				// Add the return stmt
 				// Insert final void return to close the test method
 				testClassInitializer.getActiveBody().getUnits().add(Jimple.v().newReturnVoidStmt());
@@ -205,7 +210,7 @@ public class MockingGenerator {
 
 		// Capture the exit value for each test...
 		for (SootMethod testMethod : testClass.getMethods()) {
-			if ( JimpleUtils.getMethodName(testMethod.getSignature()).startsWith("test_")) {
+			if (JimpleUtils.getMethodName(testMethod.getSignature()).startsWith("test_")) {
 				addSystemExitToTest(testMethod, systemExitJunit4RuleField, parsedTrace);
 			}
 		}
@@ -227,11 +232,11 @@ public class MockingGenerator {
 		Value valueReadFromInput = collectExpectedSystemExitValue(parsedTraceFromSystemTest,
 				methodInvocationToBeCarved);
 
-		if( valueReadFromInput == null ){
+		if (valueReadFromInput == null) {
 			// System.exit cannot be called by this test (I hope)
 			return;
 		}
-		
+
 		Body body = testMethod.getActiveBody();
 
 		SootMethod expectSystemExit = Scene.v().getMethod(
@@ -256,20 +261,22 @@ public class MockingGenerator {
 	private static Value collectExpectedSystemExitValue(
 			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace,
 			MethodInvocation methodInvocationToBeCarved) {
-		
+
 		// Default to 0
 		MethodInvocationMatcher systemExitMethodMatcher = MethodInvocationMatcher
 				.byMethod("<java.lang.System: void exit(int)>");
 		// Which one do we pick ?!
 		// [>];StaticInvokeExpr;<java.lang.System: void exit(int)>;(0)
-		// [>];VirtualInvokeExpr;<org.junit.contrib.java.lang.system.ExpectedSystemExit: void expectSystemExitWithStatus(int)>;(0)
+		// [>];VirtualInvokeExpr;<org.junit.contrib.java.lang.system.ExpectedSystemExit:
+		// void expectSystemExitWithStatus(int)>;(0)
 
 		DataDependencyGraph dataDependencyGraph = parsedTrace.getSecond();
 		CallGraph callGraph = parsedTrace.getThird();
-		
-		Set<MethodInvocation> subsequentCalls = callGraph.getMethodInvocationsSubsumedBy( methodInvocationToBeCarved );
-//		System.out.println("MockingGenerator.collectExpectedSystemExitValue() Calls subsumed by " + methodInvocationToBeCarved );
-//		System.out.println("		" + subsequentCalls );
+
+		Set<MethodInvocation> subsequentCalls = callGraph.getMethodInvocationsSubsumedBy(methodInvocationToBeCarved);
+		// System.out.println("MockingGenerator.collectExpectedSystemExitValue()
+		// Calls subsumed by " + methodInvocationToBeCarved );
+		// System.out.println(" " + subsequentCalls );
 
 		for (MethodInvocation methodInvocation : subsequentCalls) {
 			if (systemExitMethodMatcher.matches(methodInvocation)) {
@@ -304,8 +311,9 @@ public class MockingGenerator {
 			}
 		}
 
-//		System.out.println("MockingGenerator.findParsedSystemTest() Cannot find any system test for test method "
-//				+ methodInvocationToBeCarved);
+		// System.out.println("MockingGenerator.findParsedSystemTest() Cannot
+		// find any system test for test method "
+		// + methodInvocationToBeCarved);
 		return null;
 	}
 
@@ -324,13 +332,14 @@ public class MockingGenerator {
 
 		List<Value> valuesReadFromInput = collectValuesReadFromInput(parsedTraceFromSystemTest,
 				methodInvocationToBeCarved);
+
 		// At this point we have accumulated all the values that were read from
 		// input during the execution, we store them into an array and invoke
 		// org.junit.contrib.java.lang.system.TextFromStandardInputStream.provideLines(
 		// java.lang.String[] ); to set up the input mocking
 		Body body = testMethod.getActiveBody();
 		Pair<Value, List<Unit>> parameterArrayAndInstructionsToCreateIt = UtilInstrumenter
-				.generateParameterArray(RefType.v("java.lang.String"), valuesReadFromInput, body);
+				.generateStringArray(valuesReadFromInput, body);
 		// TODO Find the insertion point at the beginning of the method
 		List<Unit> generated = new ArrayList<>(parameterArrayAndInstructionsToCreateIt.getSecond());
 		SootMethod provideLines = Scene.v().getMethod(
@@ -354,8 +363,8 @@ public class MockingGenerator {
 
 	}
 
-	private static List<MethodInvocation> getPreviousCalls(MethodInvocation methodInvocationToBeCarved, ExecutionFlowGraph executionFlowGraph,
-			DataDependencyGraph dataDependencyGraph, CallGraph callGraph) {
+	private static List<MethodInvocation> getPreviousCalls(MethodInvocation methodInvocationToBeCarved,
+			ExecutionFlowGraph executionFlowGraph, DataDependencyGraph dataDependencyGraph, CallGraph callGraph) {
 		// Get the last method, which the next method called after MUT, minus 1
 
 		Set<MethodInvocation> subsubmedCalls = callGraph.getMethodInvocationsSubsumedBy(methodInvocationToBeCarved);
@@ -397,49 +406,41 @@ public class MockingGenerator {
 	private static List<Value> collectValuesReadFromInput(
 			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace,
 			MethodInvocation methodInvocationToBeCarved) {
-		
+
 		List<Value> valuesFromInput = new ArrayList<>();
 
-		// System.out.println("MockingGenerator.collectValuesReadFromInput()
-		// LAST SUBSUMED CALL " + lastSubsumedCall);
+		// This is gonna match also nextInt/nextLong/etc... We need String types
+		// !
 		MethodInvocationMatcher scannerNextMethodMatcher = MethodInvocationMatcher
 				.byMethod("<java.util.Scanner: .* next.*()>");
 
 		ExecutionFlowGraph executionFlowGraph = parsedTrace.getFirst();
 		DataDependencyGraph dataDependencyGraph = parsedTrace.getSecond();
 		CallGraph callGraph = parsedTrace.getThird();
-		
-		List<MethodInvocation> previousCalls = getPreviousCalls(methodInvocationToBeCarved, executionFlowGraph, dataDependencyGraph, callGraph);
+
+		List<MethodInvocation> previousCalls = getPreviousCalls(methodInvocationToBeCarved, executionFlowGraph,
+				dataDependencyGraph, callGraph);
 
 		for (MethodInvocation methodInvocation : previousCalls) {
 			if (scannerNextMethodMatcher.matches(methodInvocation)) {
-				
+
 				Value valueReadFromInput = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
-				// NOT SURE WHY FOR SCANNER WE GOT A NULL valueReadFromInput
-//				ObjectInstance objectInstance = (ObjectInstance) returnValue;
-//				if (JimpleUtils.isString(objectInstance.getType())) {
-//					// System.out.println(
-//					// "DataDependencyGraph.getReturnObjectLocalFor()\n\n\n
-//					// Load from XML "
-//					// +
-//					// methodInvocation.getXmlDumpForReturn());
-//					Value stringValue = null;
-				if( valueReadFromInput == null ){
-//					System.out.println("MockingGenerator.collectValuesReadFromInput() >>> Null ?! ");
+				if (valueReadFromInput == null) {
+					logger.trace("MockingGenerator.collectValuesReadFromInput() >>> Null read from XML for "
+							+ methodInvocation);
 					try {
-						valueReadFromInput = StringConstant.v(
-								(String) XMLDumper.loadObject(methodInvocation.getXmlDumpForReturn()));
-//						// // Cache it ?
-//						setSootValueFor(objectInstance, stringValue);
+						valueReadFromInput = StringConstant
+								.v((String) XMLDumper.loadObject(methodInvocation.getXmlDumpForReturn()));
 					} catch (IOException e) {
-//						// // TODO Auto-generated catch block
+						// // // TODO Auto-generated catch block
 						e.printStackTrace();
 						logger.error("Swallow: " + e);
 					}
 				}
-				
-				logger.debug("MockingGenerator.collectValuesReadFromInput() " + methodInvocation + " --> " + valueReadFromInput );
-				
+
+				logger.debug("MockingGenerator.collectValuesReadFromInput() " + methodInvocation + " --> "
+						+ valueReadFromInput + " " + valueReadFromInput.getType());
+
 				valuesFromInput.add(valueReadFromInput);
 			}
 		}

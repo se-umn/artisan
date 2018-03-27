@@ -50,7 +50,7 @@ public class ByMethodForSubsumedCallCarverTest {
 			String[] args = new String[] { //
 					"--carve-by", "method=" + jimpleMethodToCarve,
 					// String traceFile =
-					"--trace-file", "./src/test/resources/Employee-trace.txt",
+					"--trace-file", "./src/test/resources/Employee/tracingOut/trace.txt", //
 					// String projectJar =
 					"--project-jar", "./src/test/resources/Employee.jar",
 					// String outputDir =

@@ -100,8 +100,9 @@ public class DataDependencyGraph {
 				if (JimpleUtils.isNull(actualParameters[position])) {
 					// Null objects
 					// Not even sure that at this point here this can be null !
-//					System.out.println("DataDependencyGraph.addMethodInvocation() Got null " + methodInvocation + " "
-//							+ actualParameters[position]);
+					// System.out.println("DataDependencyGraph.addMethodInvocation()
+					// Got null " + methodInvocation + " "
+					// + actualParameters[position]);
 					// Null parameter
 					node = NullNodeFactory.get(formalParameters[position]);
 					setSootValueFor(node, ((ValueNode) node).getData());
@@ -141,12 +142,13 @@ public class DataDependencyGraph {
 	private ObjectInstance handleDanglingObjectInstance(ObjectInstance node) {
 
 		if (JimpleUtils.isNull(node.getObjectId())) {
-//			System.out.println("Call a method on null object... NPE?!");
+			// System.out.println("Call a method on null object... NPE?!");
 			// Null parameter
 			setSootValueFor(node, NullConstant.v());
 		} else if (((ObjectInstance) node).getType()
 				.startsWith("org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock")) {
 			// Check if this is System.in mocking
+			logger.info("DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with " + ObjectInstance.SystemIn());
 			return ObjectInstance.SystemIn();
 		} else if (((ObjectInstance) node).getType().endsWith("[]")) {
 			return node;
@@ -173,7 +175,8 @@ public class DataDependencyGraph {
 			}
 		}
 
-//		System.out.println("DataDependencyGraph.handleDanglingObjectInstance() Return the original node");
+		// System.out.println("DataDependencyGraph.handleDanglingObjectInstance()
+		// Return the original node");
 		// Worst case return the original node
 		return node;
 
@@ -218,7 +221,8 @@ public class DataDependencyGraph {
 		// NEW STRING NODE " + node);
 		// }
 		else if (JimpleUtils.isNull(returnValue)) {
-//			System.out.println("DataDependencyGraph.addDataDependencyOnReturn() Capture a null return value");
+			// System.out.println("DataDependencyGraph.addDataDependencyOnReturn()
+			// Capture a null return value");
 			node = NullNodeFactory.get(formalReturnValue);
 			setSootValueFor(node, ((ValueNode) node).getData());
 		}
@@ -246,6 +250,7 @@ public class DataDependencyGraph {
 
 	// This will not work for static methods
 	public void addDataDependencyOnOwner(MethodInvocation methodInvocation, String objectInstanceId) {
+
 		if (!graph.containsVertex(methodInvocation)) {
 			graph.addVertex(methodInvocation);
 		}
@@ -458,7 +463,7 @@ public class DataDependencyGraph {
 				continue;
 			} else if (node instanceof MethodInvocation) {
 				if (((MethodInvocation) node).equals(methodInvocation)) {
-					Set<String> dataDependencyEdges = new HashSet<String>(graph.getInEdges(node));
+					Set<String> dataDependencyEdges = new HashSet<String>(getIncomingEdges(node));
 					for (String edge : dataDependencyEdges) {
 						if (edge.startsWith(OWNERSHIP_DEPENDENCY_PREFIX)) {
 
@@ -494,7 +499,7 @@ public class DataDependencyGraph {
 			} else if (node instanceof MethodInvocation) {
 				if (((MethodInvocation) node).equals(methodInvocation)) {
 					// Really this should be max one
-					Set<String> dataDependencyEdges = new HashSet<String>(graph.getOutEdges(node));
+					Set<String> dataDependencyEdges = new HashSet<String>(getOutgoingEgdes(node));
 
 					for (String edge : dataDependencyEdges) {
 						if (edge.startsWith(RETURN_DEPENDENCY_PREFIX)) {
@@ -526,7 +531,7 @@ public class DataDependencyGraph {
 		try {
 			int parameterCount = JimpleUtils.getParameterList(methodInvocation.getJimpleMethod()).length;
 
-			int dataDependencyCount = graph.getInEdges(methodInvocation).size();
+			int dataDependencyCount = getIncomingEdges(methodInvocation).size();
 			if (!methodInvocation.isStatic()) {
 				// Remove the owner from the dependencies of this method
 				dataDependencyCount = dataDependencyCount - 1;
@@ -544,7 +549,7 @@ public class DataDependencyGraph {
 			// Parameters must be ordered in the right order...
 			Value[] parameters = new Value[dataDependencyCount];
 
-			for (String incomingEdge : graph.getInEdges(methodInvocation)) {
+			for (String incomingEdge : getIncomingEdges(methodInvocation)) {
 				if (incomingEdge.startsWith(DATA_DEPENDENCY_PREFIX)) {
 					int position = Integer
 							.parseInt(incomingEdge.replace(DATA_DEPENDENCY_PREFIX + "_", "").split("_")[0]);
@@ -565,9 +570,11 @@ public class DataDependencyGraph {
 			return Arrays.asList(parameters);
 		} catch (Throwable e) {
 			e.printStackTrace();
-//			System.out.println("DataDependencyGraph.getParametersSootValueFor() In Edges for " + methodInvocation + " "
-//					+ graph.getInEdges(methodInvocation));
-//			System.out.println("DataDependencyGraph.getParametersSootValueFor() " + graph);
+			// System.out.println("DataDependencyGraph.getParametersSootValueFor()
+			// In Edges for " + methodInvocation + " "
+			// + getIncomingEgdes(methodInvocation));
+			// System.out.println("DataDependencyGraph.getParametersSootValueFor()
+			// " + graph);
 			throw e;
 		}
 	}
@@ -595,8 +602,8 @@ public class DataDependencyGraph {
 			}
 
 			// Precondition edges
-			if (graph.getInEdges(methodInvocation) != null) {
-				for (String incomingEdge : graph.getInEdges(methodInvocation)) {
+			if (getIncomingEdges(methodInvocation) != null) {
+				for (String incomingEdge : getIncomingEdges(methodInvocation)) {
 					if (!subGraph.graph.containsVertex(graph.getOpposite(methodInvocation, incomingEdge))) {
 						subGraph.graph.addVertex(graph.getOpposite(methodInvocation, incomingEdge));
 
@@ -610,17 +617,15 @@ public class DataDependencyGraph {
 			}
 
 			// Returns
-			if (graph.getOutEdges(methodInvocation) != null) {
-				for (String outgoingEdge : graph.getOutEdges(methodInvocation)) {
-					if (!subGraph.graph.containsVertex(graph.getOpposite(methodInvocation, outgoingEdge))) {
-						subGraph.graph.addVertex(graph.getOpposite(methodInvocation, outgoingEdge));
-						subGraph.additionalData.put((DataNode) graph.getOpposite(methodInvocation, outgoingEdge),
-								additionalData.get((DataNode) graph.getOpposite(methodInvocation, outgoingEdge)));
-					}
-
-					subGraph.graph.addEdge(outgoingEdge, methodInvocation,
-							graph.getOpposite(methodInvocation, outgoingEdge), EdgeType.DIRECTED);
+			for (String outgoingEdge : getOutgoingEgdes(methodInvocation)) {
+				if (!subGraph.graph.containsVertex(graph.getOpposite(methodInvocation, outgoingEdge))) {
+					subGraph.graph.addVertex(graph.getOpposite(methodInvocation, outgoingEdge));
+					subGraph.additionalData.put((DataNode) graph.getOpposite(methodInvocation, outgoingEdge),
+							additionalData.get((DataNode) graph.getOpposite(methodInvocation, outgoingEdge)));
 				}
+
+				subGraph.graph.addEdge(outgoingEdge, methodInvocation,
+						graph.getOpposite(methodInvocation, outgoingEdge), EdgeType.DIRECTED);
 			}
 		}
 
@@ -629,7 +634,7 @@ public class DataDependencyGraph {
 
 	public Collection<MethodInvocation> getMethodInvocationsForOwner(ObjectInstance node) {
 		Collection<MethodInvocation> methodInvocations = new HashSet<>();
-		for (String edge : graph.getOutEdges(node)) {
+		for (String edge : getOutgoingEgdes(node)) {
 			if (edge.startsWith(OWNERSHIP_DEPENDENCY_PREFIX)) {
 				methodInvocations.add((MethodInvocation) graph.getOpposite(node, edge));
 			}
@@ -639,7 +644,7 @@ public class DataDependencyGraph {
 
 	// THIS DOES NOT WORK FOR STATIC METHOD INVOCATIONS
 	public ObjectInstance getOwnerFor(MethodInvocation node) {
-		for (String edge : graph.getInEdges(node)) {
+		for (String edge : getIncomingEdges(node)) {
 			if (edge.startsWith(OWNERSHIP_DEPENDENCY_PREFIX)) {
 				return (ObjectInstance) graph.getOpposite(node, edge);
 			}
@@ -649,7 +654,8 @@ public class DataDependencyGraph {
 	}
 
 	public void setSootValueFor(DataNode node, Value localVariable) {
-//		System.out.println("DataDependencyGraph.setSootValueFor() " + node + " " + localVariable);
+		// System.out.println("DataDependencyGraph.setSootValueFor() " + node +
+		// " " + localVariable);
 		additionalData.put(node, localVariable);
 	}
 
@@ -660,7 +666,7 @@ public class DataDependencyGraph {
 	}
 
 	///
-	public List<ObjectInstance> getObjectInstancesAsParametersOf(MethodInvocation methodInvocation) {
+	public List<ObjectInstance> getParametersOf(MethodInvocation methodInvocation) {
 
 		List<ObjectInstance> parametersOf = new ArrayList<>();
 
@@ -675,7 +681,7 @@ public class DataDependencyGraph {
 		return parametersOf;
 	}
 
-	private Collection<String> getIncomingEdges(MethodInvocation methodInvocation) {
+	public Collection<String> getIncomingEdges(GraphNode methodInvocation) {
 		Collection<String> incomingEdges = graph.getInEdges(methodInvocation);
 		return (incomingEdges != null) ? incomingEdges : new HashSet<String>();
 	}
@@ -684,7 +690,7 @@ public class DataDependencyGraph {
 	public MethodInvocation getInitMethodInvocationFor(ObjectInstance objectInstance) {
 
 		// include the init call
-		for (String outgoingEdge : graph.getOutEdges(objectInstance)) {
+		for (String outgoingEdge : getOutgoingEgdes(objectInstance)) {
 			if (outgoingEdge.startsWith(OWNERSHIP_DEPENDENCY_PREFIX)) {
 				if (graph.getOpposite(objectInstance, outgoingEdge) instanceof MethodInvocation) {
 					MethodInvocation methodInvocation = (MethodInvocation) graph.getOpposite(objectInstance,
@@ -704,10 +710,15 @@ public class DataDependencyGraph {
 		// objectInstance);
 	}
 
+	public Collection<String> getOutgoingEgdes(GraphNode objectInstance) {
+		Collection<String> outgoingEdges = graph.getOutEdges(objectInstance);
+		return (outgoingEdges != null) ? outgoingEdges : Collections.EMPTY_LIST;
+	}
+
 	public Set<MethodInvocation> getMethodInvocationsWhichReturn(ObjectInstance objectInstance) {
 		Set<MethodInvocation> returningMethodInvocations = new HashSet<>();
-
-		for (String incomingEdge : graph.getInEdges(objectInstance)) {
+		
+		for (String incomingEdge : getIncomingEdges(objectInstance)) {
 			// There should be only this kind nevertheless
 			if (incomingEdge.startsWith(RETURN_DEPENDENCY_PREFIX)) {
 				// This should be the only possible case
@@ -743,7 +754,7 @@ public class DataDependencyGraph {
 		Set<DataNode> unconnectedData = new HashSet<>();
 		for (GraphNode node : graph.getVertices()) {
 			if (node instanceof DataNode) {
-				if (graph.getInEdges(node).isEmpty() && graph.getOutEdges(node).isEmpty()) {
+				if (getIncomingEdges(node).isEmpty() && getOutgoingEgdes(node).isEmpty()) {
 					unconnectedData.add((DataNode) node);
 				}
 			}
@@ -850,7 +861,7 @@ public class DataDependencyGraph {
 	 */
 	public Set<MethodInvocation> getMethodInvocationsWhichUse(ObjectInstance objectInstance) {
 		Set<MethodInvocation> methodInvocations = new HashSet<>();
-		for (String edge : graph.getOutEdges(objectInstance)) {
+		for (String edge : getOutgoingEgdes(objectInstance)) {
 			if (edge.startsWith(DATA_DEPENDENCY_PREFIX)) {
 				methodInvocations.add((MethodInvocation) graph.getOpposite(objectInstance, edge));
 			}

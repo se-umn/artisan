@@ -24,7 +24,6 @@ import soot.jimple.AbstractStmtSwitch;
 import soot.jimple.ArrayRef;
 import soot.jimple.AssignStmt;
 import soot.jimple.DynamicInvokeExpr;
-import soot.jimple.FieldRef;
 import soot.jimple.InstanceInvokeExpr;
 import soot.jimple.InterfaceInvokeExpr;
 import soot.jimple.InvokeExpr;
@@ -45,7 +44,7 @@ public class ABCBodyTranformer extends BodyTransformer {
 	protected void internalTransform(final Body body, String phaseName, @SuppressWarnings("rawtypes") Map options) {
 
 		final SootMethod containerMethod = body.getMethod();
-		
+
 		System.out.println("ABCBodyTranformer.internalTransform() >>> STARTING " + containerMethod);
 
 		// Filter methods that we do not want to instrument
@@ -138,12 +137,8 @@ public class ABCBodyTranformer extends BodyTransformer {
 						// }
 					} else {
 
-						// Fake the call to a STORE method for the array. The array must be on the left side of the assign.
-						// TODO There might be also an array on the right side, or even a field ref ?
-						//
-						if (stmt.containsArrayRef() && stmt.getLeftOp() instanceof ArrayRef ) {
-							// Array STORE
-							ArrayRef arrayRefExp = stmt.getArrayRef();
+						if (stmt.getLeftOp() instanceof ArrayRef) {
+							ArrayRef arrayRefExp = (ArrayRef) stmt.getLeftOp();
 
 							instrumentArrayAssignmentExpression(body, units, u,
 									//
@@ -154,10 +149,24 @@ public class ABCBodyTranformer extends BodyTransformer {
 									stmt.getRightOp()); // I have no better
 														// option at this
 														// point...
+						}
+						if (stmt.getRightOp() instanceof ArrayRef) {
+							System.out.println("\t >>> FOUND ASSIGNMENT FROM ARRAY " + stmt);
+
+							ArrayRef arrayRefExp = (ArrayRef) stmt.getRightOp();
+
+							instrumentArrayAccessExpression(body, units, u, stmt.getLeftOp(), //
+									//
+									arrayRefExp.getBase(), // The ref to arraym
+															// is this LeftOp ?!
+									arrayRefExp.getIndex()); // The position in
+																// the array
+
 						} else if (stmt.getRightOp() instanceof NewArrayExpr) {
 							// Array INITIALIZATION
-							// TODO Can it be a field reference on the left side ?!
-							
+							// TODO Can it be a field reference on the left side
+							// ?!
+
 							NewArrayExpr right = (NewArrayExpr) stmt.getRightOp();
 							// System.out.println( right.getBaseType() ); String
 							// System.out.println( right.getType() ); String[]
@@ -166,113 +175,123 @@ public class ABCBodyTranformer extends BodyTransformer {
 									//
 									stmt.getLeftOp(), //
 									right.getSize());
-							
-						} else if (
-								stmt.getLeftOp().getType().equals(RefType.v("java.lang.String")) && stmt.getRightOp() instanceof StringConstant) {
-								instrumentStringAssignmentExpression(body, units, u, //
-										stmt.getLeftOp(), // Ref to String
-										stmt.getRightOp()); // Value of String
-							}							
-						else {
+
+						} else if (stmt.getLeftOp().getType().equals(RefType.v("java.lang.String"))
+								&& stmt.getRightOp() instanceof StringConstant) {
+							instrumentStringAssignmentExpression(body, units, u, //
+									stmt.getLeftOp(), // Ref to String
+									stmt.getRightOp()); // Value of String
+						} else {
 							System.out.println(">>>> ASSIGN " + stmt);
 						}
-						
 
 					}
 				}
 
-	// @Override
-	// public void caseIdentityStmt(IdentityStmt stmt) {
-	// System.out.println(
-	// "InstrumentTracer.internalTransform(...).new
-	// AbstractStmtSwitch() {...}.caseIdentityStmt() " + stmt);
-	// super.caseIdentityStmt(stmt);
-	// }
-	//
-	/*
-	 * When soot triggers this, since there is no assignment of the return
-	 * value, we cannot access it... probably, if we need to track this value as
-	 * well, we can introcude a new assignement and attach it to the invoke
-	 * stmt. This is also invokes inside if/for/etc. when there's no
-	 * assignments...I hope that in case of assignment the invoke is triggered
-	 * only once.
+				// @Override
+				// public void caseIdentityStmt(IdentityStmt stmt) {
+				// System.out.println(
+				// "InstrumentTracer.internalTransform(...).new
+				// AbstractStmtSwitch() {...}.caseIdentityStmt() " + stmt);
+				// super.caseIdentityStmt(stmt);
+				// }
+				//
+				/*
+				 * When soot triggers this, since there is no assignment of the
+				 * return value, we cannot access it... probably, if we need to
+				 * track this value as well, we can introcude a new assignement
+				 * and attach it to the invoke stmt. This is also invokes inside
+				 * if/for/etc. when there's no assignments...I hope that in case
+				 * of assignment the invoke is triggered only once.
+				 */
+				public void caseInvokeStmt(InvokeStmt stmt) {
+
+					// Most likely we can add a Local to host the value, how do
+					// we handle invocations inside IF statement for example?
+
+					logger.trace("Inside method " + containerMethod + " caseInvokeStmt() " + stmt);
+
+					InvokeExpr invokeExpr = stmt.getInvokeExpr();
+					SootMethod m = invokeExpr.getMethod();
+
+					if (InstrumentTracer.doNotTraceCallsTo(m)) {
+						logger.info("Do not trace calls to " + m);
+						return;
+					}
+
+					String invokeType = null;
+					Value instanceValue = null;
+
+					if (invokeExpr instanceof InstanceInvokeExpr) {
+						invokeType = "InstanceInvokeExpr";
+						instanceValue = ((InstanceInvokeExpr) invokeExpr).getBase();
+					}
+					if (invokeExpr instanceof SpecialInvokeExpr) {
+						invokeType = "SpecialInvokeExpr";
+						instanceValue = ((SpecialInvokeExpr) invokeExpr).getBase();
+					}
+					if (invokeExpr instanceof VirtualInvokeExpr) {
+						invokeType = "VirtualInvokeExpr";
+						instanceValue = ((VirtualInvokeExpr) invokeExpr).getBase();
+					}
+					if (invokeExpr instanceof StaticInvokeExpr) {
+						invokeType = "StaticInvokeExpr";
+						// Cannot be associate to any "value/instance"
+					}
+					if (invokeExpr instanceof NewInvokeExpr) {
+						invokeType = "NewInvokeExpr";
+						// TODO What's this ?!
+
+					}
+					if (invokeExpr instanceof InterfaceInvokeExpr) {
+						invokeType = "InterfaceInvokeExpr";
+						instanceValue = ((InterfaceInvokeExpr) invokeExpr).getBase();
+					}
+					if (invokeExpr instanceof DynamicInvokeExpr) {
+						invokeType = "DynamicInvokeExpr";
+
+					}
+
+					// Why the hell we pass null as returnValue ?! Because
+					// it is hard to get that value from
+					// the invoke expression
+
+					// This creates many problems if the return type is
+					// primitive... !
+					Value returnValue = null;
+					if (!(invokeExpr.getMethod().getReturnType() instanceof VoidType)) {
+						// TODO
+						// logger.debug(
+						System.out.println(
+								"InstrumentTracer.instrumentInvokeExpression() Add AssignStmt to access the value of "
+										+ stmt + " which is not read ");
+						// This is requires for generating regression assertions
+						// in case this method is MUT
+						returnValue = UtilInstrumenter.generateFreshLocal(body, invokeExpr.getMethod().getReturnType());
+						Unit capturingAssignStmt = Jimple.v().newAssignStmt(returnValue, invokeExpr);
+						units.insertBefore(capturingAssignStmt, stmt);
+					}
+
+					instrumentInvokeExpression(body, units, u, invokeExpr.getMethod(), invokeExpr.getArgs(),
+							returnValue, instanceValue, invokeType);
+
+				}
+
+			});
+		}
+
+	}
+
+	/**
+	 * Fake a call to a generic method STORE of the array
+	 * 
+	 * @param body
+	 * @param units
+	 * @param u
+	 * @param array
+	 * @param arrayIndex
+	 * @param rightOp
 	 */
-	public void caseInvokeStmt(InvokeStmt stmt) {
-
-		// Most likely we can add a Local to host the value, how do
-		// we handle invocations inside IF statement for example?
-
-		logger.trace("Inside method " + containerMethod + " caseInvokeStmt() " + stmt);
-
-		InvokeExpr invokeExpr = stmt.getInvokeExpr();
-		SootMethod m = invokeExpr.getMethod();
-
-		if (InstrumentTracer.doNotTraceCallsTo(m)) {
-			logger.info("Do not trace calls to " + m);
-			return;
-		}
-
-		String invokeType = null;
-		Value instanceValue = null;
-
-		if (invokeExpr instanceof InstanceInvokeExpr) {
-			invokeType = "InstanceInvokeExpr";
-			instanceValue = ((InstanceInvokeExpr) invokeExpr).getBase();
-		}
-		if (invokeExpr instanceof SpecialInvokeExpr) {
-			invokeType = "SpecialInvokeExpr";
-			instanceValue = ((SpecialInvokeExpr) invokeExpr).getBase();
-		}
-		if (invokeExpr instanceof VirtualInvokeExpr) {
-			invokeType = "VirtualInvokeExpr";
-			instanceValue = ((VirtualInvokeExpr) invokeExpr).getBase();
-		}
-		if (invokeExpr instanceof StaticInvokeExpr) {
-			invokeType = "StaticInvokeExpr";
-			// Cannot be associate to any "value/instance"
-		}
-		if (invokeExpr instanceof NewInvokeExpr) {
-			invokeType = "NewInvokeExpr";
-			// TODO What's this ?!
-
-		}
-		if (invokeExpr instanceof InterfaceInvokeExpr) {
-			invokeType = "InterfaceInvokeExpr";
-			instanceValue = ((InterfaceInvokeExpr) invokeExpr).getBase();
-		}
-		if (invokeExpr instanceof DynamicInvokeExpr) {
-			invokeType = "DynamicInvokeExpr";
-
-		}
-
-		// Why the hell we pass null as returnValue ?! Because
-		// it is hard to get that value from
-		// the invoke expression
-
-		// This creates many problems if the return type is
-		// primitive... !
-		Value returnValue = null;
-		if (!(invokeExpr.getMethod().getReturnType() instanceof VoidType)) {
-			// TODO
-			// logger.debug(
-			System.out.println("InstrumentTracer.instrumentInvokeExpression() Add AssignStmt to access the value of "
-					+ stmt + " which is not read ");
-			// This is requires for generating regression assertions
-			// in case this method is MUT
-			returnValue = UtilInstrumenter.generateFreshLocal(body, invokeExpr.getMethod().getReturnType());
-			Unit capturingAssignStmt = Jimple.v().newAssignStmt(returnValue, invokeExpr);
-			units.insertBefore(capturingAssignStmt, stmt);
-		}
-
-		instrumentInvokeExpression(body, units, u, invokeExpr.getMethod(), invokeExpr.getArgs(), returnValue,
-				instanceValue, invokeType);
-
-	}
-
-	});}
-
-	}
-
 	private void instrumentArrayAssignmentExpression(Body body, PatchingChain<Unit> units, Unit u,
 			//
 			Value array, Value arrayIndex, //
@@ -289,12 +308,11 @@ public class ABCBodyTranformer extends BodyTransformer {
 		List<Value> parameterList = new ArrayList<>();
 		parameterList.add(arrayIndex);
 		parameterList.add(rightOp);
-		addTraceStart(invokeType, fakeMethodSignature, parameterList, body, units, u);
-		/*
-		 * Instrument body to include a call to Trace.stop AFTER the execution
-		 * of method, we store its return type as well.
-		 */
-		addTraceStop(fakeMethodSignature, null, body, units, u);
+
+		List<Unit> generatedBefore = new ArrayList<>();
+		List<Unit> generatedAfter = new ArrayList<>();
+
+		generatedBefore.addAll(addTraceStart(invokeType, fakeMethodSignature, parameterList, body));
 		/*
 		 * Instrument body to include a call to Trace.object AFTER the execution
 		 * of method, we store the reference to the instance object making the
@@ -302,8 +320,71 @@ public class ABCBodyTranformer extends BodyTransformer {
 		 * instance, hence no trace entry
 		 */
 		if (!Jimple.STATICINVOKE.equals(invokeType)) {
-			addTraceObject(array, fakeMethodSignature, body, units, u);
+			generatedAfter.addAll(addTraceObject(array, fakeMethodSignature));
 		}
+
+		/*
+		 * Instrument body to include a call to Trace.stop AFTER the execution
+		 * of method, we store its return type as well.
+		 */
+		generatedAfter.addAll(addTraceStop(fakeMethodSignature, null, body));
+		//
+		units.insertBefore(generatedBefore, u);
+		units.insertAfter(generatedAfter, u);
+
+	}
+
+	/**
+	 * Fake a call to a generic method GET of the array
+	 * 
+	 * @param body
+	 * @param units
+	 * @param u
+	 * @param array
+	 * @param arrayIndex
+	 * @param rightOp
+	 */
+	private void instrumentArrayAccessExpression(Body body, PatchingChain<Unit> units, Unit u,
+			//
+			Value leftOp, //
+			Value array, Value arrayIndex //
+	) {
+
+		String invokeType = "ArrayOperation";
+		String fakeMethodSignature = "<" + array.getType() + ": " + array.getType().toString().replace("[]", "")
+				+ " get(int)>";
+
+		/*
+		 * Instrument body to include a call to Trace.start BEFORE the execution
+		 * of method, we store its parameters as well.
+		 */
+		List<Value> parameterList = new ArrayList<>();
+		parameterList.add(arrayIndex);
+
+		List<Unit> generatedBefore = new ArrayList<>();
+		List<Unit> generatedAfter = new ArrayList<>();
+
+		//
+		generatedBefore.addAll(addTraceStart(invokeType, fakeMethodSignature, parameterList, body));
+
+		/*
+		 * Instrument body to include a call to Trace.object AFTER the execution
+		 * of method, we store the reference to the instance object making the
+		 * call unless the method is static. In this case there's no object
+		 * instance, hence no trace entry
+		 */
+		if (!Jimple.STATICINVOKE.equals(invokeType)) {
+			generatedAfter.addAll(addTraceObject(array, fakeMethodSignature));
+		}
+
+		generatedAfter.addAll(addTraceStop(fakeMethodSignature, leftOp, body));
+		/*
+		 * Instrument body to include a call to Trace.stop AFTER the execution
+		 * of method, we store its return type as well.
+		 */
+		// FIXME Not sure that the return value is the right one...
+		units.insertBefore(generatedBefore, u);
+		units.insertAfter(generatedAfter, u);
 
 	}
 
@@ -319,19 +400,25 @@ public class ABCBodyTranformer extends BodyTransformer {
 		 */
 		List<Value> parameterList = new ArrayList<>();
 		// parameterList.add(rightOp);
-		addTraceStart(invokeType, fakeMethodSignature, parameterList, body, units, u);
-		/*
-		 * Instrument body to include a call to Trace.stop AFTER the execution
-		 * of method, we store its return type as well.
-		 */
-		addTraceStop(fakeMethodSignature, null, body, units, u);
+
+		List<Unit> generatedBefore = new ArrayList<>();
+		List<Unit> generatedAfter = new ArrayList<>();
+		
+		generatedBefore.addAll(addTraceStart(invokeType, fakeMethodSignature, parameterList, body));
 		/*
 		 * Instrument body to include a call to Trace.object AFTER the execution
 		 * of method, we store the reference to the instance object making the
 		 * call unless the method is static. In this case there's no object
 		 * instance, hence no trace entry
 		 */
-		addTraceObject(leftOp, fakeMethodSignature, body, units, u);
+		generatedAfter.addAll(addTraceObject(leftOp, fakeMethodSignature));
+		generatedAfter.addAll(addTraceStop(fakeMethodSignature, null, body));
+		/*
+		 * Instrument body to include a call to Trace.stop AFTER the execution
+		 * of method, we store its return type as well.
+		 */
+		units.insertBefore(generatedBefore, u);
+		units.insertAfter(generatedAfter, u);
 
 	}
 
@@ -351,21 +438,29 @@ public class ABCBodyTranformer extends BodyTransformer {
 		 */
 		List<Value> parameterList = new ArrayList<>();
 		parameterList.add(arraySize);
-		addTraceStart(invokeType, fakeMethodSignature, parameterList, body, units, u);
+
+		List<Unit> generatedBefore = new ArrayList<>();
+		List<Unit> generatedAfter = new ArrayList<>();
+
+		generatedBefore.addAll(addTraceStart(invokeType, fakeMethodSignature, parameterList, body));
+		/*
+		 * Instrument body to include a call to Trace.object the execution of
+		 * method, we store the reference to the instance object making the call
+		 * unless the method is static. In this case there's no object instance,
+		 * hence no trace entry
+		 */
+		if (!Jimple.STATICINVOKE.equals(invokeType)) {
+			generatedAfter.addAll(addTraceObject(array, fakeMethodSignature));
+		}
+
 		/*
 		 * Instrument body to include a call to Trace.stop AFTER the execution
 		 * of method, we store its return type as well.
 		 */
-		addTraceStop(fakeMethodSignature, null, body, units, u);
-		/*
-		 * Instrument body to include a call to Trace.object AFTER the execution
-		 * of method, we store the reference to the instance object making the
-		 * call unless the method is static. In this case there's no object
-		 * instance, hence no trace entry
-		 */
-		if (!Jimple.STATICINVOKE.equals(invokeType)) {
-			addTraceObject(array, fakeMethodSignature, body, units, u);
-		}
+		generatedAfter.addAll(addTraceStop(fakeMethodSignature, null, body));
+
+		units.insertBefore(generatedBefore, u);
+		units.insertAfter(generatedAfter, u);
 
 	}
 
@@ -410,29 +505,39 @@ public class ABCBodyTranformer extends BodyTransformer {
 		 * Instrument body to include a call to Trace.start BEFORE the execution
 		 * of method, we store its parameters as well.
 		 */
-		addTraceStart(invokeType, method.getSignature(), parameterValues, body, units, u);
+		List<Unit> generatedBefore = new ArrayList<>();
+		List<Unit> generatedAfter = new ArrayList<>();
+
+		generatedBefore.addAll(addTraceStart(invokeType, method.getSignature(), parameterValues, body));
+
+		/*
+		 * Instrument body to include a call to Trace.object BEFORE ! the
+		 * execution of method, we store the reference to the instance object
+		 * making the call unless the method is static. In this case there's no
+		 * object instance, hence no trace entry
+		 */
+		if (!Jimple.STATICINVOKE.equals(invokeType) ) {
+			if( method.getSignature().contains("<init>")){
+				generatedAfter.addAll(addTraceObject(instanceValue, method.getSignature()));
+			} else {
+				generatedBefore.addAll(addTraceObject(instanceValue, method.getSignature()));
+			}
+		}
+
+		generatedAfter.addAll(addTraceStop(method.getSignature(), returnValue, body));
 		/*
 		 * Instrument body to include a call to Trace.stop AFTER the execution
 		 * of method, we store its return type as well.
 		 */
-		addTraceStop(method.getSignature(), returnValue, body, units, u);
-		/*
-		 * Instrument body to include a call to Trace.object AFTER the execution
-		 * of method, we store the reference to the instance object making the
-		 * call unless the method is static. In this case there's no object
-		 * instance, hence no trace entry
-		 */
-		if (!Jimple.STATICINVOKE.equals(invokeType)) {
-			addTraceObject(instanceValue, method.getSignature(), body, units, u);
-		}
+		units.insertBefore(generatedBefore, u);
+		units.insertAfter(generatedAfter, u);
 
 		// TODO XML SERIALIZATION
 		// dumpToXML(b, units, u, method, parameterValues, returnValue,
 		// instanceValue, invokeType);
 	}
 
-	private void addTraceObject(Value instanceValue, String methodSignature, Body body, final PatchingChain<Unit> units,
-			Unit u) {
+	private List<Unit> addTraceObject(Value instanceValue, String methodSignature) {
 
 		List<Unit> generated = new ArrayList<Unit>();
 
@@ -454,14 +559,14 @@ public class ABCBodyTranformer extends BodyTransformer {
 					.newInvokeStmt(Jimple.v().newStaticInvokeExpr(methodObject.makeRef(), methodObjectParameters));
 			generated.add(callTracerMethodObject);
 
+		} else {
+			System.out.println("ABCBodyTranformer.addTraceObject() null instance for " + methodSignature);
 		}
-		//
-		units.insertAfter(generated, u);
-
+		return generated;
 	}
 
-	private void addTraceStop(// SootMethod method,
-			String methodSignature, Value returnValue, Body body, final PatchingChain<Unit> units, Unit u) {
+	private List<Unit> addTraceStop(// SootMethod method,
+			String methodSignature, Value returnValue, Body body) {
 
 		logger.trace("InstrumentTracer.addTraceStop() for " + methodSignature);
 		List<Unit> generated = new ArrayList<Unit>();
@@ -498,11 +603,13 @@ public class ABCBodyTranformer extends BodyTransformer {
 
 			generated.addAll(tmpReturnValueAndInstructions.getSecond());
 		}
-		units.insertAfter(generated, u);
+		// units.insertAfter(generated, u);
+		return generated;
 	}
 
-	private void addTraceStart(String invokeType, String methodSignature, List<Value> parameterList, Body body,
-			final PatchingChain<Unit> units, Unit u) {
+	private List<Unit> addTraceStart(String invokeType, String methodSignature, List<Value> parameterList, Body body) {
+
+		List<Unit> generated = new ArrayList<>();
 
 		final SootMethod methodStart = Scene.v().getMethod(
 				"<de.unipassau.abc.tracing.Trace: void methodStart(java.lang.String,java.lang.String,java.lang.Object[])>");
@@ -542,12 +649,14 @@ public class ABCBodyTranformer extends BodyTransformer {
 		tmpArgsListAndInstructions.getSecond().add(callTracerMethodStart);
 
 		// Add this code before invoking the method
-		units.insertBefore(tmpArgsListAndInstructions.getSecond(), u);
-
+		// units.insertBefore(tmpArgsListAndInstructions.getSecond(), u);
+		generated.addAll(tmpArgsListAndInstructions.getSecond());
 		// logger.trace
 		System.out.println("\n" + "InstrumentTracer.traceCall() Start Method Parameter List " + methodStartParameters
 				+ "\n" + "InstrumentTracer.traceCall() Start Method Instructions"
 				+ tmpArgsListAndInstructions.getSecond());
+
+		return generated;
 	}
 
 }

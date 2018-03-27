@@ -8,6 +8,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.file.Files;
 import java.util.Collection;
 
 import org.slf4j.Logger;
@@ -35,17 +38,31 @@ public class TestCaseFactory {
 		}
 
 		for (SootClass testClass : testClasses) {
-
 			logger.info("TestCaseFactory.generateTestFiles() " + testClass.getName());
-			// Since we set the Soot set_output_dir, the following returns
-			// exactly the class file we
-			// need
 			String classFileName = SourceLocator.v().getFileNameFor(testClass, Options.output_format_class);
-			// Generate a the .class File from jimple
 			try {
-				File testClassFile = generateClassBytecode(classFileName, testClass);
 
+				// Since we set the Soot set_output_dir, the following returns
+				// exactly the class file we
+				// need
+				// Generate a the .class File from jimple
+				File testClassFile = generateClassBytecode(classFileName, testClass);
+				try {
+
+					Class javaTestClass = loadClass(testClass.getName(), Files.readAllBytes(testClassFile.toPath()));
+					System.out.println("TestCaseFactory.generateTestFiles() LOADED: " + javaTestClass);
+					// Use reflection of see whats there ?
+//					for (Method method : javaTestClass.getMethods()) {
+//						System.out.println(method);
+//					}
+
+				} catch (Throwable e) {
+					logger.error("Cannot generate class file for " + classFileName);
+					e.printStackTrace();
+					// cannot generate class - skip
+				}
 				File sourceFile = new File(classFileName.replaceAll(".class", ".java"));
+
 				logger.debug("The output files are:\n" + //
 						testClassFile.getAbsolutePath() + "\n" + //
 						sourceFile.getAbsolutePath());
@@ -57,7 +74,7 @@ public class TestCaseFactory {
 							new com.strobel.decompiler.PlainTextOutput(writer));
 				}
 
-			} catch (Exception e) {
+			} catch (Throwable e) {
 				logger.error("Cannot generate class file for " + classFileName);
 				e.printStackTrace();
 				// cannot generate class - skip
@@ -71,13 +88,14 @@ public class TestCaseFactory {
 	// TODO We really need this? I bet soot can directly generate Java code ...
 	private static File generateClassBytecode(String fileName, SootClass sClass) throws IOException {
 
-		// Since the fileName might be structures, i.e., the class has package, we need to create the directory structure
-		
+		// Since the fileName might be structures, i.e., the class has package,
+		// we need to create the directory structure
+
 		File outputFile = new File(fileName);
-		if( ! outputFile.getParentFile().exists() ){
+		if (!outputFile.getParentFile().exists()) {
 			outputFile.getParentFile().mkdirs();
 		}
-		
+
 		if (System.getProperty("debug") != null && System.getProperty("debug").equals("true")) {
 			JimpleUtils.prettyPrint(sClass);
 		}
@@ -90,6 +108,31 @@ public class TestCaseFactory {
 		streamOut.close();
 
 		return new File(fileName);
+	}
+
+	private static Class loadClass(String className, byte[] b) {
+		System.out.println("TestCaseFactory.loadClass() ! ");
+		// override classDefine (as it is protected) and define the class.
+		Class clazz = null;
+		try {
+			ClassLoader loader = new URLClassLoader( new URL[]{}, ClassLoader.getSystemClassLoader());
+			Class cls = Class.forName("java.lang.ClassLoader");
+			java.lang.reflect.Method method = cls.getDeclaredMethod("defineClass",
+					new Class[] { String.class, byte[].class, int.class, int.class });
+
+			// protected method invocaton
+			method.setAccessible(true);
+			try {
+				Object[] args = new Object[] { className, b, new Integer(0), new Integer(b.length) };
+				clazz = (Class) method.invoke(loader, args);
+			} finally {
+				method.setAccessible(false);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+		return clazz;
 	}
 
 }

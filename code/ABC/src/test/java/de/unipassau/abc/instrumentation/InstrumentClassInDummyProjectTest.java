@@ -19,8 +19,10 @@ import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
 import de.unipassau.abc.testsubject2.Main;
+import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.abc.utils.SystemTest;
+import soot.G;
 
 public class InstrumentClassInDummyProjectTest {
 
@@ -66,17 +68,26 @@ public class InstrumentClassInDummyProjectTest {
 		InstrumentTracer tracer = new InstrumentTracer();
 		tracer.main(new String[] { "--project-jar", testsubjectJar.getAbsolutePath(), //
 				"--output-to", outputDir.getAbsolutePath(), //
-				"--output-type", "class", "--include",
+				"--output-type", "class",//
+				"--include",
 				 "de.unipassau.abc.testsubject2.*"
-//				"de.unipassau.abc.testsubject3.*" 
 				//
+				});
+		G.reset();
+		
+		tracer = new InstrumentTracer();
+		tracer.main(new String[] { "--project-jar", testsubjectJar.getAbsolutePath(), //
+				"--output-to", outputDir.getAbsolutePath(), //
+				"--output-type", "jimple",//
+				"--include",
+				 "de.unipassau.abc.testsubject2.*"
 				});
 		//
 		// TODO Maybe a Hamcrest matcher here?
 		// int count = ABCTestUtils.countFiles(outputDir, ".class");
 		// There's two files now
 		// assertEquals(4, count);
-		// ABCTestUtils.printFiles(outputDir, ".jimple");
+		 ABCTestUtils.printFiles(outputDir, ".jimple");
 		 runSystemTestFromClass(Main.class, outputDir, testsubjectJar, traceJarCP);
 //		runSystemTestFromClass(StringHandlingClass.class, outputDir, testsubjectJar, traceJarCP);
 	}
@@ -101,7 +112,7 @@ public class InstrumentClassInDummyProjectTest {
 		System.out.println("InstrumentEmployeeTest.instrumentAndTraceTestSubjects()" + processBuilder.command());
 
 		// This causes problems
-		processBuilder.inheritIO();
+//		processBuilder.inheritIO();
 
 		Process process = processBuilder.start();
 

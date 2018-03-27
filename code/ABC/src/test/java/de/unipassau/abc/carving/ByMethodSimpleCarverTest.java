@@ -37,21 +37,22 @@ public class ByMethodSimpleCarverTest {
 		// numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>
 		// String jimpleMethodToCarve = "<org.employee.Validation: int
 		// numberValidation(java.lang.String)>";
-		String jimpleMethodToCarve = "<org.employee.EmployeeMetaData: void addMeta()>";
 
-		String traceFile = "./src/test/resources/Employee-trace.txt";
+		String traceFile = "./src/test/resources/Employee/tracingOut/trace.txt";
 		// TODO Mark this with a DebugTest otherwise:
 		// String traceFile =
 		// "/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut/trace.txt";
+//		String carveBy = "invocation=<org.employee.EmployeeMetaData: void addMeta()>_393";
+		String carveBy = "method=<org.employee.EmployeeMetaData: void addMeta()";
 		try {
 			Carver carver = new Carver();
 			File outputDirectory = temporaryFolderRule.newFolder();
 			String[] args = new String[] { //
-					"--carve-by", "method=" + jimpleMethodToCarve,
+					"--carve-by", carveBy,
 					// String traceFile =
 					"--trace-file", traceFile,
 					// String projectJar =
-					"--project-jar", "./src/test/resources/Employee.jar",
+					"--project-jar", "./src/test/resources/Employee.jar", //
 					// String outputDir =
 					"--output-to", outputDirectory.getAbsolutePath(),
 					// Define External interfaces

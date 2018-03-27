@@ -40,7 +40,7 @@ public class ByPackageCarverTest {
 			String[] args = new String[] { //
 					"--carve-by", "package=org.employee",
 					// String traceFile =
-					"--trace-file", "./src/test/resources/Employee-trace.txt",
+					"--trace-file", "./src/test/resources/Employee/tracingOut/trace.txt", //
 					// String projectJar =
 					"--project-jar", "./src/test/resources/Employee.jar",
 					// String outputDir =

@@ -56,7 +56,7 @@ public class Carver {
 		// Probably we can also exclude java.lang by default inside Carving,
 		// nota this simply tell the system to NOT carve tests for those method
 		@Option(longName = "exclude-by", defaultToNull = true)
-		String getExcludeBy();
+		List<String> getExcludeBy();
 
 		// List the external interfaces, this can be packages or classes, but
 		// for the moment we JUST use packages
@@ -71,7 +71,7 @@ public class Carver {
 		case "package":
 			return MethodInvocationMatcher.byPackage(regEx);
 		case "class":
-//			return MethodInvocationMatcher.byClass(regEx);
+			// return MethodInvocationMatcher.byClass(regEx);
 			return MethodInvocationMatcher.byClassLiteral(regEx);
 		case "method":
 			// PAY ATTENTION TO THIS
@@ -96,7 +96,7 @@ public class Carver {
 	public static void setupSoot(List<File> projectJars) {
 		G.reset();
 		//
-		
+
 		// System Settings Begin
 		Options.v().set_allow_phantom_refs(true);
 		Options.v().set_whole_program(true);
@@ -155,14 +155,17 @@ public class Carver {
 		List<File> projectJars = new ArrayList<>();
 		File outputDir = null;
 		MethodInvocationMatcher carveBy = null;
-		MethodInvocationMatcher excludeBy = null;
+		List<MethodInvocationMatcher> excludeBy = new ArrayList<>();
+		{
+			excludeBy.add( MethodInvocationMatcher.byPackage("java.lang"));
+		}
 		// TODO Code duplicate with InstrumentTracer
 		List<String> externalInterfaces = new ArrayList<>();
 		{
 			// Default Interfaces are the one for Files, Network, etc. ?
 			// External interfaces are defined by Class
-//			externalInterfaces.add("java.util.Scanner");
-//			externalInterfaces.add("java.nio.file.Path");
+			// externalInterfaces.add("java.util.Scanner");
+			// externalInterfaces.add("java.nio.file.Path");
 		}
 
 		List<String> pureMethods = new ArrayList<>();
@@ -181,10 +184,10 @@ public class Carver {
 			carveBy = getMatcherFor(carveByTokens[0], carveByTokens[1]);
 
 			if (cli.getExcludeBy() != null) {
-				String[] excludeByTokens = cli.getExcludeBy().split("=");
-				excludeBy = getMatcherFor(excludeByTokens[0], excludeByTokens[1]);
-			} else {
-				excludeBy = MethodInvocationMatcher.noMatch();
+				for (String exclude : cli.getExcludeBy()) {
+					String[] excludeByTokens = exclude.split("=");
+					excludeBy.add(getMatcherFor(excludeByTokens[0], excludeByTokens[1]));
+				}
 			}
 
 			externalInterfaces.addAll(
@@ -212,13 +215,13 @@ public class Carver {
 		//
 		{
 			// TODO Additional pure methods... this is TRICKY !
-			// With this we'll kill the data flow from String, and string that are returned from pure methods are discarded...
-//			purityMatchers.add(MethodInvocationMatcher.byClass("java.lang.StringBuilder"));
+			// With this we'll kill the data flow from String, and string that
+			// are returned from pure methods are discarded...
+			// purityMatchers.add(MethodInvocationMatcher.byClass("java.lang.StringBuilder"));
 		}
 
 		setupSoot(projectJars);
-		
-		
+
 		logger.info("Carver.main() Start parsing ");
 		// Parse the trace file into graphs
 		StackImplementation traceParser = new StackImplementation(purityMatchers);
@@ -240,6 +243,7 @@ public class Carver {
 		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTest : parsedTrace.values()) {
 			Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTest.getFirst(), parsedTest.getSecond(),
 					parsedTest.getThird());
+
 			carvedTests.addAll(testCarver.carve(carveBy, excludeBy));
 		}
 
@@ -264,8 +268,8 @@ public class Carver {
 		for (SootClass testClass : testCases) {
 			MockingGenerator.addSystemIn(testClass, parsedTrace);
 			MockingGenerator.addSystemExit(testClass, parsedTrace);
-			
 		}
+		// System.out.println("Carver.main() Mocking Generation is disabled");
 
 		// TODO Add Asssertions here...
 		// MethodInvocation methodInvocationUnderTest =

@@ -12,6 +12,5 @@ public interface MethodCarver {
 	 * @param methodInvocationMatcher
 	 * @return
 	 */
-	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carve(MethodInvocationMatcher carveBy,
-			MethodInvocationMatcher excludeBy);
+	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carve(MethodInvocationMatcher carveBy, List<MethodInvocationMatcher> excludeBy);
 }

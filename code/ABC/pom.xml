@@ -253,11 +253,7 @@
 							</dependency>
 						</dependencies>
 						<configuration>
-							<!-- <includes> <include>**/*.class</include> </includes> -->
-							<excludedGroups>de.unipassau.abc.utils.SystemTest</excludedGroups>
-							<!-- Exclude resources for integration tests. Note that those are 
-								actual java and class files for mutants and tests -->
-							<!-- <excludes> <exclude>itests/**/*.*</exclude> </excludes> -->
+							<excludedGroups>de.unipassau.abc.utils.SystemTest,de.unipassau.abc.utils.ManualTest</excludedGroups>
 						</configuration>
 					</plugin>
 				</plugins>

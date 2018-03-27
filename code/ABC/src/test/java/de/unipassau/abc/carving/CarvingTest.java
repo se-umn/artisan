@@ -38,7 +38,7 @@ public class CarvingTest {
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
 
-	private final MethodInvocationMatcher excludeNoMethodInvocationsMatcher = MethodInvocationMatcher.noMatch();
+	private final List<MethodInvocationMatcher> excludeNoMethodInvocationsMatcher = Collections.singletonList(MethodInvocationMatcher.noMatch());
 	private final List<MethodInvocationMatcher> emptyMethodInvocationMatcherList = new ArrayList<MethodInvocationMatcher>();
 	
 	@Ignore

@@ -38,15 +38,11 @@ public class ByReturnCarverTest {
 		try {
 			Carver carver = new Carver();
 			File outputDirectory = temporaryFolderRule.newFolder();
-			// This fails beacuse we carve java.lang.Integer if we use "int" as
-			// carveBY
 			 String carveBy = "return=int";
-			// This instead matches only isDummy() in the trace
-//			String carveBy = "return=boolean";
 			String[] args = new String[] { //
 					"--carve-by", carveBy,
 					// String traceFile =
-					"--trace-file", "./src/test/resources/Employee-trace.txt",
+					"--trace-file", "./src/test/resources/Employee/tracingOut/trace.txt", //
 					// String projectJar =
 					"--project-jar", "./src/test/resources/Employee.jar",
 					// String outputDir =
@@ -58,7 +54,7 @@ public class ByReturnCarverTest {
 			carver.main(args);
 
 			int count = ABCTestUtils.countFiles(outputDirectory, ".class");
-			assertEquals(3, count);
+			assertEquals(2, count);
 
 			ABCTestUtils.printJavaClasses(outputDirectory);
 		} catch (Exception e) {

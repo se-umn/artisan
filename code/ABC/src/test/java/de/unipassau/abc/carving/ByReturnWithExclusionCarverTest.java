@@ -40,14 +40,14 @@ public class ByReturnWithExclusionCarverTest {
 			Carver carver = new Carver();
 			File outputDirectory = temporaryFolderRule.newFolder();
 			String carveBy = "return=int";
-			String excludeBy = "method=<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)";
+			String excludeBy = "class=org.employee.Validation";
 			String[] args = new String[] { //
 					"--carve-by", carveBy,
 					//
 					"--exclude-by", excludeBy, // Refine the carving by including
 												// not all the methods
 					// String traceFile =
-					"--trace-file", "./src/test/resources/Employee-trace.txt",
+					"--trace-file", "./src/test/resources/Employee/tracingOut/trace.txt", //
 					// String projectJar =
 					"--project-jar", "./src/test/resources/Employee.jar",
 					// String outputDir =
@@ -59,7 +59,7 @@ public class ByReturnWithExclusionCarverTest {
 			carver.main(args);
 
 			int count = ABCTestUtils.countFiles(outputDirectory, ".class");
-			assertEquals(3, count);
+			assertEquals(1, count);
 
 			// TODO Make assertion on Java classes, for example, can they be
 			// compiled ? Can they be executed? Do they produce a green test

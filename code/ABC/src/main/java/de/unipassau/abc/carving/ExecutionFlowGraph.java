@@ -53,6 +53,7 @@ public class ExecutionFlowGraph {
 
 	// TODO Maybe change the name...
 	public void addOwnerToMethodInvocation(MethodInvocation methodInvocation, String objectId) {
+		
 		if (graph.containsVertex(methodInvocation)) {
 			// No need to look for it really, as we replace the node
 
@@ -430,6 +431,14 @@ public class ExecutionFlowGraph {
 			}
 		}
 		return all;
+	}
+
+	public ExecutionFlowGraph getSubGraph(List<MethodInvocation> orderedSlice) {
+		ExecutionFlowGraph subGraph = new ExecutionFlowGraph();
+		for( MethodInvocation methodInvocation : orderedSlice){
+			subGraph.enqueueMethodInvocations( methodInvocation );
+		}
+		return subGraph;
 	}
 
 }

@@ -11,8 +11,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.After;
-import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -27,7 +25,6 @@ import de.unipassau.abc.generation.TestGenerator;
 import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.JimpleUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
-import soot.G;
 import soot.SootClass;
 
 public class CarveWithExpansionsTest {
@@ -42,7 +39,7 @@ public class CarveWithExpansionsTest {
 	private final MethodInvocationMatcher methodToCarveMatcher = MethodInvocationMatcher
 			.fromJimpleMethod(methodToCarveString);
 	// This matcher returns always false
-	private final MethodInvocationMatcher excludeNoMethodInvocationsMatcher = MethodInvocationMatcher.noMatch();
+	private final List<MethodInvocationMatcher> excludeNoMethodInvocationsMatcher = Collections.singletonList(MethodInvocationMatcher.noMatch());
 
 	private final List<MethodInvocationMatcher> emptyMethodInvocationMatcherList = new ArrayList<MethodInvocationMatcher>();
 
@@ -480,9 +477,8 @@ public class CarveWithExpansionsTest {
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
 				excludeNoMethodInvocationsMatcher);
 
-		// DEBUG MOSTLY
-		// visualize(carvedTests);
-
+//		ABCTestUtils.visualize(carvedTests);
+		
 		assertEquals(4, carvedTests.size());
 
 		String testSubjectJar = "./libs/testsubject-tests.jar";

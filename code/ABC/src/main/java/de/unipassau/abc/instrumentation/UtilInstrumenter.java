@@ -64,7 +64,6 @@ public class UtilInstrumenter {
 					// Probably we need to extract it to a local
 					rightSide = generateCorrectObjectFromArrayRef(body, (ArrayRef) parameterList.get(i), generated);
 				} else {
-
 					rightSide = generateCorrectObject(body, parameterList.get(i), generated);
 				}
 				// System.out.println("UtilInstrumenter.generateParameterArray()
@@ -82,6 +81,61 @@ public class UtilInstrumenter {
 					+ arrayType + "\n" + "parameterList " + parameterList + "\n" + "");
 			throw e;
 		}
+	}
+
+	// This is only for mocking input !
+	public static Pair<Value, List<Unit>> generateStringArray(List<Value> parameterList, Body body) {
+		try {
+			List<Unit> generated = new ArrayList<Unit>();
+
+			// Create an array to host the values
+			NewArrayExpr stringArrayExpr = Jimple.v().newNewArrayExpr(RefType.v("java.lang.String"),
+					IntConstant.v(parameterList.size()));
+
+			Value newArrayLocal = generateFreshLocal(body, getParameterArrayType());
+			Unit newAssignStmt = Jimple.v().newAssignStmt(newArrayLocal, stringArrayExpr);
+			generated.add(newAssignStmt);
+
+			// For the elements that are not string, we call toString or String
+			// value
+			for (int i = 0; i < parameterList.size(); i++) {
+				Value index = IntConstant.v(i);
+
+				ArrayRef leftSide = Jimple.v().newArrayRef(newArrayLocal, index);
+				Value rightSide = null;
+				if (parameterList.get(i) instanceof ArrayRef) {
+					System.out.println("UtilInstrumenter.generateParameterArray() Right side is also an array element "
+							+ parameterList.get(i));
+					// Probably we need to extract it to a local
+					rightSide = generateStringObjectFromArrayRef(body, (ArrayRef) parameterList.get(i), generated);
+				} else {
+					rightSide = generateCorrectStringObject(body, parameterList.get(i), generated);
+				}
+				// System.out.println("UtilInstrumenter.generateParameterArray()
+				// left " + leftSide);
+				// System.out.println("UtilInstrumenter.generateParameterArray()
+				// right " + rightSide);
+
+				Unit parameterInArray = Jimple.v().newAssignStmt(leftSide, rightSide);
+				generated.add(parameterInArray);
+			}
+
+			return new Pair<Value, List<Unit>>(newArrayLocal, generated);
+		} catch (Throwable e) {
+			throw e;
+		}
+	}
+
+	public static Value generateStringObjectFromArrayRef(Body body, ArrayRef arrayRef, List<Unit> generated) {
+		// Write some code to extract the element of the array into a variable
+		// and then pass it along to the
+		// generateCorrectObject
+
+		Local arrayElement = generateFreshLocal(body, arrayRef.getType());
+		Unit arrayElementAssignStmt = Jimple.v().newAssignStmt(arrayElement, arrayRef);
+		generated.add(arrayElementAssignStmt);
+		// Chain the call
+		return generateCorrectStringObject(body, arrayElement, generated);
 	}
 
 	public static Value generateCorrectObjectFromArrayRef(Body body, ArrayRef arrayRef, List<Unit> generated) {
@@ -205,6 +259,71 @@ public class UtilInstrumenter {
 			// just return the value, there is nothing to box
 			return value;
 		}
+	}
+
+	public static Value generateCorrectStringObject(Body body, Value value, List<Unit> generated) {
+		if (value.getType() instanceof PrimType) {
+			Local stringLocal = generateFreshLocal(body, RefType.v("java.lang.String"));
+			StaticInvokeExpr staticInvokeExpr = null;
+			if (value.getType() instanceof BooleanType) {
+
+				SootClass sootClass = Scene.v().getSootClass("java.lang.Boolean");
+				SootMethod valueOfMethod = sootClass.getMethod("java.lang.String toString(boolean)");
+				staticInvokeExpr = Jimple.v().newStaticInvokeExpr(valueOfMethod.makeRef(), value);
+
+			} else if (value.getType() instanceof ByteType) {
+
+				SootClass sootClass = Scene.v().getSootClass("java.lang.Byte");
+				SootMethod valueOfMethod = sootClass.getMethod("java.lang.String toString(byte)");
+				staticInvokeExpr = Jimple.v().newStaticInvokeExpr(valueOfMethod.makeRef(), value);
+
+			} else if (value.getType() instanceof CharType) {
+
+				SootClass sootClass = Scene.v().getSootClass("java.lang.Character");
+				SootMethod valueOfMethod = sootClass.getMethod("java.lang.String toString(char)");
+				staticInvokeExpr = Jimple.v().newStaticInvokeExpr(valueOfMethod.makeRef(), value);
+
+			} else if (value.getType() instanceof DoubleType) {
+
+				SootClass sootClass = Scene.v().getSootClass("java.lang.Double");
+				SootMethod valueOfMethod = sootClass.getMethod("java.lang.String toString(double)");
+				staticInvokeExpr = Jimple.v().newStaticInvokeExpr(valueOfMethod.makeRef(), value);
+
+			} else if (value.getType() instanceof FloatType) {
+
+				SootClass sootClass = Scene.v().getSootClass("java.lang.Float");
+				SootMethod valueOfMethod = sootClass.getMethod("java.lang.String toString(float)");
+				staticInvokeExpr = Jimple.v().newStaticInvokeExpr(valueOfMethod.makeRef(), value);
+
+			} else if (value.getType() instanceof IntType) {
+
+				SootClass sootClass = Scene.v().getSootClass("java.lang.Integer");
+				SootMethod valueOfMethod = sootClass.getMethod("java.lang.String toString(int)");
+				staticInvokeExpr = Jimple.v().newStaticInvokeExpr(valueOfMethod.makeRef(), value);
+
+			} else if (value.getType() instanceof LongType) {
+
+				SootClass sootClass = Scene.v().getSootClass("java.lang.Long");
+				SootMethod valueOfMethod = sootClass.getMethod("java.lang.String toString(long)");
+				staticInvokeExpr = Jimple.v().newStaticInvokeExpr(valueOfMethod.makeRef(), value);
+			} else if (value.getType() instanceof ShortType) {
+
+				SootClass sootClass = Scene.v().getSootClass("java.lang.Short");
+				SootMethod valueOfMethod = sootClass.getMethod("java.lang.String toString(short)");
+				staticInvokeExpr = Jimple.v().newStaticInvokeExpr(valueOfMethod.makeRef(), value);
+			} else {
+				throw new RuntimeException("Ooops, something went all wonky!");
+			}
+
+			Unit newAssignStmt = Jimple.v().newAssignStmt(stringLocal, staticInvokeExpr);
+			generated.add(newAssignStmt);
+			return stringLocal;
+		} else {
+			// Here it should be just String
+			// just return the value, there is nothing to box
+			return value;
+		}
+
 	}
 
 	public static Local generateFreshLocal(Body body, Type type) {

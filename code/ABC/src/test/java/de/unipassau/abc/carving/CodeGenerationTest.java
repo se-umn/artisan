@@ -34,7 +34,7 @@ public class CodeGenerationTest {
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
-	private final MethodInvocationMatcher excludeNoMethodInvocationsMatcher = MethodInvocationMatcher.noMatch();
+	private final List<MethodInvocationMatcher> excludeNoMethodInvocationsMatcher = Collections.singletonList(MethodInvocationMatcher.noMatch());
 
 	private final List<MethodInvocationMatcher> emptyMethodInvocationMatcherList = new ArrayList<MethodInvocationMatcher>();
 

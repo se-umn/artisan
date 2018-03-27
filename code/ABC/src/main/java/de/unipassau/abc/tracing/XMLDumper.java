@@ -4,9 +4,13 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Collection;
 import java.util.UUID;
 
 import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.security.NoTypePermission;
+import com.thoughtworks.xstream.security.NullPermission;
+import com.thoughtworks.xstream.security.PrimitiveTypePermission;
 
 /**
  * Methods to dump values and objects to files.
@@ -63,6 +67,16 @@ public class XMLDumper {
 
 	public static Object loadObject(String xmlFile) throws IOException {
 		XStream xstream = new XStream();
+		
+		// clear out existing permissions and set own ones
+		xstream.addPermission(NoTypePermission.NONE);
+		// allow some basics
+		xstream.addPermission(NullPermission.NULL);
+		xstream.addPermission(PrimitiveTypePermission.PRIMITIVES);
+		xstream.allowTypesByWildcard(new String[] {
+			    "java.lang.**"
+			});
+		//
 		return xstream.fromXML(new File(xmlFile));
 	}
 

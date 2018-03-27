@@ -1,6 +1,5 @@
 package de.unipassau.abc.carving;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import java.io.File;
@@ -12,9 +11,11 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
+import com.google.common.io.Files;
+
 import de.unipassau.abc.utils.ABCTestUtils;
+import de.unipassau.abc.utils.ManualTest;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
-import de.unipassau.abc.utils.SystemTest;
 
 /**
  * System test for carving. Each system test must be declarade in its own file
@@ -24,7 +25,7 @@ import de.unipassau.abc.utils.SystemTest;
  * @author gambi
  *
  */
-public class ByClassCarverTest {
+public class TestCarverForHotelReservationSystem {
 
 	@Rule
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
@@ -33,43 +34,45 @@ public class ByClassCarverTest {
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
 	@Test
-	@Category(SystemTest.class)
+	@Category(ManualTest.class)
 	public void testCarve() throws IOException, InterruptedException {
 		try {
 			Carver carver = new Carver();
-			File outputDirectory = temporaryFolderRule.newFolder();
-			// String className = "org.employee.Validation";
-			// String className = "org.employee.DummyObjectToPassAsParameter";
+			// File outputDirectory = temporaryFolderRule.newFolder();
+			
+			File outputDirectory = Files.createTempDir();
 
-			// This is pretty useless: org.employee.SoftwareTrainee is used only
-			// to keep constant values, its a subclass or EmployeeMetaData only
-			// to keep storing functions ? No idea!
-			// String className = "org.employee.SoftwareTrainee";
-
-			String className = "org.employee.EmployeeMetaData";
-			className = "org.employee.DummyObjectToPassAsParameter";
-			String carveBy = "class=org.employee.DummyObjectToPassAsParameter";
-			// carveBy = "package="+"org.employee";
-//			String carveBy = "invocation=<org.employee.FileRead2: int fileIsRead(java.lang.String,java.lang.String)>_156";
-//			String carveBy = "class=org.employee.FileRead2";
-
+			String traceFile = "/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut/trace.txt";
+			
+			//String carveBy = "package=org.hotelme";
+			String carveBy = "class=org.hotelme.User";
+//			String carveBy = "method=<org.hotelme.HotelController: void <init>(org.hotelme.HotelModel,org.hotelme.HotelView)>";
+//			String carveBy = "invocation=<org.hotelme.User: java.lang.String getFname()>_137";
+//			String carveBy = "package=org.hotelme";
+			
 			String[] args = new String[] { //
 					"--carve-by", carveBy,
 					// String traceFile =
-					"--trace-file", "./src/test/resources/Employee/tracingOut/trace.txt", //
+					"--trace-file", traceFile,
 					// String projectJar =
-					"--project-jar", "./src/test/resources/Employee.jar",
+					"--project-jar", "./src/test/resources/HotelReservationSystem.jar",
 					// String outputDir =
 					"--output-to", outputDirectory.getAbsolutePath(), //
+					//
+					"--exclude-by", "package=org.hotelme.systemtests", //
 					"--external", //
+					
 					"java.io.File", "java.nio.file.Path", "java.nio.file.Files", "org.junit.rules.TemporaryFolder",
-					"java.util.Scanner" };
+					// "java.util.Scanner", 
+					//"org.junit.contrib.java.lang.system.ExpectedSystemExit", //
+					// TODO Check if here this is enough or i should provide class by class...
+					"java.sql" };
 			//
 			carver.main(args);
 			//
 			int count = ABCTestUtils.countFiles(outputDirectory, ".class");
-
-			// assertEquals(1, count);
+			
+//			assertEquals(1, count);
 
 			ABCTestUtils.printJavaClasses(outputDirectory);
 		} catch (Exception e) {

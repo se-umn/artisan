@@ -5,17 +5,19 @@ import org.slf4j.LoggerFactory;
 
 import soot.tagkit.Tag;
 
+/// FIXME Rebuild hashCode and Equals
 public class MethodInvocation implements GraphNode, Comparable<MethodInvocation> {
 
-	private final static Logger logger = LoggerFactory.getLogger( MethodInvocation.class);
-	
-	
+	private final static Logger logger = LoggerFactory.getLogger(MethodInvocation.class);
+
 	private String invocationType;
 	private String jimpleMethod;
 	//
-	private String xmlFileForOwner; // This stores the owner value status AFTER calling this method
-	private String xmlFileForReturn; // This stores the return value status AFTER calling this method
-	
+	private String xmlFileForOwner; // This stores the owner value status AFTER
+									// calling this method
+	private String xmlFileForReturn; // This stores the return value status
+										// AFTER calling this method
+
 	// Null if static
 	private ObjectInstance owner;
 
@@ -99,7 +101,6 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	}
 
 	public void setBelongsToExternalInterface(boolean b) {
-		System.out.println("MethodInvocation.setBelongsToExternalInterface() for " + toString());
 		this.belongToExternalInterface = b;
 	}
 
@@ -107,7 +108,6 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		return belongToExternalInterface;
 	}
 
-	
 	public void setXmlDumpForOwner(String xmlFile) {
 		logger.trace("MethodInvocation.setXmlDumpForOwner() " + xmlFile + " for " + this);
 		this.xmlFileForOwner = xmlFile;
@@ -116,7 +116,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	public String getXmlDumpForOwner() {
 		return xmlFileForOwner;
 	}
-	
+
 	public void setXmlDumpForReturn(String xmlFile) {
 		logger.trace("MethodInvocation.setXmlDumpForReturn() " + xmlFile + " for " + this);
 		this.xmlFileForReturn = xmlFile;
@@ -127,15 +127,15 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	}
 
 	public static MethodInvocation fromTag(Tag tag) {
-		String[] tokens = tag.getName().replaceAll("carving:","").split("_");
-		return new MethodInvocation( tokens[0], Integer.parseInt(tokens[1]));
+		String[] tokens = tag.getName().replaceAll("carving:", "").split("_");
+		return new MethodInvocation(tokens[0], Integer.parseInt(tokens[1]));
 	}
 
 	public void setPrivate(boolean isPrivate) {
-//		System.out.println( toString() + " isPrivate ? " + isPrivate );
+		// System.out.println( toString() + " isPrivate ? " + isPrivate );
 		this.isPrivate = isPrivate;
 	}
-	
+
 	public boolean isPrivate() {
 		return isPrivate;
 	}

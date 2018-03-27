@@ -47,7 +47,7 @@ public class ByInstanceCarverTest {
 			String[] args = new String[] { //
 					"--carve-by", carveBy,
 					// String traceFile =
-					"--trace-file", "./src/test/resources/Employee-trace.txt",
+					"--trace-file", "./src/test/resources/Employee/tracingOut/trace.txt", //
 					// String projectJar =
 					"--project-jar", "./src/test/resources/Employee.jar",
 					// String outputDir =

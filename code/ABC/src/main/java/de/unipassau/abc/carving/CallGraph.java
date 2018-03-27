@@ -74,7 +74,8 @@ public class CallGraph {
 
 	public void visualize() {
 		VisualizationViewer<MethodInvocation, String> vv = new VisualizationViewer<MethodInvocation, String>(
-//				new TreeLayout<>((Forest<MethodInvocation, String> )graph)); // Does not work..
+				// new TreeLayout<>((Forest<MethodInvocation, String> )graph));
+				// // Does not work..
 				new KKLayout<MethodInvocation, String>(graph));
 
 		vv.setPreferredSize(new Dimension(1000, 800));
