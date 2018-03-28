@@ -49,7 +49,7 @@ JACOCO_CLI="../libs/jacococli.jar"
 
 #### Collect coverage information BEFORE running the instrumented code
 java \
-    -javaagent:${JACOCO_AGENT}=destfile=${JACOCO_EXEC} \
+-javaagent:${JACOCO_AGENT}=destfile=${JACOCO_EXEC},excludes=org.hotelme.Main \
         -cp ${PROJECT_CP}:${TEST_CP}:${JUNIT_CP}:${SUPPORTING_JARS} \
         ${JAVA_OPTS} \
             org.junit.runner.JUnitCore \
