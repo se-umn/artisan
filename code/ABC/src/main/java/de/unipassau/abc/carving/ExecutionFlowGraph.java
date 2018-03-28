@@ -28,6 +28,7 @@ import edu.uci.ics.jung.graph.SparseMultigraph;
 import edu.uci.ics.jung.graph.util.EdgeType;
 import edu.uci.ics.jung.visualization.VisualizationViewer;
 import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
+import soot.coffi.method_info;
 
 /**
  * Using strings inside the edge makes this really memory intensive (string

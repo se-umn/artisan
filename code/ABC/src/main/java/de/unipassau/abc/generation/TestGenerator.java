@@ -364,7 +364,7 @@ public class TestGenerator {
 		SootMethod method = null;
 		switch (methodInvocation.getInvocationType()) {
 		case "SpecialInvokeExpr":
-			method = Scene.v().getMethod(methodInvocation.getJimpleMethod());
+			method = getSootMethod(methodInvocation.getJimpleMethod());
 			// This is a constructor so I need to call new and then <init>
 			// with
 			// the right parameteres
@@ -436,39 +436,61 @@ public class TestGenerator {
 				}
 			}
 			break;
-		 case "ArrayOperation":
-			 
-			// Here we need to handle the fact that ArrayOperations are an artefact
-				// of ABC
-				if (MethodInvocationMatcher.byMethod("<.*\\[\\]: void <init>(int)>").matches(methodInvocation)) {
-					// Create an array to host the values
-					System.out.println("TestGenerator.addUnitFor() INIT ARRAY " + objLocal );
-					String arrayType = JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod()).replace("[]", "");
-					NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(RefType.v(arrayType), parametersValues.get(0));
-					Stmt arrayAssignment = Jimple.v().newAssignStmt(objLocal, arrayExpr);
-					units.add( arrayAssignment );
-					System.out.println("TestGenerator.addUnitFor() " + arrayAssignment );
-				} else if (MethodInvocationMatcher.byMethod("<.*\\[\\]: void store(int,.*)>").matches(methodInvocation)) {
-					// Assign in position the value
-					System.out.println("TestGenerator.addUnitFor() STORE ARRAY " + objLocal + " " + parametersValues.get(0) + " " + parametersValues.get(1));
-					ArrayRef arrayRef1 = Jimple.v().newArrayRef(objLocal, parametersValues.get(0));
-					AssignStmt assignStmt1 = Jimple.v().newAssignStmt(arrayRef1, parametersValues.get(1));
-					units.add(assignStmt1);
-					System.out.println("TestGenerator.addUnitFor() " + assignStmt1);
-				} else if (MethodInvocationMatcher.byMethod("<.*\\[\\]: .* get(int)>").matches(methodInvocation)) {
-					// TODO Access the value at position ?
-//					System.out.println("TestGenerator.addUnitFor() GET ARRAY ELEMENT " + objLocal + " " + parametersValues.get(0) + " Disabled");
-					ArrayRef arrayRef1 = Jimple.v().newArrayRef(objLocal, parametersValues.get(0));
-					AssignStmt assignStmt1 = Jimple.v().newAssignStmt(returnObjLocal, arrayRef1);
-					units.add(assignStmt1);
-					System.out.println("TestGenerator.addUnitFor() " + assignStmt1);
-				} else {
-					System.out.println("ERROR WRONG " + methodInvocation );
-				}
-		 break;
+		case "ArrayOperation":
+
+			// Here we need to handle the fact that ArrayOperations are an
+			// artefact
+			// of ABC
+			if (MethodInvocationMatcher.byMethod("<.*\\[\\]: void <init>(int)>").matches(methodInvocation)) {
+				// Create an array to host the values
+				System.out.println("TestGenerator.addUnitFor() INIT ARRAY " + objLocal);
+				String arrayType = JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod()).replace("[]",
+						"");
+				NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(RefType.v(arrayType), parametersValues.get(0));
+				Stmt arrayAssignment = Jimple.v().newAssignStmt(objLocal, arrayExpr);
+				units.add(arrayAssignment);
+				System.out.println("TestGenerator.addUnitFor() " + arrayAssignment);
+			} else if (MethodInvocationMatcher.byMethod("<.*\\[\\]: void store(int,.*)>").matches(methodInvocation)) {
+				// Assign in position the value
+				System.out.println("TestGenerator.addUnitFor() STORE ARRAY " + objLocal + " " + parametersValues.get(0)
+						+ " " + parametersValues.get(1));
+				ArrayRef arrayRef1 = Jimple.v().newArrayRef(objLocal, parametersValues.get(0));
+				AssignStmt assignStmt1 = Jimple.v().newAssignStmt(arrayRef1, parametersValues.get(1));
+				units.add(assignStmt1);
+				System.out.println("TestGenerator.addUnitFor() " + assignStmt1);
+			} else if (MethodInvocationMatcher.byMethod("<.*\\[\\]: .* get(int)>").matches(methodInvocation)) {
+				// TODO Access the value at position ?
+				// System.out.println("TestGenerator.addUnitFor() GET ARRAY
+				// ELEMENT " + objLocal + " " + parametersValues.get(0) + "
+				// Disabled");
+				ArrayRef arrayRef1 = Jimple.v().newArrayRef(objLocal, parametersValues.get(0));
+				AssignStmt assignStmt1 = Jimple.v().newAssignStmt(returnObjLocal, arrayRef1);
+				units.add(assignStmt1);
+				System.out.println("TestGenerator.addUnitFor() " + assignStmt1);
+			} else {
+				System.out.println("ERROR WRONG " + methodInvocation);
+			}
+			break;
 		default:
 			logger.error("Unexpected Invocation type " + methodInvocation.getInvocationType());
 			throw new NotImplementedException("Unexpected Invocation type " + methodInvocation.getInvocationType());
+		}
+	}
+
+	// Trap the exception and log useful messages
+	private SootMethod getSootMethod(String jimpleMethod) {
+		try {
+			return Scene.v().getMethod(jimpleMethod);
+		} catch (Throwable e) {
+			logger.error("Cannot find method " + jimpleMethod, e);
+
+			
+			for( SootClass sClass : Scene.v().getApplicationClasses()){
+				System.out.println( sClass );
+			}
+			
+			
+			throw e;
 		}
 	}
 

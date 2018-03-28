@@ -200,6 +200,12 @@ public class Level_0_MethodCarver implements MethodCarver {
 				Map<MethodInvocation, Set<ObjectInstance>> dataDependencies = new HashMap<>();
 				Set<MethodInvocation> methodDependencies = new HashSet<>();
 
+				// Copmpute the latest possible action from second.. note that
+				// this goes always to the past so we reduce the size of the
+				// trace
+				
+				MethodInvocation lastestMethodInvocation = Collections.max(task.getSecond());
+
 				for (MethodInvocation methodInvocation : task.getSecond()) {
 
 					/*
@@ -237,7 +243,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 					// external interfaces BEFORE methodInvocationToCarve
 					backwardSlice.addAll(
 							executionFlowGraph.getOrderedMethodInvocationsToExternalInterfaceBefore(methodInvocation));
-					
+
 					// Accumulate the backwardSlice in the worklist
 					methodDependencies.addAll(backwardSlice);
 
@@ -296,8 +302,11 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 				Map<ObjectInstance, Set<MethodInvocation>> methodsWhichReturnTheObjects = new HashMap<>();
 
-				// TODO Not sure about this...
-				DataDependencyGraph dataDependencyGraphBefore = dataDependencyGraph;
+				List<MethodInvocation> executioneBeforeLast = executionFlowGraph
+						.getOrderedMethodInvocationsBefore(lastestMethodInvocation);
+				DataDependencyGraph dataDependencyGraphBefore  = dataDependencyGraph.getSubGraph(executioneBeforeLast);
+				
+				
 
 				for (Entry<MethodInvocation, Set<ObjectInstance>> entry : dataDependencies.entrySet()) {
 					for (ObjectInstance data : entry.getValue()) {
@@ -318,7 +327,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 						for (MethodInvocation returning : dataDependencyGraphBefore
 								.getMethodInvocationsWhichReturn(data)) {
-							if (returning.compareTo(entry.getKey()) <= 0) {
+							if (returning.getInvocationCount() <= entry.getKey().getInvocationCount()) {
 								methodsWhichReturnTheObject.add(returning);
 							} else {
 								System.out.println(">>>> " + returning + " discarded as violates BEFORE USE");
@@ -337,7 +346,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 							// Those cannot be later than the user of the data !
 							methodsWhichReturnTheObjects.put(data, methodsWhichReturnTheObject);
 							System.out.println("Level_0_MethodCarver.level0TestCarving() methodsWhichReturn " + data
-									+ " are " + methodsWhichReturnTheObject);
+									+ " before " + entry.getKey() + " are " + methodsWhichReturnTheObject);
 						}
 					}
 				}

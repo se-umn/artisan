@@ -94,6 +94,10 @@ public class Carver {
 	 * This is global anyway. Public for testing
 	 */
 	public static void setupSoot(List<File> projectJars) {
+//		System.out.println("Carver.setupSoot() Project Jars: ");
+//		for( File f : projectJars ){
+//			System.out.println("- " + f );
+//		}
 		G.reset();
 		//
 
@@ -131,12 +135,6 @@ public class Carver {
 		//
 		necessaryJar.addAll(xStreamJars);
 
-		/// TODO Maybe we need to filter out things ?
-		// TODO Maybe we need to include XStream and XMLPull
-
-		// This might be needed for the EVALUATION and Level+1 Carved tests
-		// necessaryJar.add("./src/main/resources/Assertion.jar");
-
 		/*
 		 * To process a JAR file, just use the same option but provide a path to
 		 * a JAR instead of a directory.
@@ -146,6 +144,7 @@ public class Carver {
 		System.setProperty("os.name", "Whatever");
 		Scene.v().loadNecessaryClasses();
 		System.setProperty("os.name", "Mac OS X");
+		
 	}
 
 	public static void main(String[] args) throws IOException, InterruptedException {
@@ -240,6 +239,7 @@ public class Carver {
 		// TODO Propagate here the tracing link to system test if necessary
 		// For each system test we carve out unit tests and accumulate
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
+		//
 		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTest : parsedTrace.values()) {
 			Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTest.getFirst(), parsedTest.getSecond(),
 					parsedTest.getThird());
@@ -249,6 +249,15 @@ public class Carver {
 
 		System.out.println("Carver.main() End carving");
 		System.out.println(">> Carved tests : " + carvedTests.size());
+		// for( Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest :
+		// carvedTests ){
+		// System.out.println(" Test : ");
+		// for( MethodInvocation mi :
+		// carvedTest.getFirst().getOrderedMethodInvocations()){
+		// System.out.println("\t " + mi);
+		// }
+		// }
+		
 
 		// Verify
 		// VERIFY THAT NO CARVED TEST IS EMPTY !
