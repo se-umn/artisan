@@ -17,9 +17,7 @@ PROJECT_CP="${PROJECT_JAR}:${TEST_CP}:/Users/gambi/.m2/repository/joda-time/joda
 
 DEFAULT_CARVE_BY="package=org.hotelme"
 
-# Note that org.junit.rules.TemporaryFolde is broken at the moment
-DEFAULT_EXTERNAL_INTERFACES="java.io.File java.nio.Path java.nio.file.Files java.sql"
-#java.util.Scanner
+DEFAULT_EXTERNAL_INTERFACES="java.io.File java.nio.Path java.nio.file.Files java.sql java.util.Scanner"
 
 # Inputs
 TRACE_FILE=${1-"./tracingOut/trace.txt"}
@@ -35,7 +33,7 @@ set -x
 ${BIN_FOLDER}/carve \
             --carve-by ${CARVE_BY} \
                 --trace-file ${TRACE_FILE} \
-                --project-jar ${PROJECT_JAR} \
+                --project-jar ${PROJECT_CP} \
                 --external ${EXTERNAL_INTERFACES} \
                 --output-to ${OUTPUT_DIR} \
                 2>&1 | tee ${LOG}

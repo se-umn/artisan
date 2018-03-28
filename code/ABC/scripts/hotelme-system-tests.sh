@@ -42,6 +42,10 @@ SUPPORTING_JARS="../libs/trace.jar:../src/test/resources/xmlpull-1.1.3.1.jar:../
 # Here's the list of system tests to execute
 SYSTEM_TESTS="${SYSTEM_TESTS} org.hotelme.systemtests.TestHotelExit"
 SYSTEM_TESTS="${SYSTEM_TESTS} org.hotelme.systemtests.TestHotelSignUp"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.hotelme.systemtests.TestHotelSignUpWithTruncateTable"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.hotelme.systemtests.TestHotelReserveRoom"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.hotelme.systemtests.TestHotelAlreadyRegistered"
+
 
 # Code coverage libraries
 JACOCO_AGENT="../libs/jacocoagent.jar"
@@ -72,4 +76,4 @@ java \
 		${JAVA_OPTS} \
 		org.junit.runner.JUnitCore \
 			${SYSTEM_TESTS} \
-                2>&1 | tee ${INST_SYSTEM_TESTS_LOG}
+               2>&1 | tee ${INST_SYSTEM_TESTS_LOG}
