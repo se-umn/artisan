@@ -92,7 +92,9 @@ public class StackImplementation implements TraceParser {
 		// Check with soot ?
 		try {
 
-			if (!typeOfInvocation.equals("ArrayOperation") && !typeOfInvocation.equals("StringOperation")) {
+			if (!typeOfInvocation.equals("ArrayOperation") && !typeOfInvocation.equals("StringOperation")
+					&& !typeOfInvocation.equals("StaticFieldOperation")
+					&& !!typeOfInvocation.equals("FieldOperation")) {
 				// This might be required to get to the method in the first
 				// place
 				// System.out.println(
@@ -103,8 +105,7 @@ public class StackImplementation implements TraceParser {
 			}
 
 		} catch (Throwable e) {
-			
-			
+
 			// This fails for java classes
 			logger.info("StackImplementation.parseMethodStart() Swallow:  " + e);
 			// e.printStackTrace();
@@ -126,9 +127,7 @@ public class StackImplementation implements TraceParser {
 			pureMethod = methodInvocation;
 			logger.trace("StackImplementation.parseMethodEnd() Switch PURITY ON");
 		}
-		
-		
-		
+
 		logger.trace("InvocationType for " + jimpleMethod + " is " + typeOfInvocation);
 
 		String returnType = jimpleMethod.replace('<', ' ').replace('>', ' ').trim().split(" ")[1];

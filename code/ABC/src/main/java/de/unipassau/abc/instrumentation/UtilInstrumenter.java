@@ -341,13 +341,16 @@ public class UtilInstrumenter {
 	public static Pair<Value, List<Unit>> generateReturnValue(Value returnValue, Body body) {
 
 		List<Unit> generated = new ArrayList<Unit>();
-
-		Value newBoxedObjectLocal = generateFreshLocal(body, RefType.v("java.lang.Object"));
 		Value rightSide = generateCorrectObject(body, returnValue, generated);
-		Unit returnAssignStmt = Jimple.v().newAssignStmt(newBoxedObjectLocal, rightSide);
-		generated.add(returnAssignStmt);
-
-		return new Pair<Value, List<Unit>>(newBoxedObjectLocal, generated);
+		
+		if( ! rightSide.equals( returnValue ) ){
+			// No need for adding boxing and such
+			Value newBoxedObjectLocal = generateFreshLocal(body, RefType.v("java.lang.Object"));
+			Unit returnAssignStmt = Jimple.v().newAssignStmt(newBoxedObjectLocal, rightSide);
+			generated.add(returnAssignStmt);
+			return new Pair<Value, List<Unit>>(newBoxedObjectLocal, generated);
+		}
+		return new Pair<Value, List<Unit>>(returnValue, generated);
 	}
 
 	public static Value generateExpectedValueFor(Body body, Chain<Unit> units, String xmlFile) {

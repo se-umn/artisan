@@ -75,6 +75,8 @@ public class ABCInstrumenter {
 			// Method Name
 			methodStopParameters.add(StringConstant.v(methodSignature));
 
+			// Why we need this ?
+
 			// This box return value or null or void constants
 			Pair<Value, List<Unit>> tmpReturnValueAndInstructions = null;
 			if (JimpleUtils.isVoid(JimpleUtils.getReturnType(methodSignature))) {

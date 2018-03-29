@@ -186,10 +186,6 @@ public class InstrumentTracer {
 		logger.info("Including: " + sootInclude);
 		Options.v().set_include(sootInclude);
 
-		// String stringPhaseName = "jtp.preprocessString";
-		// String splitPhaseName = "jtp.preprocessSplit";
-		// String mainPhaseName = "jtp.mainInstrumentation";
-
 		// Unboxes and prepare string constants
 		// PackManager.v().getPack("jtp").add(new Transform(stringPhaseName, new
 		// StringConstantBoxingBodyTransformer()));
@@ -209,8 +205,8 @@ public class InstrumentTracer {
 		// Tracing instrumentation
 		PackManager.v().getPack("jtp")
 				.add(new Transform("jtp.instrument.artificial.invocations", new ABCInstrumentArtificialInvocations()));
-		PackManager.v().getPack("jtp")
-				.add(new Transform("jtp.instrument.regular.invocations", new ABCBodyTranformer()));
+//		PackManager.v().getPack("jtp")
+//				.add(new Transform("jtp.instrument.regular.invocations", new ABCBodyTranformer()));
 
 		// Supporting jars are Xstream and trace
 		// TODO HardCoded !

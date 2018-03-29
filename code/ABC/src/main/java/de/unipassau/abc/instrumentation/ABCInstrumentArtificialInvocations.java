@@ -104,10 +104,13 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 								//
 								stmt.getLeftOp(), //
 								right.getSize());
-					} else if (stmt.getRightOp() instanceof StaticFieldRef) {
+					} else if (stmt.getLeftOp() instanceof Local && //
+					stmt.getRightOp() instanceof StaticFieldRef) {
 						instrumentAccessToStaticFieldExpression(body, currentUnit,
 								//
-								(StaticFieldRef) stmt.getRightOp());
+								(Local) stmt.getLeftOp(), (StaticFieldRef) stmt.getRightOp());
+					} else if (stmt.getRightOp() instanceof StaticFieldRef) {
+						System.out.println("Operation not supported " + stmt);
 					}
 				}
 
@@ -116,22 +119,26 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 	}
 
 	// TODO How DO I KNOW THIS IS SYSTEM.OUT, SYSTEM.ERR, or SYSTEM.IN ?! ?
-	private void instrumentAccessToStaticFieldExpression(Body body, Unit currentUnit, StaticFieldRef staticField) {
+	private void instrumentAccessToStaticFieldExpression(Body body, Unit currentUnit, Local staticFieldLocal,
+			StaticFieldRef staticField) {
 		String invokeType = "StaticFieldOperation";
 		// "Static"
-		String fakeMethodSignature = "<abc.StaticField: void get(java.lang.String)>";
-
+		String fakeMethodSignature = "<abc.StaticField: " + staticField.getType() + " get(java.lang.String)>";
+		//
 		List<Value> parameterList = new ArrayList<>();
 		parameterList.add(StringConstant
 				.v(staticField.getField().getDeclaringClass().getName() + "." + staticField.getField().getName()));
-
+		//
 		List<Unit> generatedBefore = new ArrayList<>();
 		List<Unit> generatedAfter = new ArrayList<>();
-
+		//
 		generatedBefore.addAll(addTraceStart(invokeType, fakeMethodSignature, parameterList, body));
-		generatedAfter.addAll(addTraceStop(fakeMethodSignature, staticField, body));
-
-		// TAG OUR CODE ?
+		/*
+		 * This avoid duplicating the access to the static field
+		 */
+		generatedAfter.addAll(addTraceStop(fakeMethodSignature, staticFieldLocal, body));
+		//
+		// // TAG OUR CODE ?
 		PatchingChain<Unit> units = body.getUnits();
 		units.insertBefore(generatedBefore, currentUnit);
 		units.insertAfter(generatedAfter, currentUnit);
