@@ -13,12 +13,6 @@ public class ObjectInstance implements DataNode {
 	public String getObjectId() {
 		return objectId;
 	}
-	
-	// This is somehow wrong...
-	public static ObjectInstance SystemIn() {
-		// Those are static instances... not sure how to handle them !
-		return new ObjectInstance("java.lang.System.in@0");
-	}
 
 	@Override
 	public int hashCode() {
@@ -52,6 +46,29 @@ public class ObjectInstance implements DataNode {
 	@Override
 	public String toString() {
 		return objectId;
+	}
+
+	// Special Instances are handled via subclasses
+	public final static ObjectInstance systemIn = new StaticObjectInstance("java.lang.System.in@0",
+			System.in.getClass().getName());
+	public final static ObjectInstance systemOut = new StaticObjectInstance("java.lang.System.out@0",
+			System.out.getClass().getName());
+	public final static ObjectInstance systemErr = new StaticObjectInstance("java.lang.System.err@0",
+			System.err.getClass().getName());
+
+	static class StaticObjectInstance extends ObjectInstance {
+
+		private String type;
+
+		public StaticObjectInstance(String objectId, String type) {
+			super(objectId);
+			this.type = type;
+		}
+
+		public String getType() {
+			return this.type;
+		}
+
 	}
 
 }

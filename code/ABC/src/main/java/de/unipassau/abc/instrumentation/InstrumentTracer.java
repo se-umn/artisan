@@ -205,8 +205,8 @@ public class InstrumentTracer {
 		// Tracing instrumentation
 		PackManager.v().getPack("jtp")
 				.add(new Transform("jtp.instrument.artificial.invocations", new ABCInstrumentArtificialInvocations()));
-//		PackManager.v().getPack("jtp")
-//				.add(new Transform("jtp.instrument.regular.invocations", new ABCBodyTranformer()));
+		PackManager.v().getPack("jtp")
+				.add(new Transform("jtp.instrument.regular.invocations", new ABCBodyTranformer()));
 
 		// Supporting jars are Xstream and trace
 		// TODO HardCoded !

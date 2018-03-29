@@ -88,13 +88,20 @@ public class StackImplementation implements TraceParser {
 
 		MethodInvocation methodInvocation = new MethodInvocation(jimpleMethod, invocationCount.incrementAndGet());
 		methodInvocation.setInvocationType(typeOfInvocation);
+		if( "StaticInvokeExpr".equals(typeOfInvocation) || 
+				//
+				"StaticFieldOperation".equals(typeOfInvocation) ||
+				"FieldOperation".equals(typeOfInvocation) ||
+				"StringOperation".equals(typeOfInvocation))
+		{
+			methodInvocation.setStatic(true);
+		}
 
 		// Check with soot ?
 		try {
 
 			if (!typeOfInvocation.equals("ArrayOperation") && !typeOfInvocation.equals("StringOperation")
-					&& !typeOfInvocation.equals("StaticFieldOperation")
-					&& !!typeOfInvocation.equals("FieldOperation")) {
+					&& !typeOfInvocation.equals("StaticFieldOperation") && !typeOfInvocation.equals("FieldOperation")) {
 				// This might be required to get to the method in the first
 				// place
 				// System.out.println(
@@ -105,10 +112,9 @@ public class StackImplementation implements TraceParser {
 			}
 
 		} catch (Throwable e) {
-
 			// This fails for java classes
 			logger.info("StackImplementation.parseMethodStart() Swallow:  " + e);
-			// e.printStackTrace();
+			e.printStackTrace();
 		}
 
 		// Check if this method belongs to an external interface

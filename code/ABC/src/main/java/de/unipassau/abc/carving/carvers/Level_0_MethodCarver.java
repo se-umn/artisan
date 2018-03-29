@@ -203,7 +203,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 				// Copmpute the latest possible action from second.. note that
 				// this goes always to the past so we reduce the size of the
 				// trace
-				
+
 				MethodInvocation lastestMethodInvocation = Collections.max(task.getSecond());
 
 				for (MethodInvocation methodInvocation : task.getSecond()) {
@@ -241,11 +241,13 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 					// At this point include all the calls that are made
 					// external interfaces BEFORE methodInvocationToCarve
-					List<MethodInvocation> externalInterfaceInvocations = executionFlowGraph.getOrderedMethodInvocationsToExternalInterfaceBefore(methodInvocation);
+					List<MethodInvocation> externalInterfaceInvocations = executionFlowGraph
+							.getOrderedMethodInvocationsToExternalInterfaceBefore(methodInvocation);
 
-					System.out.println("Level_0_MethodCarver.level0TestCarving() dependencies on External interfaces " + externalInterfaceInvocations );
-					
-					methodDependencies.addAll(externalInterfaceInvocations );
+					System.out.println("Level_0_MethodCarver.level0TestCarving() dependencies on External interfaces "
+							+ externalInterfaceInvocations);
+
+					methodDependencies.addAll(externalInterfaceInvocations);
 
 					System.out.println(
 							"Level_0_MethodCarver.level0TestCarving() Method Dependencies are " + backwardSlice);
@@ -309,14 +311,17 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 				List<MethodInvocation> executioneBeforeLast = executionFlowGraph
 						.getOrderedMethodInvocationsBefore(lastestMethodInvocation);
-				DataDependencyGraph dataDependencyGraphBefore  = dataDependencyGraph.getSubGraph(executioneBeforeLast);
-				
-				
+				DataDependencyGraph dataDependencyGraphBefore = dataDependencyGraph.getSubGraph(executioneBeforeLast);
 
 				for (Entry<MethodInvocation, Set<ObjectInstance>> entry : dataDependencies.entrySet()) {
 					for (ObjectInstance data : entry.getValue()) {
 
-						if (data.equals(ObjectInstance.SystemIn())) {
+						if (data == null)
+							System.out.println(
+									"Level_0_MethodCarver.level0TestCarving() NULL DATA FOR " + entry.getKey());
+						if (ObjectInstance.systemIn.equals(data) || //
+								ObjectInstance.systemOut.equals(data) || //
+								ObjectInstance.systemErr.equals(data)) {
 							continue;
 						}
 
@@ -330,14 +335,38 @@ public class Level_0_MethodCarver implements MethodCarver {
 							methodsWhichReturnTheObject.add(constructor);
 						}
 
+						/**
+						 * The problem with this code is that String are handled
+						 * by value, so different "strings" variables have the
+						 * same hash code if they have the same content...
+						 * hence, to be sure we pick the FIRST occurrence. This
+						 * is because, in case the same variable is re-written,
+						 * then it will change it's id, meaning that it results
+						 * in a different node !
+						 * 
+						 * For "regular" objects the "MAX" is the right one... I hope...
+						 * 
+						 */
+						Set<MethodInvocation> tempSet = new HashSet<>();
+						// Filter out the one that are after the depenendency
 						for (MethodInvocation returning : dataDependencyGraphBefore
 								.getMethodInvocationsWhichReturn(data)) {
 							if (returning.getInvocationCount() <= entry.getKey().getInvocationCount()) {
-								methodsWhichReturnTheObject.add(returning);
+								tempSet.add(returning);
 							} else {
 								System.out.println(">>>> " + returning + " discarded as violates BEFORE USE");
 							}
 						}
+
+						if (!tempSet.isEmpty()) {
+							if ("java.lang.String".equals(data.getType())) {
+								methodsWhichReturnTheObject.add(Collections.min(tempSet));
+							} else {
+								methodsWhichReturnTheObject.add(Collections.max(tempSet));
+							}
+
+						}
+
 						/*
 						 * Verify that for each data dependency there's at least
 						 * one call which returns it

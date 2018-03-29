@@ -1,6 +1,7 @@
 package de.unipassau.abc.generation;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -82,7 +83,8 @@ public class TestGenerator {
 			try {
 				validate(carvedTest);
 			} catch (CarvingException e) {
-				System.out.println(" Error " + e.getMessage() + " while generating test: " + e.getCarvedTest().getFirst() );
+				System.out.println(
+						" Error " + e.getMessage() + " while generating test: " + e.getCarvedTest().getFirst());
 				continue;
 			}
 
@@ -120,16 +122,21 @@ public class TestGenerator {
 		DataDependencyGraph dataDependencyGraph = carvedTest.getSecond();
 		Collection<ObjectInstance> instances = dataDependencyGraph.getObjectInstances();
 		for (ObjectInstance instance : instances) {
-			if( instance.equals( ObjectInstance.SystemIn() )){
+
+			if (instance.equals(ObjectInstance.systemIn) || //
+					instance.equals(ObjectInstance.systemOut) || //
+					instance.equals(ObjectInstance.systemErr) //
+			) {
 				continue;
 			}
-			
-			if ( dataDependencyGraph.getInitMethodInvocationFor(instance) == null
+
+			// TODO This does not cover the cases where the variable is initialzed AFTER its used !
+			if (dataDependencyGraph.getInitMethodInvocationFor(instance) == null
 					&& dataDependencyGraph.getMethodInvocationsWhichReturn(instance).isEmpty()) {
 				CarvingException e = new CarvingException(
 						"Object instance " + instance + " is invalid. No method initizalizes or returns it !");
-//				e.setCarvedTest( carvedTest );
-				throw new RuntimeException( e );
+				// e.setCarvedTest( carvedTest );
+				throw new RuntimeException(e);
 			}
 
 		}
@@ -189,96 +196,119 @@ public class TestGenerator {
 		for (ObjectInstance node : dataDependencyGraph.getObjectInstances()) {
 
 			String type = node.getType();
-			// Patch for system in - Do not generate this multiple times
-			if (node.equals(ObjectInstance.SystemIn())) {
-				// This is a fake type for System.in
-				if (!localMap.containsKey(node.getType())) {
-					localMap.put(type, new AtomicInteger(0));
-				}
 
-				// System.out.println("TestGenerator.generateAndAddTestMethodToTestClass()
-				// Patch for System.in");
-				// Generate a local for system in
-				String localId = String.format("%02d", localMap.get(type).getAndIncrement());
+			// // Patch for system in - Do not generate this multiple times
+			// if( node.equals(ObjectInstance.systemOut) ) {}
+			// else if ( node.equals(ObjectInstance.systemErr) ) {}
+			// if (node.equals(ObjectInstance.systemIn)) {
+			// // This is a fake type for System.in
+			// if (!localMap.containsKey(node.getType())) {
+			// localMap.put(type, new AtomicInteger(0));
+			// }
+			//
+			// //
+			// System.out.println("TestGenerator.generateAndAddTestMethodToTestClass()
+			// // Patch for System.in");
+			// // Generate a local for system in
+			// String localId = String.format("%02d",
+			// localMap.get(type).getAndIncrement());
+			//
+			// StringBuilder localName = new StringBuilder();
+			// // localName = localName.substring(localName.lastIndexOf('.') +
+			// // 1);
+			// for (String s : RefType.v(type).getClassName().split("\\.")) {
+			// // Apply code conventions
+			// localName.append(s.replaceFirst(s.substring(0, 1), s.substring(0,
+			// 1).toLowerCase()));
+			// }
+			// localName.append(localId);
+			// Local localVariable = Jimple.v().newLocal(localName.toString(),
+			// RefType.v(type));
+			// body.getLocals().add(localVariable);
+			//
+			// logger.trace(" >>>> Create a new local variable " + localVariable
+			// + " of type " + type + " and node "
+			// + node + " " + node.hashCode());
+			//
+			// dataDependencyGraph.setSootValueFor(node, localVariable);
+			//
+			// // Initialize the local with the assignment
+			// units.add(Jimple.v().newAssignStmt(localVariable,
+			// Jimple.v().newStaticFieldRef(
+			// Scene.v().getField("<java.lang.System: java.io.InputStream
+			// in>").makeRef())));
+			// } else {
 
-				type = "java.io.InputStream";
-				// Some classes have the same name, use the FQN instead
+			if (!localMap.containsKey(type)) {
+				localMap.put(type, new AtomicInteger(0));
+			}
+			String localId = String.format("%02d", localMap.get(type).getAndIncrement());
+
+			// ARRAYS ARE STORES LIKE <className>[] and not as
+			// [L<classname>;
+			RefType variableType = null;
+
+			if (type.endsWith("[]")) {
+				variableType = RefType.v(type.replace("[]", ""));
 
 				StringBuilder localName = new StringBuilder();
-				// localName = localName.substring(localName.lastIndexOf('.') +
-				// 1);
-				for (String s : RefType.v(type).getClassName().split("\\.")) {
+				// localName =
+				// localName.substring(localName.lastIndexOf('.') + 1);
+				for (String s : variableType.toString().split("\\.")) {
+					// Apply code conventions
+					localName.append(s.replaceFirst(s.substring(0, 1), s.substring(0, 1).toLowerCase()));
+				}
+				localName = localName.append("Array");
+				localName.append(localId);
+
+				Local newArrayLocal = Jimple.v().newLocal(localName.toString(), variableType);
+				body.getLocals().add(newArrayLocal);
+
+				logger.trace("  >>>> Create a new local ARRAY variable " + newArrayLocal + " of type " + type
+						+ " and node " + node + " " + node.hashCode());
+				//
+				dataDependencyGraph.setSootValueFor(node, newArrayLocal);
+			} else {
+
+				variableType = RefType.v(type);
+				StringBuilder localName = new StringBuilder();
+				// localName =
+				// localName.substring(localName.lastIndexOf('.') + 1);
+				for (String s : variableType.toString().split("\\.")) {
 					// Apply code conventions
 					localName.append(s.replaceFirst(s.substring(0, 1), s.substring(0, 1).toLowerCase()));
 				}
 				localName.append(localId);
-				Local localVariable = Jimple.v().newLocal(localName.toString(), RefType.v(type));
+				//
+				Local localVariable = Jimple.v().newLocal(localName.toString(), variableType);
 				body.getLocals().add(localVariable);
 
-				logger.trace("  >>>> Create a new local variable " + localVariable + " of type " + type + " and node "
-						+ node + " " + node.hashCode());
+				// Debug
+				System.out.println("  >>>> Create a new local variable " + localVariable + " of type " + type
+						+ " and node " + node + " " + node.hashCode());
 
+				// String initialization ? This should be called later ?
 				dataDependencyGraph.setSootValueFor(node, localVariable);
 
-				// Initialize the local with the assignment
-				units.add(Jimple.v().newAssignStmt(localVariable, Jimple.v().newStaticFieldRef(
-						Scene.v().getField("<java.lang.System: java.io.InputStream in>").makeRef())));
-			} else {
-
-				if (!localMap.containsKey(type)) {
-					localMap.put(type, new AtomicInteger(0));
-				}
-				String localId = String.format("%02d", localMap.get(type).getAndIncrement());
-
-				// ARRAYS ARE STORES LIKE <className>[] and not as
-				// [L<classname>;
-				RefType variableType = null;
-
-				if (type.endsWith("[]")) {
-					variableType = RefType.v(type.replace("[]", ""));
-
-					StringBuilder localName = new StringBuilder();
-					// localName =
-					// localName.substring(localName.lastIndexOf('.') + 1);
-					for (String s : variableType.toString().split("\\.")) {
-						// Apply code conventions
-						localName.append(s.replaceFirst(s.substring(0, 1), s.substring(0, 1).toLowerCase()));
-					}
-					localName = localName.append("Array");
-					localName.append(localId);
-
-					Local newArrayLocal = Jimple.v().newLocal(localName.toString(), variableType);
-					body.getLocals().add(newArrayLocal);
-
-					logger.trace("  >>>> Create a new local ARRAY variable " + newArrayLocal + " of type " + type
-							+ " and node " + node + " " + node.hashCode());
-					//
-					dataDependencyGraph.setSootValueFor(node, newArrayLocal);
-				} else {
-
-					variableType = RefType.v(type);
-					StringBuilder localName = new StringBuilder();
-					// localName =
-					// localName.substring(localName.lastIndexOf('.') + 1);
-					for (String s : variableType.toString().split("\\.")) {
-						// Apply code conventions
-						localName.append(s.replaceFirst(s.substring(0, 1), s.substring(0, 1).toLowerCase()));
-					}
-					localName.append(localId);
-					//
-					Local localVariable = Jimple.v().newLocal(localName.toString(), variableType);
-					body.getLocals().add(localVariable);
-
-					// Debug
-					System.out.println("  >>>> Create a new local variable " + localVariable + " of type " + type
-							+ " and node " + node + " " + node.hashCode());
-
-					// String initialization ? This should be called later ?
-					dataDependencyGraph.setSootValueFor(node, localVariable);
-
+				InputStream ina = System.in;
+				// TODO I do not like this but it might help
+				// StaticFieldRef shall be initialized
+				if (node.equals(ObjectInstance.systemIn)) {
+					units.add(Jimple.v().newAssignStmt(localVariable, Jimple.v().newStaticFieldRef(
+							Scene.v().getField("<java.lang.System: java.io.InputStream in>").makeRef())));
+				} else if (node.equals(ObjectInstance.systemOut)) {
+					// Patch in place initialization for this...
+					units.add(Jimple.v().newAssignStmt(localVariable, Jimple.v().newStaticFieldRef(
+							Scene.v().getField("<java.lang.System: java.io.PrintStream out>").makeRef())));
+				} else if (node.equals(ObjectInstance.systemErr)) {
+					// Patch in place initialization for this...
+					units.add(Jimple.v().newAssignStmt(localVariable, Jimple.v().newStaticFieldRef(
+							Scene.v().getField("<java.lang.System: java.io.PrintStream err>").makeRef())));
 				}
 
 			}
+
+			// }
 			//
 		}
 
@@ -456,21 +486,19 @@ public class TestGenerator {
 			}
 			break;
 		/// THE FOLLOWING ARE THE ARTIFICIAL CALLS THAT ABC GENERATED
-		case "StringOperation":
+		case "StringOperation": // This is a static call which generates out of
+								// the blue the required string. The value is
+								// store in the corresponding XML file
 			System.out.println("String initialization " + methodInvocation);
-			if (returnObjLocal != null) {
-				throw new CarvingException("String <init> should not return a value !");
-			} else {
-				try {
-					// This is actually an assignment
-					String xmlContent = (String) XMLDumper.loadObject(methodInvocation.getXmlDumpForOwner());
-					Stmt callStmt = jimple.newAssignStmt(objLocal, StringConstant.v(xmlContent));
-					units.add(callStmt);
-					System.out.println("Added " + callStmt);
-				} catch (Throwable e) {
-					throw new CarvingException("Cannot find a dumped value for string " + objLocal + " in file "
-							+ methodInvocation.getXmlDumpForOwner(), e);
-				}
+			try {
+				// This is actually an assignment to the return value
+				String xmlContent = (String) XMLDumper.loadObject(methodInvocation.getXmlDumpForReturn());
+				Stmt callStmt = jimple.newAssignStmt(returnObjLocal, StringConstant.v(xmlContent));
+				units.add(callStmt);
+				System.out.println("Added " + callStmt);
+			} catch (Throwable e) {
+				throw new CarvingException("Cannot find a dumped value for string " + returnObjLocal + " in file "
+						+ methodInvocation.getXmlDumpForReturn(), e);
 			}
 			break;
 		case "ArrayOperation":

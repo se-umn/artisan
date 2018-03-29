@@ -74,8 +74,9 @@ public class DataDependencyGraph {
 	@SuppressWarnings("unchecked")
 	public void addMethodInvocation(MethodInvocation methodInvocation, String... actualParameters) {
 
-		System.out.println("DataDependencyGraph.addMethodInvocation() " + methodInvocation + " " + Arrays.toString( actualParameters ));
-		
+//		System.out.println("DataDependencyGraph.addMethodInvocation() " + methodInvocation + " "
+//				+ Arrays.toString(actualParameters));
+
 		if (!graph.containsVertex(methodInvocation)) {
 			graph.addVertex(methodInvocation);
 		}
@@ -90,6 +91,12 @@ public class DataDependencyGraph {
 			if (JimpleUtils.isPrimitive(formalParameters[position])) {
 				node = PrimitiveNodeFactory.get(formalParameters[position], actualParameters[position]);
 				setSootValueFor(node, ((ValueNode) node).getData());
+			} else if ("java.lang.System.in".equals(actualParameters[position])) {
+				node = ObjectInstance.systemIn;
+			} else if ("java.lang.System.out".equals(actualParameters[position])) {
+				node = ObjectInstance.systemOut;
+			} else if ("java.lang.System.err".equals(actualParameters[position])) {
+				node = ObjectInstance.systemErr;
 			}
 			// else if (actualParameters[position].equals("java.lang.String@0"))
 			// {
@@ -119,6 +126,7 @@ public class DataDependencyGraph {
 
 			// DANGLING OBJECTS !
 			if (!graph.containsVertex(node)) {
+
 				if (node instanceof ObjectInstance) {
 					node = handleDanglingObjectInstance((ObjectInstance) node);
 				}
@@ -149,9 +157,10 @@ public class DataDependencyGraph {
 			setSootValueFor(node, NullConstant.v());
 		} else if (((ObjectInstance) node).getType()
 				.startsWith("org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock")) {
-			// Check if this is System.in mocking
-			logger.info("DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with " + ObjectInstance.SystemIn());
-			return ObjectInstance.SystemIn();
+			// TODO This feels wrong... Check if this is System.in mocking
+			logger.info("DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with "
+					+ ObjectInstance.systemIn);
+			return ObjectInstance.systemIn;
 		} else if (((ObjectInstance) node).getType().endsWith("[]")) {
 			return node;
 		} else {
@@ -719,7 +728,7 @@ public class DataDependencyGraph {
 
 	public Set<MethodInvocation> getMethodInvocationsWhichReturn(ObjectInstance objectInstance) {
 		Set<MethodInvocation> returningMethodInvocations = new HashSet<>();
-		
+
 		for (String incomingEdge : getIncomingEdges(objectInstance)) {
 			// There should be only this kind nevertheless
 			if (incomingEdge.startsWith(RETURN_DEPENDENCY_PREFIX)) {

@@ -333,11 +333,11 @@ public class Carver {
 		// }
 
 		// FOR VISUAL DEBUG
-		if (logger.isDebugEnabled() || logger.isTraceEnabled()) {
+//		if (logger.isDebugEnabled() || logger.isTraceEnabled()) {
 			for (SootClass testCase : testCases) {
 				JimpleUtils.prettyPrint(testCase);
 			}
-		}
+//		}
 
 		if (outputDir == null) {
 			// Use default

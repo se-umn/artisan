@@ -31,6 +31,8 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
 	private boolean isPrivate = false;
 
+	private boolean staticCall;
+
 	public MethodInvocation(String jimpleMethod, int invocationCount) {
 		this.jimpleMethod = jimpleMethod;
 		this.invocationCount = invocationCount;
@@ -87,8 +89,11 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		return jimpleMethod + "_" + invocationCount;
 	}
 
+	public void setStatic(boolean staticCall){
+		this.staticCall = staticCall;
+	}
 	public boolean isStatic() {
-		return "StaticInvokeExpr".equals(invocationType);
+		return this.staticCall;
 	}
 
 	// TODO not sure this will cause no harm...
