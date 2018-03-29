@@ -58,7 +58,14 @@ public class Trace {
 		// TODO Maybe a StringBuffer here?
 		String content = METHOD_START_TOKEN + typeOfMethod + ";" + method;
 
-		if (objects.length > 0) {
+		if ("StaticFieldOperation".equals(typeOfMethod)) {
+			// Use the objects literally... class.field
+			String staticFieldReference = (String) objects[0];
+			content += ";(";
+			content += staticFieldReference;
+			content += ")";
+
+		} else if (objects.length > 0) {
 			// The formal parameters might be different than the actual ones!
 			// Object -> String
 			// So use the actual type for the trace !

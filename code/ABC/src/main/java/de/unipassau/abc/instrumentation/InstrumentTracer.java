@@ -99,7 +99,7 @@ public class InstrumentTracer {
 			// ||
 			// m.getDeclaringClass().getName().equals("java.util.Scanner") || //
 
-			pureMethods.add(Pattern.compile(Pattern.quote("<java.lang.Object: void <init>()>")));
+//			pureMethods.add(Pattern.compile(Pattern.quote("<java.lang.Object: void <init>()>")));
 			// pureMethods.add(Pattern.compile("<java.io.PrintStream: void
 			// println\\(.*>"));
 
@@ -269,7 +269,9 @@ public class InstrumentTracer {
 	 * computation.] PURE METHODS MAKE SENSE ONLY ON THE CUT/MUT !
 	 */
 	public static boolean doNotTraceCallsTo(SootMethod m) {
-		return m.getSignature().contains("de.unipassau.abc.tracing.Trace") || //
+		return 
+				m.getSignature().equals("<java.lang.Object: void <init>()>") || //
+				m.getSignature().contains("de.unipassau.abc.tracing.Trace") || //
 				false;
 	}
 	// for (Pattern purePattern : pureMethods) {

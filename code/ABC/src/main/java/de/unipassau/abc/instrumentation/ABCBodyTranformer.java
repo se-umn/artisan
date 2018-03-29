@@ -49,7 +49,8 @@ public class ABCBodyTranformer extends BodyTransformer {
 
 		final SootMethod containerMethod = body.getMethod();
 
-		// Skip the instrumentation of those methods. I.e., do not instrument them 
+		// Skip the instrumentation of those methods. I.e., do not instrument
+		// them
 		if (InstrumentTracer.filterMethod(containerMethod)) {
 			logger.debug("Skip instrumentation of: " + containerMethod);
 			return;
@@ -62,13 +63,13 @@ public class ABCBodyTranformer extends BodyTransformer {
 
 		final PatchingChain<Unit> units = body.getUnits();
 		for (final Iterator<Unit> iter = units.snapshotIterator(); iter.hasNext();) {
-			
+
 			final Unit currentUnit = iter.next();
-			
-			if(currentUnit.hasTag( ABCTag.TAG_NAME ) ){
-				logger.info("DO NOT TRACE OUR OWN CODE "  + currentUnit );
+
+			if (currentUnit.hasTag(ABCTag.TAG_NAME)) {
+				logger.info("DO NOT TRACE OUR OWN CODE " + currentUnit);
 			}
-			
+
 			currentUnit.apply(new AbstractStmtSwitch() {
 
 				// At this point we care only for assign which have locals on
@@ -81,18 +82,9 @@ public class ABCBodyTranformer extends BodyTransformer {
 						logger.debug("Processing " + stmt);
 
 						InvokeExpr invokeExpr = stmt.getInvokeExpr();
-						
-						if (InstrumentTracer.doNotTraceCallsTo( invokeExpr.getMethod() ) ) {
-							// Becomes debug !
-							logger.debug("Do not trace calls to " + currentUnit);
-							return;
-						}
-						
 
 						String invokeType = "";
 						Value instanceValue = null;
-
-						SootMethod m = invokeExpr.getMethod();
 
 						if (invokeExpr instanceof InstanceInvokeExpr) {
 							invokeType = "InstanceInvokeExpr";
@@ -142,12 +134,12 @@ public class ABCBodyTranformer extends BodyTransformer {
 
 						logger.trace("Inside method " + containerMethod + " caseInvokeStmt() " + stmt);
 
-						if (InstrumentTracer.doNotTraceCallsTo( invokeExpr.getMethod() ) ) {
+						if (InstrumentTracer.doNotTraceCallsTo(invokeExpr.getMethod())) {
 							// Becomes debug !
 							logger.debug("Do not trace calls to " + currentUnit);
 							return;
 						}
-						
+
 						String invokeType = null;
 						Value instanceValue = null;
 
@@ -228,6 +220,14 @@ public class ABCBodyTranformer extends BodyTransformer {
 			 */
 			String invokeType) {
 
+		if (InstrumentTracer.doNotTraceCallsTo(method)) {
+			// Becomes debug !
+			logger.debug("Do not trace calls to " + method);
+			return;
+		}
+		
+		
+		
 		/*
 		 * Instrument body to include a call to Trace.start BEFORE the execution
 		 * of method, we store its parameters as well.
