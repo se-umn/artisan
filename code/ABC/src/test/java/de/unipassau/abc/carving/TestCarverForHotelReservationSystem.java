@@ -31,7 +31,7 @@ public class TestCarverForHotelReservationSystem {
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
 
 	@Test
 	@Category(ManualTest.class)
@@ -45,10 +45,10 @@ public class TestCarverForHotelReservationSystem {
 			String traceFile = "/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut/trace.txt";
 
 			// String carveBy = "package=org.hotelme";
-			// String carveBy = "class=org.hotelme.HotelModel";
+			 String carveBy = "class=org.hotelme.HotelModel";
 			// String carveBy = "method=<org.hotelme.HotelController: void
 			// <init>(org.hotelme.HotelModel,org.hotelme.HotelView)>";
-			String carveBy = "method=<org.hotelme.HotelModel: int checkRoomsAvailable(java.sql.Date,java.sql.Date,java.lang.String)>";
+//			String carveBy = "method=<org.hotelme.HotelModel: int checkRoomsAvailable(java.sql.Date,java.sql.Date,java.lang.String)>";
 			// <org.hotelme.utils.ScriptRunner: void
 			// <init>(java.sql.Connection,boolean,boolean)>";
 			// String carveBy = "invocation=<org.hotelme.User: java.lang.String
@@ -72,7 +72,8 @@ public class TestCarverForHotelReservationSystem {
 					// To not create tests for those
 					"--exclude-by", "package=org.hotelme.systemtests", "class=org.hotelme.utils.ScriptRunner", //
 					"--external", //
-					"package=java.nio.file", "java.util.Scanner", "package=java.sql", "package=java.io"};
+					"class=org.hotelme.utils.ScriptRunner", //
+					"package=java.nio.file", "class=java.util.Scanner", "package=java.sql", "package=java.io"};
 			//
 			carver.main(args);
 			//
