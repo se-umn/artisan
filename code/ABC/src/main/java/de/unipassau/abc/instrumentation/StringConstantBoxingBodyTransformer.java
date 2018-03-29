@@ -33,7 +33,18 @@ public class StringConstantBoxingBodyTransformer extends BodyTransformer {
 	protected void internalTransform(final Body body, String phaseName, @SuppressWarnings("rawtypes") Map options) {
 		final SootMethod containerMethod = body.getMethod();
 
-		System.out.println("StringConstantBoxingBodyTransformer.internalTransform() >>> STARTING " + containerMethod);
+		if (InstrumentTracer.filterMethod(containerMethod)) {
+			logger.debug("Skip instrumentation of: " + containerMethod + " Filter method ");
+			return;
+		}
+
+		if (InstrumentTracer.isExternalLibrary(containerMethod)) {
+			// Probably we can do something about it
+			logger.debug("Skip instrumentation of: " + containerMethod + " External library");
+			return;
+		}
+		
+//		System.out.println("StringConstantBoxingBodyTransformer.internalTransform() >>> STARTING " + containerMethod);
 
 		final PatchingChain<Unit> units = body.getUnits();
 		for (final Iterator<Unit> iter = units.snapshotIterator(); iter.hasNext();) {
@@ -72,7 +83,7 @@ public class StringConstantBoxingBodyTransformer extends BodyTransformer {
 						units.insertBefore(toInsert, currentStatement);
 						// add a new call to the original method with the locals
 						for (Entry<Integer, Local> extractedString : extractedStrings.entrySet()) {
-							System.out.println("Replacing parameter in call ");
+							System.out.println("Replacing parameter in call " + invokeExpr);
 							invokeExpr.setArg(extractedString.getKey().intValue(), extractedString.getValue());
 						}
 					} else if ( stmt.containsArrayRef() ){

@@ -16,6 +16,8 @@ import java.util.Collection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.strobel.decompiler.DecompilationOptions;
+
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.SootClass;
 import soot.SourceLocator;
@@ -52,9 +54,9 @@ public class TestCaseFactory {
 					Class javaTestClass = loadClass(testClass.getName(), Files.readAllBytes(testClassFile.toPath()));
 					System.out.println("TestCaseFactory.generateTestFiles() LOADED: " + javaTestClass);
 					// Use reflection of see whats there ?
-//					for (Method method : javaTestClass.getMethods()) {
-//						System.out.println(method);
-//					}
+					// for (Method method : javaTestClass.getMethods()) {
+					// System.out.println(method);
+					// }
 
 				} catch (Throwable e) {
 					logger.error("Cannot generate class file for " + classFileName);
@@ -69,7 +71,14 @@ public class TestCaseFactory {
 
 				// You need to call flush/close the have the class actually
 				// generated, that's why this is in a try(Resource){} block
+				// FIXME: the decompilation somehow creates ambiguos imports,
+				// for example, if we use java.sql.Date and another java.util
+				// the imports get simplified to java.sql.* and java.util.* but
+				// and the Date class becomes ambiguous
+				DecompilationOptions decompilationOptions = new DecompilationOptions();
+				decompilationOptions.setFullDecompilation(true);
 				try (final BufferedWriter writer = new BufferedWriter(new FileWriter(sourceFile))) {
+
 					com.strobel.decompiler.Decompiler.decompile(testClassFile.getAbsolutePath(),
 							new com.strobel.decompiler.PlainTextOutput(writer));
 				}
@@ -115,7 +124,7 @@ public class TestCaseFactory {
 		// override classDefine (as it is protected) and define the class.
 		Class clazz = null;
 		try {
-			ClassLoader loader = new URLClassLoader( new URL[]{}, ClassLoader.getSystemClassLoader());
+			ClassLoader loader = new URLClassLoader(new URL[] {}, ClassLoader.getSystemClassLoader());
 			Class cls = Class.forName("java.lang.ClassLoader");
 			java.lang.reflect.Method method = cls.getDeclaredMethod("defineClass",
 					new Class[] { String.class, byte[].class, int.class, int.class });

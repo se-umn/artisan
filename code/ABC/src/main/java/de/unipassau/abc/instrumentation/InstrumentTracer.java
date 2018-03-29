@@ -100,7 +100,8 @@ public class InstrumentTracer {
 			// m.getDeclaringClass().getName().equals("java.util.Scanner") || //
 
 			pureMethods.add(Pattern.compile(Pattern.quote("<java.lang.Object: void <init>()>")));
-			pureMethods.add(Pattern.compile("<java.io.PrintStream: void println\\(.*>"));
+			// pureMethods.add(Pattern.compile("<java.io.PrintStream: void
+			// println\\(.*>"));
 
 			//
 			// pureMethods.add(Pattern.compile("<java.nio.file.Path: File
@@ -185,13 +186,31 @@ public class InstrumentTracer {
 		logger.info("Including: " + sootInclude);
 		Options.v().set_include(sootInclude);
 
-		String stringPhaseName = "jtp.preprocessingInstrumentation";
-		String mainPhaseName = "jtp.mainInstrumentation";
+		// String stringPhaseName = "jtp.preprocessString";
+		// String splitPhaseName = "jtp.preprocessSplit";
+		// String mainPhaseName = "jtp.mainInstrumentation";
 
 		// Unboxes and prepare string constants
-		PackManager.v().getPack("jtp").add(new Transform(stringPhaseName, new StringConstantBoxingBodyTransformer()));
-		// Adds the calls to the tracer 
-		PackManager.v().getPack("jtp").add(new Transform(mainPhaseName, new ABCBodyTranformer()));
+		// PackManager.v().getPack("jtp").add(new Transform(stringPhaseName, new
+		// StringConstantBoxingBodyTransformer()));
+
+		// Split Assignments
+		PackManager.v().getPack("jtp")
+				.add(new Transform("jtp.split.assignments", new SplitAssignmentBodyTransformer()));
+
+		// Capture the return value of invokes which do not have one
+		PackManager.v().getPack("jtp")
+				.add(new Transform("jtp.capture.return.values", new CaptureReturnValueBodyTransformer()));
+
+		// Prepare parameters for the invocation
+		PackManager.v().getPack("jtp")
+				.add(new Transform("jtp.prepare.invocation.parameters", new PrepareInvocationParameters()));
+
+		// Tracing instrumentation
+		PackManager.v().getPack("jtp")
+				.add(new Transform("jtp.instrument.artificial.invocations", new ABCInstrumentArtificialInvocations()));
+		PackManager.v().getPack("jtp")
+				.add(new Transform("jtp.instrument.regular.invocations", new ABCBodyTranformer()));
 
 		// Supporting jars are Xstream and trace
 		// TODO HardCoded !
@@ -238,10 +257,8 @@ public class InstrumentTracer {
 	 */
 	public static boolean filterMethod(SootMethod m) {
 		return m.isJavaLibraryMethod() || //
-				m.getSignature().contains("org.slf4j") || // Our Logger
-				m.getSignature().contains("xstream") || // Dump XML
-				m.getSignature().contains("de.unipassau.abc.tracing.Trace") || // ABC
-				// instrastructre
+		// Skip framework methods
+				m.getSignature().contains("de.unipassau.abc.tracing.Trace") || //
 				//
 				false;
 	}
@@ -252,14 +269,17 @@ public class InstrumentTracer {
 	 * computation.] PURE METHODS MAKE SENSE ONLY ON THE CUT/MUT !
 	 */
 	public static boolean doNotTraceCallsTo(SootMethod m) {
-		for (Pattern purePattern : pureMethods) {
-			if (purePattern.matcher(m.toString()).matches()) {
-				logger.trace(m + " is declared PURE. Do not trace this call");
-				return true;
-			}
-		}
-		return false;
+		return m.getSignature().contains("de.unipassau.abc.tracing.Trace") || //
+				false;
 	}
+	// for (Pattern purePattern : pureMethods) {
+	// if (purePattern.matcher(m.toString()).matches()) {
+	// logger.trace(m + " is declared PURE. Do not trace this call");
+	// return true;
+	// }
+	// }
+	// return false;
+	// }
 
 	/**
 	 * Check if the current method matches any of the external library calls or
@@ -270,7 +290,8 @@ public class InstrumentTracer {
 	 */
 	public static boolean isExternalLibrary(SootMethod containerMethod) {
 		// TODO Auto-generated method stub
-		return containerMethod.getSignature().contains("microsoft") || //
-				containerMethod.getSignature().contains("java.sql.");
+		// return containerMethod.getSignature().contains("microsoft") || //
+		// containerMethod.getSignature().contains("java.sql.");
+		return false;
 	}
 }

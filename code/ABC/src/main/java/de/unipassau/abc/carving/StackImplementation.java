@@ -92,7 +92,7 @@ public class StackImplementation implements TraceParser {
 		// Check with soot ?
 		try {
 
-			if (!typeOfInvocation.equals("ArrayOperation")) {
+			if (!typeOfInvocation.equals("ArrayOperation") && !typeOfInvocation.equals("StringOperation")) {
 				// This might be required to get to the method in the first
 				// place
 				// System.out.println(

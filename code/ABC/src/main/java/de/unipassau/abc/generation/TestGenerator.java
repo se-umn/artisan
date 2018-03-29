@@ -22,6 +22,7 @@ import de.unipassau.abc.carving.MethodInvocationMatcher;
 import de.unipassau.abc.carving.ObjectInstance;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Pair;
+import de.unipassau.abc.instrumentation.CarvingTag;
 import de.unipassau.abc.tracing.XMLDumper;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.Local;
@@ -77,6 +78,14 @@ public class TestGenerator {
 		// To probably there's also something else to include here
 		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
 
+			// Check basic properties, variables initialized before used
+			try {
+				validate(carvedTest);
+			} catch (CarvingException e) {
+				System.out.println(" Error " + e.getMessage() + " while generating test: " + e.getCarvedTest().getFirst() );
+				continue;
+			}
+
 			// Get the mut, which by definition is the last invocation executed
 			MethodInvocation mut = carvedTest.getFirst().getLastMethodInvocation();
 
@@ -105,6 +114,26 @@ public class TestGenerator {
 		}
 
 		return testClasses.values();
+	}
+
+	private void validate(Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest) throws CarvingException {
+		DataDependencyGraph dataDependencyGraph = carvedTest.getSecond();
+		Collection<ObjectInstance> instances = dataDependencyGraph.getObjectInstances();
+		for (ObjectInstance instance : instances) {
+			if( instance.equals( ObjectInstance.SystemIn() )){
+				continue;
+			}
+			
+			if ( dataDependencyGraph.getInitMethodInvocationFor(instance) == null
+					&& dataDependencyGraph.getMethodInvocationsWhichReturn(instance).isEmpty()) {
+				CarvingException e = new CarvingException(
+						"Object instance " + instance + " is invalid. No method initizalizes or returns it !");
+//				e.setCarvedTest( carvedTest );
+				throw new RuntimeException( e );
+			}
+
+		}
+
 	}
 
 	// THIS IS MOSTLY TAKEN FROM TEST CASE FACTORY
@@ -173,12 +202,17 @@ public class TestGenerator {
 				String localId = String.format("%02d", localMap.get(type).getAndIncrement());
 
 				type = "java.io.InputStream";
-				String localName = RefType.v(type).getClassName();
-				localName = localName.substring(localName.lastIndexOf('.') + 1);
-				// Apply code conventions
-				localName = localName.replaceFirst(localName.substring(0, 1), localName.substring(0, 1).toLowerCase());
-				//
-				Local localVariable = Jimple.v().newLocal(localName + localId, RefType.v(type));
+				// Some classes have the same name, use the FQN instead
+
+				StringBuilder localName = new StringBuilder();
+				// localName = localName.substring(localName.lastIndexOf('.') +
+				// 1);
+				for (String s : RefType.v(type).getClassName().split("\\.")) {
+					// Apply code conventions
+					localName.append(s.replaceFirst(s.substring(0, 1), s.substring(0, 1).toLowerCase()));
+				}
+				localName.append(localId);
+				Local localVariable = Jimple.v().newLocal(localName.toString(), RefType.v(type));
 				body.getLocals().add(localVariable);
 
 				logger.trace("  >>>> Create a new local variable " + localVariable + " of type " + type + " and node "
@@ -199,20 +233,21 @@ public class TestGenerator {
 				// ARRAYS ARE STORES LIKE <className>[] and not as
 				// [L<classname>;
 				RefType variableType = null;
-				String variableName = null;
 
 				if (type.endsWith("[]")) {
 					variableType = RefType.v(type.replace("[]", ""));
-					variableName = variableType.getClassName();
-					//
-					variableName = variableName.substring(variableName.lastIndexOf('.') + 1);
-					// Apply code conventions
-					variableName = variableName.replaceFirst(variableName.substring(0, 1),
-							variableName.substring(0, 1).toLowerCase());
 
-					variableName = variableName + "Array";
+					StringBuilder localName = new StringBuilder();
+					// localName =
+					// localName.substring(localName.lastIndexOf('.') + 1);
+					for (String s : variableType.toString().split("\\.")) {
+						// Apply code conventions
+						localName.append(s.replaceFirst(s.substring(0, 1), s.substring(0, 1).toLowerCase()));
+					}
+					localName = localName.append("Array");
+					localName.append(localId);
 
-					Local newArrayLocal = Jimple.v().newLocal(variableName + localId, variableType);
+					Local newArrayLocal = Jimple.v().newLocal(localName.toString(), variableType);
 					body.getLocals().add(newArrayLocal);
 
 					logger.trace("  >>>> Create a new local ARRAY variable " + newArrayLocal + " of type " + type
@@ -222,14 +257,16 @@ public class TestGenerator {
 				} else {
 
 					variableType = RefType.v(type);
-					variableName = variableType.getClassName();
+					StringBuilder localName = new StringBuilder();
+					// localName =
+					// localName.substring(localName.lastIndexOf('.') + 1);
+					for (String s : variableType.toString().split("\\.")) {
+						// Apply code conventions
+						localName.append(s.replaceFirst(s.substring(0, 1), s.substring(0, 1).toLowerCase()));
+					}
+					localName.append(localId);
 					//
-					variableName = variableName.substring(variableName.lastIndexOf('.') + 1);
-					// Apply code conventions
-					variableName = variableName.replaceFirst(variableName.substring(0, 1),
-							variableName.substring(0, 1).toLowerCase());
-					//
-					Local localVariable = Jimple.v().newLocal(variableName + localId, variableType);
+					Local localVariable = Jimple.v().newLocal(localName.toString(), variableType);
 					body.getLocals().add(localVariable);
 
 					// Debug
@@ -484,12 +521,10 @@ public class TestGenerator {
 		} catch (Throwable e) {
 			logger.error("Cannot find method " + jimpleMethod, e);
 
-			
-			for( SootClass sClass : Scene.v().getApplicationClasses()){
-				System.out.println( sClass );
+			for (SootClass sClass : Scene.v().getApplicationClasses()) {
+				System.out.println(sClass);
 			}
-			
-			
+
 			throw e;
 		}
 	}

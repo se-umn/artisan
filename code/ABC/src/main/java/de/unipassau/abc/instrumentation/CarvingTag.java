@@ -1,4 +1,4 @@
-package de.unipassau.abc.generation;
+package de.unipassau.abc.instrumentation;
 
 import soot.tagkit.AttributeValueException;
 import soot.tagkit.Tag;

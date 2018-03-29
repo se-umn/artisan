@@ -94,10 +94,10 @@ public class Carver {
 	 * This is global anyway. Public for testing
 	 */
 	public static void setupSoot(List<File> projectJars) {
-//		System.out.println("Carver.setupSoot() Project Jars: ");
-//		for( File f : projectJars ){
-//			System.out.println("- " + f );
-//		}
+		System.out.println("Carver.setupSoot() Project Jars: ");
+		for( File f : projectJars ){
+			System.out.println("- " + f );
+		}
 		G.reset();
 		//
 
@@ -201,9 +201,14 @@ public class Carver {
 		for (String externalInterface : externalInterfaces) {
 
 			System.out.println("Carver.main() >>>> external interface " + externalInterface);
-
+//			MethodInvocationMatcher.
 			// By default those are class matchers !
-			externalInterfaceMatchers.add(MethodInvocationMatcher.byClass(externalInterface));
+			if( externalInterface.contains("=") ){
+				externalInterfaceMatchers.add(getMatcherFor(externalInterface.split("=")[0],externalInterface.split("=")[1]));
+				
+			} else {
+				externalInterfaceMatchers.add(MethodInvocationMatcher.byClass(externalInterface));
+			}
 		}
 
 		List<MethodInvocationMatcher> purityMatchers = new ArrayList<MethodInvocationMatcher>();

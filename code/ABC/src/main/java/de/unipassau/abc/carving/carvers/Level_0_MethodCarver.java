@@ -241,9 +241,14 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 					// At this point include all the calls that are made
 					// external interfaces BEFORE methodInvocationToCarve
-					backwardSlice.addAll(
-							executionFlowGraph.getOrderedMethodInvocationsToExternalInterfaceBefore(methodInvocation));
+					List<MethodInvocation> externalInterfaceInvocations = executionFlowGraph.getOrderedMethodInvocationsToExternalInterfaceBefore(methodInvocation);
 
+					System.out.println("Level_0_MethodCarver.level0TestCarving() dependencies on External interfaces " + externalInterfaceInvocations );
+					
+					methodDependencies.addAll(externalInterfaceInvocations );
+
+					System.out.println(
+							"Level_0_MethodCarver.level0TestCarving() Method Dependencies are " + backwardSlice);
 					// Accumulate the backwardSlice in the worklist
 					methodDependencies.addAll(backwardSlice);
 
@@ -350,9 +355,6 @@ public class Level_0_MethodCarver implements MethodCarver {
 						}
 					}
 				}
-
-				System.out.println(
-						"Level_0_MethodCarver.level0TestCarving() Method Dependencies are " + methodDependencies);
 
 				// Full cartesian
 				Set<List<MethodInvocation>> fullCartesianProduct = Sets
