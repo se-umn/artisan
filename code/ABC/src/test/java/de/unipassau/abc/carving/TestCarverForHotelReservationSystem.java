@@ -45,10 +45,12 @@ public class TestCarverForHotelReservationSystem {
 			String traceFile = "/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut/trace.txt";
 
 			// String carveBy = "package=org.hotelme";
-			// String carveBy = "class=org.hotelme.User";
+			// String carveBy = "class=org.hotelme.HotelModel";
 			// String carveBy = "method=<org.hotelme.HotelController: void
 			// <init>(org.hotelme.HotelModel,org.hotelme.HotelView)>";
-			String carveBy = "method=<org.hotelme.utils.ScriptRunner: void <init>(java.sql.Connection,boolean,boolean)>";
+			String carveBy = "method=<org.hotelme.HotelModel: int checkRoomsAvailable(java.sql.Date,java.sql.Date,java.lang.String)>";
+			// <org.hotelme.utils.ScriptRunner: void
+			// <init>(java.sql.Connection,boolean,boolean)>";
 			// String carveBy = "invocation=<org.hotelme.User: java.lang.String
 			// getFname()>_137";
 			// String carveBy = "package=org.hotelme";
@@ -58,16 +60,19 @@ public class TestCarverForHotelReservationSystem {
 					// String traceFile =
 					"--trace-file", traceFile,
 					// String projectJar =
-					"--project-jar", "./src/test/resources/HotelReservationSystem.jar",
+					"--project-jar", 
+					"./src/test/resources/HotelReservationSystem.jar",
 					"./src/test/resources/HotelReservationSystem-tests.jar",
+					// Why providing those jars it does not work anymore ?
+					"/Users/gambi/.m2/repository/joda-time/joda-time/2.9.4/joda-time-2.9.4.jar",
+					"/Users/gambi/.m2/repository/mysql/mysql-connector-java/5.1.39/mysql-connector-java-5.1.39.jar",
+					//
 					// String outputDir =
 					"--output-to", outputDirectory.getAbsolutePath(), //
-					//
-					"--exclude-by", "package=org.hotelme.systemtests", //
+					// To not create tests for those
+					"--exclude-by", "package=org.hotelme.systemtests", "class=org.hotelme.utils.ScriptRunner", //
 					"--external", //
-
-					"java.io.File", "java.nio.file.Path", "java.nio.file.Files", "org.junit.rules.TemporaryFolder",
-					"java.util.Scanner", "java.sql" };
+					"package=java.nio.file", "java.util.Scanner", "package=java.sql", "package=java.io"};
 			//
 			carver.main(args);
 			//
