@@ -31,7 +31,7 @@ public class TestCarverForHotelReservationSystem {
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
 	@Test
 	@Category(ManualTest.class)
@@ -44,15 +44,17 @@ public class TestCarverForHotelReservationSystem {
 
 			String traceFile = "/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut/trace.txt";
 
-			// String carveBy = "package=org.hotelme";
-			 String carveBy = "class=org.hotelme.HotelModel";
-			// String carveBy = "method=<org.hotelme.HotelController: void
-			// <init>(org.hotelme.HotelModel,org.hotelme.HotelView)>";
+//			 String carveBy = "package=org.hotelme";
+//			 String carveBy = "class=org.hotelme.HotelModel";
+//			 String carveBy = "method=<org.hotelme.HotelController: void
+//			 <init>(org.hotelme.HotelModel,org.hotelme.HotelView)>";
 //			String carveBy = "method=<org.hotelme.HotelModel: int checkRoomsAvailable(java.sql.Date,java.sql.Date,java.lang.String)>";
 			// <org.hotelme.utils.ScriptRunner: void
 			// <init>(java.sql.Connection,boolean,boolean)>";
 			// String carveBy = "invocation=<org.hotelme.User: java.lang.String
 			// getFname()>_137";
+//			 String carveBy = "invocation=<org.hotelme.HotelView: void mainMenu()>_2088";
+			String carveBy = "method=<org.hotelme.HotelView: void mainMenu()>";
 			// String carveBy = "package=org.hotelme";
 
 			String[] args = new String[] { //
@@ -70,10 +72,14 @@ public class TestCarverForHotelReservationSystem {
 					// String outputDir =
 					"--output-to", outputDirectory.getAbsolutePath(), //
 					// To not create tests for those
-					"--exclude-by", "package=org.hotelme.systemtests", "class=org.hotelme.utils.ScriptRunner", //
+					"--exclude-by", "package=org.hotelme.systemtests", "class=org.hotelme.utils.ScriptRunner", 
+					"class=org.hotelme.Main",//
 					"--external", //
-					"class=org.hotelme.utils.ScriptRunner", //
-					"package=java.nio.file", "class=java.util.Scanner", "package=java.sql", "package=java.io"};
+					"package=java.nio.file", "class=java.util.Scanner", "package=java.sql", 
+					"class=java.io.File"
+//					//"package=java.io" -> This includes System.out which blow up everything..
+					};
+////					"class=org.hotelme.utils.ScriptRunner", //
 			//
 			carver.main(args);
 			//

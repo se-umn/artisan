@@ -31,6 +31,7 @@ public class InstrumentHotelMeTest {
 
 	private static File traceJar;
 
+	// TODO REQUIRES TO REBUILD TRACE !!
 	@BeforeClass
 	public static void setupTraceJar() {
 		// Use this if you want to inspect the traces afterwards
@@ -61,13 +62,13 @@ public class InstrumentHotelMeTest {
 				//
 				// DEBUG
 				"--exclude", //
-				"org.hotelme.HotelController", //
+//				"org.hotelme.HotelController", //
 				 "org.hotelme.HotelModel", // -> This problems
 				"org.hotelme.HotelView", //
 				"org.hotelme.Main", //
 				"org.hotelme.Room", //
 				"org.hotelme.User", //
-//				"org.hotelme.utils", //
+				"org.hotelme.utils.*", //
 				//
 				"org.hotelme.systemtests.AbstractHotelSystemTest", //
 				"org.hotelme.systemtests.SystemTest", //
