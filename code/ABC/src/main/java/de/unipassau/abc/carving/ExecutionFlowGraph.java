@@ -21,14 +21,14 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 
+import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.utils.GraphUtility;
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
+import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
 import edu.uci.ics.jung.graph.Graph;
-import edu.uci.ics.jung.graph.SparseMultigraph;
 import edu.uci.ics.jung.graph.util.EdgeType;
 import edu.uci.ics.jung.visualization.VisualizationViewer;
 import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
-import soot.coffi.method_info;
 
 /**
  * Using strings inside the edge makes this really memory intensive (string
@@ -49,7 +49,8 @@ public class ExecutionFlowGraph {
 	private MethodInvocation firstMethodInvocation = null;
 
 	public ExecutionFlowGraph() {
-		graph = new SparseMultigraph<MethodInvocation, String>();
+//		graph = new SparseMultigraph<MethodInvocation, String>();
+		graph = new DirectedSparseMultigraph<MethodInvocation, String>();
 	}
 
 	// TODO Maybe change the name...
@@ -277,6 +278,36 @@ public class ExecutionFlowGraph {
 
 	public List<MethodInvocation> getOrderedMethodInvocations() {
 		return getOrderedMethodInvocationsAfter(firstMethodInvocation);
+	}
+	
+	public void markNodeAsExternalInterface(MethodInvocation mi) {
+//		System.out.println("ExecutionFlowGraph.markNodeAsExternalInterface() " + mi);
+		// Collecte edges
+		
+		// TODO Those might not really realiable !!
+		Collection<Pair<MethodInvocation, String>> predecessors = new HashSet<>();
+		for( String inEdge : graph.getInEdges( mi ) ){
+			predecessors.add( new Pair<MethodInvocation, String>( graph.getOpposite(mi, inEdge), inEdge));
+		}
+		
+		Collection<Pair<MethodInvocation, String>> successors = new HashSet<>();
+		for( String outEdge : graph.getOutEdges( mi ) ){
+			predecessors.add( new Pair<MethodInvocation, String>( graph.getOpposite(mi, outEdge), outEdge));
+		}
+		
+		// Remove the node, this shall remove also the edges
+		graph.removeVertex( mi );
+		// Update the node content
+		mi.setBelongsToExternalInterface(true);
+		// Reinsert the node
+		graph.addVertex( mi );
+		// Reinsert the edges
+		for(  Pair<MethodInvocation, String> predecessor : predecessors ){
+			graph.addEdge( predecessor.getSecond(), predecessor.getFirst(), mi, EdgeType.DIRECTED);
+		}
+		for(  Pair<MethodInvocation, String> successor : successors ){
+			graph.addEdge( successor.getSecond(), mi, successor.getFirst(), EdgeType.DIRECTED);
+		}
 	}
 
 	/*

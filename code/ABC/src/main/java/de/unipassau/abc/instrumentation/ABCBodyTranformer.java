@@ -49,6 +49,9 @@ public class ABCBodyTranformer extends BodyTransformer {
 
 		final SootMethod containerMethod = body.getMethod();
 
+		System.out.println("ABCBodyTranformer.internalTransform() STARTING " + containerMethod);
+		
+
 		// Skip the instrumentation of those methods. I.e., do not instrument
 		// them
 		if (InstrumentTracer.filterMethod(containerMethod)) {
@@ -80,6 +83,10 @@ public class ABCBodyTranformer extends BodyTransformer {
 					if (stmt.getLeftOp() instanceof Local && stmt.getRightOp() instanceof InvokeExpr) {
 
 						logger.debug("Processing " + stmt);
+						
+						if( stmt.hasTag( ABCTag.TAG_NAME ) ){
+							System.out.println("Do not trace stmt " + stmt);
+						}
 
 						InvokeExpr invokeExpr = stmt.getInvokeExpr();
 
@@ -131,8 +138,6 @@ public class ABCBodyTranformer extends BodyTransformer {
 					if (!(invokeExpr.getMethod().getReturnType() instanceof VoidType)) {
 						return;
 					} else {
-
-						logger.trace("Inside method " + containerMethod + " caseInvokeStmt() " + stmt);
 
 						if (InstrumentTracer.doNotTraceCallsTo(invokeExpr.getMethod())) {
 							// Becomes debug !
@@ -193,7 +198,7 @@ public class ABCBodyTranformer extends BodyTransformer {
 	 * 
 	 * @param body
 	 * @param units
-	 * @param currentUni
+	 * @param currentUnit
 	 * @param method
 	 * @param parameterValues
 	 * @param returnValue
@@ -201,7 +206,7 @@ public class ABCBodyTranformer extends BodyTransformer {
 	 * @param invokeType
 	 */
 	private void instrumentInvokeExpression(//
-			Body body, Unit currentUni, //
+			Body body, Unit currentUnit, //
 			//
 			SootMethod method, // The method which is Invoked this one is the
 								// one we want to wrap: call traceStart and
@@ -219,11 +224,19 @@ public class ABCBodyTranformer extends BodyTransformer {
 			 * Type of invocation.
 			 */
 			String invokeType) {
+		
+		if( method.getSignature().equals("<java.lang.Integer: java.lang.Integer valueOf(int)>")){
+			System.err.println("GOTCHA");
+		}
 
 		if (InstrumentTracer.doNotTraceCallsTo(method)) {
 			// Becomes debug !
 			logger.debug("Do not trace calls to " + method);
 			return;
+		}
+		
+		if (currentUnit.hasTag(ABCTag.TAG_NAME)) {
+			logger.info("DO NOT TRACE OUR OWN CODE " + currentUnit);
 		}
 		
 		
@@ -257,13 +270,29 @@ public class ABCBodyTranformer extends BodyTransformer {
 		 * Instrument body to include a call to Trace.stop AFTER the execution
 		 * of method, we store its return type as well.
 		 */
-		PatchingChain<Unit> units = body.getUnits();
-		units.insertBefore(generatedBefore, currentUni);
-		units.insertAfter(generatedAfter, currentUni);
+		injectTracingCode(body, currentUnit, generatedBefore, generatedAfter);
 
 		// TODO XML SERIALIZATION
 		// dumpToXML(b, units, u, method, parameterValues, returnValue,
 		// instanceValue, invokeType);
 	}
 
+	/*
+	 * Ensure to TAG own on code !
+	 */
+	private void injectTracingCode(Body body, Unit currentUnit, List<Unit> generatedBefore, List<Unit> generatedAfter) {
+		PatchingChain<Unit> units = body.getUnits();
+		for (Unit unit : generatedBefore) {
+			System.out.println("ABCInstrumentArtificialInvocations.injectTracingCode() Tagging >>> " + unit );
+			unit.addTag(ABCTag.TAG);
+		}
+
+		for (Unit unit : generatedAfter) {
+			unit.addTag(ABCTag.TAG);
+		}
+		// Be sure to tage the units we generate !
+		units.insertBefore(generatedBefore, currentUnit);
+		units.insertAfter(generatedAfter, currentUnit);
+
+	}
 }

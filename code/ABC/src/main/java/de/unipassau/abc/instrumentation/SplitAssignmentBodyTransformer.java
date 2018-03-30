@@ -29,8 +29,7 @@ public class SplitAssignmentBodyTransformer extends BodyTransformer {
 
 		final SootMethod containerMethod = body.getMethod();
 
-		// System.out.println("SplitAssignmentBodyTransformer.internalTransform()
-		// >>> STARTING " + containerMethod);
+		 System.out.println("SplitAssignmentBodyTransformer.internalTransform() >>> STARTING " + containerMethod);
 
 		// Filter methods that we do not want to instrument
 		// TODO Make this parameteric

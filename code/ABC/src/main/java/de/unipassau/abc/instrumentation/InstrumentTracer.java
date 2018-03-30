@@ -192,21 +192,21 @@ public class InstrumentTracer {
 
 		// Split Assignments
 		PackManager.v().getPack("jtp")
-				.add(new Transform("jtp.split.assignments", new SplitAssignmentBodyTransformer()));
+				.add(new Transform("jtp.01.split.assignments", new SplitAssignmentBodyTransformer()));
 
 		// Capture the return value of invokes which do not have one
 		PackManager.v().getPack("jtp")
-				.add(new Transform("jtp.capture.return.values", new CaptureReturnValueBodyTransformer()));
+				.add(new Transform("jtp.02.capture.return.values", new CaptureReturnValueBodyTransformer()));
 
 		// Prepare parameters for the invocation
 		PackManager.v().getPack("jtp")
-				.add(new Transform("jtp.prepare.invocation.parameters", new PrepareInvocationParameters()));
+				.add(new Transform("jtp.03.prepare.invocation.parameters", new PrepareInvocationParameters()));
 
 		// Tracing instrumentation
 		PackManager.v().getPack("jtp")
-				.add(new Transform("jtp.instrument.artificial.invocations", new ABCInstrumentArtificialInvocations()));
+				.add(new Transform("jtp.04.instrument.artificial.invocations", new ABCInstrumentArtificialInvocations()));
 		PackManager.v().getPack("jtp")
-				.add(new Transform("jtp.instrument.regular.invocations", new ABCBodyTranformer()));
+				.add(new Transform("jtp.05.instrument.regular.invocations", new ABCBodyTranformer()));
 
 		// Supporting jars are Xstream and trace
 		// TODO HardCoded !

@@ -46,9 +46,13 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 
 	@Override
 	protected void internalTransform(final Body body, String phaseName, @SuppressWarnings("rawtypes") Map options) {
-
+		
 		final SootMethod containerMethod = body.getMethod();
 
+		System.out.println("ABCInstrumentArtificialInvocations.internalTransform() STARTING " + containerMethod);
+
+		logger.debug("STRATING " + containerMethod );
+		
 		if (InstrumentTracer.filterMethod(containerMethod)) {
 			logger.debug("Skip instrumentation of: " + containerMethod);
 			return;
@@ -79,7 +83,6 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 							instrumentStringAssignmentExpression(body, currentUnit, (Local) stmt.getLeftOp(),
 									(StringConstant) stmt.getRightOp());
 						}
-
 					} else if (stmt.getLeftOp() instanceof ArrayRef) {
 						ArrayRef arrayRefExp = (ArrayRef) stmt.getLeftOp();
 
@@ -110,6 +113,15 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 								//
 								(Local) stmt.getLeftOp(), (StaticFieldRef) stmt.getRightOp());
 					} else if (stmt.getRightOp() instanceof StaticFieldRef) {
+						System.out.println("Operation not supported " + stmt);
+					} else if (stmt.getRightOp() instanceof ArrayRef) {
+						instrumentArrayAccessExpression(body, currentUnit,
+								//
+								stmt.getLeftOp(), 
+								((ArrayRef) stmt.getRightOp()).getBase(),
+								((ArrayRef) stmt.getRightOp()).getIndex());
+
+					} else {
 						System.out.println("Operation not supported " + stmt);
 					}
 				}
@@ -236,6 +248,46 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 	}
 
 	/**
+	 * Fake a call to a generic method STORE of the array
+	 * 
+	 * @param body
+	 * @param units
+	 * @param currentUnit
+	 * @param array
+	 * @param arrayIndex
+	 * @param rightOp
+	 */
+	private void instrumentArrayAccessExpression(Body body, Unit currentUnit,
+			//
+			Value leftOp, //
+			Value array, Value arrayIndex) {
+
+		String invokeType = "ArrayOperation";
+		String fakeMethodSignature = "<" +  array.getType() + ": "+ array.getType().toString().replace("[]", "") + " get(int)>";
+
+		List<Value> parameterList = new ArrayList<>();
+		parameterList.add(arrayIndex);
+
+		List<Unit> generatedBefore = new ArrayList<>();
+		List<Unit> generatedAfter = new ArrayList<>();
+
+		generatedBefore.addAll(addTraceStart(invokeType, fakeMethodSignature, parameterList, body));
+
+		generatedAfter.addAll(addTraceObject(array, fakeMethodSignature));
+
+		generatedAfter.addAll(addTraceStop(fakeMethodSignature, leftOp, body));
+
+		
+		System.out.println("ABCInstrumentArtificialInvocations.instrumentArrayAccessExpression() GENERATED CODE: ");
+		for( Unit u : generatedBefore ){
+			System.out.println(">>" + u );
+		}
+		
+		
+		injectTracingCode(body, currentUnit, generatedBefore, generatedAfter);
+	}
+
+	/**
 	 * Trace the assignment of String to StringValue. This is needed because
 	 * strings are NEVER initialized, that is, usually we do not observe a call
 	 * to "new String()"
@@ -274,10 +326,12 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 	private void injectTracingCode(Body body, Unit currentUnit, List<Unit> generatedBefore, List<Unit> generatedAfter) {
 		PatchingChain<Unit> units = body.getUnits();
 		for (Unit unit : generatedBefore) {
+			System.out.println("ABCInstrumentArtificialInvocations.injectTracingCode() TAG " + unit );
 			unit.addTag(ABCTag.TAG);
 		}
 
 		for (Unit unit : generatedAfter) {
+			System.out.println("ABCInstrumentArtificialInvocations.injectTracingCode() TAG " + unit );
 			unit.addTag(ABCTag.TAG);
 		}
 		// Be sure to tage the units we generate !

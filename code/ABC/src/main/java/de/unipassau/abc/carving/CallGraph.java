@@ -19,8 +19,8 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Function;
 
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
+import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
 import edu.uci.ics.jung.graph.Graph;
-import edu.uci.ics.jung.graph.SparseMultigraph;
 import edu.uci.ics.jung.graph.util.EdgeType;
 import edu.uci.ics.jung.visualization.VisualizationViewer;
 import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
@@ -36,7 +36,7 @@ public class CallGraph {
 	private Stack<MethodInvocation> stack;
 
 	public CallGraph() {
-		graph = new SparseMultigraph<MethodInvocation, String>();
+		graph = new DirectedSparseMultigraph<MethodInvocation, String>();
 		stack = new Stack<MethodInvocation>();
 	}
 
@@ -55,6 +55,10 @@ public class CallGraph {
 				graph.addVertex(methodInvocation);
 				// Link the two
 				graph.addEdge("CallDependency-" + id.getAndIncrement(), caller, methodInvocation, EdgeType.DIRECTED);
+
+				if (caller.compareTo(methodInvocation) >= 0) {
+					throw new RuntimeException("Cannot add a call in the past");
+				}
 			}
 		}
 		// This keeps track of the depth
@@ -128,9 +132,36 @@ public class CallGraph {
 
 	// This cannot be made as list because call graph is a tree and a node might
 	// have multiple childreen
+	/**
+	 * For some reason, the graph library says that a give edge is UNDIRECTED, while it is DIRECTED (we verify that at construction time).
+	 * I suspect some sort of buffer overflow or something... so NOW we need to double check all the operations ?!
+	 * @param methodInvocation
+	 * @return
+	 */
 	public Set<MethodInvocation> getMethodInvocationsSubsumedBy(MethodInvocation methodInvocation) {
+//		System.out.println("CallGraph.getMethodInvocationsSubsumedBy() " + methodInvocation + " successors "
+//				+ getSuccessors(methodInvocation));
+//
+//		// The graph might be broken since it returns sometimes calls in the
+//		// opposite direction of the edge ...
+//		if (!getSuccessors(methodInvocation).isEmpty()
+//				&& methodInvocation.compareTo(Collections.min(getSuccessors(methodInvocation))) >= 0) {
+//			System.out.println("CallGraph.getMethodInvocationsSubsumedBy() Method " + methodInvocation);
+//			System.out.println(
+//					"CallGraph.getMethodInvocationsSubsumedBy() Predecessors " + getPredecessors(methodInvocation));
+//			System.out.println(
+//					"CallGraph.getMethodInvocationsSubsumedBy() Successors " + getSuccessors(methodInvocation));
+//			System.out.println("CallGraph.getMethodInvocationsSubsumedBy() WRONG SUCCESSOR "
+//					+ Collections.min(getSuccessors(methodInvocation)));
+//		}
+
 		Set<MethodInvocation> subsumedCalls = new HashSet<>();
 		for (MethodInvocation mi : getSuccessors(methodInvocation)) {
+			
+			if( mi.compareTo( methodInvocation) <= 0 ){
+				logger.error("Since successors " + mi + " is in the past or is the method invocation " + methodInvocation + " itself. we skip this !");
+				continue;
+			}
 			subsumedCalls.addAll(getMethodInvocationsSubsumedBy(mi));
 			subsumedCalls.add(mi);
 		}
@@ -185,5 +216,103 @@ public class CallGraph {
 				throw new RuntimeException("Stack contains the wrong element at the end of parsing: " + top);
 			}
 		}
+		for (String edge : graph.getEdges()) {
+			if (graph.getEdgeType(edge).equals(EdgeType.UNDIRECTED)) {
+				throw new RuntimeException(
+						"Graph contains the wrong type of edge for : " + edge + " " + graph.getEndpoints(edge));
+			}
+		}
+	}
+
+	/**
+	 * Return the parent of this method invocation if any
+	 * 
+	 * @param methodUnderInspection
+	 * @return
+	 */
+	public MethodInvocation getCallerOf(MethodInvocation methodInvocation) {
+		Collection<MethodInvocation> parents = getPredecessors(methodInvocation);
+		if (parents.isEmpty()) {
+			return null;
+		} else {
+			if (parents.size() > 1) {
+				logger.warn("MethodInvocation " + methodInvocation + " has MULTIPLE PARENTS !! " + parents);
+			}
+			// Return the first, and only, one
+			return parents.iterator().next();
+		}
+	}
+
+	public CallGraph getSubGraph(MethodInvocation methodToCarve) {
+		Collection<MethodInvocation> vertices = graph.getVertices();
+		Collection<String> edges = graph.getEdges();
+
+		CallGraph subGraph = new CallGraph();
+		// Readd all the node
+		for (MethodInvocation vertex : vertices) {
+			if (vertex.compareTo(methodToCarve) <= 0) {
+				subGraph.graph.addVertex(vertex);
+			}
+		}
+		// Keep edges ONLY if both ends are inside the subgraph
+		for (String edge : edges) {
+			MethodInvocation source = graph.getSource(edge);
+			MethodInvocation dest = graph.getDest(edge);
+			if (subGraph.graph.containsVertex(source) && subGraph.graph.containsVertex(dest)) {
+				// Adding the edge to the sub graph
+//				System.out.println("CallGraph.getSubGraph() Keeping edge " + source + "--[" + edge + "]-->" + dest);
+				subGraph.graph.addEdge(edge, source, dest, EdgeType.DIRECTED);
+				if (source.compareTo(dest) >= 0) {
+					throw new RuntimeException("Cannot add a calling graph in the PAST !");
+				}
+			}
+		}
+
+		subGraph.verify();
+		
+		logger.debug("CallGraph.getSubGraph() Original GRAPH " + vertices.size() + " -- " + edges.size());
+		logger.debug("CallGraph.getSubGraph() SUB GRAPH " + subGraph.graph.getVertexCount() + " -- "
+				+ subGraph.graph.getEdgeCount());
+		return subGraph;
+	}
+
+	// Remove the nodes after parent (recursively this should remove all the
+	// nodes)
+	// Replace parent with the given one
+	public void markParentAndPruneAfter(MethodInvocation parent) {
+		logger.trace("CallGraph.markParentAndPruneAfter() ORIGINAL " + graph.getVertexCount() + " -- "
+				+ graph.getEdgeCount());
+
+		// This might be also null
+		MethodInvocation grandParent = getCallerOf(parent);
+		String originalCallEdge = null;
+		if (grandParent != null) {
+			originalCallEdge = graph.findEdge(grandParent, parent);
+		}
+		// Recursively remothe nodes
+		remove(parent);
+		// Add the parent once again
+		parent.setBelongsToExternalInterface(true);
+		//
+		graph.addVertex(parent);
+		if (originalCallEdge != null) {
+			graph.addEdge(originalCallEdge, grandParent, parent);
+		}
+
+		System.out.println(
+				"CallGraph.markParentAndPruneAfter() PRUNED " + graph.getVertexCount() + " -- " + graph.getEdgeCount());
+
+	}
+
+	private void remove(MethodInvocation node) {
+		for (MethodInvocation child : getSuccessors(node)) {
+			remove(child);
+		}
+		graph.removeVertex(node);
+	}
+
+	//
+	public Collection<MethodInvocation> getAll() {
+		return graph.getVertices();
 	}
 }

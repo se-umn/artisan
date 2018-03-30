@@ -113,8 +113,8 @@ public class StackImplementation implements TraceParser {
 
 		} catch (Throwable e) {
 			// This fails for java classes
-			logger.info("StackImplementation.parseMethodStart() Swallow:  " + e);
-			e.printStackTrace();
+			logger.info("StackImplementation.parseMethodStart() Swallow:  " + e.getMessage());
+//			e.printStackTrace();
 		}
 
 		// Check if this method belongs to an external interface

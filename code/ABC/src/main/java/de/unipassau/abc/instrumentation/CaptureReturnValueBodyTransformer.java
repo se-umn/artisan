@@ -34,6 +34,9 @@ public class CaptureReturnValueBodyTransformer extends BodyTransformer {
 
 		final SootMethod containerMethod = body.getMethod();
 
+		System.out.println("CaptureReturnValueBodyTransformer.internalTransform() STARTING " + containerMethod);
+		
+
 		if (InstrumentTracer.filterMethod(containerMethod)) {
 			logger.debug("Skip instrumentation of: " + containerMethod);
 			return;

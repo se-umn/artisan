@@ -36,6 +36,8 @@ public class PrepareInvocationParameters extends BodyTransformer {
 	protected void internalTransform(final Body body, String phaseName, @SuppressWarnings("rawtypes") Map options) {
 
 		final SootMethod containerMethod = body.getMethod();
+		
+		System.out.println("PrepareInvocationParameters.internalTransform() STARTING " + containerMethod);
 
 		if (InstrumentTracer.filterMethod(containerMethod)) {
 			logger.debug("Skip instrumentation of: " + containerMethod);

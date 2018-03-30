@@ -28,6 +28,7 @@ import de.unipassau.abc.carving.ObjectInstance;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.carving.exceptions.NotALevel0TestCaseException;
 import de.unipassau.abc.data.Pair;
+import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.utils.JimpleUtils;
 
 public class Level_0_MethodCarver implements MethodCarver {
@@ -89,6 +90,19 @@ public class Level_0_MethodCarver implements MethodCarver {
 	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> level0TestCarving(
 			MethodInvocation methodInvocationToCarve) throws CarvingException {
 
+		// Build the contenxt
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context = new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
+				executionFlowGraph, dataDependencyGraph, callGraph);
+
+		boolean skipExternalInterfaces = false;
+		return level0TestCarving(methodInvocationToCarve, context, skipExternalInterfaces);
+	}
+
+	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> level0TestCarving(
+			MethodInvocation methodInvocationToCarve,
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context, boolean skipExternalInterfaces)
+			throws CarvingException {
+
 		// This creates the root of the tree and invoke the recursive method
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
 
@@ -103,18 +117,228 @@ public class Level_0_MethodCarver implements MethodCarver {
 		//
 		workList.add(mutTask);
 		// Pass everything along
-		level0TestCarving(workList, carvedTests);
+		// This produces the "real" carved tests, that is, those invocations
+		// which
+		// recreate the usage of the CUT. Those, however, might miss
+		// preconditions (e.g., setup of DB)
+		// provided by external interfaces.
+		//
+		level0TestCarving(workList, carvedTests, context);
+
+		if (!skipExternalInterfaces) {
+
+			// Handle preconditions
+			for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
+
+				// Merge the two
+				Set<MethodInvocation> merge = new HashSet<>(carvedTest.getFirst().getOrderedMethodInvocations());
+				
+				List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedPreconditions = processExternalInterfaces(methodInvocationToCarve);
+				
+				// Some of those might not be applicable, e.g., when the precondition also subsumes the MUT !
+				for( Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition : carvedPreconditions ){
+					boolean discard = false;
+					// If the precondition subsumes the call we discard it !
+					for( MethodInvocation mi : carvedPrecondition.getFirst().getOrderedMethodInvocations() ){
+						if( callGraph.getMethodInvocationsSubsumedBy( mi ).contains( methodInvocationToCarve ) ){
+							System.out.println("Level_0_MethodCarver.level0TestCarving() Method " + methodInvocationToCarve + " is subsumed by " + mi + " discard precondition");
+							discard = true;
+							break;
+						}
+					}
+					
+					if( ! discard ){
+						System.out.println("Level_0_MethodCarver.level0TestCarving() Merging preconditions. ");
+						merge.addAll(carvedPrecondition.getFirst().getOrderedMethodInvocations());
+					}
+				}
+
+				// Finalize
+				List<MethodInvocation> orderedSlice = new ArrayList<>(merge);
+				Collections.sort(orderedSlice);
+				//
+				ExecutionFlowGraph finalExecutionFlowGraph = executionFlowGraph.getSubGraph(orderedSlice);
+				DataDependencyGraph finalDataDependencyGraph = dataDependencyGraph.getSubGraph(orderedSlice);
+
+				//
+				carvedTest.setFirst(finalExecutionFlowGraph);
+				carvedTest.setSecond(finalDataDependencyGraph);
+			}
+		}
 
 		return carvedTests;
 	}
 
-	private Pair<ExecutionFlowGraph, DataDependencyGraph> generateCarvedTestFromSlice(Set<MethodInvocation> slice)
-			throws NotALevel0TestCaseException {
+	/**
+	 * We want to extract the least amount of method invocation as possible
+	 * which can recreate the state of the external dependencies. We do like
+	 * this: - We get the list of External Invocations before MUT -> WORK LIST -
+	 * We take the last one from WORKLIST - we get the parent invocation of this
+	 * one if the parent contains MUT (or any instruction of the CARVED TEST?) -
+	 * Output the entry (not the parent) >> REQUIRED CALL else mark all the E.I.
+	 * it subsumes as TAKEN mark the parent node as E.I. remove all the E.I.
+	 * subsumed from the graphs add the parent node to WORKLIST In the end we
+	 * should have the highest "calls" in the call graph which do not subsume
+	 * the CUT.
+	 *
+	 * Carve those CALLS (with the "reduced" graph ?)
+	 * 
+	 * @param carvedTest
+	 * 
+	 * @param carvedTests
+	 * @throws CarvingException
+	 */
+	private List<Pair<ExecutionFlowGraph, DataDependencyGraph>> processExternalInterfaces(
+//			Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest, //
+			MethodInvocation methodToCarve) throws CarvingException {
+
+		// TODO ADD CACHING HERE !!
+
+		System.out.println("=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+\n"
+				+ "Level_0_MethodCarver.processExternalInterfaces() Processing External interface for " + methodToCarve
+				+ "\n" + "=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+\n");
+
+		List<MethodInvocation> externalInterfaceInvocations = executionFlowGraph
+				.getOrderedMethodInvocationsToExternalInterfaceBefore(methodToCarve);
+
+		System.out.println("Level_0_MethodCarver.processExternalInterfaces() " + externalInterfaceInvocations);
+
+		Collections.reverse(externalInterfaceInvocations);
+		Queue<MethodInvocation> worklist = new LinkedList<>(externalInterfaceInvocations);
+		Set<MethodInvocation> bookeeping = new HashSet<>();
+
+		// Create a subgraph which contains only the nodes BEFORE MUT
+		CallGraph subGraph = callGraph.getSubGraph(methodToCarve);
+
+		Set<MethodInvocation> compressedSetupCalls = new HashSet<>();
+
+		while (!worklist.isEmpty()) {
+			MethodInvocation methodUnderInspection = worklist.poll();
+			System.out.println("Level_0_MethodCarver.processExternalInterfaces() Inspecting E.I. method "
+					+ methodUnderInspection + " " + methodUnderInspection.belongsToExternalInterface());
+
+			if (bookeeping.contains(methodUnderInspection)) {
+				logger.debug(
+						"Level_0_MethodCarver.processExternalInterfaces() Alredy covered " + methodUnderInspection);
+				continue;
+			} else {
+				// Add this call to the bookeeping.
+				bookeeping.add(methodUnderInspection);
+			}
+
+			// Process the worklist
+			MethodInvocation parent = subGraph.getCallerOf(methodUnderInspection);
+			//
+			if (parent == null || subGraph.getMethodInvocationsSubsumedBy(parent).contains(methodToCarve)) {
+
+				// // FIXME it is not true that if parent is null then
+				// // automatically we can subsume the other call.
+				// // In fact using @Before methods break this, since their call
+				// is
+				// // not captured (JUnit invoke them)
+				// // while their execution is tracked. But its not true that
+				// they
+				// // have the same parent !!
+				//
+				logger.info("Level_0_MethodCarver.processExternalInterfaces() " + parent + " subsumes " + methodToCarve
+						+ " start the carving of: " + methodUnderInspection);
+				// // Carve the Method we found on the simplified graph...
+				methodUnderInspection.setBelongsToExternalInterface(true);
+				compressedSetupCalls.add(methodUnderInspection);
+				//
+				continue;
+			} else {
+				// Compute the intersection of the method subsumed by parent
+				// and the one external interface
+				// to get the element of the workList that are already
+				// covered
+				Set<MethodInvocation> covered = subGraph.getMethodInvocationsSubsumedBy(parent);
+				covered.retainAll(externalInterfaceInvocations);
+				// System.out.println(
+				// "Level_0_MethodCarver.processExternalInterfaces() External
+				// Interface automatically covered "
+				// + covered);
+				bookeeping.addAll(covered);
+				// Propagate the info on External Interface and prune the
+				// graph
+				subGraph.markParentAndPruneAfter(parent);
+				//
+				System.out.println("Level_0_MethodCarver.processExternalInterfaces() >> queueing " + parent);
+				worklist.add(parent);
+			}
+		}
+
+		System.out.println(
+				"\n\nLevel_0_MethodCarver.processExternalInterfaces() Preparing the carving of the Compressed Setup calls "
+						+ "" + compressedSetupCalls);
+
+		// At this point the subGraph is a simplified version where nodes are
+		// "compressed".
+		// On this one, we need to carve the calls to the external interfaces.
+
+		// Build the context...for this carving...
+		// The context has less nodes of the original, and different
+		// nodes are marked with setBelongToExternalInterface !
+
+		List<MethodInvocation> orderedSlice = new ArrayList<>(subGraph.getAll());
+		Collections.sort(orderedSlice);
+
+		System.out.println(
+				"Level_0_MethodCarver.processExternalInterfaces() Refined context size " + orderedSlice.size());
+		//
+		ExecutionFlowGraph _executionFlowGraph = executionFlowGraph.getSubGraph(orderedSlice);
+		DataDependencyGraph _dataDependencyGraph = dataDependencyGraph.getSubGraph(orderedSlice);
+
+		// This one is the one we already computes but we need to update
+		// the context to propagate the belongToInterface flag...
+		CallGraph _callGraph = subGraph;
+
+		for (MethodInvocation mi : subGraph.getAll()) {
+			if (mi.belongsToExternalInterface()) {
+				System.out.println("Level_0_MethodCarver.processExternalInterfaces() Propagate the E.I. marker for "
+						+ mi + " to refined context");
+				_executionFlowGraph.markNodeAsExternalInterface(mi);
+				_dataDependencyGraph.markNodeAsExternalInterface(mi);
+			}
+		}
+
+		// The context is the same for all the external compressedSetupCalls
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> compressedContext = new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
+				_executionFlowGraph, _dataDependencyGraph, _callGraph);
+
+		// Accumulate those here...
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> partialCarvedExternalInterfaces = new ArrayList<>();
+
+		boolean skipExternalInterfaces = true;
+		for (MethodInvocation setupCall : compressedSetupCalls) {
+			partialCarvedExternalInterfaces
+					.addAll(level0TestCarving(setupCall, compressedContext, skipExternalInterfaces));
+		}
+
+//		System.out.println("Level_0_MethodCarver.processExternalInterfaces() Merging Carved Preconditions: ");
+//		// Maybe is enough to collect the Executions
+//		Set<MethodInvocation> merge = new HashSet<>();
+//		for (Pair<ExecutionFlowGraph, DataDependencyGraph> partialCarvedExternalInterface : partialCarvedExternalInterfaces) {
+//			merge.addAll(partialCarvedExternalInterface.getFirst().getOrderedMethodInvocations());
+//		}
+//		//
+//		List<MethodInvocation> mergedSlice = new ArrayList<>(merge);
+//		Collections.sort(mergedSlice);
+//		ExecutionFlowGraph mergedExecutionFlowGraph = executionFlowGraph.getSubGraph(mergedSlice);
+//		DataDependencyGraph mergedDataDependencyGraph = dataDependencyGraph.getSubGraph(mergedSlice);
+
+		return partialCarvedExternalInterfaces;
+	}
+
+	private Pair<ExecutionFlowGraph, DataDependencyGraph> generateCarvedTestFromSlice(Set<MethodInvocation> slice,
+			CallGraph _callGraph) throws NotALevel0TestCaseException {
 		// Order the slice.
 		List<MethodInvocation> orderedSlice = new ArrayList<>(slice);
+
+		MethodInvocation methodInvocationToCarve = Collections.max(orderedSlice);
+
 		Collections.sort(orderedSlice);
 		// The last method is the one to carve
-		MethodInvocation methodInvocationToCarve = Collections.max(orderedSlice);
 
 		System.out
 				.println("\n\n generateCarvedTestFromSlice() for " + methodInvocationToCarve + " from " + orderedSlice);
@@ -123,7 +347,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 		Set<MethodInvocation> subsumedCalls = new HashSet<>();
 		for (MethodInvocation mi : orderedSlice) {
 			// Filter out the calls that are subsumed by the call graph
-			Set<MethodInvocation> subsumedBy = callGraph.getMethodInvocationsSubsumedBy(mi);
+			Set<MethodInvocation> subsumedBy = _callGraph.getMethodInvocationsSubsumedBy(mi);
 			subsumedCalls.addAll(subsumedBy);
 		}
 
@@ -138,7 +362,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 			// If this happens, the methodInvocation to carve will be removed
 			// from the test... which is wrong...
 
-			List<MethodInvocation> subsumingCalls = callGraph
+			List<MethodInvocation> subsumingCalls = _callGraph
 					.getOrderedSubsumingMethodInvocationsFor(methodInvocationToCarve);
 			// Keep only the ones that belong to the slice
 			subsumingCalls.retainAll(slice);
@@ -149,7 +373,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 				logger.warn("Wrong subsumingCalls count " + subsumingCalls.size() + " instead of 1");
 			}
 			MethodInvocation subsumingMethodInvocation = subsumingCalls.iterator().next();
-			List<MethodInvocation> subsumingPath = callGraph.getSubsumingPathFor(subsumingMethodInvocation,
+			List<MethodInvocation> subsumingPath = _callGraph.getSubsumingPathFor(subsumingMethodInvocation,
 					methodInvocationToCarve);
 
 			throw new NotALevel0TestCaseException(methodInvocationToCarve, subsumingMethodInvocation, subsumingPath);
@@ -174,14 +398,19 @@ public class Level_0_MethodCarver implements MethodCarver {
 	public void level0TestCarving(
 			// This is the node to expand
 			Queue<Pair<Set<MethodInvocation>, Set<MethodInvocation>>> workList, //
-			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests) throws CarvingException {
+			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests, //
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context) throws CarvingException {
+
+		ExecutionFlowGraph _executionFlowGraph = context.getFirst();
+		DataDependencyGraph _dataDependencyGraph = context.getSecond();
+		CallGraph _callGraph = context.getThird();
 
 		while (!workList.isEmpty()) {
 			Pair<Set<MethodInvocation>, Set<MethodInvocation>> task = workList.poll();
 			System.out.println("\nProcessing " + task.getFirst() + " --> " + task.getSecond() + " by Carving");
 			if (task.getSecond().isEmpty()) {
 				try {
-					carvedTests.add(generateCarvedTestFromSlice(task.getFirst()));
+					carvedTests.add(generateCarvedTestFromSlice(task.getFirst(), _callGraph));
 				} catch (NotALevel0TestCaseException e) {
 					e.printStackTrace();
 					logger.info("Skip test generation, because test in not valid " + e.getSubsumedMethodInvocation()
@@ -208,20 +437,27 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 				for (MethodInvocation methodInvocation : task.getSecond()) {
 
+					// Before carving this, check in the cache
+					if (preconditionCache.containsKey(methodInvocation)) {
+						// Cache IT
+					} else {
+						// Cache MISS
+					}
+
 					/*
 					 * 1 - Include all the invocations that happen before
 					 * (Execution graph). this excludes methods that happened
 					 * after MUT
 					 */
 					// Carve by Time => "Before"
-					List<MethodInvocation> executioneBefore = executionFlowGraph
+					List<MethodInvocation> executioneBefore = _executionFlowGraph
 							.getOrderedMethodInvocationsBefore(methodInvocation);
 
 					/*
 					 * 2 - Create a data dependency sub graph which contains
 					 * only the data used Before the method
 					 */
-					DataDependencyGraph subGraphFromPastExecution = dataDependencyGraph.getSubGraph(executioneBefore);
+					DataDependencyGraph subGraphFromPastExecution = _dataDependencyGraph.getSubGraph(executioneBefore);
 
 					/*
 					 * 3 - Include all the invocations made on any data
@@ -239,18 +475,10 @@ public class Level_0_MethodCarver implements MethodCarver {
 					 * location of methods which have potential impa
 					 */
 
-					// At this point include all the calls that are made
-					// external interfaces BEFORE methodInvocationToCarve
-					List<MethodInvocation> externalInterfaceInvocations = executionFlowGraph
-							.getOrderedMethodInvocationsToExternalInterfaceBefore(methodInvocation);
+					logger.debug(
+							"Level_0_MethodCarver.level0TestCarving() Dependencies on Methods " + backwardSlice.size());
+					logger.trace("" + backwardSlice);
 
-					System.out.println("Level_0_MethodCarver.level0TestCarving() dependencies on External interfaces "
-							+ externalInterfaceInvocations);
-
-					methodDependencies.addAll(externalInterfaceInvocations);
-
-					System.out.println(
-							"Level_0_MethodCarver.level0TestCarving() Method Dependencies are " + backwardSlice);
 					// Accumulate the backwardSlice in the worklist
 					methodDependencies.addAll(backwardSlice);
 
@@ -260,9 +488,11 @@ public class Level_0_MethodCarver implements MethodCarver {
 						// Static calls require only parameters if any
 						if (JimpleUtils.getParameterList(methodInvocation.getJimpleMethod()).length > 0) {
 							Set<ObjectInstance> parameters = new HashSet<>(
-									dataDependencyGraph.getParametersOf(methodInvocation));
+									_dataDependencyGraph.getParametersOf(methodInvocation));
 							//
-							System.out.println("Level_0_MethodCarver.level0TestCarving() dependencies for "
+							logger.debug("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
+									+ methodInvocation + " are " + parameters.size());
+							logger.trace("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
 									+ methodInvocation + " are " + parameters);
 							//
 							dataDependencies.put(methodInvocation, parameters);
@@ -272,67 +502,89 @@ public class Level_0_MethodCarver implements MethodCarver {
 						Set<ObjectInstance> deps = new HashSet<>();
 						// If the method is a constructor the preconditions are
 						// the parameters, no parameters means no preconditions
-						ObjectInstance owner = dataDependencyGraph.getOwnerFor(methodInvocation);
-						System.out.println("Level_0_MethodCarver.level0TestCarving() Owner for " + methodInvocation
-								+ " is " + owner);
+						ObjectInstance owner = _dataDependencyGraph.getOwnerFor(methodInvocation);
+						// logger.debug("Level_0_MethodCarver.level0TestCarving()
+						// Owner for " + methodInvocation + " is "
+						// + owner);
 						deps.add(owner);
 						//
 						if (JimpleUtils.getParameterList(methodInvocation.getJimpleMethod()).length > 0) {
-							List<ObjectInstance> parameters = dataDependencyGraph.getParametersOf(methodInvocation);
-							System.out.println("Level_0_MethodCarver.level0TestCarving() dependencies for "
-									+ methodInvocation + " are " + parameters);
+							List<ObjectInstance> parameters = _dataDependencyGraph.getParametersOf(methodInvocation);
+							// logger.debug("Level_0_MethodCarver.level0TestCarving()
+							// dependencies for " + methodInvocation
+							// + " are " + parameters);
 							deps.addAll(parameters);
 						}
-
+						logger.debug("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
+								+ methodInvocation + " are " + deps.size());
+						logger.trace("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
+								+ methodInvocation + " are " + deps);
 						dataDependencies.put(methodInvocation, deps);
 
 					} else {
 						Set<ObjectInstance> deps = new HashSet<>();
-						ObjectInstance owner = dataDependencyGraph.getOwnerFor(methodInvocation);
-						System.out.println("Level_0_MethodCarver.level0TestCarving() Owner for " + methodInvocation
-								+ " is " + owner);
+						ObjectInstance owner = _dataDependencyGraph.getOwnerFor(methodInvocation);
+						// logger.debug("Level_0_MethodCarver.level0TestCarving()
+						// Owner for " + methodInvocation + " is "
+						// + owner);
 						deps.add(owner);
 						// Regular invocations require parameters and the
 						// constructor if the constructor is not there yet
 						if (JimpleUtils.getParameterList(methodInvocation.getJimpleMethod()).length > 0) {
-							List<ObjectInstance> parameters = dataDependencyGraph.getParametersOf(methodInvocation);
+							List<ObjectInstance> parameters = _dataDependencyGraph.getParametersOf(methodInvocation);
 
-							System.out.println("Level_0_MethodCarver.level0TestCarving() dependencies for "
-									+ methodInvocation + " are " + parameters);
+							// logger.debug("Level_0_MethodCarver.level0TestCarving()
+							// dependencies for " + methodInvocation
+							// + " are " + parameters);
 
 							deps.addAll(parameters);
 						}
-
+						logger.debug("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
+								+ methodInvocation + " are " + deps.size());
+						logger.trace("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
+								+ methodInvocation + " are " + deps);
 						dataDependencies.put(methodInvocation, deps);
 					}
 				}
 
+				/////
+
 				Map<ObjectInstance, Set<MethodInvocation>> methodsWhichReturnTheObjects = new HashMap<>();
 
-				List<MethodInvocation> executioneBeforeLast = executionFlowGraph
+				List<MethodInvocation> executioneBeforeLast = _executionFlowGraph
 						.getOrderedMethodInvocationsBefore(lastestMethodInvocation);
-				DataDependencyGraph dataDependencyGraphBefore = dataDependencyGraph.getSubGraph(executioneBeforeLast);
+				DataDependencyGraph dataDependencyGraphBefore = _dataDependencyGraph.getSubGraph(executioneBeforeLast);
 
 				for (Entry<MethodInvocation, Set<ObjectInstance>> entry : dataDependencies.entrySet()) {
 					for (ObjectInstance data : entry.getValue()) {
 
-						if (data == null)
-							System.out.println(
-									"Level_0_MethodCarver.level0TestCarving() NULL DATA FOR " + entry.getKey());
+						if (data == null) {
+							logger.warn("Level_0_MethodCarver.level0TestCarving() NULL DATA FOR " + entry.getKey());
+							// SKIP THIS... Probably will break the test
+							// generation ?!
+							continue;
+						}
 						if (ObjectInstance.systemIn.equals(data) || //
 								ObjectInstance.systemOut.equals(data) || //
 								ObjectInstance.systemErr.equals(data)) {
 							continue;
 						}
+						// REPLACED dataDependencyGraphBefore with //
+						// dataDependencyGraph
 
 						Set<MethodInvocation> methodsWhichReturnTheObject = new HashSet<>();
-						MethodInvocation constructor = dataDependencyGraphBefore.getInitMethodInvocationFor(data);
-						if (constructor != null) { // If we match this by time
-													// we stumble upon the fact
-													// that super() is called
-													// after <init>
-							// Consider only those methods BEFORE or the SAME
+						MethodInvocation constructor = dataDependencyGraph.getInitMethodInvocationFor(data);
+						if (constructor != null) {
+							/*
+							 * If we match this by time we stumble upon the fact
+							 * that super() is called after <init> Consider only
+							 * those methods BEFORE or the SAME
+							 */
 							methodsWhichReturnTheObject.add(constructor);
+						} else {
+							System.out.println("Level_0_MethodCarver.level0TestCarving() NO CONSTRUCTOR FOR " + data
+									+ " All methods are :");
+							System.out.println(" -- " + dataDependencyGraph.getMethodInvocationsForOwner(data));
 						}
 
 						/**
@@ -344,18 +596,20 @@ public class Level_0_MethodCarver implements MethodCarver {
 						 * then it will change it's id, meaning that it results
 						 * in a different node !
 						 * 
-						 * For "regular" objects the "MAX" is the right one... I hope...
+						 * For "regular" objects the "MAX" is the right one... I
+						 * hope...
 						 * 
 						 */
 						Set<MethodInvocation> tempSet = new HashSet<>();
 						// Filter out the one that are after the depenendency
-						for (MethodInvocation returning : dataDependencyGraphBefore
-								.getMethodInvocationsWhichReturn(data)) {
+						for (MethodInvocation returning : dataDependencyGraph.getMethodInvocationsWhichReturn(data)) {
 							if (returning.getInvocationCount() <= entry.getKey().getInvocationCount()) {
 								tempSet.add(returning);
-							} else {
-								System.out.println(">>>> " + returning + " discarded as violates BEFORE USE");
 							}
+							// else {
+							// System.out.println(">>>> " + returning + "
+							// discarded as violates BEFORE USE");
+							// }
 						}
 
 						if (!tempSet.isEmpty()) {
@@ -379,20 +633,23 @@ public class Level_0_MethodCarver implements MethodCarver {
 						} else {
 							// Those cannot be later than the user of the data !
 							methodsWhichReturnTheObjects.put(data, methodsWhichReturnTheObject);
-							System.out.println("Level_0_MethodCarver.level0TestCarving() methodsWhichReturn " + data
+							logger.debug("Level_0_MethodCarver.level0TestCarving() methodsWhichReturn " + data
 									+ " before " + entry.getKey() + " are " + methodsWhichReturnTheObject);
 						}
 					}
 				}
+
+				///////
 
 				// Full cartesian
 				Set<List<MethodInvocation>> fullCartesianProduct = Sets
 						.cartesianProduct(new ArrayList<>(methodsWhichReturnTheObjects.values()));
 
 				// A new task for each sub-combination
+				System.out.println("Level_0_MethodCarver.level0TestCarving() Full Cartesian Product is : "
+						+ fullCartesianProduct.size() + " each combination has "
+						+ methodsWhichReturnTheObjects.values().size() + " elements");
 				for (List<MethodInvocation> combination : fullCartesianProduct) {
-
-					System.out.println("Level_0_MethodCarver.level0TestCarving() Combination is " + combination);
 
 					// Move the method invocations considered so far in the
 					// done list
@@ -410,8 +667,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 					Pair<Set<MethodInvocation>, Set<MethodInvocation>> newTask = new Pair<Set<MethodInvocation>, Set<MethodInvocation>>(
 							workDone, workToDo);
 					//
-					System.out
-							.println("Enqueuing new task " + newTask.getFirst() + " New work: " + newTask.getSecond());
+					System.out.println("Level_0_MethodCarver.level0TestCarving() Enqueuing new task with "
+							+ newTask.getSecond().size() + " method invocations");
+					logger.trace("" + newTask.getSecond());
 					workList.add(newTask);
 				}
 
@@ -1151,6 +1409,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 			List<MethodInvocationMatcher> excludeBy) {
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
 
+		// It seems that this cannot deal with Prefix. E.G., ClassFile,
+		// ClassFile1, ClassFile2 are all matched by "ClassFile"
 		for (MethodInvocation methodInvocationUnderTest : executionFlowGraph.getMethodInvocationsFor(carveBy,
 				/* excludeMain, excludeJavaLang, */
 				excludeBy.toArray(new MethodInvocationMatcher[] {}))) {

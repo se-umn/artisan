@@ -24,11 +24,13 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 
+import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.utils.GraphUtility;
 import de.unipassau.abc.utils.JimpleUtils;
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
+import edu.uci.ics.jung.graph.DirectedSparseGraph;
+import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
 import edu.uci.ics.jung.graph.Graph;
-import edu.uci.ics.jung.graph.SparseMultigraph;
 import edu.uci.ics.jung.graph.util.EdgeType;
 import edu.uci.ics.jung.visualization.VisualizationViewer;
 import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
@@ -59,7 +61,8 @@ public class DataDependencyGraph {
 	private Map<DataNode, Value> additionalData;
 
 	public DataDependencyGraph() {
-		graph = new SparseMultigraph<GraphNode, String>();
+//		graph = new SparseMultigraph<GraphNode, String>();
+		graph = new DirectedSparseMultigraph<GraphNode, String>();
 		additionalData = new HashMap<>();
 	}
 
@@ -878,6 +881,35 @@ public class DataDependencyGraph {
 			}
 		}
 		return methodInvocations;
+	}
+
+	public void markNodeAsExternalInterface(MethodInvocation mi) {
+		// Collecte edges
+		
+		// TODO Those might not really realiable !!
+		Collection<Pair<GraphNode, String>> predecessors = new HashSet<>();
+		for( String inEdge : graph.getInEdges( mi ) ){
+			predecessors.add( new Pair<GraphNode, String>( graph.getOpposite(mi, inEdge), inEdge));
+		}
+		
+		Collection<Pair<GraphNode, String>> successors = new HashSet<>();
+		for( String outEdge : graph.getOutEdges( mi ) ){
+			predecessors.add( new Pair<GraphNode, String>( graph.getOpposite(mi, outEdge), outEdge));
+		}
+		
+		// Remove the node, this shall remove also the edges
+		graph.removeVertex( mi );
+		// Update the node content
+		mi.setBelongsToExternalInterface(true);
+		// Reinsert the node
+		graph.addVertex( mi );
+		// Reinsert the edges
+		for(  Pair<GraphNode, String> predecessor : predecessors ){
+			graph.addEdge( predecessor.getSecond(), predecessor.getFirst(), mi, EdgeType.DIRECTED);
+		}
+		for(  Pair<GraphNode, String> successor : successors ){
+			graph.addEdge( successor.getSecond(), mi, successor.getFirst(), EdgeType.DIRECTED);
+		}
 	}
 
 }
