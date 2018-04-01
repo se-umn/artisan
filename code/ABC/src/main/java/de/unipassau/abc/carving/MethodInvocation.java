@@ -33,6 +33,8 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
 	private boolean staticCall;
 
+	private boolean isTestSetupCall;
+
 	public MethodInvocation(String jimpleMethod, int invocationCount) {
 		this.jimpleMethod = jimpleMethod;
 		this.invocationCount = invocationCount;
@@ -89,9 +91,10 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		return jimpleMethod + "_" + invocationCount;
 	}
 
-	public void setStatic(boolean staticCall){
+	public void setStatic(boolean staticCall) {
 		this.staticCall = staticCall;
 	}
+
 	public boolean isStatic() {
 		return this.staticCall;
 	}
@@ -151,4 +154,11 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		return getInvocationCount() - o.getInvocationCount();
 	}
 
+	public void setTestSetupCall(boolean b) {
+		this.isTestSetupCall = b;
+	}
+
+	public boolean isTestSetupCall() {
+		return isTestSetupCall;
+	}
 }

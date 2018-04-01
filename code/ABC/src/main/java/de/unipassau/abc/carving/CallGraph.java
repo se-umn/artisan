@@ -289,11 +289,13 @@ public class CallGraph {
 		if (grandParent != null) {
 			originalCallEdge = graph.findEdge(grandParent, parent);
 		}
-		// Recursively remothe nodes
+		// Recursively remothe nodes ?
 		remove(parent);
 		// Add the parent once again
-		parent.setBelongsToExternalInterface(true);
+//		parent.setBelongsToExternalInterface(true);
+		parent.setTestSetupCall(true);
 		//
+		System.out.println("Readded " + parent);
 		graph.addVertex(parent);
 		if (originalCallEdge != null) {
 			graph.addEdge(originalCallEdge, grandParent, parent);
@@ -305,14 +307,30 @@ public class CallGraph {
 	}
 
 	private void remove(MethodInvocation node) {
+		
 		for (MethodInvocation child : getSuccessors(node)) {
 			remove(child);
 		}
-		graph.removeVertex(node);
+		boolean removed = graph.removeVertex(node);
+		System.out.println("Removed " + node  + " " + removed);
 	}
 
 	//
 	public Collection<MethodInvocation> getAll() {
 		return graph.getVertices();
+	}
+
+	public boolean contains(MethodInvocation methodUnderInspection) {
+		return graph.getVertices().contains( methodUnderInspection);
+	}
+
+	public int distanceToRoot(MethodInvocation key) {
+		int distance = 0;
+		MethodInvocation parent = getCallerOf( key );
+		while( parent != null ){
+			distance++;
+			parent = getCallerOf( parent );
+		}
+		return distance;
 	}
 }

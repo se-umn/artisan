@@ -7,9 +7,11 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -36,7 +38,7 @@ public class StackImplementation implements TraceParser {
 	 * non filtered classes. Not all methods, but only the methods which does
 	 * not involve control flow... which is wrong !
 	 */
-	private ExecutionFlowGraph exectuionFlowGraph;
+	private ExecutionFlowGraph executionFlowGraph;
 
 	/*
 	 * Track data dependencies among invocations: return values, parameters, and
@@ -88,12 +90,10 @@ public class StackImplementation implements TraceParser {
 
 		MethodInvocation methodInvocation = new MethodInvocation(jimpleMethod, invocationCount.incrementAndGet());
 		methodInvocation.setInvocationType(typeOfInvocation);
-		if( "StaticInvokeExpr".equals(typeOfInvocation) || 
-				//
-				"StaticFieldOperation".equals(typeOfInvocation) ||
-				"FieldOperation".equals(typeOfInvocation) ||
-				"StringOperation".equals(typeOfInvocation))
-		{
+		if ("StaticInvokeExpr".equals(typeOfInvocation) ||
+		//
+				"StaticFieldOperation".equals(typeOfInvocation) || "FieldOperation".equals(typeOfInvocation)
+				|| "StringOperation".equals(typeOfInvocation)) {
 			methodInvocation.setStatic(true);
 		}
 
@@ -114,7 +114,7 @@ public class StackImplementation implements TraceParser {
 		} catch (Throwable e) {
 			// This fails for java classes
 			logger.info("StackImplementation.parseMethodStart() Swallow:  " + e.getMessage());
-//			e.printStackTrace();
+			// e.printStackTrace();
 		}
 
 		// Check if this method belongs to an external interface
@@ -176,7 +176,7 @@ public class StackImplementation implements TraceParser {
 		if (!purityFlag) {
 			// This also tracks parameter dependency
 			dataDependencyGraph.addMethodInvocation(methodInvocation, actualParameters);
-			exectuionFlowGraph.enqueueMethodInvocations(methodInvocation);
+			executionFlowGraph.enqueueMethodInvocations(methodInvocation);
 		} else {
 			logger.trace(methodInvocation + " excluded by purity");
 		}
@@ -224,7 +224,7 @@ public class StackImplementation implements TraceParser {
 
 		if (!purityFlag) {
 			dataDependencyGraph.addDataDependencyOnOwner(methodInvocation, thisObject.toString());
-			exectuionFlowGraph.addOwnerToMethodInvocation(methodInvocation, thisObject.toString());
+			executionFlowGraph.addOwnerToMethodInvocation(methodInvocation, thisObject.toString());
 		}
 		return peekIndex - 1;
 	}
@@ -297,7 +297,7 @@ public class StackImplementation implements TraceParser {
 			throws FileNotFoundException, IOException {
 
 		// Reinitialize all the parsing state variables
-		exectuionFlowGraph = new ExecutionFlowGraph();
+		executionFlowGraph = new ExecutionFlowGraph();
 		dataDependencyGraph = new DataDependencyGraph();
 		callGraph = new CallGraph();
 		systemExitReached = false;
@@ -344,6 +344,10 @@ public class StackImplementation implements TraceParser {
 	public Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parseTrace(String traceFilePath,
 			List<MethodInvocationMatcher> externalInterfaceMatchers) throws FileNotFoundException, IOException {
 
+		// Compress setup calls !
+		// TODO THIS IS HARDCODED FOR TESTING
+		MethodInvocationMatcher testSetupCallMatcher = MethodInvocationMatcher.byMethodLiteral("<org.hotelme.systemtests.TestHotelReserveRoom: void dropAndRecreateTheDb()>");
+
 		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> result = new HashMap<>();
 
 		// Read the file into a set of string, this might be a problem for long
@@ -357,14 +361,49 @@ public class StackImplementation implements TraceParser {
 		// iterator at this point
 		int position = parseTraceFile(lines, externalInterfaceMatchers, 0);
 		//
+		for( MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations() ){
+			if( testSetupCallMatcher.matches( mi ) ){
+				System.out.println(" Matched test setup call " + mi );
+				callGraph.markParentAndPruneAfter(mi);
+				
+				//
+				List<MethodInvocation> orderedSlice = new ArrayList<>(callGraph.getAll());
+				Collections.sort(orderedSlice);
+
+				logger.info("Level_0_MethodCarver.processExternalInterfaces() Refined context size " + orderedSlice.size());
+				//
+				executionFlowGraph = executionFlowGraph.getSubGraph(orderedSlice);
+				dataDependencyGraph = dataDependencyGraph.getSubGraph(orderedSlice);
+				
+			}
+		}//
+
 		result.put(UUID.randomUUID().toString(), new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
-				exectuionFlowGraph, dataDependencyGraph, callGraph));
+				executionFlowGraph, dataDependencyGraph, callGraph));
 
 		while (position != -1 && position < lines.size()) {
 			position = parseTraceFile(lines, externalInterfaceMatchers, position);
 			//
+
+			for( MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations() ){
+				if( testSetupCallMatcher.matches( mi ) ){
+					System.out.println(" Matched test setup call " + mi );
+					callGraph.markParentAndPruneAfter(mi);
+					
+					//
+					List<MethodInvocation> orderedSlice = new ArrayList<>(callGraph.getAll());
+					Collections.sort(orderedSlice);
+
+					logger.info("Level_0_MethodCarver.processExternalInterfaces() Refined context size " + orderedSlice.size());
+					//
+					executionFlowGraph = executionFlowGraph.getSubGraph(orderedSlice);
+					dataDependencyGraph = dataDependencyGraph.getSubGraph(orderedSlice);
+					
+				}
+			}
+			//
 			result.put(UUID.randomUUID().toString(), new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
-					exectuionFlowGraph, dataDependencyGraph, callGraph));
+					executionFlowGraph, dataDependencyGraph, callGraph));
 		}
 
 		return result;
@@ -383,7 +422,7 @@ public class StackImplementation implements TraceParser {
 	}
 
 	public ExecutionFlowGraph getExectuionFlowGraph() {
-		return exectuionFlowGraph;
+		return executionFlowGraph;
 	}
 
 	// public boolean checkParamIsAObject(String param) {

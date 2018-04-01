@@ -43,6 +43,7 @@ public class ExecutionFlowGraph {
 	private final Logger logger = LoggerFactory.getLogger(ExecutionFlowGraph.class);
 
 	private final AtomicInteger id = new AtomicInteger(0);
+	private final AtomicInteger tid = new AtomicInteger(0);
 
 	private Graph<MethodInvocation, String> graph;
 	private MethodInvocation lastMethodInvocation = null;
@@ -471,6 +472,17 @@ public class ExecutionFlowGraph {
 			subGraph.enqueueMethodInvocations( methodInvocation );
 		}
 		return subGraph;
+	}
+
+	// Insert the method invocation in the "right" place...Usually in front, TODO but there might be more than one ?
+	public void insertTestSetupCall(MethodInvocation testSetupCall) {
+		System.out.println("ExecutionFlowGraph.insertTestSetupCall() " + testSetupCall);
+		graph.addVertex( testSetupCall );
+		//
+		graph.addEdge("TestSetupCall-" + tid.getAndIncrement(), testSetupCall, firstMethodInvocation,
+				EdgeType.DIRECTED);
+		// Replace the first call
+		firstMethodInvocation = testSetupCall;
 	}
 
 }

@@ -274,7 +274,7 @@ public class Carver {
 
 		System.out.println("Carver.main() Start code generation");
 		// Test Generation
-		TestGenerator testCaseGenerator = new TestGenerator();
+		TestGenerator testCaseGenerator = new TestGenerator( parsedTrace );
 		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests);
 
 		// TODO Are assertions STILL generated ?!

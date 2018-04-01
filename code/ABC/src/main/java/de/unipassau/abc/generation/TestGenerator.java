@@ -1,7 +1,6 @@
 package de.unipassau.abc.generation;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -16,6 +15,7 @@ import org.jboss.util.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de.unipassau.abc.carving.CallGraph;
 import de.unipassau.abc.carving.DataDependencyGraph;
 import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
@@ -23,6 +23,7 @@ import de.unipassau.abc.carving.MethodInvocationMatcher;
 import de.unipassau.abc.carving.ObjectInstance;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Pair;
+import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.instrumentation.CarvingTag;
 import de.unipassau.abc.tracing.XMLDumper;
 import de.unipassau.abc.utils.JimpleUtils;
@@ -52,6 +53,11 @@ public class TestGenerator {
 	// private static final AtomicInteger localId = new AtomicInteger(0);
 
 	private static final Logger logger = LoggerFactory.getLogger(TestGenerator.class);
+	private Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace;
+
+	public TestGenerator(Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace) {
+		this.parsedTrace = parsedTrace;
+	}
 
 	/**
 	 * Test case generation requires only the list of instructions and the data
@@ -83,8 +89,11 @@ public class TestGenerator {
 			try {
 				validate(carvedTest);
 			} catch (CarvingException e) {
-				System.out.println(
-						" Error " + e.getMessage() + " while generating test: " + e.getCarvedTest().getFirst());
+				logger.error(" Error " + e.getMessage() + " while generating test: "
+						+ e.getCarvedTest().getFirst().getOrderedMethodInvocations());
+
+				/// Find if we have the call in the parsed trace !
+
 				continue;
 			}
 
@@ -130,13 +139,26 @@ public class TestGenerator {
 				continue;
 			}
 
-			// TODO This does not cover the cases where the variable is initialzed AFTER its used !
+			// TODO This does not cover the cases where the variable is
+			// initialzed AFTER its used !
 			if (dataDependencyGraph.getInitMethodInvocationFor(instance) == null
 					&& dataDependencyGraph.getMethodInvocationsWhichReturn(instance).isEmpty()) {
+
 				CarvingException e = new CarvingException(
 						"Object instance " + instance + " is invalid. No method initizalizes or returns it !");
-				// e.setCarvedTest( carvedTest );
-				throw new RuntimeException(e);
+				e.setBrokenInstance(instance);
+				e.setCarvedTest(carvedTest);
+				
+				MethodInvocation mut = carvedTest.getFirst().getLastMethodInvocation();
+				for( Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsed : parsedTrace.values() ){
+					if( parsed.getFirst().contains( mut ) ){
+						DataDependencyGraph ddg = parsed.getSecond();
+						System.out.println( "Init for " + instance + " " + ddg.getInitMethodInvocationFor( instance) );
+						System.out.println( "Returns for " + instance + " " + ddg.getMethodInvocationsWhichReturn( instance ));
+					}
+				}
+
+				throw e;
 			}
 
 		}
@@ -284,13 +306,13 @@ public class TestGenerator {
 				body.getLocals().add(localVariable);
 
 				// Debug
-				System.out.println("  >>>> Create a new local variable " + localVariable + " of type " + type
-						+ " and node " + node + " " + node.hashCode());
+				logger.trace("  >>>> Create a new local variable " + localVariable + " of type " + type + " and node "
+						+ node + " " + node.hashCode());
 
 				// String initialization ? This should be called later ?
 				dataDependencyGraph.setSootValueFor(node, localVariable);
 
-				InputStream ina = System.in;
+				// InputStream ina = System.in;
 				// TODO I do not like this but it might help
 				// StaticFieldRef shall be initialized
 				if (node.equals(ObjectInstance.systemIn)) {
@@ -338,8 +360,8 @@ public class TestGenerator {
 			// Store the return value to build the data dependencies
 			Value returnValue = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
 
-			System.out.println("Generating  " + methodInvocation + " owner " + objLocal + " parameters "
-					+ parametersValues + " with return value " + returnValue);
+			logger.debug("Generating  " + methodInvocation + " owner " + objLocal + " parameters " + parametersValues
+					+ " with return value " + returnValue);
 			//
 			Local actualReturnValue = null;
 			if (returnValue instanceof Local) {
@@ -489,13 +511,13 @@ public class TestGenerator {
 		case "StringOperation": // This is a static call which generates out of
 								// the blue the required string. The value is
 								// store in the corresponding XML file
-			System.out.println("String initialization " + methodInvocation);
+			// System.out.println("String initialization " + methodInvocation);
 			try {
 				// This is actually an assignment to the return value
 				String xmlContent = (String) XMLDumper.loadObject(methodInvocation.getXmlDumpForReturn());
 				Stmt callStmt = jimple.newAssignStmt(returnObjLocal, StringConstant.v(xmlContent));
 				units.add(callStmt);
-				System.out.println("Added " + callStmt);
+				// System.out.println("Added " + callStmt);
 			} catch (Throwable e) {
 				throw new CarvingException("Cannot find a dumped value for string " + returnObjLocal + " in file "
 						+ methodInvocation.getXmlDumpForReturn(), e);
@@ -508,21 +530,25 @@ public class TestGenerator {
 			// of ABC
 			if (MethodInvocationMatcher.byMethod("<.*\\[\\]: void <init>(int)>").matches(methodInvocation)) {
 				// Create an array to host the values
-				System.out.println("TestGenerator.addUnitFor() INIT ARRAY " + objLocal);
+				// System.out.println("TestGenerator.addUnitFor() INIT ARRAY " +
+				// objLocal);
 				String arrayType = JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod()).replace("[]",
 						"");
 				NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(RefType.v(arrayType), parametersValues.get(0));
 				Stmt arrayAssignment = Jimple.v().newAssignStmt(objLocal, arrayExpr);
 				units.add(arrayAssignment);
-				System.out.println("TestGenerator.addUnitFor() " + arrayAssignment);
+				// System.out.println("TestGenerator.addUnitFor() " +
+				// arrayAssignment);
 			} else if (MethodInvocationMatcher.byMethod("<.*\\[\\]: void store(int,.*)>").matches(methodInvocation)) {
 				// Assign in position the value
-				System.out.println("TestGenerator.addUnitFor() STORE ARRAY " + objLocal + " " + parametersValues.get(0)
-						+ " " + parametersValues.get(1));
+				// System.out.println("TestGenerator.addUnitFor() STORE ARRAY "
+				// + objLocal + " " + parametersValues.get(0)
+				// + " " + parametersValues.get(1));
 				ArrayRef arrayRef1 = Jimple.v().newArrayRef(objLocal, parametersValues.get(0));
 				AssignStmt assignStmt1 = Jimple.v().newAssignStmt(arrayRef1, parametersValues.get(1));
 				units.add(assignStmt1);
-				System.out.println("TestGenerator.addUnitFor() " + assignStmt1);
+				// System.out.println("TestGenerator.addUnitFor() " +
+				// assignStmt1);
 			} else if (MethodInvocationMatcher.byMethod("<.*\\[\\]: .* get(int)>").matches(methodInvocation)) {
 				// TODO Access the value at position ?
 				// System.out.println("TestGenerator.addUnitFor() GET ARRAY
@@ -531,9 +557,10 @@ public class TestGenerator {
 				ArrayRef arrayRef1 = Jimple.v().newArrayRef(objLocal, parametersValues.get(0));
 				AssignStmt assignStmt1 = Jimple.v().newAssignStmt(returnObjLocal, arrayRef1);
 				units.add(assignStmt1);
-				System.out.println("TestGenerator.addUnitFor() " + assignStmt1);
+				// System.out.println("TestGenerator.addUnitFor() " +
+				// assignStmt1);
 			} else {
-				System.out.println("ERROR WRONG " + methodInvocation);
+				logger.error("ERROR WRONG method invocation: " + methodInvocation);
 			}
 			break;
 		default:
@@ -550,7 +577,7 @@ public class TestGenerator {
 			logger.error("Cannot find method " + jimpleMethod, e);
 
 			for (SootClass sClass : Scene.v().getApplicationClasses()) {
-				System.out.println(sClass);
+				logger.error("" + sClass);
 			}
 
 			throw e;
