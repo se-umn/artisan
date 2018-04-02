@@ -141,6 +141,7 @@ public class TestGenerator {
 
 			// TODO This does not cover the cases where the variable is
 			// initialzed AFTER its used !
+			// And this is exactly the case !!
 			if (dataDependencyGraph.getInitMethodInvocationFor(instance) == null
 					&& dataDependencyGraph.getMethodInvocationsWhichReturn(instance).isEmpty()) {
 

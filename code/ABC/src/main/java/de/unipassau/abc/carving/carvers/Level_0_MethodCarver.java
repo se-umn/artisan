@@ -202,19 +202,22 @@ public class Level_0_MethodCarver implements MethodCarver {
 		return carvedTests;
 	}
 
-	private void includeTestSetupCalls(List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context) {
+	private void includeTestSetupCalls(List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests,
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context) {
 		// FIXME: This is hardcoded now !
 		// Compress setup calls !
 		// TODO THIS IS HARDCODED FOR TESTING
-//		MethodInvocationMatcher testSetupCallMatcher = MethodInvocationMatcher
-//				.byMethodLiteral("<org.hotelme.systemtests.TestHotelReserveRoom: void dropAndRecreateTheDb()>");
-		
-		for( MethodInvocation testSetupCall : context.getFirst().getOrderedMethodInvocations() ){
-			if( testSetupCall.isTestSetupCall() ){
-				for( Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests ){
+		// MethodInvocationMatcher testSetupCallMatcher =
+		// MethodInvocationMatcher
+		// .byMethodLiteral("<org.hotelme.systemtests.TestHotelReserveRoom: void
+		// dropAndRecreateTheDb()>");
+
+		for (MethodInvocation testSetupCall : context.getFirst().getOrderedMethodInvocations()) {
+			if (testSetupCall.isTestSetupCall()) {
+				for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
 					carvedTest.getFirst().insertTestSetupCall(testSetupCall);
 				}
-				
+
 			}
 		}
 
@@ -720,24 +723,78 @@ public class Level_0_MethodCarver implements MethodCarver {
 							if (tempSet.size() == 1) {
 								closest = tempSet.iterator().next();
 							} else {
+								// if
+								// ("java.lang.String".equals(data.getType())) {
+								// This is necessary because the same string
+								// (value) might be used
+								// multiples times in the same carved test.
+								// And
+								// we need to ensure that this string is
+								// DEFINED
+								// before the first use.
+								// Since it's referenced by value, it will
+								// be
+								// used in all the places.
+								// closest = Collections.min(tempSet);
+								//
+								// TODO: Let's take the one which has less
+								// risk to be subsumed later ?
+								// Closest from the ABOVE ?
+								// DISTANCE IN TIME ? FROM THE USE ?
+								// For the same distance from root, we take the
+								// smaller one / MIN
+								//
+								// int target =
+								// entry.getKey().getInvocationCount();
+								// int distance = Integer.MAX_VALUE;
+								// for (MethodInvocation mi : tempSet) {
+								// int current = callGraph.distanceToRoot(mi);
+								// if (current < distance) {
+								// distance = current;
+								// closest = mi;
+								// System.out.println(
+								// "Level_0_MethodCarver.level0TestCarving()
+								// STRING Distance from root "
+								// + distance + " for " + mi);
+								// }
+								// }
+								//
+								// } else {
+								// int target =
+								// callGraph.distanceToRoot(entry.getKey());
+								// Temporal distance
+								int target = entry.getKey().getInvocationCount();
 
-								int target = callGraph.distanceToRoot(entry.getKey());
+								Set<MethodInvocation> ranked = null;
 
 								// What about negative, positive ?!
 								int distance = Integer.MAX_VALUE;
 								for (MethodInvocation mi : tempSet) {
-									int current = callGraph.distanceToRoot(mi);
-									if (Math.abs(target - current) < distance) {
-										distance = Math.abs(target - current);
-										closest = mi;
+									// int current =
+									// callGraph.distanceToRoot(mi);
+									int current = mi.getInvocationCount();
+
+									if (target - current < distance && target - current > 0) {
+										distance = target - current;
+										ranked = new HashSet<>();
+										ranked.add(mi);
+										System.out.println("Level_0_MethodCarver.level0TestCarving() New distance "
+												+ distance + " for " + mi);
 									}
 								}
-
+								System.out.println("Level_0_MethodCarver.level0TestCarving() RANKED CALLS " + ranked);
+								// if (distance > 0) {
+								// There should be only 1
+								closest = Collections.max(ranked);
+								// } else {
+								// closest = Collections.min(ranked);
+								// }
+								// }
 								logger.warn("MULTIPLE METHODS RETURN " + data + "\n" + tempSet
-										+ " \n choosing the closest " + closest);
-
+										+ " \n choosing the closest " + closest + " to " + entry.getKey());
 							}
 							methodsWhichReturnTheObject.add(closest);
+
 							// if ("java.lang.String".equals(data.getType())) {
 							// // For string keep all of them... Explosion !
 							// // plus we definitively face the alias/by-value
@@ -762,10 +819,34 @@ public class Level_0_MethodCarver implements MethodCarver {
 							throw new CarvingException("Object " + data + " required for carving " + workList
 									+ " comes out of the blue !");
 						} else {
-							// Those cannot be later than the user of the data !
-							methodsWhichReturnTheObjects.put(data, methodsWhichReturnTheObject);
-							logger.debug("Level_0_MethodCarver.level0TestCarving() methodsWhichReturn " + data
-									+ " before " + entry.getKey() + " are " + methodsWhichReturnTheObject);
+
+							// Not sure what to do with objects !
+							if (methodsWhichReturnTheObjects.containsKey(data)
+									&& "java.lang.String".equals(data.getType())) {
+
+								System.out.println(
+										"Level_0_MethodCarver.level0TestCarving()\n\n\n" + "Already a call set for "
+												+ data + " " + methodsWhichReturnTheObjects.get(data) + "\n\n\n");
+
+								Set<MethodInvocation> firstCallSet = new HashSet<>(
+										methodsWhichReturnTheObjects.get(data));
+								firstCallSet.addAll(methodsWhichReturnTheObject);
+								List<MethodInvocation> firstCall = new ArrayList<>(firstCallSet);
+								Collections.sort(firstCall);
+								firstCallSet = new HashSet();
+								firstCallSet.add(firstCall.get(0));
+								System.out.println(
+										"Level_0_MethodCarver.level0TestCarving() REPLACING WITH " + firstCallSet);
+								methodsWhichReturnTheObjects.put(data, firstCallSet);
+
+							} else {
+
+								// Those cannot be later than the user of the
+								// data !
+								methodsWhichReturnTheObjects.put(data, methodsWhichReturnTheObject);
+								logger.debug("Level_0_MethodCarver.level0TestCarving() methodsWhichReturn " + data
+										+ " before " + entry.getKey() + " are " + methodsWhichReturnTheObject);
+							}
 						}
 					}
 				}
@@ -1632,7 +1713,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 			// This is to consider external interfaces and their preconditions
 			for (MethodInvocation methodInvocation : executionFlowGraph.getOrderedMethodInvocations()) {
-				if (methodInvocation.belongsToExternalInterface() || methodInvocation.isTestSetupCall() ) {
+				if (methodInvocation.belongsToExternalInterface() || methodInvocation.isTestSetupCall()) {
 					coreMethodInvocations.add(methodInvocation);
 					coreMethodInvocations
 							.addAll(dataDependencyGraph.getWeaklyConnectedComponentContaining(methodInvocation));
