@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.strobel.decompiler.DecompilationOptions;
+import com.strobel.decompiler.DecompilerSettings;
 
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.SootClass;
@@ -76,11 +77,19 @@ public class TestCaseFactory {
 				// the imports get simplified to java.sql.* and java.util.* but
 				// and the Date class becomes ambiguous
 				DecompilationOptions decompilationOptions = new DecompilationOptions();
-				decompilationOptions.setFullDecompilation(true);
+
+				DecompilerSettings decompilerSettings = DecompilerSettings.javaDefaults();
+				//
+				decompilerSettings.setForceExplicitImports( true );
+				
 				try (final BufferedWriter writer = new BufferedWriter(new FileWriter(sourceFile))) {
 
-					com.strobel.decompiler.Decompiler.decompile(testClassFile.getAbsolutePath(),
-							new com.strobel.decompiler.PlainTextOutput(writer));
+					com.strobel.decompiler.Decompiler.decompile(
+							testClassFile.getAbsolutePath(),
+							new com.strobel.decompiler.PlainTextOutput(writer), // 
+							decompilerSettings
+							
+							);
 				}
 
 			} catch (Throwable e) {
