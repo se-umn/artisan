@@ -141,6 +141,9 @@ public class MockingGenerator {
 		for (SootMethod testMethod : testClass.getMethods()) {
 			if (testMethod.getSignature().contains("test_")) {
 				addSystemInToTest(testMethod, systemInJunit4RuleField, parsedTrace);
+				// FIMXME. Add this if needed to check when carved test invokes
+				// System.exit, otherwise this breaks the carved test
+				// addSystemExit(testClass, parsedTrace);
 			}
 		}
 	}

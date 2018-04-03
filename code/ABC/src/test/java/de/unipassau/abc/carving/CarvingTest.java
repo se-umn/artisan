@@ -88,7 +88,7 @@ public class CarvingTest {
 		String employeeProjectJar = "./src/test/resources/Employee.jar";
 
 		Carver.setupSoot( Collections.singletonList( new File(employeeProjectJar) ) );
-		TestGenerator testGenerator = new TestGenerator( );
+		TestGenerator testGenerator = new TestGenerator( parsedTrace );
 
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
@@ -148,7 +148,7 @@ public class CarvingTest {
 
 		
 		Carver.setupSoot( Collections.singletonList( new File(employeeProjectJar) ) );
-		TestGenerator testGenerator = new TestGenerator( );
+		TestGenerator testGenerator = new TestGenerator( parsedTrace  );
 		
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());

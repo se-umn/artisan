@@ -485,4 +485,14 @@ public class ExecutionFlowGraph {
 		firstMethodInvocation = testSetupCall;
 	}
 
+	public Set<MethodInvocation> getTestSetupMethodInvocations() {
+		Set<MethodInvocation> methodInvocations = new HashSet<>();
+		for( MethodInvocation methodInvocation : getOrderedMethodInvocations() ){
+			if( methodInvocation.isTestSetupCall() ){
+				methodInvocations.add( methodInvocation );
+			}
+		}
+		return methodInvocations;
+	}
+
 }

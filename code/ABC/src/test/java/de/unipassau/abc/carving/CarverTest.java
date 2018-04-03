@@ -33,7 +33,7 @@ public class CarverTest {
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.WARN);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
 	@Test
 	@Category(ManualTest.class)
@@ -54,9 +54,9 @@ public class CarverTest {
 			/*
 			 * This requires a setup of a file by means of Files.write, which is an external interface
 			 */
-//			String carveBy = "class=org.employee.FileRead";
+			String carveBy = "class=org.employee.FileRead";
 //			String carveBy = "method=<org.employee.FileRead: void fileIsRead(java.lang.String)>";
-			String carveBy = "invocation=<org.employee.FileRead: void fileIsRead(java.lang.String)>_229";
+//			String carveBy = "invocation=<org.employee.FileRead: void fileIsRead(java.lang.String)>_229";
 //			String carveBy = "invocation=<org.employee.FileRead: void <init>(java.io.File)>_290";
 //			String carveBy = "invocation=<org.employee.FileRead: void <init>(java.io.File)>_96";
 			
@@ -69,11 +69,12 @@ public class CarverTest {
 					// String traceFile =
 					"--trace-file", traceFile, 
 					// String projectJar =
-					"--project-jar", "./src/test/resources/Employee.jar",
+					"--project-jar", "./src/test/resources/Employee.jar", "./src/test/resources/Employee-tests.jar",
 					// String outputDir =
 					"--output-to", outputDirectory.getAbsolutePath(),
 					// List the external interfaces here
 					"--external", "java.io.File", "java.nio.file.Path", "java.nio.file.Files",//
+					"--test-setup-by", "class=org.employee.systemtest.SystemTestUtils"
 //					"abc.StaticField", // System.in, System.out, System.err
 //					"abc.Field"
 					};

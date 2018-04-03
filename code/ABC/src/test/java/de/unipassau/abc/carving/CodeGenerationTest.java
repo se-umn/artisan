@@ -95,7 +95,7 @@ public class CodeGenerationTest {
 
 		File projectJar = new File("./src/test/resources/Employee.jar");
 		Carver.setupSoot(Collections.singletonList(projectJar));
-		TestGenerator testGenerator = new TestGenerator();
+		TestGenerator testGenerator = new TestGenerator( parsedTrace );
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 
 		assertEquals(1, testCases.size());

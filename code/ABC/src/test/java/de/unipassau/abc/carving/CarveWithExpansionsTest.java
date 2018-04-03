@@ -39,20 +39,20 @@ public class CarveWithExpansionsTest {
 	private final MethodInvocationMatcher methodToCarveMatcher = MethodInvocationMatcher
 			.fromJimpleMethod(methodToCarveString);
 	// This matcher returns always false
-	private final List<MethodInvocationMatcher> excludeNoMethodInvocationsMatcher = Collections.singletonList(MethodInvocationMatcher.noMatch());
+	private final List<MethodInvocationMatcher> excludeNoMethodInvocationsMatcher = Collections
+			.singletonList(MethodInvocationMatcher.noMatch());
 
 	private final List<MethodInvocationMatcher> emptyMethodInvocationMatcherList = new ArrayList<MethodInvocationMatcher>();
 
-	
-//	@Before
-//	public void setupSoot(){
-//		Carver.setupSoot( Collections.EMPTY_LIST);
-//	}
-//	@After
-//	public void resetSoot(){
-//		G.reset();
-//	}
-	
+	// @Before
+	// public void setupSoot(){
+	// Carver.setupSoot( Collections.EMPTY_LIST);
+	// }
+	// @After
+	// public void resetSoot(){
+	// G.reset();
+	// }
+
 	@Test
 	public void testExpansionWithSimpleStatic() throws FileNotFoundException, IOException, InterruptedException {
 		File traceFile = new File("./src/test/resources/DummySystemTestGetSimple-trace.txt");
@@ -83,10 +83,10 @@ public class CarveWithExpansionsTest {
 		assertEquals(2, carvedTests.size());
 
 		String testSubjectJar = "./libs/testsubject-tests.jar";
-		
-		Carver.setupSoot( Collections.singletonList( new File(testSubjectJar) ) );
-		
-		TestGenerator testGenerator = new TestGenerator( );
+
+		Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
+
+		TestGenerator testGenerator = new TestGenerator(parsedTrace);
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 
@@ -122,8 +122,7 @@ public class CarveWithExpansionsTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
 				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
-		
-		
+
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
 				excludeNoMethodInvocationsMatcher);
 
@@ -136,10 +135,10 @@ public class CarveWithExpansionsTest {
 		assertEquals(2, carvedTests.size());
 
 		String testSubjectJar = "./libs/testsubject-tests.jar";
-		
-		Carver.setupSoot( Collections.singletonList( new File(testSubjectJar) ) );
-		TestGenerator testGenerator = new TestGenerator( );
-		
+
+		Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
+		TestGenerator testGenerator = new TestGenerator(parsedTrace);
+
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 
@@ -189,9 +188,9 @@ public class CarveWithExpansionsTest {
 
 		String testSubjectJar = "./libs/testsubject-tests.jar";
 
-		Carver.setupSoot( Collections.singletonList( new File(testSubjectJar) ) );
-		TestGenerator testGenerator = new TestGenerator( );
-	
+		Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
+		TestGenerator testGenerator = new TestGenerator(parsedTrace);
+
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 
@@ -253,9 +252,9 @@ public class CarveWithExpansionsTest {
 
 		String testSubjectJar = "./libs/testsubject-tests.jar";
 
-		Carver.setupSoot( Collections.singletonList( new File(testSubjectJar) ) );
-		TestGenerator testGenerator = new TestGenerator( );
-	
+		Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
+		TestGenerator testGenerator = new TestGenerator(parsedTrace);
+
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 
@@ -323,9 +322,9 @@ public class CarveWithExpansionsTest {
 
 		String testSubjectJar = "./libs/testsubject-tests.jar";
 
-		Carver.setupSoot( Collections.singletonList( new File(testSubjectJar) ) );
-		TestGenerator testGenerator = new TestGenerator( );
-	
+		Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
+		TestGenerator testGenerator = new TestGenerator(parsedTrace);
+
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 
@@ -378,9 +377,9 @@ public class CarveWithExpansionsTest {
 
 		String testSubjectJar = "./libs/testsubject-tests.jar";
 
-		Carver.setupSoot( Collections.singletonList( new File(testSubjectJar) ) );
-		TestGenerator testGenerator = new TestGenerator( );
-	
+		Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
+		TestGenerator testGenerator = new TestGenerator(parsedTrace);
+
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 
@@ -433,9 +432,9 @@ public class CarveWithExpansionsTest {
 
 		String testSubjectJar = "./libs/testsubject-tests.jar";
 
-		Carver.setupSoot( Collections.singletonList( new File(testSubjectJar) ) );
-		TestGenerator testGenerator = new TestGenerator( );
-	
+		Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
+		TestGenerator testGenerator = new TestGenerator(parsedTrace);
+
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 
@@ -477,15 +476,15 @@ public class CarveWithExpansionsTest {
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
 				excludeNoMethodInvocationsMatcher);
 
-//		ABCTestUtils.visualize(carvedTests);
-		
+		// ABCTestUtils.visualize(carvedTests);
+
 		assertEquals(4, carvedTests.size());
 
 		String testSubjectJar = "./libs/testsubject-tests.jar";
 
-		Carver.setupSoot( Collections.singletonList( new File(testSubjectJar) ) );
-		TestGenerator testGenerator = new TestGenerator( );
-	
+		Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
+		TestGenerator testGenerator = new TestGenerator(parsedTrace);
+
 		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
 		assertEquals(1, testCases.size());
 

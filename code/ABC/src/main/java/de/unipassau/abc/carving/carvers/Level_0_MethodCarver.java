@@ -90,15 +90,18 @@ public class Level_0_MethodCarver implements MethodCarver {
 	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> level0TestCarving(
 			MethodInvocation methodInvocationToCarve) throws CarvingException {
 
-		// Build the contenxt
+		// Build the context for the carving. At the beginning the context IS
+		// the entire trace.
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context = new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
 				executionFlowGraph, dataDependencyGraph, callGraph);
 
-		// FIXME ! This is for testing
-		// boolean skipExternalInterfaces = false;
-		// Generate only the basic cases
+		// Include all the external interfaces..
 		boolean skipExternalInterfaces = true;
+		//
 
+		// TODO
+		// This one is needed to account for different contexts ? IS STILL
+		// RELEVANT ?
 		return level0TestCarving(methodInvocationToCarve, context, skipExternalInterfaces);
 	}
 
@@ -127,12 +130,19 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// preconditions (e.g., setup of DB)
 		// provided by external interfaces.
 		//
+
+		// THIS ONE IS THE ONE WHICH ACTUALLYS COMPUTE THE CARVE using recursion
+		// and FULL CARTESIAN
 		level0TestCarving(workList, carvedTests, context);
+
+		// Ensure that any required testSetupCall, which is not yet included in
+		// the carved test, is taken into account,
+		// including its own carved preconditions
+		includeTestSetupCalls(carvedTests, context);
 
 		// Include the user defined test setup calls. Those are by definition
 		// disjointed from the actual test execution !
 		// Roughly, they correspond to @Before calls
-		includeTestSetupCalls(carvedTests, context);
 
 		if (!skipExternalInterfaces) {
 
@@ -202,22 +212,65 @@ public class Level_0_MethodCarver implements MethodCarver {
 		return carvedTests;
 	}
 
-	private void includeTestSetupCalls(List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests,
-			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context) {
-		// FIXME: This is hardcoded now !
-		// Compress setup calls !
-		// TODO THIS IS HARDCODED FOR TESTING
-		// MethodInvocationMatcher testSetupCallMatcher =
-		// MethodInvocationMatcher
-		// .byMethodLiteral("<org.hotelme.systemtests.TestHotelReserveRoom: void
-		// dropAndRecreateTheDb()>");
+	public void includeTestSetupCalls(List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests,
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context) throws CarvingException {
 
-		for (MethodInvocation testSetupCall : context.getFirst().getOrderedMethodInvocations()) {
-			if (testSetupCall.isTestSetupCall()) {
-				for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
-					carvedTest.getFirst().insertTestSetupCall(testSetupCall);
+		// Collect the testSetupMethodInvocations from the context
+		Set<MethodInvocation> testSetupMethosInvocations = context.getFirst().getTestSetupMethodInvocations();
+
+		// If the method invocation is not there yet, include it.
+		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
+			for (MethodInvocation testSetupFromContext : testSetupMethosInvocations) {
+				if( ! carvedTest.getFirst().contains( testSetupFromContext )){
+					System.out.println("Level_0_MethodCarver.includeTestSetupCalls() INCLUDING Test Setup Call " + testSetupFromContext + " in carved test " + carvedTest.getFirst().getOrderedMethodInvocations());
+
+					// Build the testSetupContext1
+					List<MethodInvocation> invocationsBefore = context.getFirst().getOrderedMethodInvocationsBefore( testSetupFromContext );
+					ExecutionFlowGraph first = context.getFirst().getSubGraph( invocationsBefore );
+					DataDependencyGraph second = context.getSecond().getSubGraph( invocationsBefore );
+					//
+					CallGraph third = context.getThird().getSubGraph( testSetupFromContext );
+					//
+					Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> testSetupContext = new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(first, second, third);
+
+					//
+					Queue<Pair<Set<MethodInvocation>, Set<MethodInvocation>>> workList = new LinkedList<>();
+
+					// Add the MUT as task in the work list
+					Pair<Set<MethodInvocation>, Set<MethodInvocation>> mutTask = new Pair<Set<MethodInvocation>, Set<MethodInvocation>>(
+							new HashSet<MethodInvocation>(),
+							new HashSet<MethodInvocation>(Collections.singleton(testSetupFromContext)));
+					//
+					workList.add(mutTask);
+					// THIS ONE IS THE ONE WHICH ACTUALLYS COMPUTE THE CARVE using recursion
+					// and FULL CARTESIAN... But do not include test setup calls ;)
+					
+					List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedPreconditions = new ArrayList<>();
+					//
+					
+					if( ! preconditionCache.containsKey( testSetupFromContext ) ){
+						level0TestCarving(workList, carvedPreconditions, context);
+						//
+						Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition = carvedPreconditions.iterator().next();
+						preconditionCache.put( testSetupFromContext, carvedPrecondition.getFirst().getOrderedMethodInvocations() );
+						System.out.println("Level_0_MethodCarver.includeTestSetupCalls() PRECONDITION for " + testSetupFromContext + " STORE IN THE CACHE");
+					}
+					
+					//
+					// In case there's more than one because of cartesian product, pick the first one.
+					// NOTE THAT THERE"S SHOULD BE NO DATA DEPS OR SIMILAR INTO THE CARVE PRECONDITIONS !
+					Set<MethodInvocation> mergedSorted = new HashSet( carvedTest.getFirst().getOrderedMethodInvocations() );
+					// Return this from the cache !
+					mergedSorted.addAll( preconditionCache.get( testSetupFromContext) );
+					
+					List<MethodInvocation> orderedSlice = new ArrayList<>( mergedSorted );
+					Collections.sort( orderedSlice );
+					//
+					carvedTest.setFirst( context.getFirst().getSubGraph( orderedSlice ));
+					carvedTest.setSecond( context.getSecond().getSubGraph( orderedSlice  ));
+					
+					
 				}
-
 			}
 		}
 
