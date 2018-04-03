@@ -50,13 +50,13 @@ public class ExecutionFlowGraph {
 	private MethodInvocation firstMethodInvocation = null;
 
 	public ExecutionFlowGraph() {
-//		graph = new SparseMultigraph<MethodInvocation, String>();
+		// graph = new SparseMultigraph<MethodInvocation, String>();
 		graph = new DirectedSparseMultigraph<MethodInvocation, String>();
 	}
 
 	// TODO Maybe change the name...
 	public void addOwnerToMethodInvocation(MethodInvocation methodInvocation, String objectId) {
-		
+
 		if (graph.containsVertex(methodInvocation)) {
 			// No need to look for it really, as we replace the node
 
@@ -280,34 +280,35 @@ public class ExecutionFlowGraph {
 	public List<MethodInvocation> getOrderedMethodInvocations() {
 		return getOrderedMethodInvocationsAfter(firstMethodInvocation);
 	}
-	
+
 	public void markNodeAsExternalInterface(MethodInvocation mi) {
-//		System.out.println("ExecutionFlowGraph.markNodeAsExternalInterface() " + mi);
+		// System.out.println("ExecutionFlowGraph.markNodeAsExternalInterface()
+		// " + mi);
 		// Collecte edges
-		
+
 		// TODO Those might not really realiable !!
 		Collection<Pair<MethodInvocation, String>> predecessors = new HashSet<>();
-		for( String inEdge : graph.getInEdges( mi ) ){
-			predecessors.add( new Pair<MethodInvocation, String>( graph.getOpposite(mi, inEdge), inEdge));
+		for (String inEdge : graph.getInEdges(mi)) {
+			predecessors.add(new Pair<MethodInvocation, String>(graph.getOpposite(mi, inEdge), inEdge));
 		}
-		
+
 		Collection<Pair<MethodInvocation, String>> successors = new HashSet<>();
-		for( String outEdge : graph.getOutEdges( mi ) ){
-			predecessors.add( new Pair<MethodInvocation, String>( graph.getOpposite(mi, outEdge), outEdge));
+		for (String outEdge : graph.getOutEdges(mi)) {
+			predecessors.add(new Pair<MethodInvocation, String>(graph.getOpposite(mi, outEdge), outEdge));
 		}
-		
+
 		// Remove the node, this shall remove also the edges
-		graph.removeVertex( mi );
+		graph.removeVertex(mi);
 		// Update the node content
 		mi.setBelongsToExternalInterface(true);
 		// Reinsert the node
-		graph.addVertex( mi );
+		graph.addVertex(mi);
 		// Reinsert the edges
-		for(  Pair<MethodInvocation, String> predecessor : predecessors ){
-			graph.addEdge( predecessor.getSecond(), predecessor.getFirst(), mi, EdgeType.DIRECTED);
+		for (Pair<MethodInvocation, String> predecessor : predecessors) {
+			graph.addEdge(predecessor.getSecond(), predecessor.getFirst(), mi, EdgeType.DIRECTED);
 		}
-		for(  Pair<MethodInvocation, String> successor : successors ){
-			graph.addEdge( successor.getSecond(), mi, successor.getFirst(), EdgeType.DIRECTED);
+		for (Pair<MethodInvocation, String> successor : successors) {
+			graph.addEdge(successor.getSecond(), mi, successor.getFirst(), EdgeType.DIRECTED);
 		}
 	}
 
@@ -452,6 +453,42 @@ public class ExecutionFlowGraph {
 		return graph.containsVertex(methodInvocation);
 	}
 
+	public ExecutionFlowGraph getSubGraph(List<MethodInvocation> orderedSlice) {
+		ExecutionFlowGraph subGraph = new ExecutionFlowGraph();
+		for (MethodInvocation methodInvocation : orderedSlice) {
+			subGraph.enqueueMethodInvocations(methodInvocation);
+		}
+		return subGraph;
+	}
+
+	// Insert the method invocation in the "right" place...Usually in front,
+	// TODO but there might be more than one ?
+	public void insertTestSetupCall(MethodInvocation testSetupCall) {
+		System.out.println("ExecutionFlowGraph.insertTestSetupCall() " + testSetupCall);
+		graph.addVertex(testSetupCall);
+		//
+		graph.addEdge("TestSetupCall-" + tid.getAndIncrement(), testSetupCall, firstMethodInvocation,
+				EdgeType.DIRECTED);
+		// Replace the first call
+		firstMethodInvocation = testSetupCall;
+	}
+
+	public Set<MethodInvocation> getTestSetupMethodInvocations() {
+		Set<MethodInvocation> methodInvocations = new HashSet<>();
+		for (MethodInvocation methodInvocation : getOrderedMethodInvocations()) {
+			if (methodInvocation.isTestSetupCall()) {
+				methodInvocations.add(methodInvocation);
+			}
+		}
+		return methodInvocations;
+	}
+
+	public Set<MethodInvocation> getMethodInvocationsToExternalInterfaceBefore(
+			MethodInvocation methodInvocationToCarve) {
+		return new HashSet<MethodInvocation>(
+				getOrderedMethodInvocationsToExternalInterfaceBefore(methodInvocationToCarve));
+	}
+
 	public List<MethodInvocation> getOrderedMethodInvocationsToExternalInterfaceBefore(
 			MethodInvocation methodInvocationToCarve) {
 		List<MethodInvocation> all = new ArrayList<>(getOrderedMethodInvocationsBefore(methodInvocationToCarve));
@@ -464,35 +501,6 @@ public class ExecutionFlowGraph {
 			}
 		}
 		return all;
-	}
-
-	public ExecutionFlowGraph getSubGraph(List<MethodInvocation> orderedSlice) {
-		ExecutionFlowGraph subGraph = new ExecutionFlowGraph();
-		for( MethodInvocation methodInvocation : orderedSlice){
-			subGraph.enqueueMethodInvocations( methodInvocation );
-		}
-		return subGraph;
-	}
-
-	// Insert the method invocation in the "right" place...Usually in front, TODO but there might be more than one ?
-	public void insertTestSetupCall(MethodInvocation testSetupCall) {
-		System.out.println("ExecutionFlowGraph.insertTestSetupCall() " + testSetupCall);
-		graph.addVertex( testSetupCall );
-		//
-		graph.addEdge("TestSetupCall-" + tid.getAndIncrement(), testSetupCall, firstMethodInvocation,
-				EdgeType.DIRECTED);
-		// Replace the first call
-		firstMethodInvocation = testSetupCall;
-	}
-
-	public Set<MethodInvocation> getTestSetupMethodInvocations() {
-		Set<MethodInvocation> methodInvocations = new HashSet<>();
-		for( MethodInvocation methodInvocation : getOrderedMethodInvocations() ){
-			if( methodInvocation.isTestSetupCall() ){
-				methodInvocations.add( methodInvocation );
-			}
-		}
-		return methodInvocations;
 	}
 
 }

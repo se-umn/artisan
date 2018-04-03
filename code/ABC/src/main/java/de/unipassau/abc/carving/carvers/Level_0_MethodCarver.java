@@ -96,12 +96,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 				executionFlowGraph, dataDependencyGraph, callGraph);
 
 		// Include all the external interfaces..
-		boolean skipExternalInterfaces = true;
-		//
+		boolean skipExternalInterfaces = false;
 
-		// TODO
-		// This one is needed to account for different contexts ? IS STILL
-		// RELEVANT ?
 		return level0TestCarving(methodInvocationToCarve, context, skipExternalInterfaces);
 	}
 
@@ -134,7 +130,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// THIS ONE IS THE ONE WHICH ACTUALLYS COMPUTE THE CARVE using recursion
 		// and FULL CARTESIAN
 		level0TestCarving(workList, carvedTests, context);
-
+		
 		// Ensure that any required testSetupCall, which is not yet included in
 		// the carved test, is taken into account,
 		// including its own carved preconditions
@@ -144,70 +140,82 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// disjointed from the actual test execution !
 		// Roughly, they correspond to @Before calls
 
-		if (!skipExternalInterfaces) {
+		includeCallsToExternalInterfaces(carvedTests, context);
 
-			// Handle preconditions
-			for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
-
-				// Merge the two
-				Set<MethodInvocation> merge = new HashSet<>(carvedTest.getFirst().getOrderedMethodInvocations());
-
-				List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedPreconditions = processExternalInterfaces(
-						carvedTest, //
-						methodInvocationToCarve);
-
-				// Some of those might not be applicable, e.g., when the
-				// precondition also subsumes the MUT !
-				for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition : carvedPreconditions) {
-					boolean discard = false;
-
-					// TODO If the precondition subsumes the call we discard it
-					// ! Or subsume ANY of the methods in the test case ?
-					// for (MethodInvocation mi :
-					// carvedPrecondition.getFirst().getOrderedMethodInvocations())
-					// {
-					// if
-					// (callGraph.getMethodInvocationsSubsumedBy(mi).contains(methodInvocationToCarve))
-					// {
-					// logger.info("Level_0_MethodCarver.level0TestCarving()
-					// Method " + methodInvocationToCarve
-					// + " is subsumed by " + mi + " discard precondition");
-					// discard = true;
-					// break;
-					// }
-					// }
-					if (Collections.disjoint(carvedPrecondition.getFirst().getOrderedMethodInvocations(),
-							carvedTest.getFirst().getOrderedMethodInvocations())) {
-						merge.addAll(carvedPrecondition.getFirst().getOrderedMethodInvocations());
-						logger.debug("Level_0_MethodCarver.level0TestCarving() Merging preconditions. ");
-					} else {
-						logger.info(
-								"Level_0_MethodCarver.level0TestCarving() Preconditions are not disjoing from carved test");
-					}
-				}
-				// At this point, since we carved the E.I. independently from
-				// the carved test there might be duplicate calls...
-				// TODO Why so? Maybe the same or interrelated preconditions on
-				// E.I. ? All the problems seem to be related not to the core
-				// carved tests
-
-				// Finalize
-				// Set<MethodInvocation> slice = new HashSet(merge);
-				// Pair<ExecutionFlowGraph, DataDependencyGraph> finalTest =
-				// generateCarvedTestFromSlice(slice, callGraph );
-				// carvedTest.setFirst(finalTest.getFirst());
-				// carvedTest.setSecond(finalTest.getSecond());
-
-				List<MethodInvocation> orderedSlice = new ArrayList<>(merge);
-				Collections.sort(orderedSlice);
-				//
-				ExecutionFlowGraph finalExecutionFlowGraph = executionFlowGraph.getSubGraph(orderedSlice);
-				DataDependencyGraph finalDataDependencyGraph = dataDependencyGraph.getSubGraph(orderedSlice);
-				//
-				carvedTest.setFirst(finalExecutionFlowGraph);
-				carvedTest.setSecond(finalDataDependencyGraph);
-			}
-		}
+		// if (!skipExternalInterfaces) {
+		//
+		// // Handle preconditions
+		// for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest :
+		// carvedTests) {
+		//
+		// // Merge the two
+		// Set<MethodInvocation> merge = new
+		// HashSet<>(carvedTest.getFirst().getOrderedMethodInvocations());
+		//
+		// List<Pair<ExecutionFlowGraph, DataDependencyGraph>>
+		// carvedPreconditions = processExternalInterfaces(
+		// carvedTest, //
+		// methodInvocationToCarve);
+		//
+		// // Some of those might not be applicable, e.g., when the
+		// // precondition also subsumes the MUT !
+		// for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition
+		// : carvedPreconditions) {
+		// boolean discard = false;
+		//
+		// // TODO If the precondition subsumes the call we discard it
+		// // ! Or subsume ANY of the methods in the test case ?
+		// // for (MethodInvocation mi :
+		// // carvedPrecondition.getFirst().getOrderedMethodInvocations())
+		// // {
+		// // if
+		// //
+		// (callGraph.getMethodInvocationsSubsumedBy(mi).contains(methodInvocationToCarve))
+		// // {
+		// // logger.info("Level_0_MethodCarver.level0TestCarving()
+		// // Method " + methodInvocationToCarve
+		// // + " is subsumed by " + mi + " discard precondition");
+		// // discard = true;
+		// // break;
+		// // }
+		// // }
+		// if
+		// (Collections.disjoint(carvedPrecondition.getFirst().getOrderedMethodInvocations(),
+		// carvedTest.getFirst().getOrderedMethodInvocations())) {
+		// merge.addAll(carvedPrecondition.getFirst().getOrderedMethodInvocations());
+		// logger.debug("Level_0_MethodCarver.level0TestCarving() Merging
+		// preconditions. ");
+		// } else {
+		// logger.info(
+		// "Level_0_MethodCarver.level0TestCarving() Preconditions are not
+		// disjoing from carved test");
+		// }
+		// }
+		// // At this point, since we carved the E.I. independently from
+		// // the carved test there might be duplicate calls...
+		// // TODO Why so? Maybe the same or interrelated preconditions on
+		// // E.I. ? All the problems seem to be related not to the core
+		// // carved tests
+		//
+		// // Finalize
+		// // Set<MethodInvocation> slice = new HashSet(merge);
+		// // Pair<ExecutionFlowGraph, DataDependencyGraph> finalTest =
+		// // generateCarvedTestFromSlice(slice, callGraph );
+		// // carvedTest.setFirst(finalTest.getFirst());
+		// // carvedTest.setSecond(finalTest.getSecond());
+		//
+		// List<MethodInvocation> orderedSlice = new ArrayList<>(merge);
+		// Collections.sort(orderedSlice);
+		// //
+		// ExecutionFlowGraph finalExecutionFlowGraph =
+		// executionFlowGraph.getSubGraph(orderedSlice);
+		// DataDependencyGraph finalDataDependencyGraph =
+		// dataDependencyGraph.getSubGraph(orderedSlice);
+		// //
+		// carvedTest.setFirst(finalExecutionFlowGraph);
+		// carvedTest.setSecond(finalDataDependencyGraph);
+		// }
+		// }
 
 		return carvedTests;
 	}
@@ -220,18 +228,24 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 		// If the method invocation is not there yet, include it.
 		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
+			
 			for (MethodInvocation testSetupFromContext : testSetupMethosInvocations) {
-				if( ! carvedTest.getFirst().contains( testSetupFromContext )){
-					System.out.println("Level_0_MethodCarver.includeTestSetupCalls() INCLUDING Test Setup Call " + testSetupFromContext + " in carved test " + carvedTest.getFirst().getOrderedMethodInvocations());
+				
+				if (!carvedTest.getFirst().contains(testSetupFromContext)) {
+					System.out.println("Level_0_MethodCarver.includeTestSetupCalls() INCLUDING Test Setup Call "
+							+ testSetupFromContext + " in carved test "
+							+ carvedTest.getFirst().getOrderedMethodInvocations());
 
 					// Build the testSetupContext1
-					List<MethodInvocation> invocationsBefore = context.getFirst().getOrderedMethodInvocationsBefore( testSetupFromContext );
-					ExecutionFlowGraph first = context.getFirst().getSubGraph( invocationsBefore );
-					DataDependencyGraph second = context.getSecond().getSubGraph( invocationsBefore );
+					List<MethodInvocation> invocationsBefore = context.getFirst()
+							.getOrderedMethodInvocationsBefore(testSetupFromContext);
+					ExecutionFlowGraph first = context.getFirst().getSubGraph(invocationsBefore);
+					DataDependencyGraph second = context.getSecond().getSubGraph(invocationsBefore);
 					//
-					CallGraph third = context.getThird().getSubGraph( testSetupFromContext );
+					CallGraph third = context.getThird().getSubGraph(testSetupFromContext);
 					//
-					Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> testSetupContext = new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(first, second, third);
+					Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> testSetupContext = new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
+							first, second, third);
 
 					//
 					Queue<Pair<Set<MethodInvocation>, Set<MethodInvocation>>> workList = new LinkedList<>();
@@ -242,34 +256,167 @@ public class Level_0_MethodCarver implements MethodCarver {
 							new HashSet<MethodInvocation>(Collections.singleton(testSetupFromContext)));
 					//
 					workList.add(mutTask);
-					// THIS ONE IS THE ONE WHICH ACTUALLYS COMPUTE THE CARVE using recursion
-					// and FULL CARTESIAN... But do not include test setup calls ;)
-					
+					// THIS ONE IS THE ONE WHICH ACTUALLYS COMPUTE THE CARVE
+					// using recursion
+					// and FULL CARTESIAN... But do not include test setup calls
+					// ;)
+
 					List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedPreconditions = new ArrayList<>();
 					//
-					
-					if( ! preconditionCache.containsKey( testSetupFromContext ) ){
-						level0TestCarving(workList, carvedPreconditions, context);
+
+					if (!preconditionCache.containsKey(testSetupFromContext)) {
+						// NOTE context -> testSetupContext
+						level0TestCarving(workList, carvedPreconditions, testSetupContext);
 						//
-						Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition = carvedPreconditions.iterator().next();
-						preconditionCache.put( testSetupFromContext, carvedPrecondition.getFirst().getOrderedMethodInvocations() );
-						System.out.println("Level_0_MethodCarver.includeTestSetupCalls() PRECONDITION for " + testSetupFromContext + " STORE IN THE CACHE");
+						Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition = carvedPreconditions
+								.iterator().next();
+						preconditionCache.put(testSetupFromContext,
+								carvedPrecondition.getFirst().getOrderedMethodInvocations());
+						System.out.println("Level_0_MethodCarver.includeTestSetupCalls() PRECONDITION for "
+								+ testSetupFromContext + " STORED IN THE CACHE");
+					}
+
+					//
+					// In case there's more than one because of cartesian
+					// product, pick the first one.
+					// NOTE THAT THERE"S SHOULD BE NO DATA DEPS OR SIMILAR INTO
+					// THE CARVE PRECONDITIONS !
+					Set<MethodInvocation> mergedSorted = new HashSet(
+							carvedTest.getFirst().getOrderedMethodInvocations());
+					// Return this from the cache !
+					mergedSorted.addAll(preconditionCache.get(testSetupFromContext));
+
+					List<MethodInvocation> orderedSlice = new ArrayList<>(mergedSorted);
+					Collections.sort(orderedSlice);
+					//
+					carvedTest.setFirst(context.getFirst().getSubGraph(orderedSlice));
+					carvedTest.setSecond(context.getSecond().getSubGraph(orderedSlice));
+
+				}
+			}
+		}
+
+	}
+
+	public void includeCallsToExternalInterfaces(List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests,
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context) throws CarvingException {
+
+		// If the method invocation is not there yet, include it.
+		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
+
+			// Collect the testSetupMethodInvocations from the context
+			MethodInvocation methodInvocationToCarve = carvedTest.getFirst().getLastMethodInvocation();
+			//
+			Set<MethodInvocation> methosInvocationsToExternalInterfaces = context.getFirst()
+					.getMethodInvocationsToExternalInterfaceBefore(methodInvocationToCarve);
+
+			//
+			Set<MethodInvocation> subsumedCallByCarvedTest = new HashSet<>();
+			for( MethodInvocation mi : carvedTest.getFirst().getOrderedMethodInvocations() ){
+				subsumedCallByCarvedTest.add( mi );
+				subsumedCallByCarvedTest.addAll( context.getThird().getMethodInvocationsSubsumedBy( mi ) );
+			}
+				
+			for (MethodInvocation methodInvocationToExternalInterface : methosInvocationsToExternalInterfaces) {
+				
+				if (! subsumedCallByCarvedTest.contains( methodInvocationToExternalInterface ) ) {
+					System.out.println("Level_0_MethodCarver.includeTestSetupCalls() INCLUDING Call to E.I. "
+							+ methodInvocationToExternalInterface + " in carved test "
+							+ carvedTest.getFirst().getOrderedMethodInvocations());
+
+					// Build the testSetupContext1
+					List<MethodInvocation> invocationsBefore = context.getFirst()
+							.getOrderedMethodInvocationsBefore(methodInvocationToExternalInterface);
+					ExecutionFlowGraph first = context.getFirst().getSubGraph(invocationsBefore);
+					DataDependencyGraph second = context.getSecond().getSubGraph(invocationsBefore);
+					//
+					CallGraph third = context.getThird().getSubGraph(methodInvocationToExternalInterface);
+					//
+					Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> testSetupContext = new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
+							first, second, third);
+
+					//
+					Queue<Pair<Set<MethodInvocation>, Set<MethodInvocation>>> workList = new LinkedList<>();
+
+					// Add the MUT as task in the work list
+					Pair<Set<MethodInvocation>, Set<MethodInvocation>> mutTask = new Pair<Set<MethodInvocation>, Set<MethodInvocation>>(
+							new HashSet<MethodInvocation>(),
+							new HashSet<MethodInvocation>(Collections.singleton(methodInvocationToExternalInterface)));
+					//
+					workList.add(mutTask);
+					// THIS ONE IS THE ONE WHICH ACTUALLYS COMPUTE THE CARVE
+					// using recursion
+					// and FULL CARTESIAN... But do not include test setup calls
+					// ;)
+
+					List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedPreconditions = new ArrayList<>();
+					//
+
+					if (!preconditionCache.containsKey(methodInvocationToExternalInterface)) {
+						
+						/// This one is tricky ! Because of string aliasing calls to different EI, or EI already discarded might be included here as well !
+						// For example, if scanner.next returns "test" multiple times and we get a deps on "test" then we get ALL the deps on it !
+						
+						
+						level0TestCarving(workList, carvedPreconditions, testSetupContext);
+						// TODO We might need to include all of them if we have problems carving preconditions with subsumed calls ?!
+						// In case there's more than one because of cartesian
+						// product, pick the first one.
+						Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition = carvedPreconditions
+								.iterator().next();
+						preconditionCache.put(methodInvocationToExternalInterface,
+								carvedPrecondition.getFirst().getOrderedMethodInvocations());
+						System.out.println("Level_0_MethodCarver.includeTestSetupCalls() PRECONDITION for "
+								+ methodInvocationToExternalInterface + " STORE IN THE CACHE:\n"
+										+ carvedPrecondition.getFirst().getOrderedMethodInvocations()
+										+ "");
+					}
+
+					Set<MethodInvocation> mergedSorted = new HashSet<MethodInvocation>(
+							carvedTest.getFirst().getOrderedMethodInvocations());
+					
+					// Check that no methods in the precondition will delete methods already in the carved test.
+					// But also check that the method is not already subsumed by the carved test case !!! TO AVOID STRING ALIASING !
+					boolean mergePreconditions = true;
+					
+					List<MethodInvocation> filteredPreconditionsFromCache = new ArrayList<>(preconditionCache.get(methodInvocationToExternalInterface));
+					for( Iterator<MethodInvocation> iterator = filteredPreconditionsFromCache.iterator(); iterator.hasNext();){
+						//
+						MethodInvocation precondition = iterator.next();
+						Set<MethodInvocation> subsumedByPrecondition = context.getThird().getMethodInvocationsSubsumedBy( precondition);
+						// Precondition might be already there, so we are fine..
+						subsumedByPrecondition.remove( precondition );
+
+						if( ! Collections.disjoint(
+								subsumedByPrecondition,
+								carvedTest.getFirst().getOrderedMethodInvocations() )
+								){
+							System.out.println("\n\n >>>>> Level_0_MethodCarver.includeCallsToExternalInterfaces() Precondition " + precondition + " subsumes calls already in the carved test !! \n\n");
+							mergePreconditions = false;
+							break;
+						} else if (subsumedCallByCarvedTest.contains( precondition ) ) {
+							// This might be caused by String aliasing !
+							System.out.println("\n\n >>>>> Level_0_MethodCarver.includeCallsToExternalInterfaces() Precondition " + precondition + " subsumed by test DO NOT INCLUDE IT TWICE ! \n\n");
+							iterator.remove();
+						} 
 					}
 					
-					//
-					// In case there's more than one because of cartesian product, pick the first one.
-					// NOTE THAT THERE"S SHOULD BE NO DATA DEPS OR SIMILAR INTO THE CARVE PRECONDITIONS !
-					Set<MethodInvocation> mergedSorted = new HashSet( carvedTest.getFirst().getOrderedMethodInvocations() );
-					// Return this from the cache !
-					mergedSorted.addAll( preconditionCache.get( testSetupFromContext) );
 					
-					List<MethodInvocation> orderedSlice = new ArrayList<>( mergedSorted );
-					Collections.sort( orderedSlice );
-					//
-					carvedTest.setFirst( context.getFirst().getSubGraph( orderedSlice ));
-					carvedTest.setSecond( context.getSecond().getSubGraph( orderedSlice  ));
-					
-					
+					if( mergePreconditions){
+						// Return this from the cache !
+						mergedSorted.addAll(filteredPreconditionsFromCache);
+						
+						List<MethodInvocation> orderedSlice = new ArrayList<>(mergedSorted);
+						Collections.sort(orderedSlice);
+						//
+						carvedTest.setFirst(context.getFirst().getSubGraph(orderedSlice));
+						carvedTest.setSecond(context.getSecond().getSubGraph(orderedSlice));
+					}
+
+				} else {
+					System.out.println("Level_0_MethodCarver.includeTestSetupCalls() Cannot include Call to E.I. "
+							+ methodInvocationToExternalInterface + " in carved test.");
+					System.out.println("Subsumed by: " + context.getThird().getOrderedSubsumingMethodInvocationsFor( methodInvocationToExternalInterface ));
 				}
 			}
 		}
@@ -477,7 +624,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 		Collections.sort(orderedSlice);
 		// The last method is the one to carve
 
-		logger.debug("\t\t enerateCarvedTestFromSlice() for " + methodInvocationToCarve + " from " + orderedSlice);
+		logger.debug("\t\t generateCarvedTestFromSlice() for " + methodInvocationToCarve + " from " + orderedSlice);
 
 		// Eventually remove the subsumed Calls
 		Set<MethodInvocation> subsumedCalls = new HashSet<>();
@@ -526,7 +673,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 			orderedSlice.remove(toRemove);
 		}
 
-		logger.info("\t Generate the following test from slice : \n" + orderedSlice);
+		logger.info("\t >>>> Generate the following test from slice : \n" + orderedSlice);
 
 		return new Pair<ExecutionFlowGraph, DataDependencyGraph>(executionFlowGraph.getSubGraph(orderedSlice),
 				dataDependencyGraph.getSubGraph(orderedSlice));
@@ -576,12 +723,13 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 				for (MethodInvocation methodInvocation : task.getSecond()) {
 
+					// TODO
 					// Before carving this, check in the cache
-					if (preconditionCache.containsKey(methodInvocation)) {
-						// Cache IT
-					} else {
-						// Cache MISS
-					}
+//					if (preconditionCache.containsKey(methodInvocation)) {
+//						 Cache IT
+//					} else {
+//						 Cache MISS
+//					}
 
 					/*
 					 * 1 - Include all the invocations that happen before
@@ -618,6 +766,13 @@ public class Level_0_MethodCarver implements MethodCarver {
 							"Level_0_MethodCarver.level0TestCarving() Dependencies on Methods " + backwardSlice.size());
 					logger.trace("" + backwardSlice);
 
+					// TODO This might include calls which subsume also other calls !
+					
+					
+					
+					
+					
+					
 					// Accumulate the backwardSlice in the worklist
 					methodDependencies.addAll(backwardSlice);
 
