@@ -141,9 +141,7 @@ public class MockingGenerator {
 		for (SootMethod testMethod : testClass.getMethods()) {
 			if (testMethod.getSignature().contains("test_")) {
 				addSystemInToTest(testMethod, systemInJunit4RuleField, parsedTrace);
-				// FIMXME. Add this if needed to check when carved test invokes
-				// System.exit, otherwise this breaks the carved test
-				// addSystemExit(testClass, parsedTrace);
+				addSystemExit(testClass, parsedTrace);
 			}
 		}
 	}
@@ -236,7 +234,7 @@ public class MockingGenerator {
 				methodInvocationToBeCarved);
 
 		if (valueReadFromInput == null) {
-			// System.exit cannot be called by this test (I hope)
+			System.out.println("MockingGenerator.addSystemExitToTest() No system exit called for " + testMethod );
 			return;
 		}
 
@@ -276,6 +274,7 @@ public class MockingGenerator {
 		DataDependencyGraph dataDependencyGraph = parsedTrace.getSecond();
 		CallGraph callGraph = parsedTrace.getThird();
 
+		// TODO: Maybe we should check all the methods inside the carved test instead ?
 		Set<MethodInvocation> subsequentCalls = callGraph.getMethodInvocationsSubsumedBy(methodInvocationToBeCarved);
 		// System.out.println("MockingGenerator.collectExpectedSystemExitValue()
 		// Calls subsumed by " + methodInvocationToBeCarved );
@@ -283,6 +282,7 @@ public class MockingGenerator {
 
 		for (MethodInvocation methodInvocation : subsequentCalls) {
 			if (systemExitMethodMatcher.matches(methodInvocation)) {
+				System.out.println("MockingGenerator.collectExpectedSystemExitValue() System.exit call subsumed by " + methodInvocationToBeCarved );
 				return dataDependencyGraph.getParametersSootValueFor(methodInvocation).get(0);
 			}
 		}
