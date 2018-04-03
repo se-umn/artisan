@@ -286,15 +286,15 @@ public class StackImplementation implements TraceParser {
 		return peekIndex - 1;
 	}
 
-//	private boolean isPure(MethodInvocation methodInvocation) {
-//		for (MethodInvocationMatcher purityMatcher : purityMatchers) {
-//			if (purityMatcher.matches(methodInvocation)) {
-//				logger.trace(methodInvocation + " is pure");
-//				return true;
-//			}
-//		}
-//		return false;
-//	}
+	// private boolean isPure(MethodInvocation methodInvocation) {
+	// for (MethodInvocationMatcher purityMatcher : purityMatchers) {
+	// if (purityMatcher.matches(methodInvocation)) {
+	// logger.trace(methodInvocation + " is pure");
+	// return true;
+	// }
+	// }
+	// return false;
+	// }
 
 	private int parseTraceFile(List<String> lines, // Lines of the trace file
 			List<MethodInvocationMatcher> externalInterfaceMatchers, int initialPosition)
@@ -362,7 +362,7 @@ public class StackImplementation implements TraceParser {
 		int position = parseTraceFile(lines, externalInterfaceMatchers, 0);
 		//
 		for (MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations()) {
-			if (testSetupCallMatcher.matches(mi)) {
+			if (isTestSetupCall(mi)) {
 				System.out.println(" Matched test setup call " + mi);
 				callGraph.markParentAndPruneAfter(mi);
 
@@ -387,7 +387,7 @@ public class StackImplementation implements TraceParser {
 			//
 
 			for (MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations()) {
-				if (testSetupCallMatcher.matches(mi)) {
+				if (isTestSetupCall(mi)) {
 					System.out.println(" Matched test setup call " + mi);
 					callGraph.markParentAndPruneAfter(mi);
 
@@ -409,6 +409,15 @@ public class StackImplementation implements TraceParser {
 		}
 
 		return result;
+	}
+
+	public boolean isTestSetupCall(MethodInvocation mi) {
+		for (MethodInvocationMatcher testSetupMatcher : testSetupMatchers) {
+			if (testSetupMatcher.matches(mi)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public CallGraph getCallGraph() {

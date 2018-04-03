@@ -63,6 +63,9 @@ public class Carver {
 		// since most of the time, thos interfaces are organized in some way
 		@Option(longName = "external", defaultToNull = true)
 		List<String> getExternalInterfaces();
+		
+		@Option(longName = "test-setup-by", defaultToNull = true)
+		List<String> getTestSetupBy();
 
 	}
 
@@ -158,19 +161,17 @@ public class Carver {
 		{
 			excludeBy.add( MethodInvocationMatcher.byPackage("java.lang"));
 		}
+		
+		List<MethodInvocationMatcher> testSetupBy = new ArrayList<>();
+		
+		
 		// TODO Code duplicate with InstrumentTracer
 		List<String> externalInterfaces = new ArrayList<>();
 		{
 			// Default Interfaces are the one for Files, Network, etc. ?
-			// External interfaces are defined by Class
-			// externalInterfaces.add("java.util.Scanner");
-			// externalInterfaces.add("java.nio.file.Path");
 		}
 
-		List<String> pureMethods = new ArrayList<>();
-		{
-			// Default pure methods
-		}
+		List<String> testSetupMethods = new ArrayList<>();
 		try {
 			CarverCLI cli = CliFactory.parseArguments(CarverCLI.class, args);
 			traceFile = cli.getTraceFile();
@@ -186,6 +187,13 @@ public class Carver {
 				for (String exclude : cli.getExcludeBy()) {
 					String[] excludeByTokens = exclude.split("=");
 					excludeBy.add(getMatcherFor(excludeByTokens[0], excludeByTokens[1]));
+				}
+			}
+			
+			if( cli.getTestSetupBy() != null ){
+				for (String testSetup : cli.getTestSetupBy()) {
+					String[] testSetupTokens = testSetup.split("=");
+					testSetupBy.add(getMatcherFor(testSetupTokens[0], testSetupTokens[1]));
 				}
 			}
 
@@ -211,24 +219,24 @@ public class Carver {
 			}
 		}
 
-		List<MethodInvocationMatcher> purityMatchers = new ArrayList<MethodInvocationMatcher>();
-		for (String pureMethod : pureMethods) {
-			// By default those are class method matchers!
-			purityMatchers.add(MethodInvocationMatcher.byMethod(pureMethod));
-		}
-		//
-		{
-			// TODO Additional pure methods... this is TRICKY !
-			// With this we'll kill the data flow from String, and string that
-			// are returned from pure methods are discarded...
-			// purityMatchers.add(MethodInvocationMatcher.byClass("java.lang.StringBuilder"));
-		}
+//		List<MethodInvocationMatcher> purityMatchers = new ArrayList<MethodInvocationMatcher>();
+//		for (String pureMethod : pureMethods) {
+//			// By default those are class method matchers!
+//			purityMatchers.add(MethodInvocationMatcher.byMethod(pureMethod));
+//		}
+//		//
+//		{
+//			// TODO Additional pure methods... this is TRICKY !
+//			// With this we'll kill the data flow from String, and string that
+//			// are returned from pure methods are discarded...
+//			// purityMatchers.add(MethodInvocationMatcher.byClass("java.lang.StringBuilder"));
+//		}
 
 		setupSoot(projectJars);
 
 		logger.info("Carver.main() Start parsing ");
 		// Parse the trace file into graphs
-		StackImplementation traceParser = new StackImplementation(purityMatchers);
+		StackImplementation traceParser = new StackImplementation(testSetupBy);
 		// TODO How to handle multiple trace files ? All together or one after
 		// another?
 

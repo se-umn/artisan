@@ -292,7 +292,6 @@ public class CallGraph {
 		// Recursively remothe nodes ?
 		remove(parent);
 		// Add the parent once again
-//		parent.setBelongsToExternalInterface(true);
 		parent.setTestSetupCall(true);
 		//
 		System.out.println("Readded " + parent);
