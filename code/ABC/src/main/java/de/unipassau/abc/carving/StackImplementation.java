@@ -11,7 +11,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -56,11 +55,14 @@ public class StackImplementation implements TraceParser {
 	 */
 	private AtomicInteger invocationCount = new AtomicInteger(0);
 
-	private List<MethodInvocationMatcher> purityMatchers;
+	/*
+	 * Identify the test setup calls
+	 */
+	private List<MethodInvocationMatcher> testSetupMatchers;
 
-	private boolean purityFlag = false;
-	private MethodInvocation pureMethod = null; // This is the method which sets
-												// the purity flag
+	// private boolean purityFlag = false;
+	// private MethodInvocation pureMethod = null;
+	// private List<MethodInvocationMatcher> pureMethods;
 
 	final private MethodInvocationMatcher systemExitMatcher = MethodInvocationMatcher
 			.byMethod("<java.lang.System: void exit(int)>");
@@ -68,8 +70,8 @@ public class StackImplementation implements TraceParser {
 	// State variable controlling the parser
 	private boolean systemExitReached = false;
 
-	public StackImplementation(List<MethodInvocationMatcher> purityMatchers) {
-		this.purityMatchers = purityMatchers;
+	public StackImplementation(List<MethodInvocationMatcher> testSetupMatchers) {
+		this.testSetupMatchers = testSetupMatchers;
 	}
 
 	// This method is hard to test, and cannot be public since requires setup
@@ -128,11 +130,12 @@ public class StackImplementation implements TraceParser {
 			// }
 		}
 
-		if (isPure(methodInvocation)) {
-			purityFlag = true;
-			pureMethod = methodInvocation;
-			logger.trace("StackImplementation.parseMethodEnd() Switch PURITY ON");
-		}
+		// if (isPure(methodInvocation)) {
+		// purityFlag = true;
+		// pureMethod = methodInvocation;
+		// logger.trace("StackImplementation.parseMethodEnd() Switch PURITY
+		// ON");
+		// }
 
 		logger.trace("InvocationType for " + jimpleMethod + " is " + typeOfInvocation);
 
@@ -171,15 +174,15 @@ public class StackImplementation implements TraceParser {
 		}
 
 		// We push nevertheless
-		callGraph.push(methodInvocation, purityFlag);
+		callGraph.push(methodInvocation, false);
 
-		if (!purityFlag) {
-			// This also tracks parameter dependency
-			dataDependencyGraph.addMethodInvocation(methodInvocation, actualParameters);
-			executionFlowGraph.enqueueMethodInvocations(methodInvocation);
-		} else {
-			logger.trace(methodInvocation + " excluded by purity");
-		}
+		// if (!purityFlag) {
+		// This also tracks parameter dependency
+		dataDependencyGraph.addMethodInvocation(methodInvocation, actualParameters);
+		executionFlowGraph.enqueueMethodInvocations(methodInvocation);
+		// } else {
+		// logger.trace(methodInvocation + " excluded by purity");
+		// }
 
 		// Check if this method is System.exit
 		if (systemExitMatcher.matches(methodInvocation)) {
@@ -222,10 +225,10 @@ public class StackImplementation implements TraceParser {
 		methodInvocation.setOwner(owner);
 		methodInvocation.setXmlDumpForOwner(xmlFile);
 
-		if (!purityFlag) {
-			dataDependencyGraph.addDataDependencyOnOwner(methodInvocation, thisObject.toString());
-			executionFlowGraph.addOwnerToMethodInvocation(methodInvocation, thisObject.toString());
-		}
+		// if (!purityFlag) {
+		dataDependencyGraph.addDataDependencyOnOwner(methodInvocation, thisObject.toString());
+		executionFlowGraph.addOwnerToMethodInvocation(methodInvocation, thisObject.toString());
+		// }
 		return peekIndex - 1;
 	}
 
@@ -259,38 +262,39 @@ public class StackImplementation implements TraceParser {
 
 		MethodInvocation methodInvocation = callGraph.pop();
 
-		if (!purityFlag) {
+		// if (!purityFlag) {
 
-			if (!JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()))) {
-				methodInvocation.setXmlDumpForReturn(xmlFile);
-			}
-
-			// TODO This is tricky: one might actually encode the string null
-			// !!!
-			dataDependencyGraph.addDataDependencyOnReturn(methodInvocation,
-					(returnValue.length() != 0) ? returnValue.toString() : null);
-
+		if (!JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()))) {
+			methodInvocation.setXmlDumpForReturn(xmlFile);
 		}
+
+		// TODO This is tricky: one might actually encode the string null
+		// !!!
+		dataDependencyGraph.addDataDependencyOnReturn(methodInvocation,
+				(returnValue.length() != 0) ? returnValue.toString() : null);
+
+		// }
 
 		// Reset the purity state of the parser
-		if (methodInvocation.equals(pureMethod)) {
-			pureMethod = null;
-			purityFlag = false;
-			logger.trace("StackImplementation.parseMethodEnd() Switch PURITY OFF");
-		}
+		// if (methodInvocation.equals(pureMethod)) {
+		// pureMethod = null;
+		// purityFlag = false;
+		// logger.trace("StackImplementation.parseMethodEnd() Switch PURITY
+		// OFF");
+		// }
 
 		return peekIndex - 1;
 	}
 
-	private boolean isPure(MethodInvocation methodInvocation) {
-		for (MethodInvocationMatcher purityMatcher : purityMatchers) {
-			if (purityMatcher.matches(methodInvocation)) {
-				logger.trace(methodInvocation + " is pure");
-				return true;
-			}
-		}
-		return false;
-	}
+//	private boolean isPure(MethodInvocation methodInvocation) {
+//		for (MethodInvocationMatcher purityMatcher : purityMatchers) {
+//			if (purityMatcher.matches(methodInvocation)) {
+//				logger.trace(methodInvocation + " is pure");
+//				return true;
+//			}
+//		}
+//		return false;
+//	}
 
 	private int parseTraceFile(List<String> lines, // Lines of the trace file
 			List<MethodInvocationMatcher> externalInterfaceMatchers, int initialPosition)
@@ -344,10 +348,6 @@ public class StackImplementation implements TraceParser {
 	public Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parseTrace(String traceFilePath,
 			List<MethodInvocationMatcher> externalInterfaceMatchers) throws FileNotFoundException, IOException {
 
-		// Compress setup calls !
-		// TODO THIS IS HARDCODED FOR TESTING
-		MethodInvocationMatcher testSetupCallMatcher = MethodInvocationMatcher.byMethodLiteral("<org.hotelme.systemtests.TestHotelReserveRoom: void dropAndRecreateTheDb()>");
-
 		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> result = new HashMap<>();
 
 		// Read the file into a set of string, this might be a problem for long
@@ -361,22 +361,23 @@ public class StackImplementation implements TraceParser {
 		// iterator at this point
 		int position = parseTraceFile(lines, externalInterfaceMatchers, 0);
 		//
-		for( MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations() ){
-			if( testSetupCallMatcher.matches( mi ) ){
-				System.out.println(" Matched test setup call " + mi );
+		for (MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations()) {
+			if (testSetupCallMatcher.matches(mi)) {
+				System.out.println(" Matched test setup call " + mi);
 				callGraph.markParentAndPruneAfter(mi);
-				
+
 				//
 				List<MethodInvocation> orderedSlice = new ArrayList<>(callGraph.getAll());
 				Collections.sort(orderedSlice);
 
-				logger.info("Level_0_MethodCarver.processExternalInterfaces() Refined context size " + orderedSlice.size());
+				logger.info(
+						"Level_0_MethodCarver.processExternalInterfaces() Refined context size " + orderedSlice.size());
 				//
 				executionFlowGraph = executionFlowGraph.getSubGraph(orderedSlice);
 				dataDependencyGraph = dataDependencyGraph.getSubGraph(orderedSlice);
-				
+
 			}
-		}//
+		} //
 
 		result.put(UUID.randomUUID().toString(), new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
 				executionFlowGraph, dataDependencyGraph, callGraph));
@@ -385,20 +386,21 @@ public class StackImplementation implements TraceParser {
 			position = parseTraceFile(lines, externalInterfaceMatchers, position);
 			//
 
-			for( MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations() ){
-				if( testSetupCallMatcher.matches( mi ) ){
-					System.out.println(" Matched test setup call " + mi );
+			for (MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations()) {
+				if (testSetupCallMatcher.matches(mi)) {
+					System.out.println(" Matched test setup call " + mi);
 					callGraph.markParentAndPruneAfter(mi);
-					
+
 					//
 					List<MethodInvocation> orderedSlice = new ArrayList<>(callGraph.getAll());
 					Collections.sort(orderedSlice);
 
-					logger.info("Level_0_MethodCarver.processExternalInterfaces() Refined context size " + orderedSlice.size());
+					logger.info("Level_0_MethodCarver.processExternalInterfaces() Refined context size "
+							+ orderedSlice.size());
 					//
 					executionFlowGraph = executionFlowGraph.getSubGraph(orderedSlice);
 					dataDependencyGraph = dataDependencyGraph.getSubGraph(orderedSlice);
-					
+
 				}
 			}
 			//
