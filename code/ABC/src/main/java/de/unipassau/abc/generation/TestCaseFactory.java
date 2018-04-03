@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
@@ -51,7 +52,7 @@ public class TestCaseFactory {
 				// Generate a the .class File from jimple
 				File testClassFile = generateClassBytecode(classFileName, testClass);
 				try {
-
+					// This is not really reliable
 					Class javaTestClass = loadClass(testClass.getName(), Files.readAllBytes(testClassFile.toPath()));
 					System.out.println("TestCaseFactory.generateTestFiles() LOADED: " + javaTestClass);
 					// Use reflection of see whats there ?
@@ -76,20 +77,19 @@ public class TestCaseFactory {
 				// for example, if we use java.sql.Date and another java.util
 				// the imports get simplified to java.sql.* and java.util.* but
 				// and the Date class becomes ambiguous
-				DecompilationOptions decompilationOptions = new DecompilationOptions();
 
 				DecompilerSettings decompilerSettings = DecompilerSettings.javaDefaults();
 				//
-				decompilerSettings.setForceExplicitImports( true );
-				
+				decompilerSettings.setForceExplicitImports(true);
+				decompilerSettings.setForceExplicitTypeArguments( true );
+
 				try (final BufferedWriter writer = new BufferedWriter(new FileWriter(sourceFile))) {
 
-					com.strobel.decompiler.Decompiler.decompile(
-							testClassFile.getAbsolutePath(),
-							new com.strobel.decompiler.PlainTextOutput(writer), // 
+					com.strobel.decompiler.Decompiler.decompile(testClassFile.getAbsolutePath(),
+							new com.strobel.decompiler.PlainTextOutput(writer), //
 							decompilerSettings
-							
-							);
+
+					);
 				}
 
 			} catch (Throwable e) {
