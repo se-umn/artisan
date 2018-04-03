@@ -2,7 +2,7 @@
 
 BIN_FOLDER="../target/appassembler/bin"
 LOG_FOLDER="./logs"
-OUTPUT_DIR=./sootOutput
+OUTPUT_DIR="./employee-sootOutput"
 LOG="${LOG_FOLDER}/employee-instrument.log"
 DEFAULT_INSTRUMENT_OUTPUT_FORMAT="class"
 
@@ -13,12 +13,9 @@ rm ${LOG}
 # We require system test cases packages as jar
 PROJECT_JAR="../../../test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHOT.jar ../../../test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHOT-tests.jar"
 
-# Note that org.junit.rules.TemporaryFolde is broken at the moment
-DEFAULT_EXTERNAL_INTERFACES="java.util.Scanner org.junit.rules.TemporaryFolder java.nio.file.Files"
+EXTERNAL_INTERFACES="java.io.File java.nio.Path java.util.Scanner java.nio.file.Files"
 
-EXTERNAL_INTERFACES=${1:-"${DEFAULT_EXTERNAL_INTERFACES}"}
-
-export JAVA_OPTS="-Dtrace.output=./tracingOut -Ddump.output=./tracingOut"
+export JAVA_OPTS="-Dtrace.output=./employee-tracingOut -Ddump.output=./employee-tracingOut"
 
 ${BIN_FOLDER}/instrument \
     --project-jar ${PROJECT_JAR} \

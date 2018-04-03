@@ -12,7 +12,6 @@ rm -r ${JACOCO_HTML_REPORT}
 
 
 CARVED_TESTS_CP="./hotelme-abcOutput"
-CARVED_TESTS=$(find ${CARVED_TESTS_CP} -iname "Test*.java" -type f | sed "s|${CARVED_TESTS_CP}/||"| tr "/" "." | sed 's|\.java||g' | tr "\n" " ")
 
 PROJECT_JAR="../../../test-subjects/CommandLineUtilities/HotelMe/target/HotelReservationSystem-0.0.1-SNAPSHOT.jar"
 TEST_CP="../../../test-subjects/CommandLineUtilities/HotelMe/target/HotelReservationSystem-0.0.1-SNAPSHOT-tests.jar"
@@ -29,17 +28,8 @@ JACOCO_AGENT="../libs/jacocoagent.jar"
 JACOCO_CLI="../libs/jacococli.jar"
 
 ### Collect coverage information. This works only if tests pass, isn't it?.
-java \
-    -javaagent:${JACOCO_AGENT}=destfile=${JACOCO_EXEC},excludes=org.hotelme.Main,append=true \
-    -cp ${CARVED_TESTS_CP}:${PROJECT_CP}:${TEST_CP}:${JUNIT_CP}:${SUPPORTING_JARS} \
-    ${JAVA_OPTS} \
-        org.junit.runner.JUnitCore \
-            ${CARVED_TESTS} \
-                2>&1 | tee ${CARVED_TEST_LOG}
+set -x
 
-### Generate the REPORT. HTML for us, XML for later processing
-java -jar ${JACOCO_CLI} report ${JACOCO_EXEC} \
-    --classfiles ${PROJECT_JAR} \
-    --name "Hotel Reservation Carved Tests Coverage Report" \
-    --html ${JACOCO_HTML_REPORT} \
-    --xml ${JACOCO_XML_REPORT}
+javac \
+    -cp ${CARVED_TESTS_CP}:${PROJECT_CP}:${TEST_CP}:${JUNIT_CP}:${SUPPORTING_JARS} \
+            $(find ${CARVED_TESTS_CP} -iname "Test*.java" -type f)

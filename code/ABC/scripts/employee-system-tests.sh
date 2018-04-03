@@ -2,8 +2,8 @@
 
 rm -r tracingOut
 
-if [ ! -d ./sootOutput ]; then
-	(>&2 echo "Instrumented Files are not available !")
+if [ ! -d ./employee-sootOutput ]; then
+	(>&2 echo "Instrumented files are not available !")
 	exit 1
 fi
 
@@ -25,7 +25,7 @@ rm -r ${JACOCO_HTML_REPORT}
 
 # Note that sootOutpu, which contains the instrumented files, must come BEFORE the original project.
 
-INSTR_CP="./sootOutput"
+INSTR_CP="./employee-sootOutput"
 
 # We require system test cases packages as jar
 PROJECT_CP="../../../test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHOT.jar"
@@ -70,7 +70,7 @@ java -jar ${JACOCO_CLI} report ${JACOCO_EXEC} \
     --xml ${JACOCO_XML_REPORT}
 
 ### Run the instrumented files to generate the trace. Those are default folder
-JAVA_OPTS="-Dtrace.output=./tracingOut -Ddump.output=./tracingOut"
+JAVA_OPTS="-Dtrace.output=./employee-tracingOut -Ddump.output=./employee-tracingOut"
 #JAVA_OPTS="-Dtrace.output=/Users/gambi/Documents/Passau/Research/action-based-test-carving/code/ABC/src/test/resources/Employee/tracingOut -Ddump.output=/Users/gambi/Documents/Passau/Research/action-based-test-carving/code/ABC/src/test/resources/Employee/tracingOut"
 
 java \

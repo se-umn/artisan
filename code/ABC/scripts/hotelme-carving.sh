@@ -2,7 +2,7 @@
 
 BIN_FOLDER="../target/appassembler/bin"
 LOG_FOLDER="./logs"
-OUTPUT_DIR=./abcOutput
+OUTPUT_DIR="./hotelme-abcOutput"
 LOG="${LOG_FOLDER}/hotelme-carving.log"
 
 
@@ -15,14 +15,12 @@ TEST_CP="../../../test-subjects/CommandLineUtilities/HotelMe/target/HotelReserva
 
 PROJECT_CP="${PROJECT_JAR}:${TEST_CP}:/Users/gambi/.m2/repository/joda-time/joda-time/2.9.4/joda-time-2.9.4.jar:/Users/gambi/.m2/repository/mysql/mysql-connector-java/5.1.39/mysql-connector-java-5.1.39.jar"
 
-DEFAULT_CARVE_BY="package=org.hotelme"
-
-DEFAULT_EXTERNAL_INTERFACES="java.io.File java.nio.Path java.nio.file.Files java.sql java.util.Scanner"
+EXCLUDE="package=org.hotelme.systemtests package=org.hotelme.utils class=org.hotelme.Main"
 
 # Inputs
-TRACE_FILE=${1-"./tracingOut/trace.txt"}
-CARVE_BY=${2:-"${DEFAULT_CARVE_BY}"}
-EXTERNAL_INTERFACES=${3:-${DEFAULT_EXTERNAL_INTERFACES}}
+TRACE_FILE="./hotelme-tracingOut/trace.txt"
+CARVE_BY="package=org.hotelme"
+EXTERNAL_INTERFACES="package=java.nio.file class=java.util.Scanner package=java.sql class=java.io.File"
 
 # Additional options for the carve command - mostly random choice for CG
 export JAVA_OPTS="-Xmx4g -Xms512m -XX:+UseParallelGC -XX:NewRatio=2 -verbose:gc
@@ -33,7 +31,9 @@ set -x
 ${BIN_FOLDER}/carve \
             --carve-by ${CARVE_BY} \
                 --trace-file ${TRACE_FILE} \
-                --project-jar ${PROJECT_CP} \
+                --project-jar $(echo ${PROJECT_CP}| tr ":" " ") \
                 --external ${EXTERNAL_INTERFACES} \
+                --test-setup-by "class=org.hotelme.utils.SystemTestUtils" \
+                --exclude-by ${EXCLUDE} \
                 --output-to ${OUTPUT_DIR} \
                 2>&1 | tee ${LOG}
