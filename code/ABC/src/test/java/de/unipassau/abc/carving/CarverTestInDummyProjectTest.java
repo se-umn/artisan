@@ -44,7 +44,7 @@ public class CarverTestInDummyProjectTest {
 			File outputDirectory = temporaryFolderRule.newFolder();
 			
 //			String traceFile = "./src/test/resources/ArrayHandlingClass-trace.txt";
-			String traceFile = "./src/test/resources/StringHandlingClass-trace.txt";
+			String traceFile = "./src/test/resources/ClassAccess-trace.txt";
 //			String carveBy = "method=" + "<de.unipassau.abc.testsubject2.ArrayHandlingClass: void callMeMaybe(java.lang.String[])>";
 //			String carveBy = "class=" + "de.unipassau.abc.testsubject2.ArrayHandlingClass";
 //			String carveBy = "package=" + "de.unipassau.abc.testsubject2.ArrayHandling";

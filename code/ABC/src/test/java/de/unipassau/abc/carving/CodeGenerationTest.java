@@ -22,6 +22,7 @@ import de.unipassau.abc.carving.carvers.Level_0_MethodCarver;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.generation.TestGenerator;
+import de.unipassau.abc.generation.impl.AllTestTogether;
 import de.unipassau.abc.utils.JimpleUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import soot.SootClass;
@@ -96,7 +97,7 @@ public class CodeGenerationTest {
 		File projectJar = new File("./src/test/resources/Employee.jar");
 		Carver.setupSoot(Collections.singletonList(projectJar));
 		TestGenerator testGenerator = new TestGenerator( parsedTrace );
-		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
+		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
 
 		assertEquals(1, testCases.size());
 		SootClass testCase = testCases.iterator().next();

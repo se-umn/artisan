@@ -12,7 +12,7 @@ public class StringHandlingClass {
 		// String aString = "TEMP";
 		// File tempFile = Files.createTempFile(aString, "BAR").toFile();
 		// tempFile.deleteOnExit();
-		// System.out.println("StringHandlingClass.main() The file is " +
+		// System.out.println("ClassAccess.main() The file is " +
 		// tempFile.toString());
 		// This works
 		// String[] stringArray = new String[3];

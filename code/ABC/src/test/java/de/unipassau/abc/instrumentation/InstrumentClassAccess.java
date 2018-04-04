@@ -24,7 +24,7 @@ import org.slf4j.event.Level;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.abc.utils.SystemTest;
 
-public class InstrumentJUnitAssertions {
+public class InstrumentClassAccess {
 
 		@Rule
 		public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
@@ -61,8 +61,8 @@ public class InstrumentJUnitAssertions {
 			InstrumentTracer tracer = new InstrumentTracer();
 			tracer.main(new String[] { "--project-jar", testsubjectJar.getAbsolutePath(), //
 					"--output-to", outputDir.getAbsolutePath(), //
-					"--output-type", "jimple", "--include",
-					 "de.unipassau.abc.testsubject2.*" });
+					"--output-type", "jimple", 
+					"--include", "de.unipassau.abc.testsubject4.*" });
 			//
 			final AtomicInteger count = new AtomicInteger(0);
 			Files.walkFileTree(outputDir.toPath(), new SimpleFileVisitor<Path>() {
@@ -74,9 +74,7 @@ public class InstrumentJUnitAssertions {
 					return super.visitFile(file, attrs);
 				}
 			});
-			// TODO Maybe a Hamcrest matcher here?
-			assertEquals(14, count.get());
-			
+
 			// TODO Separate methos call; Visualize the JIMPLE Files
 			for( File jimpleFile : outputDir.listFiles(new FilenameFilter() {
 

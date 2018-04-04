@@ -22,6 +22,7 @@ import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.generation.TestCaseFactory;
 import de.unipassau.abc.generation.TestGenerator;
+import de.unipassau.abc.generation.impl.AllTestTogether;
 import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.JimpleUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
@@ -87,7 +88,7 @@ public class CarveWithExpansionsTest {
 		Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
 
 		TestGenerator testGenerator = new TestGenerator(parsedTrace);
-		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
+		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
 		assertEquals(1, testCases.size());
 
 		// Visual debug
@@ -139,7 +140,7 @@ public class CarveWithExpansionsTest {
 		Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
 		TestGenerator testGenerator = new TestGenerator(parsedTrace);
 
-		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
+		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
 		assertEquals(1, testCases.size());
 
 		// Visual debug
@@ -191,7 +192,7 @@ public class CarveWithExpansionsTest {
 		Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
 		TestGenerator testGenerator = new TestGenerator(parsedTrace);
 
-		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
+		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
 		assertEquals(1, testCases.size());
 
 		// Visual debug
@@ -255,7 +256,7 @@ public class CarveWithExpansionsTest {
 		Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
 		TestGenerator testGenerator = new TestGenerator(parsedTrace);
 
-		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
+		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
 		assertEquals(1, testCases.size());
 
 		// Visual debug
@@ -325,7 +326,7 @@ public class CarveWithExpansionsTest {
 		Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
 		TestGenerator testGenerator = new TestGenerator(parsedTrace);
 
-		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
+		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
 		assertEquals(1, testCases.size());
 
 		// Visual debug
@@ -380,7 +381,7 @@ public class CarveWithExpansionsTest {
 		Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
 		TestGenerator testGenerator = new TestGenerator(parsedTrace);
 
-		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
+		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
 		assertEquals(1, testCases.size());
 
 		// Visual debug
@@ -435,7 +436,7 @@ public class CarveWithExpansionsTest {
 		Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
 		TestGenerator testGenerator = new TestGenerator(parsedTrace);
 
-		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
+		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
 		assertEquals(1, testCases.size());
 
 		// Visual debug
@@ -485,7 +486,7 @@ public class CarveWithExpansionsTest {
 		Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
 		TestGenerator testGenerator = new TestGenerator(parsedTrace);
 
-		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
+		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
 		assertEquals(1, testCases.size());
 
 		// Visual debug

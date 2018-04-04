@@ -25,6 +25,7 @@ import de.unipassau.abc.carving.carvers.Level_0_MethodCarver;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.generation.TestGenerator;
+import de.unipassau.abc.generation.impl.AllTestTogether;
 import de.unipassau.abc.tracing.Trace;
 import de.unipassau.abc.utils.JimpleUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
@@ -90,7 +91,7 @@ public class CarvingTest {
 		Carver.setupSoot( Collections.singletonList( new File(employeeProjectJar) ) );
 		TestGenerator testGenerator = new TestGenerator( parsedTrace );
 
-		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
+		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
 		assertEquals(1, testCases.size());
 
 		for (SootClass testCase : testCases) {
@@ -150,7 +151,7 @@ public class CarvingTest {
 		Carver.setupSoot( Collections.singletonList( new File(employeeProjectJar) ) );
 		TestGenerator testGenerator = new TestGenerator( parsedTrace  );
 		
-		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests);
+		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
 		assertEquals(1, testCases.size());
 
 		for (SootClass testCase : testCases) {

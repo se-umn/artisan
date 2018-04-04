@@ -18,13 +18,14 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
-import de.unipassau.abc.testsubject2.Main;
+import de.unipassau.abc.carving.Carver;
+import de.unipassau.abc.testsubject4.ClassAccess;
 import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.abc.utils.SystemTest;
 import soot.G;
 
-public class InstrumentClassInDummyProjectTest {
+public class InstrumentClassAccessAndTrace {
 
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
@@ -58,8 +59,8 @@ public class InstrumentClassInDummyProjectTest {
 	@Category(SystemTest.class)
 	public void instrumentAndTraceTestSubjects() throws URISyntaxException, IOException, InterruptedException {
 
-		// File outputDir = temporaryFolder.newFolder();
-		File outputDir = Files.createTempDirectory("TEMP").toFile();
+		 File tracingOutputDir = temporaryFolder.newFolder();
+//		File outputDir = Files.createTempDirectory("TEMP").toFile();
 
 		// Note that this includes both SUT and its test. If we do not trace
 		// test cases, then we might miss information for carving
@@ -67,32 +68,43 @@ public class InstrumentClassInDummyProjectTest {
 
 		InstrumentTracer tracer = new InstrumentTracer();
 		tracer.main(new String[] { "--project-jar", testsubjectJar.getAbsolutePath(), //
-				"--output-to", outputDir.getAbsolutePath(), //
+				"--output-to", tracingOutputDir.getAbsolutePath(), //
 				"--output-type", "class",//
 				"--include",
-				 "de.unipassau.abc.testsubject2.*"
+				 "de.unipassau.abc.testsubject4.*"
 				//
 				});
-		G.reset();
+
+		// This generates the trace file
+		File traceFile = runSystemTestFromClass(ClassAccess.class, tracingOutputDir, testsubjectJar, traceJarCP);
 		
-		tracer = new InstrumentTracer();
-		tracer.main(new String[] { "--project-jar", testsubjectJar.getAbsolutePath(), //
-				"--output-to", outputDir.getAbsolutePath(), //
-				"--output-type", "jimple",//
-				"--include",
-				 "de.unipassau.abc.testsubject2.*"
-				});
-		//
-		// TODO Maybe a Hamcrest matcher here?
-		// int count = ABCTestUtils.countFiles(outputDir, ".class");
-		// There's two files now
-		// assertEquals(4, count);
-		 ABCTestUtils.printFiles(outputDir, ".jimple");
-		 runSystemTestFromClass(Main.class, outputDir, testsubjectJar, traceJarCP);
-//		runSystemTestFromClass(ClassAccess.class, outputDir, testsubjectJar, traceJarCP);
+		 G.reset();
+		 //
+		 Carver carver = new Carver();
+			File outputDirectory = temporaryFolder.newFolder();
+			String[] args = new String[] { //
+					"--carve-by", "package=de.unipassau.abc.testsubject4.",
+					// String traceFile =
+					"--trace-file", traceFile.getAbsolutePath(),//
+					// String projectJar =
+					"--project-jar", testsubjectJar.getAbsolutePath(), //
+					// String outputDir =
+					"--output-to", outputDirectory.getAbsolutePath(), //
+					"--external", //
+					"java.io.File", "java.nio.file.Path", "java.nio.file.Files", "org.junit.rules.TemporaryFolder",
+					"java.util.Scanner"
+			};
+			//
+			carver.main(args);
+			// TODO This can be derived by grepping, sorting, and filtering in the trace.
+			// CLASSES IN PACKAGE : cat src/test/resources/Employee-trace.txt | grep "<org.employee." | grep "\[>\]" | tr ";" " " | awk '{print $3}' | sort | uniq | wc -l
+			// 2 * CLASSES IN PACKAGE
+			// Collect file recursively
+			ABCTestUtils.printJavaClasses(outputDirectory);
+			
 	}
 
-	private void runSystemTestFromClass(Class systemTestClass, File outputDir, File testsubjectJar, String traceJarCP)
+	private File runSystemTestFromClass(Class systemTestClass, File outputDir, File testsubjectJar, String traceJarCP)
 			throws IOException, URISyntaxException, InterruptedException {
 		String systemTestClassName = systemTestClass.getName();
 
@@ -112,7 +124,7 @@ public class InstrumentClassInDummyProjectTest {
 		System.out.println("InstrumentEmployeeTest.instrumentAndTraceTestSubjects()" + processBuilder.command());
 
 		// This causes problems
-//		processBuilder.inheritIO();
+		processBuilder.inheritIO();
 
 		Process process = processBuilder.start();
 
@@ -132,6 +144,8 @@ public class InstrumentClassInDummyProjectTest {
 			System.out.println(line);
 		}
 		System.out.println("=====================================");
+		
+		return trace;
 
 	}
 
