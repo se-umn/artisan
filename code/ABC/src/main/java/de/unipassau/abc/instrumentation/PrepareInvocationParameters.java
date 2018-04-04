@@ -11,6 +11,7 @@ import soot.BodyTransformer;
 import soot.Local;
 import soot.PatchingChain;
 import soot.SootMethod;
+import soot.Type;
 import soot.Unit;
 import soot.Value;
 import soot.jimple.AbstractStmtSwitch;
@@ -18,6 +19,7 @@ import soot.jimple.AssignStmt;
 import soot.jimple.InvokeExpr;
 import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
+import soot.jimple.NullConstant;
 
 /**
  * Ensures that for each invokeExpr its parameters are plain LOCAL. TODO not
@@ -36,7 +38,7 @@ public class PrepareInvocationParameters extends BodyTransformer {
 	protected void internalTransform(final Body body, String phaseName, @SuppressWarnings("rawtypes") Map options) {
 
 		final SootMethod containerMethod = body.getMethod();
-		
+
 		System.out.println("PrepareInvocationParameters.internalTransform() STARTING " + containerMethod);
 
 		if (InstrumentTracer.filterMethod(containerMethod)) {
@@ -85,7 +87,14 @@ public class PrepareInvocationParameters extends BodyTransformer {
 					continue;
 				} else {
 					Value originalParameter = invokeExpr.getArg(position);
-					Local parameterLocal = UtilInstrumenter.generateFreshLocal(body, originalParameter.getType());
+					Type parameterType = null;
+					if (originalParameter == null || originalParameter instanceof NullConstant) {
+						parameterType = invokeExpr.getMethod().getParameterType(position);
+					} else {
+						parameterType = originalParameter.getType();
+					}
+					// Some arguments are null !
+					Local parameterLocal = UtilInstrumenter.generateFreshLocal(body, parameterType);
 					// Note that THIS might not work for ArrayRef, FieldRef and
 					// such... in that case add code to extract those !
 					AssignStmt assignParameters = Jimple.v().newAssignStmt(parameterLocal, originalParameter);
