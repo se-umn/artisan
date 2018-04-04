@@ -94,16 +94,17 @@ public class StackImplementation implements TraceParser {
 		methodInvocation.setInvocationType(typeOfInvocation);
 		if ("StaticInvokeExpr".equals(typeOfInvocation) ||
 		//
-				"StaticFieldOperation".equals(typeOfInvocation) || "FieldOperation".equals(typeOfInvocation)
-				|| "StringOperation".equals(typeOfInvocation)) {
+				"ClassOperation".equals(typeOfInvocation) || "StaticFieldOperation".equals(typeOfInvocation)
+				|| "FieldOperation".equals(typeOfInvocation) || "StringOperation".equals(typeOfInvocation)) {
 			methodInvocation.setStatic(true);
 		}
 
 		// Check with soot ?
 		try {
 
-			if (!typeOfInvocation.equals("ArrayOperation") && !typeOfInvocation.equals("StringOperation")
-					&& !typeOfInvocation.equals("StaticFieldOperation") && !typeOfInvocation.equals("FieldOperation")) {
+			if (!typeOfInvocation.equals("ClassOperation") && !typeOfInvocation.equals("ArrayOperation")
+					&& !typeOfInvocation.equals("StringOperation") && !typeOfInvocation.equals("StaticFieldOperation")
+					&& !typeOfInvocation.equals("FieldOperation")) {
 				// This might be required to get to the method in the first
 				// place
 				// System.out.println(

@@ -121,8 +121,13 @@ public class JimpleUtils {
 	}
 
 	public static boolean isNull(String string) {
+		try{
 //		System.out.println("JimpleUtils.isNull() " + string);
 		// we use system hash, this is 0 for null objects
 		return string == null || (string.split("@")[1].equals("0"));
+		}catch (Throwable e) {
+			System.out.println("JimpleUtils.isNull() ERROR FOR " + string );
+			throw e;
+		}
 	}
 }

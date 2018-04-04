@@ -22,6 +22,7 @@ import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.generation.MockingGenerator;
 import de.unipassau.abc.generation.TestCaseFactory;
 import de.unipassau.abc.generation.TestGenerator;
+import de.unipassau.abc.generation.impl.EachTestAlone;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.G;
 import soot.Scene;
@@ -283,7 +284,8 @@ public class Carver {
 		System.out.println("Carver.main() Start code generation");
 		// Test Generation
 		TestGenerator testCaseGenerator = new TestGenerator( parsedTrace );
-		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests);
+		// DEFAULT SETTINGS
+		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests, new EachTestAlone());
 
 		// TODO Are assertions STILL generated ?!
 		//// DECORATORS HERE: ASSERTIONS AND MOCKING !

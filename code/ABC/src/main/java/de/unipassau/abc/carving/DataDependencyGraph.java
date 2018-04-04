@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 
+import de.unipassau.abc.carving.ObjectInstance.StaticObjectInstance;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.utils.GraphUtility;
 import de.unipassau.abc.utils.JimpleUtils;
@@ -77,8 +78,8 @@ public class DataDependencyGraph {
 	@SuppressWarnings("unchecked")
 	public void addMethodInvocation(MethodInvocation methodInvocation, String... actualParameters) {
 
-//		System.out.println("DataDependencyGraph.addMethodInvocation() " + methodInvocation + " "
-//				+ Arrays.toString(actualParameters));
+		System.out.println("DataDependencyGraph.addMethodInvocation() " + methodInvocation + " "
+				+ Arrays.toString(actualParameters));
 
 		if (!graph.containsVertex(methodInvocation)) {
 			graph.addVertex(methodInvocation);
@@ -100,6 +101,8 @@ public class DataDependencyGraph {
 				node = ObjectInstance.systemOut;
 			} else if ("java.lang.System.err".equals(actualParameters[position])) {
 				node = ObjectInstance.systemErr;
+			} else if( "StaticFieldOperation".equals( methodInvocation.getInvocationType())){
+				node = new StaticObjectInstance( actualParameters[position]+"@0", JimpleUtils.getReturnType( methodInvocation.getJimpleMethod() ) );
 			}
 			// else if (actualParameters[position].equals("java.lang.String@0"))
 			// {

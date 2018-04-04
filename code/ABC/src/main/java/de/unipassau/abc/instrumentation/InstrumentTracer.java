@@ -262,7 +262,7 @@ public class InstrumentTracer {
 	 */
 	public static boolean doNotTraceCallsTo(SootMethod m) {
 		return 
-				m.getSignature().equals("<java.lang.Object: void <init>()>") || //
+				m.getSignature().startsWith("<java.lang.Object:") || //
 				m.getSignature().contains("de.unipassau.abc.tracing.Trace") || //
 				false;
 	}

@@ -9,6 +9,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import javax.sound.midi.Instrument;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +28,9 @@ import soot.Value;
 import soot.jimple.AbstractStmtSwitch;
 import soot.jimple.ArrayRef;
 import soot.jimple.AssignStmt;
+import soot.jimple.ClassConstant;
 import soot.jimple.FieldRef;
+import soot.jimple.InvokeExpr;
 import soot.jimple.NewArrayExpr;
 import soot.jimple.NullConstant;
 import soot.jimple.StaticFieldRef;
@@ -74,10 +78,19 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 			if (currentUnit.hasTag(ABCTag.TAG_NAME)) {
 				logger.info("DO NOT TRACE OUR OWN CODE " + currentUnit);
 			}
-
+			
 			currentUnit.apply(new AbstractStmtSwitch() {
 
 				public void caseAssignStmt(AssignStmt stmt) {
+					
+					
+					if( stmt.containsInvokeExpr() ){
+						InvokeExpr invokeExpr = stmt.getInvokeExpr();
+						if (InstrumentTracer.doNotTraceCallsTo(invokeExpr.getMethod())) {
+							logger.debug("Do not trace calls to " + currentUnit);
+							return;
+						}
+					}
 
 					if (stmt.getLeftOp() instanceof Local) {
 						if (stmt.getLeftOp().getType().equals(RefType.v("java.lang.String"))
@@ -116,23 +129,53 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 								//
 								(Local) stmt.getLeftOp(), (StaticFieldRef) stmt.getRightOp());
 					} else if (stmt.getRightOp() instanceof StaticFieldRef) {
-						System.out.println("Operation not supported " + stmt);
+						logger.debug("stmt.getRightOp() instanceof StaticFieldRef >> Operation not supported " + stmt);
 					} else if (stmt.getRightOp() instanceof ArrayRef) {
 						instrumentArrayAccessExpression(body, currentUnit,
 								//
 								stmt.getLeftOp(), 
 								((ArrayRef) stmt.getRightOp()).getBase(),
 								((ArrayRef) stmt.getRightOp()).getIndex());
-
+					} else if ( stmt.getRightOp() instanceof ClassConstant ){
+						instrumentAccessToClassConstant(body, currentUnit, 
+								//
+								stmt.getLeftOp(), 
+								((ClassConstant) stmt.getRightOp()));
 					} else {
-						System.out.println("Operation not supported " + stmt);
+						// ClassConstant left and right ...
+						logger.debug("Uknown combination. Operation not supported " + stmt.getLeftOp() + " " + stmt.getRightOp());
 					}
 				}
 
 			});
 		}
 	}
+	
+	private void instrumentAccessToClassConstant(Body body, Unit currentUnit, Value leftOp,
+			ClassConstant classConstant) {
 
+		String invokeType = "ClassOperation";
+		// "Static"
+		String fakeMethodSignature = "<abc.Class: java.lang.Class get(java.lang.String)>";
+		//
+		List<Value> parameterList = new ArrayList<>();
+		parameterList.add(StringConstant.v(classConstant.value));
+		//
+		List<Unit> generatedBefore = new ArrayList<>();
+		List<Unit> generatedAfter = new ArrayList<>();
+		//
+		generatedBefore.addAll(addTraceStart(invokeType, fakeMethodSignature, parameterList, body));
+		/*
+		 * This avoid duplicating the access to the static field
+		 */
+		generatedAfter.addAll(addTraceStop(fakeMethodSignature, classConstant, body));
+		//
+		// // TAG OUR CODE ?
+		PatchingChain<Unit> units = body.getUnits();
+		units.insertBefore(generatedBefore, currentUnit);
+		units.insertAfter(generatedAfter, currentUnit);
+		
+	}
 	// TODO How DO I KNOW THIS IS SYSTEM.OUT, SYSTEM.ERR, or SYSTEM.IN ?! ?
 	private void instrumentAccessToStaticFieldExpression(Body body, Unit currentUnit, Local staticFieldLocal,
 			StaticFieldRef staticField) {

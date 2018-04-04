@@ -74,12 +74,9 @@ public class TestGenerator {
 	 * @throws InterruptedException
 	 * @throws CarvingException
 	 */
-	public Collection<SootClass> generateTestCases(List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests)
+	public Collection<SootClass> generateTestCases(List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests, TestClassGenerator testClassGenerator)
 			throws IOException, InterruptedException {
-
-		// contains directly on SootClass
-		Map<String, SootClass> testClasses = new HashMap<>();
-
+		
 		// Why we need to initialize soot here otherwise we cannot create
 		// methods and classes, and such
 		// To probably there's also something else to include here
@@ -103,17 +100,7 @@ public class TestGenerator {
 			// Somehow this does include the executions we removed ?!
 			logger.info("Generate Test: " + mut);
 
-			// carvedTest.getFirst().visualize();
-			// carvedTest.getSecond().visualize();
-
-			String classUnderTest = JimpleUtils.getClassNameForMethod(mut.getJimpleMethod());
-
-			// TODO Not sure this works !
-			if (!testClasses.containsKey(classUnderTest)) {
-				testClasses.put(classUnderTest, getTestClass(classUnderTest));
-			}
-			SootClass testClass = testClasses.get(classUnderTest);
-
+			SootClass testClass = testClassGenerator.getTestClassFor( mut ); 
 			try {
 				// TODO For the moment we name tests after their position and
 				// MUT
@@ -124,7 +111,7 @@ public class TestGenerator {
 			}
 		}
 
-		return testClasses.values();
+		return testClassGenerator.getTestClasses();
 	}
 
 	private void validate(Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest) throws CarvingException {
@@ -583,21 +570,6 @@ public class TestGenerator {
 
 			throw e;
 		}
-	}
-
-	private SootClass getTestClass(String classUnderTest) {
-		String simpleClassName = classUnderTest.replaceAll("\\.", " ")
-				.split(" ")[classUnderTest.replaceAll("\\.", " ").split(" ").length - 1];
-		String classPackage = classUnderTest.substring(0, classUnderTest.lastIndexOf("."));
-
-		String testCaseName = classPackage + "." + "Test" + simpleClassName;
-
-		SootClass sClass = new SootClass(testCaseName, Modifier.PUBLIC);
-		sClass.setSuperclass(Scene.v().getSootClass("java.lang.Object"));
-
-		Scene.v().addClass(sClass);
-
-		return sClass;
 	}
 
 	// public void createTestCaseForEach(List<String> testCases, int times, int
