@@ -17,11 +17,12 @@ public class TestFileRead3
     public final ExpectedSystemExit expectedSystemExit;
     
     @Test
-    public void test_8() throws Exception {
+    public void test_4() throws Exception {
         this.userInputs.provideLines(new String[] { "1", "admin" });
         final InputStream in = System.in;
         final File tempWorkingDir = SystemTestUtils.createTempWorkingDir();
-        SystemTestUtils.createEmptyFileInWorkingDir(tempWorkingDir, "username.txt");
+        SystemTestUtils.createFileInWorkingDir(tempWorkingDir, "username.txt", "123");
+        SystemTestUtils.createFileInWorkingDir(tempWorkingDir, "123", "Username:-->123\n" + "Name:-->test\n" + "Designnation:-->SeniorSoftwareEngineer Software Engineer\n" + "Gender-->M\n" + "Age:-->50\n" + "Experience-->10\n" + "30\n" + "20\n" + "10\n" + "96000.0\n");
         final File file = new File((new String[] { tempWorkingDir.getAbsolutePath() })[0]);
         final Scanner scanner = new Scanner(in);
         scanner.next();
@@ -30,11 +31,12 @@ public class TestFileRead3
     }
     
     @Test
-    public void test_12() throws Exception {
+    public void test_6() throws Exception {
         this.userInputs.provideLines(new String[] { "1", "admin" });
         final InputStream in = System.in;
         final File tempWorkingDir = SystemTestUtils.createTempWorkingDir();
-        SystemTestUtils.createEmptyFileInWorkingDir(tempWorkingDir, "username.txt");
+        SystemTestUtils.createFileInWorkingDir(tempWorkingDir, "username.txt", "123");
+        SystemTestUtils.createFileInWorkingDir(tempWorkingDir, "123", "Username:-->123\n" + "Name:-->test\n" + "Designnation:-->SeniorSoftwareEngineer Software Engineer\n" + "Gender-->M\n" + "Age:-->50\n" + "Experience-->10\n" + "30\n" + "20\n" + "10\n" + "96000.0\n");
         final File file = new File((new String[] { tempWorkingDir.getAbsolutePath() })[0]);
         final Scanner scanner = new Scanner(in);
         scanner.next();
@@ -43,12 +45,11 @@ public class TestFileRead3
     }
     
     @Test
-    public void test_109() throws Exception {
+    public void test_58() throws Exception {
         this.userInputs.provideLines(new String[] { "1", "admin" });
         final InputStream in = System.in;
         final File tempWorkingDir = SystemTestUtils.createTempWorkingDir();
-        SystemTestUtils.createFileInWorkingDir(tempWorkingDir, "username.txt", "123");
-        SystemTestUtils.createFileInWorkingDir(tempWorkingDir, "123", "Username:-->123\n" + "Name:-->test\n" + "Designnation:-->SeniorSoftwareEngineer Software Engineer\n" + "Gender-->M\n" + "Age:-->50\n" + "Experience-->10\n" + "30\n" + "20\n" + "10\n" + "96000.0\n");
+        SystemTestUtils.createEmptyFileInWorkingDir(tempWorkingDir, "username.txt");
         final File file = new File((new String[] { tempWorkingDir.getAbsolutePath() })[0]);
         final Scanner scanner = new Scanner(in);
         scanner.next();
@@ -57,12 +58,11 @@ public class TestFileRead3
     }
     
     @Test
-    public void test_112() throws Exception {
+    public void test_60() throws Exception {
         this.userInputs.provideLines(new String[] { "1", "admin" });
         final InputStream in = System.in;
         final File tempWorkingDir = SystemTestUtils.createTempWorkingDir();
-        SystemTestUtils.createFileInWorkingDir(tempWorkingDir, "username.txt", "123");
-        SystemTestUtils.createFileInWorkingDir(tempWorkingDir, "123", "Username:-->123\n" + "Name:-->test\n" + "Designnation:-->SeniorSoftwareEngineer Software Engineer\n" + "Gender-->M\n" + "Age:-->50\n" + "Experience-->10\n" + "30\n" + "20\n" + "10\n" + "96000.0\n");
+        SystemTestUtils.createEmptyFileInWorkingDir(tempWorkingDir, "username.txt");
         final File file = new File((new String[] { tempWorkingDir.getAbsolutePath() })[0]);
         final Scanner scanner = new Scanner(in);
         scanner.next();

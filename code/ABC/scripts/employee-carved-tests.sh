@@ -11,8 +11,6 @@ rm ${JACOCO_EXEC}
 rm ${JACOCO_XML_REPORT}
 rm -r ${JACOCO_HTML_REPORT}
 
-
-
 CARVED_TESTS_CP="./employee-abcOutput"
 # Collect the name of tests
 CARVED_TESTS=$(find ${CARVED_TESTS_CP} -iname "Test*.class" -type f | sed "s|${CARVED_TESTS_CP}/||"| tr "/" "." | sed 's|\.class||g' | tr "\n" " ")
@@ -31,9 +29,13 @@ SUPPORTING_JARS="../libs/trace.jar:../src/test/resources/xmlpull-1.1.3.1.jar:../
 JACOCO_AGENT="../libs/jacocoagent.jar"
 JACOCO_CLI="../libs/jacococli.jar"
 
+# Recompile the tests to avoid problem with verification of bytecode
+javac \
+    -cp ${CARVED_TESTS_CP}:${PROJECT_CP}:${JUNIT_CP}:${SUPPORTING_JARS} \
+        $(find ${CARVED_TESTS_CP} -iname "Test*.java")
+
 ### Collect coverage information. This works only if tests pass, isn't it?.
 java \
-    -Xverify:none \
     -javaagent:${JACOCO_AGENT}=destfile=${JACOCO_EXEC},excludes=org.employee.Employee \
     -cp ${CARVED_TESTS_CP}:${PROJECT_CP}:${JUNIT_CP}:${SUPPORTING_JARS} \
     ${JAVA_OPTS} \

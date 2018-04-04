@@ -18,7 +18,7 @@ public class TestSoftwareTrainee
     public final ExpectedSystemExit expectedSystemExit;
     
     @Test
-    public void test_81() throws Exception {
+    public void test_22() throws Exception {
         this.userInputs.provideLines(new String[] { "3", "Jimbo", "3", "0", "19", "M", "345" });
         final InputStream in = System.in;
         final File file = new File((new String[] { SystemTestUtils.createTempWorkingDir().getAbsolutePath() })[0]);
@@ -41,7 +41,7 @@ public class TestSoftwareTrainee
     }
     
     @Test
-    public void test_83() throws Exception {
+    public void test_25() throws Exception {
         this.userInputs.provideLines(new String[] { "3", "Jimbo", "3", "0", "19", "M", "345" });
         final InputStream in = System.in;
         final File file = new File((new String[] { SystemTestUtils.createTempWorkingDir().getAbsolutePath() })[0]);

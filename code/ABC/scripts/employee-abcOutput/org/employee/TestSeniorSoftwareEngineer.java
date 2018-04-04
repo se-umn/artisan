@@ -18,7 +18,30 @@ public class TestSeniorSoftwareEngineer
     public final ExpectedSystemExit expectedSystemExit;
     
     @Test
-    public void test_37() throws Exception {
+    public void test_47() throws Exception {
+        this.userInputs.provideLines(new String[] { "3", "test", "1", "10", "50", "M", "123" });
+        final InputStream in = System.in;
+        final File file = new File((new String[] { SystemTestUtils.createTempWorkingDir().getAbsolutePath() })[0]);
+        final Scanner scanner = new Scanner(in);
+        scanner.next();
+        scanner.next();
+        scanner.next();
+        scanner.next();
+        scanner.next();
+        scanner.next();
+        final String next = scanner.next();
+        final FileWriter fileWriter = new FileWriter(new File(file, "username.txt"), false);
+        final FileWriter fileWriter2 = new FileWriter(new File(file, next), false);
+        final FileWriter fileWriter3 = new FileWriter(new File(file, next), false);
+        final FileWriter fileWriter4 = new FileWriter(new File(file, next), false);
+        final FileWriter fileWriter5 = new FileWriter(new File(file, next), false);
+        final FileWriter fileWriter6 = new FileWriter(new File(file, next), false);
+        final FileWriter fileWriter7 = new FileWriter(new File(file, next), false);
+        final SeniorSoftwareEngineer seniorSoftwareEngineer = new SeniorSoftwareEngineer(file, scanner);
+    }
+    
+    @Test
+    public void test_48() throws Exception {
         this.userInputs.provideLines(new String[] { "3", "test", "1", "10", "50", "M", "123" });
         final InputStream in = System.in;
         final File file = new File((new String[] { SystemTestUtils.createTempWorkingDir().getAbsolutePath() })[0]);

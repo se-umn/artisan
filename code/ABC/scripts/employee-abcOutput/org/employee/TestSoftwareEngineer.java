@@ -18,7 +18,7 @@ public class TestSoftwareEngineer
     public final ExpectedSystemExit expectedSystemExit;
     
     @Test
-    public void test_139() throws Exception {
+    public void test_76() throws Exception {
         this.userInputs.provideLines(new String[] { "3", "Name", "2", "5", "24", "F", "234" });
         final InputStream in = System.in;
         final File file = new File((new String[] { SystemTestUtils.createTempWorkingDir().getAbsolutePath() })[0]);

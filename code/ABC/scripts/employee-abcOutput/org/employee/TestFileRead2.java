@@ -17,7 +17,7 @@ public class TestFileRead2
     public final ExpectedSystemExit expectedSystemExit;
     
     @Test
-    public void test_51() throws Exception {
+    public void test_85() throws Exception {
         this.userInputs.provideLines(new String[] { "2" });
         final InputStream in = System.in;
         final File tempWorkingDir = SystemTestUtils.createTempWorkingDir();
@@ -29,7 +29,7 @@ public class TestFileRead2
     }
     
     @Test
-    public void test_56() throws Exception {
+    public void test_87() throws Exception {
         this.userInputs.provideLines(new String[] { "2", "123" });
         final InputStream in = System.in;
         final File tempWorkingDir = SystemTestUtils.createTempWorkingDir();
