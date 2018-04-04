@@ -3,7 +3,7 @@
 unameOut="$(uname -s)"
 case "${unameOut}" in
 Linux*)     machine=Linux; doShuffle='shuf'; sedOption='-i';;
-Darwin*)    machine=Mac; doShuffle='gshuf'; sedOption='-i ""';;
+Darwin*)    machine=Mac; doShuffle='gshuf'; sedOption="-i ''";;
 *)          machine="UNKNOWN:${unameOut}"
 esac
 echo ${machine}
@@ -13,29 +13,26 @@ HERE=$(pwd)
 
 EKSTAZI=${HERE}/../libs/org.ekstazi.core-5.2.0.jar
 
-PROJECT_JAR="./target/Employee-0.0.1-SNAPSHOT.jar"
-TEST_JAR="./target/Employee-0.0.1-SNAPSHOT-tests.jar"
-CARVED_TESTS_CP="${HERE}/employee-abcOutput"
+PROJECT_JAR="./target/HotelReservationSystem-0.0.1-SNAPSHOT.jar"
+TEST_JAR="./target/HotelReservationSystem-0.0.1-SNAPSHOT-tests.jar"
+CARVED_TESTS_CP="${HERE}/hotelme-abcOutput"
 
 PROJECT_CP="${PROJECT_JAR}:${TEST_JAR}"
 
-#"/Users/gambi/.m2/repository/junit/junit/4.12/junit-4.12.jar:/Users/gambi/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar:/Users/gambi/.m2/repository/com/github/stefanbirkner/system-rules/1.17.0/system-rules-1.17.0.jar"
 
-SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestAdminLoginWithEmptyDb"
-SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestAdminLoginWithNonEmptyDb"
-SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestEmployeeLogin"
-SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSeniorSoftwareEnginner"
-SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSoftwareEnginner"
-SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSoftwareTrainee"
-SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestStartAndExit"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.hotelme.systemtests.TestHotelExit"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.hotelme.systemtests.TestHotelSignUp"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.hotelme.systemtests.TestHotelSignUpWithTruncateTable"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.hotelme.systemtests.TestHotelReserveRoom"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.hotelme.systemtests.TestHotelAlreadyRegistered"
 
 
-DATA_FILE=${HERE}/employee-rts.csv
+DATA_FILE=${HERE}/hotelme-rts.csv
 rm ${DATA_FILE}
 
 CARVED_TESTS=$(find ${CARVED_TESTS_CP} -iname "Test*.class" -type f | sed "s|${CARVED_TESTS_CP}/||"| tr "/" "." | sed 's|\.class||g' | tr "\n" " ")
 
-cd Employee
+cd HotelMe
 
 if [ ! -f cp.txt ]; then
 echo "Build CP"
@@ -50,8 +47,6 @@ ORIGINAL_SHA=$(git rev-list --max-parents=0 HEAD)
 git reset --hard ${ORIGINAL_SHA}
 git checkout .
 
-# Do not consider the MAIN
-# Do not consider interfaces, otherwise we need to changes all its implementations !
 echo "Collect files in the project"
 i=0
 while read -r file; do
@@ -60,15 +55,14 @@ while read -r file; do
         i=$(($i+1))
     fi
 done < <(find src/main/java -iname "*.java" -type f \
-    -not -iname "Employee.java" \
-    -not -iname "FileManagement.java" )
+    -not -iname "Main.java")
 
 echo "Found ${i} src files in the project"
 
 ##### Original Version
 
 echo "Repackage"
-mvn -q clean package -DskipTests
+mvn clean package -DskipTests
 
 echo "Remove Ekstazi Folder"
 rm -rf .ekstazi
@@ -76,6 +70,7 @@ rm -rf .ekstazi-system
 rm -rf .ekstazi-carved
 
 echo "Running System Tests"
+
 TOTAL_SYSTEM_TEST=$(java \
     -cp ${PROJECT_CP}:${JUNIT_CP} \
     -javaagent:${EKSTAZI}=mode=junit \
@@ -93,6 +88,7 @@ TOTAL_CARVED_TEST=$(java \
         org.junit.runner.JUnitCore ${CARVED_TESTS} 2>/dev/null | \
             grep OK | sed 's|OK (\(.*\) tests)|\1|')
 
+
 echo "Ran ${TOTAL_CARVED_TEST}"
 
 mv .ekstazi .ekstazi-carved
@@ -101,7 +97,7 @@ mv .ekstazi .ekstazi-carved
 
 CARVED_LOG="carved.log"
 
-REPETITION=1
+REPETITION=20
 
 for N in $(seq  1 $i);
 do

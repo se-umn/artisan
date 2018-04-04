@@ -1,6 +1,6 @@
 #!/bin/bash
 
-rm -r tracingOut
+rm -r hotelme-tracingOut
 
 if [ ! -d ./hotelme-sootOutput ]; then
 	(>&2 echo "Instrumented Files are not available !")
