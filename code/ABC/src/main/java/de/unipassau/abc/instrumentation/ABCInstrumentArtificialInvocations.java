@@ -15,10 +15,12 @@ import org.slf4j.LoggerFactory;
 import soot.Body;
 import soot.BodyTransformer;
 import soot.Local;
+import soot.NullType;
 import soot.PatchingChain;
 import soot.RefType;
 import soot.SootField;
 import soot.SootMethod;
+import soot.Type;
 import soot.Unit;
 import soot.Value;
 import soot.jimple.AbstractStmtSwitch;
@@ -26,6 +28,7 @@ import soot.jimple.ArrayRef;
 import soot.jimple.AssignStmt;
 import soot.jimple.FieldRef;
 import soot.jimple.NewArrayExpr;
+import soot.jimple.NullConstant;
 import soot.jimple.StaticFieldRef;
 import soot.jimple.StringConstant;
 
@@ -160,8 +163,16 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 			SootField field, Value value) {
 		// TODO Note that we do not even need to know which field is...
 		String invokeType = "FieldOperation";
+		
+		Type fieldType = null;
+		if( value == null || value instanceof NullConstant || value.getType() instanceof NullType){
+			fieldType = field.getType();
+		} else {
+			fieldType = value.getType();
+		}
+		
 		// "Static"
-		String fakeMethodSignature = "<abc.Field: void set(" + value.getType() + ")>";
+		String fakeMethodSignature = "<abc.Field: void set(" + fieldType + ")>";
 
 		List<Value> parameterList = new ArrayList<>();
 		parameterList.add(value);

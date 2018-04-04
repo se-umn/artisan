@@ -186,10 +186,6 @@ public class InstrumentTracer {
 		logger.info("Including: " + sootInclude);
 		Options.v().set_include(sootInclude);
 
-		// Unboxes and prepare string constants
-		// PackManager.v().getPack("jtp").add(new Transform(stringPhaseName, new
-		// StringConstantBoxingBodyTransformer()));
-
 		// Split Assignments
 		PackManager.v().getPack("jtp")
 				.add(new Transform("jtp.01.split.assignments", new SplitAssignmentBodyTransformer()));

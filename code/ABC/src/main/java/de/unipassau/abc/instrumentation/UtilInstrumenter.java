@@ -15,6 +15,7 @@ import soot.FloatType;
 import soot.IntType;
 import soot.Local;
 import soot.LongType;
+import soot.NullType;
 import soot.PrimType;
 import soot.RefType;
 import soot.Scene;
@@ -327,6 +328,11 @@ public class UtilInstrumenter {
 	}
 
 	public static Local generateFreshLocal(Body body, Type type) {
+		
+		if( type instanceof NullType ){
+			System.out.println("UtilInstrumenter.generateFreshLocal() Null type !!");
+		}
+		
 		LocalGenerator lg = new LocalGenerator(body);
 		return lg.generateLocal(type);
 	}

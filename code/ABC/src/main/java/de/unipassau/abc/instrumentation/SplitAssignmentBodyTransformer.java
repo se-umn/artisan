@@ -12,6 +12,7 @@ import soot.Local;
 import soot.NullType;
 import soot.PatchingChain;
 import soot.SootMethod;
+import soot.Type;
 import soot.Unit;
 import soot.Value;
 import soot.jimple.AbstractStmtSwitch;
@@ -29,7 +30,7 @@ public class SplitAssignmentBodyTransformer extends BodyTransformer {
 
 		final SootMethod containerMethod = body.getMethod();
 
-		 System.out.println("SplitAssignmentBodyTransformer.internalTransform() >>> STARTING " + containerMethod);
+		System.out.println("SplitAssignmentBodyTransformer.internalTransform() >>> STARTING " + containerMethod);
 
 		// Filter methods that we do not want to instrument
 		// TODO Make this parameteric
@@ -95,8 +96,16 @@ public class SplitAssignmentBodyTransformer extends BodyTransformer {
 							return;
 						}
 
+						Type localType = null;
+						if(stmt.getRightOp().getType() instanceof NullType ){
+							localType = stmt.getLeftOp().getType();
+						}  else {
+							localType = stmt.getRightOp().getType();
+						}
+						
+						
 						// Introduce the new Local and update the assignment
-						Local split = UtilInstrumenter.generateFreshLocal(body, stmt.getRightOp().getType());
+						Local split = UtilInstrumenter.generateFreshLocal(body, localType);
 						stmt.setLeftOp(split);
 						logger.info("Swap " + leftOp + " with " + split);
 
