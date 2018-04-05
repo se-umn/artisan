@@ -353,7 +353,7 @@ public class TestCaseFactory {
 						}
 
 						/// Right side
-						if (stmt.getRightOp() instanceof FieldRef) {
+						if (stmt.getRightOp() instanceof InstanceFieldRef) {
 							// throw new NotImplementedException();
 							FieldRef fieldRef = (FieldRef) stmt.getRightOp();
 
@@ -361,7 +361,10 @@ public class TestCaseFactory {
 									new NameExpr(((InstanceFieldRef) stmt.getRightOp()).getBase().toString()),
 									fieldRef.getFieldRef().name());
 						} else if (stmt.getRightOp() instanceof StaticFieldRef) {
-							throw new NotImplementedException();
+							StaticFieldRef fieldRef = (StaticFieldRef) stmt.getRightOp();
+
+							rightExpr = new NameExpr(fieldRef.getFieldRef().declaringClass()+"."+fieldRef.getFieldRef().name());
+							
 						} else if (stmt.getRightOp() instanceof ArrayRef) {
 							ArrayRef arrayRef = (ArrayRef) stmt.getRightOp();
 

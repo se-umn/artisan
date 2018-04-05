@@ -343,11 +343,14 @@ public class Carver {
 		// }
 
 		// FOR VISUAL DEBUG
-//		if (logger.isDebugEnabled() || logger.isTraceEnabled()) {
+		if (logger.isDebugEnabled() || logger.isTraceEnabled()) {
+			System.out.println("Carver.main() JIMPLE FILES " + testCases.size());
 			for (SootClass testCase : testCases) {
-				JimpleUtils.prettyPrint(testCase);
+				System.out.println("Carver.main() JIMPLE FILE " + testCase);
+				// THis wont work for more than 1 file, it silenty fail/exit the for loop ?!
+//				JimpleUtils.prettyPrint(testCase);
 			}
-//		}
+		}
 
 		if (outputDir == null) {
 			// Use default
