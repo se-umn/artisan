@@ -74,8 +74,12 @@ public class MockingGenerator {
 			systemInJunit4RuleField = new SootField(SYSTEM_IN_RULE_NAME,
 					RefType.v("org.junit.contrib.java.lang.system.TextFromStandardInputStream"),
 					Modifier.PUBLIC | Modifier.FINAL);
+			//
 			// Add annotation
 			AnnotationGenerator.v().annotate(systemInJunit4RuleField, Rule.class);
+//			System.out.println("Annotating field using " + JUnitRuleTag.TAG );
+			systemInJunit4RuleField.addTag( JUnitRuleTag.TAG);
+//			System.out.println( "TAGS: " + systemInJunit4RuleField.getTags() ); 
 			Scene.v().loadClassAndSupport("org.junit.contrib.java.lang.system.TextFromStandardInputStream");
 			testClass.addField(systemInJunit4RuleField);
 
