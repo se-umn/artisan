@@ -1,15 +1,19 @@
 package de.unipassau.abc.utils;
 
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import soot.Body;
 import soot.Local;
+import soot.Printer;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.Type;
 import soot.Unit;
+import soot.options.Options;
 
 public class JimpleUtils {
 
@@ -64,13 +68,22 @@ public class JimpleUtils {
 	}
 
 	public static void prettyPrint(SootClass sClass) {
-		Iterator<SootMethod> i = sClass.methodIterator();
-		System.out.println("Class " + sClass.getName());
-		while (i.hasNext()) {
-			SootMethod m = i.next();
-			System.out.println("\t" + m.getDeclaration());
-			System.out.println(prettyPrint(m.getActiveBody()));
+		// String fileName = SourceLocator.v().getFileNameFor(sClass,
+		// Options.output_format_jimple);
+		try (PrintWriter writerOut = new PrintWriter(new OutputStreamWriter(System.out))) {
+//			Options.v().set_xml_attributes(true);
+			Options.v().set_print_tags_in_output( true );
+			Printer.v().printTo(sClass, writerOut);
+			writerOut.flush();
 		}
+
+		// Iterator<SootMethod> i = sClass.methodIterator();
+		// System.out.println("Class " + sClass.getName());
+		// while (i.hasNext()) {
+		// SootMethod m = i.next();
+		// System.out.println("\t" + m.getDeclaration());
+		// System.out.println(prettyPrint(m.getActiveBody()));
+		// }
 
 	}
 
@@ -121,12 +134,12 @@ public class JimpleUtils {
 	}
 
 	public static boolean isNull(String string) {
-		try{
-//		System.out.println("JimpleUtils.isNull() " + string);
-		// we use system hash, this is 0 for null objects
-		return string == null || (string.split("@")[1].equals("0"));
-		}catch (Throwable e) {
-			System.out.println("JimpleUtils.isNull() ERROR FOR " + string );
+		try {
+			// System.out.println("JimpleUtils.isNull() " + string);
+			// we use system hash, this is 0 for null objects
+			return string == null || (string.split("@")[1].equals("0"));
+		} catch (Throwable e) {
+			System.out.println("JimpleUtils.isNull() ERROR FOR " + string);
 			throw e;
 		}
 	}

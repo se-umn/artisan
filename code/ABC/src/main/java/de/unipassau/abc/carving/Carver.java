@@ -291,6 +291,7 @@ public class Carver {
 		//// DECORATORS HERE: ASSERTIONS AND MOCKING !
 		for (SootClass testClass : testCases) {
 			MockingGenerator.addSystemIn(testClass, parsedTrace);
+			// FIXME ?!
 //			MockingGenerator.addSystemExit(testClass, parsedTrace);
 		}
 		// System.out.println("Carver.main() Mocking Generation is disabled");
@@ -343,17 +344,20 @@ public class Carver {
 		// }
 
 		// FOR VISUAL DEBUG
-//		if (logger.isDebugEnabled() || logger.isTraceEnabled()) {
+		if (logger.isDebugEnabled() || logger.isTraceEnabled()) {
+			System.out.println("Carver.main() JIMPLE FILES " + testCases.size());
 			for (SootClass testCase : testCases) {
-				JimpleUtils.prettyPrint(testCase);
+				System.out.println("Carver.main() JIMPLE FILE " + testCase);
+				// THis wont work for more than 1 file, it silenty fail/exit the for loop ?!
+//				JimpleUtils.prettyPrint(testCase);
 			}
-//		}
+		}
 
 		if (outputDir == null) {
 			// Use default
 			outputDir = new File("./sootOutput/carvedTests");
 		}
-		TestCaseFactory.generateTestFiles(outputDir, testCases);
+		TestCaseFactory.generateTestFiles(projectJars, outputDir, testCases);
 		System.out.println("Carver.main() End code generation");
 
 		long endTime = System.nanoTime();

@@ -27,6 +27,7 @@ import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.instrumentation.CarvingTag;
 import de.unipassau.abc.tracing.XMLDumper;
 import de.unipassau.abc.utils.JimpleUtils;
+import soot.ArrayType;
 import soot.Local;
 import soot.Modifier;
 import soot.RefType;
@@ -74,9 +75,9 @@ public class TestGenerator {
 	 * @throws InterruptedException
 	 * @throws CarvingException
 	 */
-	public Collection<SootClass> generateTestCases(List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests, TestClassGenerator testClassGenerator)
-			throws IOException, InterruptedException {
-		
+	public Collection<SootClass> generateTestCases(List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests,
+			TestClassGenerator testClassGenerator) throws IOException, InterruptedException {
+
 		// Why we need to initialize soot here otherwise we cannot create
 		// methods and classes, and such
 		// To probably there's also something else to include here
@@ -100,7 +101,7 @@ public class TestGenerator {
 			// Somehow this does include the executions we removed ?!
 			logger.info("Generate Test: " + mut);
 
-			SootClass testClass = testClassGenerator.getTestClassFor( mut ); 
+			SootClass testClass = testClassGenerator.getTestClassFor(mut);
 			try {
 				// TODO For the moment we name tests after their position and
 				// MUT
@@ -136,13 +137,14 @@ public class TestGenerator {
 						"Object instance " + instance + " is invalid. No method initizalizes or returns it !");
 				e.setBrokenInstance(instance);
 				e.setCarvedTest(carvedTest);
-				
+
 				MethodInvocation mut = carvedTest.getFirst().getLastMethodInvocation();
-				for( Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsed : parsedTrace.values() ){
-					if( parsed.getFirst().contains( mut ) ){
+				for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsed : parsedTrace.values()) {
+					if (parsed.getFirst().contains(mut)) {
 						DataDependencyGraph ddg = parsed.getSecond();
-						System.out.println( "Init for " + instance + " " + ddg.getInitMethodInvocationFor( instance) );
-						System.out.println( "Returns for " + instance + " " + ddg.getMethodInvocationsWhichReturn( instance ));
+						System.out.println("Init for " + instance + " " + ddg.getInitMethodInvocationFor(instance));
+						System.out.println(
+								"Returns for " + instance + " " + ddg.getMethodInvocationsWhichReturn(instance));
 					}
 				}
 
@@ -271,7 +273,11 @@ public class TestGenerator {
 				localName = localName.append("Array");
 				localName.append(localId);
 
-				Local newArrayLocal = Jimple.v().newLocal(localName.toString(), variableType);
+				// Local local1 =
+				// localGenerator.generateLocal(ArrayType.v(RefType.v("java.lang.String"),
+				// 1));
+				// FIXME This might be another reason why it failed to generate a correct bytecode !
+				Local newArrayLocal = Jimple.v().newLocal(localName.toString(), ArrayType.v(variableType, 1));
 				body.getLocals().add(newArrayLocal);
 
 				logger.trace("  >>>> Create a new local ARRAY variable " + newArrayLocal + " of type " + type

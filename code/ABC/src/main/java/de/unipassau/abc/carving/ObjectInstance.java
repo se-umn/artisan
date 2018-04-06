@@ -50,7 +50,9 @@ public class ObjectInstance implements DataNode {
 
 	// Special Instances are handled via subclasses
 	public final static ObjectInstance systemIn = new StaticObjectInstance("java.lang.System.in@0",
-			System.in.getClass().getName());
+//			System.in.getClass().getName()
+			"java.io.InputStream"
+			);
 	public final static ObjectInstance systemOut = new StaticObjectInstance("java.lang.System.out@0",
 			System.out.getClass().getName());
 	public final static ObjectInstance systemErr = new StaticObjectInstance("java.lang.System.err@0",

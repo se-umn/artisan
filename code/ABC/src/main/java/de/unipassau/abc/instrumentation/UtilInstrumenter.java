@@ -93,7 +93,11 @@ public class UtilInstrumenter {
 			NewArrayExpr stringArrayExpr = Jimple.v().newNewArrayExpr(RefType.v("java.lang.String"),
 					IntConstant.v(parameterList.size()));
 
-			Value newArrayLocal = generateFreshLocal(body, getParameterArrayType());
+			Type parameterArrayType = RefType.v("java.lang.String");
+			Type parameterArray = ArrayType.v(parameterArrayType, 1);
+			// FIXME
+			// Can this be the problem with bytecode generation !?!
+			Value newArrayLocal = generateFreshLocal(body, parameterArray);
 			Unit newAssignStmt = Jimple.v().newAssignStmt(newArrayLocal, stringArrayExpr);
 			generated.add(newAssignStmt);
 

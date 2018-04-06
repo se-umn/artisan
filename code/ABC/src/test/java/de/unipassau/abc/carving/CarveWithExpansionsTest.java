@@ -1,6 +1,7 @@
 package de.unipassau.abc.carving;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -55,56 +56,61 @@ public class CarveWithExpansionsTest {
 	// }
 
 	@Test
-	public void testExpansionWithSimpleStatic() throws FileNotFoundException, IOException, InterruptedException {
-		File traceFile = new File("./src/test/resources/DummySystemTestGetSimple-trace.txt");
+	public void testExpansionWithSimpleStatic() {
+		try {
+			File traceFile = new File("./src/test/resources/DummySystemTestGetSimple-trace.txt");
 
-		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
-		// Parsing
-		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = stackImplementation
-				.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
+			StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
+			// Parsing
+			Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = stackImplementation
+					.parseTrace(traceFile.getAbsolutePath(), emptyMethodInvocationMatcherList);
 
-		// visualize(parsedTrace);
-		assertEquals(1, parsedTrace.size());
+			// visualize(parsedTrace);
+			assertEquals(1, parsedTrace.size());
 
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedSystemTest = parsedTrace.values().iterator()
-				.next();
-		// Carving
-		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
-				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedSystemTest = parsedTrace.values()
+					.iterator().next();
+			// Carving
+			Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
+					parsedSystemTest.getSecond(), parsedSystemTest.getThird());
 
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
-				excludeNoMethodInvocationsMatcher);
+			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
+					excludeNoMethodInvocationsMatcher);
 
-		// DEBUG MOSTLY
-		// visualize(carvedTests);
-		/*
-		 * We expect 2 carved test for this method because 1 is the expanded and
-		 * 1 is with the method which returns the parameter
-		 */
-		assertEquals(2, carvedTests.size());
+			// DEBUG MOSTLY
+			// visualize(carvedTests);
+			/*
+			 * We expect 2 carved test for this method because 1 is the expanded
+			 * and 1 is with the method which returns the parameter
+			 */
+			assertEquals(2, carvedTests.size());
 
-		String testSubjectJar = "./libs/testsubject-tests.jar";
+			String testSubjectJar = "./libs/testsubject-tests.jar";
 
-		Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
+			Carver.setupSoot(Collections.singletonList(new File(testSubjectJar)));
 
-		TestGenerator testGenerator = new TestGenerator(parsedTrace);
-		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
-		assertEquals(1, testCases.size());
+			TestGenerator testGenerator = new TestGenerator(parsedTrace);
+			Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
+			assertEquals(1, testCases.size());
 
-		// Visual debug
-		// for (SootClass testCase : testCases) {
-		// JimpleUtils.prettyPrint(testCase);
-		// }
+			// Visual debug
+			for (SootClass testCase : testCases) {
+				JimpleUtils.prettyPrint(testCase);
+			}
 
-		// Generate code
-		File outputDir = temporaryFolder.newFolder();
-		TestCaseFactory.generateTestFiles(outputDir, testCases);
+			// Generate code
+			File outputDir = temporaryFolder.newFolder();
+			TestCaseFactory.generateTestFiles( Collections.EMPTY_LIST, outputDir, testCases);
 
-		// TODO Assertion: 1 .class, 1 .java
-		int total = ABCTestUtils.countFiles(outputDir, ".class") + ABCTestUtils.countFiles(outputDir, ".java");
-		assertEquals(2, total);
+			// TODO Assertion: 1 .class, 1 .java
+			int total = ABCTestUtils.countFiles(outputDir, ".class") + ABCTestUtils.countFiles(outputDir, ".java");
+			assertEquals(1, total);
 
-		ABCTestUtils.printJavaClasses(outputDir);
+			ABCTestUtils.printJavaClasses(outputDir);
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail();
+		}
 
 	}
 
@@ -150,7 +156,7 @@ public class CarveWithExpansionsTest {
 
 		// Generate code
 		File outputDir = temporaryFolder.newFolder();
-		TestCaseFactory.generateTestFiles(outputDir, testCases);
+		TestCaseFactory.generateTestFiles(Collections.EMPTY_LIST, outputDir, testCases);
 
 		int total = ABCTestUtils.countFiles(outputDir, ".class") + ABCTestUtils.countFiles(outputDir, ".java");
 		assertEquals(2, total);
@@ -202,7 +208,7 @@ public class CarveWithExpansionsTest {
 
 		// Generate code
 		File outputDir = temporaryFolder.newFolder();
-		TestCaseFactory.generateTestFiles(outputDir, testCases);
+		TestCaseFactory.generateTestFiles(Collections.EMPTY_LIST, outputDir, testCases);
 
 		int total = ABCTestUtils.countFiles(outputDir, ".class") + ABCTestUtils.countFiles(outputDir, ".java");
 		assertEquals(2, total);
@@ -266,7 +272,7 @@ public class CarveWithExpansionsTest {
 
 		// Generate code
 		File outputDir = temporaryFolder.newFolder();
-		TestCaseFactory.generateTestFiles(outputDir, testCases);
+		TestCaseFactory.generateTestFiles(Collections.EMPTY_LIST, outputDir, testCases);
 
 		int total = ABCTestUtils.countFiles(outputDir, ".class") + ABCTestUtils.countFiles(outputDir, ".java");
 		assertEquals(2, total);
@@ -336,7 +342,7 @@ public class CarveWithExpansionsTest {
 
 		// Generate code
 		File outputDir = temporaryFolder.newFolder();
-		TestCaseFactory.generateTestFiles(outputDir, testCases);
+		TestCaseFactory.generateTestFiles(Collections.EMPTY_LIST, outputDir, testCases);
 
 		int total = ABCTestUtils.countFiles(outputDir, ".class") + ABCTestUtils.countFiles(outputDir, ".java");
 		assertEquals(2, total);
@@ -391,7 +397,7 @@ public class CarveWithExpansionsTest {
 
 		// Generate code
 		File outputDir = temporaryFolder.newFolder();
-		TestCaseFactory.generateTestFiles(outputDir, testCases);
+		TestCaseFactory.generateTestFiles(Collections.EMPTY_LIST, outputDir, testCases);
 
 		int total = ABCTestUtils.countFiles(outputDir, ".class") + ABCTestUtils.countFiles(outputDir, ".java");
 		assertEquals(2, total);
@@ -446,7 +452,7 @@ public class CarveWithExpansionsTest {
 
 		// Generate code
 		File outputDir = temporaryFolder.newFolder();
-		TestCaseFactory.generateTestFiles(outputDir, testCases);
+		TestCaseFactory.generateTestFiles(Collections.EMPTY_LIST, outputDir, testCases);
 
 		int total = ABCTestUtils.countFiles(outputDir, ".class") + ABCTestUtils.countFiles(outputDir, ".java");
 		assertEquals(2, total);
@@ -496,7 +502,7 @@ public class CarveWithExpansionsTest {
 
 		// Generate code
 		File outputDir = temporaryFolder.newFolder();
-		TestCaseFactory.generateTestFiles(outputDir, testCases);
+		TestCaseFactory.generateTestFiles(Collections.EMPTY_LIST, outputDir, testCases);
 
 		int total = ABCTestUtils.countFiles(outputDir, ".class") + ABCTestUtils.countFiles(outputDir, ".java");
 		assertEquals(2, total);
