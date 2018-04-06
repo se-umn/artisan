@@ -119,7 +119,6 @@ public class ABCBodyTranformer extends BodyTransformer {
 						}
 						if (invokeExpr instanceof DynamicInvokeExpr) {
 							invokeType = "DynamicInvokeExpr";
-
 						}
 
 						instrumentInvokeExpression(body, currentUnit, invokeExpr.getMethod(), invokeExpr.getArgs(), //

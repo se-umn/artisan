@@ -291,6 +291,7 @@ public class Carver {
 		//// DECORATORS HERE: ASSERTIONS AND MOCKING !
 		for (SootClass testClass : testCases) {
 			MockingGenerator.addSystemIn(testClass, parsedTrace);
+			// FIXME ?!
 //			MockingGenerator.addSystemExit(testClass, parsedTrace);
 		}
 		// System.out.println("Carver.main() Mocking Generation is disabled");
@@ -356,7 +357,7 @@ public class Carver {
 			// Use default
 			outputDir = new File("./sootOutput/carvedTests");
 		}
-		TestCaseFactory.generateTestFiles(outputDir, testCases);
+		TestCaseFactory.generateTestFiles(projectJars, outputDir, testCases);
 		System.out.println("Carver.main() End code generation");
 
 		long endTime = System.nanoTime();

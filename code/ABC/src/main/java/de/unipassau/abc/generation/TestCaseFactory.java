@@ -8,7 +8,9 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.jboss.util.NotImplementedException;
 import org.junit.Rule;
@@ -25,10 +27,12 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.ArrayAccessExpr;
 import com.github.javaparser.ast.expr.ArrayCreationExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.BooleanLiteralExpr;
+import com.github.javaparser.ast.expr.CastExpr;
 import com.github.javaparser.ast.expr.DoubleLiteralExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
@@ -45,6 +49,15 @@ import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.VoidType;
+import com.github.javaparser.ast.visitor.ModifierVisitor;
+import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import com.github.javaparser.resolution.types.ResolvedReferenceType;
+import com.github.javaparser.resolution.types.ResolvedType;
+import com.github.javaparser.symbolsolver.javaparsermodel.JavaParserFacade;
+import com.github.javaparser.symbolsolver.model.resolution.TypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 
 import soot.Body;
 import soot.BooleanType;
@@ -100,14 +113,14 @@ public class TestCaseFactory {
 	private final static Logger logger = LoggerFactory.getLogger(TestCaseFactory.class);
 
 	public static NodeList<Expression> convertSootInvocationArguments(InvokeExpr invokeExpr) {
-		// 
+		//
 		// List<Value> args
 		NodeList<Expression> arguments = new NodeList<>();
 
 		for (int i = 0; i < invokeExpr.getArgCount(); i++) {
 			Value argument = invokeExpr.getArg(i);
-			soot.Type type = invokeExpr.getMethodRef().parameterType( i );
-			
+			soot.Type type = invokeExpr.getMethodRef().parameterType(i);
+
 			if (type.equals(BooleanType.v())) {
 				if ("0".equals(argument.toString())) {
 					arguments.add(new BooleanLiteralExpr(false));
@@ -116,8 +129,7 @@ public class TestCaseFactory {
 				}
 				continue;
 			}
-			
-			
+
 			// Values can be constant, locals, fields?
 			// Maybe it would be enough String.valueOf( arg ) ?
 			// TODO Char?
@@ -203,11 +215,13 @@ public class TestCaseFactory {
 			classOrInterfaceType.setName(((InstanceInvokeExpr) invokeExpr).getBase().getType().toString());
 			return new ObjectCreationExpr(scope, classOrInterfaceType, arguments);
 		} else {
+
 			return new MethodCallExpr(scope, name, arguments);
 		}
 	}
 
-	public static void generateTestFiles(File outputDir, Collection<SootClass> testClasses) throws IOException {
+	public static void generateTestFiles(List<File> projectJars, File outputDir, Collection<SootClass> testClasses)
+			throws IOException {
 
 		Options.v().set_output_dir(outputDir.getAbsolutePath());
 
@@ -218,20 +232,101 @@ public class TestCaseFactory {
 		}
 
 		for (SootClass testClass : testClasses) {
-			String javaCode = converSootClassToJavaClass(testClass);
+			CompilationUnit javaCode = converSootClassToJavaClass(testClass);
+
+			// Resolve the missing generics
+			CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
+			combinedTypeSolver.add(new ReflectionTypeSolver());
+			for (File jar : projectJars) {
+				combinedTypeSolver.add(new JarTypeSolver(jar.getAbsolutePath()));
+			}
+
+			// This updates the code
+			resolveMissingGenerics(javaCode, combinedTypeSolver);
+
 			// Store to file
 			File packageDir = new File(outputDir, testClass.getPackageName().replaceAll("\\.", File.separator));
 			packageDir.mkdirs();
 			File classFile = new File(packageDir, testClass.getShortName() + ".java");
 			//
-			Files.write(classFile.toPath(), javaCode.getBytes(), StandardOpenOption.CREATE_NEW);
+			Files.write(classFile.toPath(), javaCode.toString().getBytes(), StandardOpenOption.CREATE_NEW);
 
 		}
 	}
 
+	public static void resolveMissingGenerics(CompilationUnit cu, TypeSolver typeSolver) {
+		// Collect the Collections that are missing a generic type
+		final Map<String, ResolvedType> missingTypes = new HashMap<>();
+
+		cu.accept(new VoidVisitorAdapter<JavaParserFacade>() {
+			public void visit(final AssignExpr n, final JavaParserFacade javaParserFacade) {
+				super.visit(n, javaParserFacade);
+				try {
+					if (missingTypes.containsKey(n.getTarget().toString())) {
+						return;
+					}
+					// if (n.getTarget().equals(new
+					// NameExpr("javautilarrayList00"))) {
+					ResolvedType targetType = javaParserFacade.getType(n.getTarget());
+					ResolvedType valueType = javaParserFacade.getType(n.getValue());
+
+					if (targetType.isReferenceType() && valueType.isReferenceType()) {
+						//
+						if (((ResolvedReferenceType) targetType).typeParametersMap().isEmpty()
+								&& !((ResolvedReferenceType) valueType).typeParametersMap().isEmpty()) {
+							System.out.println(n.getTarget() + " misses type. Update to: " + valueType.describe());
+							missingTypes.put(n.getTarget().toString(), valueType);
+
+						}
+					}
+				} catch (Exception e) {
+					// TODO: handle exception
+				}
+
+			}
+
+		}, JavaParserFacade.get(typeSolver));
+
+		cu.accept(new ModifierVisitor<Void>() {
+			public VariableDeclarator visit(final VariableDeclarator n, Void arg) {
+				super.visit(n, arg);
+				if (missingTypes.containsKey(n.getName().asString())) {
+					System.out.println("Updating Type Def for " + n.getName());
+					n.setType(missingTypes.get(n.getName().asString()).describe());
+				}
+				return n;
+			}
+		}, null);
+
+		// Force Explicit cast if the collections/generic returns an object
+		cu.accept(new ModifierVisitor<JavaParserFacade>() {
+			public AssignExpr visit(final AssignExpr n, JavaParserFacade javaParserFacade) {
+				super.visit(n, javaParserFacade);
+
+				try {
+					ResolvedType targetType = javaParserFacade.getType(n.getTarget());
+					ResolvedType valueType = javaParserFacade.getType(n.getValue());
+
+					if (!targetType.isAssignableBy(valueType)) {
+						System.out.println(n);
+						System.out.println("Cast needed " + targetType.describe() + " --> " + valueType.describe());
+
+						CastExpr c = new CastExpr();
+						c.setType(targetType.describe());
+						c.setExpression(n.getValue());
+						n.setValue(c);
+					}
+				} catch (Exception e) {
+				}
+				return n;
+			}
+		}, JavaParserFacade.get(typeSolver));
+
+	}
+
 	private final static EnumSet<Modifier> modifiers = EnumSet.of(Modifier.PUBLIC);
 
-	public static String converSootClassToJavaClass(SootClass sootClass) {
+	public static CompilationUnit converSootClassToJavaClass(SootClass sootClass) {
 		// https://github.com/javaparser/javaparser/wiki/Manual
 		logger.info("TestCaseFactory.generateTestFiles() " + sootClass.getName());
 
@@ -470,6 +565,7 @@ public class TestCaseFactory {
 			}
 
 		}
-		return cu.toString();
+		//
+		return cu;
 	}
 }
