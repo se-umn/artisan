@@ -3,6 +3,9 @@ package de.unipassau.abc.generation;
 import static com.github.javaparser.JavaParser.parseVariableDeclarationExpr;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
@@ -25,6 +28,7 @@ import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.ArrayAccessExpr;
 import com.github.javaparser.ast.expr.ArrayCreationExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
+import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.DoubleLiteralExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
@@ -43,6 +47,7 @@ import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.VoidType;
 
 import soot.Body;
+import soot.BooleanType;
 import soot.Local;
 import soot.Scene;
 import soot.SootClass;
@@ -94,12 +99,30 @@ public class TestCaseFactory {
 
 	private final static Logger logger = LoggerFactory.getLogger(TestCaseFactory.class);
 
-	public static NodeList<Expression> convertSootInvocationArguments(List<Value> args) {
+	public static NodeList<Expression> convertSootInvocationArguments(InvokeExpr invokeExpr) {
+		// 
+		// List<Value> args
 		NodeList<Expression> arguments = new NodeList<>();
-		for (Value argument : args) {
+
+		for (int i = 0; i < invokeExpr.getArgCount(); i++) {
+			Value argument = invokeExpr.getArg(i);
+			soot.Type type = invokeExpr.getMethodRef().parameterType( i );
+			
+			if (type.equals(BooleanType.v())) {
+				if ("0".equals(argument.toString())) {
+					arguments.add(new BooleanLiteralExpr(false));
+				} else {
+					arguments.add(new BooleanLiteralExpr(true));
+				}
+				continue;
+			}
+			
+			
 			// Values can be constant, locals, fields?
 			// Maybe it would be enough String.valueOf( arg ) ?
 			// TODO Char?
+			// Pay Attention to the booleans
+
 			if (argument instanceof Constant) {
 				if (argument instanceof ClassConstant) {
 					arguments.add(new NameExpr(argument.toString()));
@@ -147,7 +170,8 @@ public class TestCaseFactory {
 	}
 
 	public static Expression convertSootInvocationExpr(InvokeExpr invokeExpr, Body body) {
-		NodeList<Expression> arguments = convertSootInvocationArguments(invokeExpr.getArgs());
+
+		NodeList<Expression> arguments = convertSootInvocationArguments(invokeExpr);
 		//
 		Expression scope = null;
 		//
@@ -183,7 +207,7 @@ public class TestCaseFactory {
 		}
 	}
 
-	public static void generateTestFiles(File outputDir, Collection<SootClass> testClasses) {
+	public static void generateTestFiles(File outputDir, Collection<SootClass> testClasses) throws IOException {
 
 		Options.v().set_output_dir(outputDir.getAbsolutePath());
 
@@ -194,13 +218,20 @@ public class TestCaseFactory {
 		}
 
 		for (SootClass testClass : testClasses) {
-			converSootClassToJavaClass(testClass);
+			String javaCode = converSootClassToJavaClass(testClass);
+			// Store to file
+			File packageDir = new File(outputDir, testClass.getPackageName().replaceAll("\\.", File.separator));
+			packageDir.mkdirs();
+			File classFile = new File(packageDir, testClass.getShortName() + ".java");
+			//
+			Files.write(classFile.toPath(), javaCode.getBytes(), StandardOpenOption.CREATE_NEW);
+
 		}
 	}
 
 	private final static EnumSet<Modifier> modifiers = EnumSet.of(Modifier.PUBLIC);
 
-	public static void converSootClassToJavaClass(SootClass sootClass) {
+	public static String converSootClassToJavaClass(SootClass sootClass) {
 		// https://github.com/javaparser/javaparser/wiki/Manual
 		logger.info("TestCaseFactory.generateTestFiles() " + sootClass.getName());
 
@@ -363,8 +394,9 @@ public class TestCaseFactory {
 						} else if (stmt.getRightOp() instanceof StaticFieldRef) {
 							StaticFieldRef fieldRef = (StaticFieldRef) stmt.getRightOp();
 
-							rightExpr = new NameExpr(fieldRef.getFieldRef().declaringClass()+"."+fieldRef.getFieldRef().name());
-							
+							rightExpr = new NameExpr(
+									fieldRef.getFieldRef().declaringClass() + "." + fieldRef.getFieldRef().name());
+
 						} else if (stmt.getRightOp() instanceof ArrayRef) {
 							ArrayRef arrayRef = (ArrayRef) stmt.getRightOp();
 
@@ -408,6 +440,7 @@ public class TestCaseFactory {
 					@Override
 					public void caseInvokeStmt(InvokeStmt stmt) {
 						InvokeExpr invokeExpr = (InvokeExpr) stmt.getInvokeExpr();
+
 						Expression e = convertSootInvocationExpr(invokeExpr, body);
 
 						if (e == null) {
@@ -437,7 +470,6 @@ public class TestCaseFactory {
 			}
 
 		}
-		System.out.println(cu);
-
+		return cu.toString();
 	}
 }

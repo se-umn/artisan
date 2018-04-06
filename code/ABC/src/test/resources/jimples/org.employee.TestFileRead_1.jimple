@@ -1,0 +1,159 @@
+public class org.employee.TestFileRead_1 extends java.lang.Object
+{
+/*Visibility Annotation: level: RUNTIME (runtime-visible)
+ Annotations:
+Annotation type: Lorg/junit/Rule; without elements
+*/
+/*de.unipassau.abc.generation.JUnitRuleTag@4e1104f4*/
+    public final org.junit.contrib.java.lang.system.TextFromStandardInputStream userInputs;
+/*Visibility Annotation: level: RUNTIME (runtime-visible)
+ Annotations:
+Annotation type: Lorg/junit/Rule; without elements
+*/
+    public final org.junit.contrib.java.lang.system.ExpectedSystemExit expectedSystemExit;
+
+/*de.unipassau.abc.instrumentation.CarvingTag@2fe2fcc2*/
+/*Visibility Annotation: level: RUNTIME (runtime-visible)
+ Annotations:
+Annotation type: Lorg/junit/Test; without elements
+*/
+    public void test_1() throws java.lang.Exception
+    {
+        java.lang.String javalangstring00, javalangstring01, javalangstring02, javalangstring03, javalangstring04, javalangstring05, javalangstring06, javalangstring07, javalangstring08, javalangstring09, javalangstring10, javalangstring11, javalangstring12, javalangstring13;
+        java.io.File javaiofile00, javaiofile01, javaiofile02, javaiofile03, javaiofile04;
+        java.io.FileWriter javaiofileWriter00;
+        java.lang.String[] javalangstringArray00, $r0;
+        java.lang.StringBuilder javalangstringBuilder00;
+        org.employee.FileRead orgemployeefileRead00;
+        java.io.FileInputStream javaiofileInputStream00;
+        org.employee.TestFileRead_1 this;
+        org.junit.contrib.java.lang.system.TextFromStandardInputStream $r1;
+
+        this := @this: org.employee.TestFileRead_1;
+		
+        $r0 = newarray (java.lang.String)[2];
+
+        $r0[0] = "2";
+
+        $r0[1] = "123";
+
+        $r1 = this.<org.employee.TestFileRead_1: org.junit.contrib.java.lang.system.TextFromStandardInputStream userInputs>;
+
+        virtualinvoke $r1.<org.junit.contrib.java.lang.system.TextFromStandardInputStream: void provideLines(java.lang.String[])>($r0);
+
+        javaiofile03 = staticinvoke <org.employee.systemtest.SystemTestUtils: java.io.File createTempWorkingDir()>();
+
+        javalangstring04 = "username.txt";
+
+        javalangstring13 = "123";
+
+        javaiofile02 = staticinvoke <org.employee.systemtest.SystemTestUtils: java.io.File createFileInWorkingDir(java.io.File,java.lang.String,java.lang.String)>(javaiofile03, javalangstring04, javalangstring13);
+
+        javalangstringBuilder00 = new java.lang.StringBuilder;
+
+        specialinvoke javalangstringBuilder00.<java.lang.StringBuilder: void <init>()>();
+
+        javalangstring03 = "Username:-->123\n";
+
+        javalangstringBuilder00 = virtualinvoke javalangstringBuilder00.<java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)>(javalangstring03);
+
+        javalangstring05 = "Name:-->test\n";
+
+        javalangstringBuilder00 = virtualinvoke javalangstringBuilder00.<java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)>(javalangstring05);
+
+        javalangstring06 = "Designnation:-->SeniorSoftwareEngineer Software Engineer\n";
+
+        javalangstringBuilder00 = virtualinvoke javalangstringBuilder00.<java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)>(javalangstring06);
+
+        javalangstring12 = "Gender-->M\n";
+
+        javalangstringBuilder00 = virtualinvoke javalangstringBuilder00.<java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)>(javalangstring12);
+
+        javalangstring09 = "Age:-->50\n";
+
+        javalangstringBuilder00 = virtualinvoke javalangstringBuilder00.<java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)>(javalangstring09);
+
+        javalangstring10 = "Experience-->10\n";
+
+        javalangstringBuilder00 = virtualinvoke javalangstringBuilder00.<java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)>(javalangstring10);
+
+        javalangstring08 = "30\n";
+
+        javalangstringBuilder00 = virtualinvoke javalangstringBuilder00.<java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)>(javalangstring08);
+
+        javalangstring01 = "20\n";
+
+        javalangstringBuilder00 = virtualinvoke javalangstringBuilder00.<java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)>(javalangstring01);
+
+        javalangstring02 = "10\n";
+
+        javalangstringBuilder00 = virtualinvoke javalangstringBuilder00.<java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)>(javalangstring02);
+
+        javalangstring07 = "96000.0\n";
+
+        javalangstringBuilder00 = virtualinvoke javalangstringBuilder00.<java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)>(javalangstring07);
+
+        javalangstring11 = virtualinvoke javalangstringBuilder00.<java.lang.StringBuilder: java.lang.String toString()>();
+
+        javalangstring13 = "123";
+
+		javaiofile01 = new java.io.File;
+		
+		specialinvoke javaiofile01.<java.io.File: void <init>(java.lang.String)>(javalangstring13);
+		
+		javaiofileWriter00 = new java.io.FileWriter;
+		
+		specialinvoke javaiofileWriter00.<java.io.FileWriter: void <init>(java.io.File,boolean)>(javaiofile01, 0);
+
+        javaiofile04 = staticinvoke <org.employee.systemtest.SystemTestUtils: java.io.File createFileInWorkingDir(java.io.File,java.lang.String,java.lang.String)>(javaiofile03, javalangstring13, javalangstring11);
+
+        javalangstringArray00 = newarray (java.lang.String)[1];
+
+        javalangstring00 = virtualinvoke javaiofile03.<java.io.File: java.lang.String getAbsolutePath()>();
+
+        javalangstringArray00[0] = javalangstring00;
+
+        javalangstring00 = javalangstringArray00[0];
+
+        javaiofile01 = new java.io.File;
+
+        specialinvoke javaiofile01.<java.io.File: void <init>(java.lang.String)>(javalangstring00);
+
+        javalangstring04 = "username.txt";
+
+        javaiofile00 = new java.io.File;
+
+        specialinvoke javaiofile00.<java.io.File: void <init>(java.io.File,java.lang.String)>(javaiofile01, javalangstring04);
+
+        javaiofileInputStream00 = new java.io.FileInputStream;
+
+        specialinvoke javaiofileInputStream00.<java.io.FileInputStream: void <init>(java.io.File)>(javaiofile00);
+
+        orgemployeefileRead00 = new org.employee.FileRead;
+
+        specialinvoke orgemployeefileRead00.<org.employee.FileRead: void <init>(java.io.File)>(javaiofile01);
+
+        return;
+    }
+
+    public void <init>()
+    {
+        org.employee.TestFileRead_1 this;
+        org.junit.contrib.java.lang.system.TextFromStandardInputStream $r0;
+        org.junit.contrib.java.lang.system.ExpectedSystemExit $r1;
+
+        this := @this: org.employee.TestFileRead_1;
+
+        specialinvoke this.<java.lang.Object: void <init>()>();
+
+        $r0 = staticinvoke <org.junit.contrib.java.lang.system.TextFromStandardInputStream: org.junit.contrib.java.lang.system.TextFromStandardInputStream emptyStandardInputStream()>();
+
+        this.<org.employee.TestFileRead_1: org.junit.contrib.java.lang.system.TextFromStandardInputStream userInputs> = $r0;
+
+        $r1 = staticinvoke <org.junit.contrib.java.lang.system.ExpectedSystemExit: org.junit.contrib.java.lang.system.ExpectedSystemExit none()>();
+
+        this.<org.employee.TestFileRead_1: org.junit.contrib.java.lang.system.ExpectedSystemExit expectedSystemExit> = $r1;
+
+        return;
+    }
+}

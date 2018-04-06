@@ -36,7 +36,8 @@ public class TestGeneration {
 	public void test() throws IOException, ParserException, LexerException {
 		SootClass sootClass = readFromJimple("./src/test/resources/jimples/org.employee.TestFileRead_1.jimple");
 //		JimpleUtils.prettyPrint( sootClass );
-		TestCaseFactory.converSootClassToJavaClass( sootClass );
+		String testCode = TestCaseFactory.converSootClassToJavaClass( sootClass );
+		System.out.println( testCode ); 
 	}
 
 	private SootClass readFromJimple(String jimpleFile) throws ParserException, LexerException, IOException {
