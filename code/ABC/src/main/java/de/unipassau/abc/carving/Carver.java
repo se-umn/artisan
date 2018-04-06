@@ -3,9 +3,10 @@ package de.unipassau.abc.carving;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
@@ -19,14 +20,15 @@ import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.carvers.Level_0_MethodCarver;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
+import de.unipassau.abc.generation.DeltaDebugger;
 import de.unipassau.abc.generation.MockingGenerator;
 import de.unipassau.abc.generation.TestCaseFactory;
 import de.unipassau.abc.generation.TestGenerator;
 import de.unipassau.abc.generation.impl.EachTestAlone;
-import de.unipassau.abc.utils.JimpleUtils;
 import soot.G;
 import soot.Scene;
 import soot.SootClass;
+import soot.SootMethod;
 import soot.options.Options;
 
 // TODO Use some sort of CLI/JewelCLI
@@ -64,7 +66,7 @@ public class Carver {
 		// since most of the time, thos interfaces are organized in some way
 		@Option(longName = "external", defaultToNull = true)
 		List<String> getExternalInterfaces();
-		
+
 		@Option(longName = "test-setup-by", defaultToNull = true)
 		List<String> getTestSetupBy();
 
@@ -99,8 +101,8 @@ public class Carver {
 	 */
 	public static void setupSoot(List<File> projectJars) {
 		System.out.println("Carver.setupSoot() Project Jars: ");
-		for( File f : projectJars ){
-			System.out.println("- " + f );
+		for (File f : projectJars) {
+			System.out.println("- " + f);
 		}
 		G.reset();
 		//
@@ -148,7 +150,7 @@ public class Carver {
 		System.setProperty("os.name", "Whatever");
 		Scene.v().loadNecessaryClasses();
 		System.setProperty("os.name", "Mac OS X");
-		
+
 	}
 
 	public static void main(String[] args) throws IOException, InterruptedException {
@@ -160,12 +162,11 @@ public class Carver {
 		MethodInvocationMatcher carveBy = null;
 		List<MethodInvocationMatcher> excludeBy = new ArrayList<>();
 		{
-			excludeBy.add( MethodInvocationMatcher.byPackage("java.lang"));
+			excludeBy.add(MethodInvocationMatcher.byPackage("java.lang"));
 		}
-		
+
 		List<MethodInvocationMatcher> testSetupBy = new ArrayList<>();
-		
-		
+
 		// TODO Code duplicate with InstrumentTracer
 		List<String> externalInterfaces = new ArrayList<>();
 		{
@@ -190,8 +191,8 @@ public class Carver {
 					excludeBy.add(getMatcherFor(excludeByTokens[0], excludeByTokens[1]));
 				}
 			}
-			
-			if( cli.getTestSetupBy() != null ){
+
+			if (cli.getTestSetupBy() != null) {
 				for (String testSetup : cli.getTestSetupBy()) {
 					String[] testSetupTokens = testSetup.split("=");
 					testSetupBy.add(getMatcherFor(testSetupTokens[0], testSetupTokens[1]));
@@ -210,28 +211,31 @@ public class Carver {
 		for (String externalInterface : externalInterfaces) {
 
 			System.out.println("Carver.main() >>>> external interface " + externalInterface);
-//			MethodInvocationMatcher.
+			// MethodInvocationMatcher.
 			// By default those are class matchers !
-			if( externalInterface.contains("=") ){
-				externalInterfaceMatchers.add(getMatcherFor(externalInterface.split("=")[0],externalInterface.split("=")[1]));
-				
+			if (externalInterface.contains("=")) {
+				externalInterfaceMatchers
+						.add(getMatcherFor(externalInterface.split("=")[0], externalInterface.split("=")[1]));
+
 			} else {
 				externalInterfaceMatchers.add(MethodInvocationMatcher.byClass(externalInterface));
 			}
 		}
 
-//		List<MethodInvocationMatcher> purityMatchers = new ArrayList<MethodInvocationMatcher>();
-//		for (String pureMethod : pureMethods) {
-//			// By default those are class method matchers!
-//			purityMatchers.add(MethodInvocationMatcher.byMethod(pureMethod));
-//		}
-//		//
-//		{
-//			// TODO Additional pure methods... this is TRICKY !
-//			// With this we'll kill the data flow from String, and string that
-//			// are returned from pure methods are discarded...
-//			// purityMatchers.add(MethodInvocationMatcher.byClass("java.lang.StringBuilder"));
-//		}
+		// List<MethodInvocationMatcher> purityMatchers = new
+		// ArrayList<MethodInvocationMatcher>();
+		// for (String pureMethod : pureMethods) {
+		// // By default those are class method matchers!
+		// purityMatchers.add(MethodInvocationMatcher.byMethod(pureMethod));
+		// }
+		// //
+		// {
+		// // TODO Additional pure methods... this is TRICKY !
+		// // With this we'll kill the data flow from String, and string that
+		// // are returned from pure methods are discarded...
+		// //
+		// purityMatchers.add(MethodInvocationMatcher.byClass("java.lang.StringBuilder"));
+		// }
 
 		setupSoot(projectJars);
 
@@ -271,7 +275,6 @@ public class Carver {
 		// System.out.println("\t " + mi);
 		// }
 		// }
-		
 
 		// Verify
 		// VERIFY THAT NO CARVED TEST IS EMPTY !
@@ -283,73 +286,79 @@ public class Carver {
 
 		System.out.println("Carver.main() Start code generation");
 		// Test Generation
-		TestGenerator testCaseGenerator = new TestGenerator( parsedTrace );
+		TestGenerator testCaseGenerator = new TestGenerator(parsedTrace);
 		// DEFAULT SETTINGS
-		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests, new EachTestAlone());
+		List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases = testCaseGenerator.generateTestCases(carvedTests, new EachTestAlone());
 
+		// Collect the test classes (back compatibility)
+		Set<SootClass> testCases = new HashSet<>();
+		for( Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases ){
+			testCases.add( carvedTestCase.getThird().getDeclaringClass() );
+		}
+		
+		logger.info("Generating input mocking values");
 		// TODO Are assertions STILL generated ?!
 		//// DECORATORS HERE: ASSERTIONS AND MOCKING !
 		for (SootClass testClass : testCases) {
 			MockingGenerator.addSystemIn(testClass, parsedTrace);
 			// FIXME ?!
-//			MockingGenerator.addSystemExit(testClass, parsedTrace);
+			// MockingGenerator.addSystemExit(testClass, parsedTrace);
 		}
-		// System.out.println("Carver.main() Mocking Generation is disabled");
 
-		// TODO Add Asssertions here...
-		// MethodInvocation methodInvocationUnderTest =
-		// executionFlowGraph.getLastMethodInvocation();
-		//
-		// if (!methodInvocationUnderTest.isStatic()) {
-		// Value actualOwner =
-		// dataDependencyGraph.getObjectLocalFor(methodInvocationUnderTest);
-		// Value expectedOwner =
-		// UtilInstrumenter.generateExpectedValueForOwner(methodInvocationUnderTest,
-		// body,
-		// units);
-		// AssertionGenerator.gerenateRegressionAssertionOnOwner(body, units,
-		// expectedOwner, actualOwner);
-		// }
-		//
-		// if
-		// (!JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocationUnderTest.getJimpleMethod())))
-		// {
-		// Value expectedReturnValue =
-		// dataDependencyGraph.getReturnObjectLocalFor(methodInvocationUnderTest);
-		// if (JimpleUtils.isPrimitive(expectedReturnValue.getType())
-		// || JimpleUtils.isString(expectedReturnValue.getType())) {
-		// // Do nothing, since the expectedReturnValue is a primitive
-		// // value
-		// } else {
-		// // Otherwise, load expectations from file:
-		// // Reads this from XML and introduce the code to load this
-		// // from XML
-		// expectedReturnValue =
-		// UtilInstrumenter.generateExpectedValueForReturn(methodInvocationUnderTest,
-		// body,
-		// units);
-		// }
-		//
-		// // Find the
-		// Local actualReturnValue = null;
-		// for (Local local : body.getLocals().getElementsUnsorted()) {
-		// if ("returnValue".equals(local.getName())) {
-		// actualReturnValue = local;
-		// break;
-		// }
-		// }
-		// AssertionGenerator.gerenateRegressionAssertionOnReturnValue(body,
-		// units, expectedReturnValue,
-		// actualReturnValue);
-		// }
+		// This is for Delta Debugging
+		logger.info("Minimize via Delta Debugging");
+		for( Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases ){
+			DeltaDebugger.minimize( carvedTestCase  );
+		}
+		
+		
+		
+		
+		
+		logger.info("Generating regression assertions - SKIP");
+//		MethodInvocation methodInvocationUnderTest = executionFlowGraph.getLastMethodInvocation();
+//
+//		if (!methodInvocationUnderTest.isStatic()) {
+//			Value actualOwner = dataDependencyGraph.getObjectLocalFor(methodInvocationUnderTest);
+//			Value expectedOwner = UtilInstrumenter.generateExpectedValueForOwner(methodInvocationUnderTest, body,
+//					units);
+//			AssertionGenerator.gerenateRegressionAssertionOnOwner(body, units, expectedOwner, actualOwner);
+//		}
+//
+//		if (!JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocationUnderTest.getJimpleMethod()))) {
+//			Value expectedReturnValue = dataDependencyGraph.getReturnObjectLocalFor(methodInvocationUnderTest);
+//			if (JimpleUtils.isPrimitive(expectedReturnValue.getType())
+//					|| JimpleUtils.isString(expectedReturnValue.getType())) {
+//				// Do nothing, since the expectedReturnValue is a primitive
+//				// value
+//			} else {
+//				// Otherwise, load expectations from file:
+//				// Reads this from XML and introduce the code to load this
+//				// from XML
+//				expectedReturnValue = UtilInstrumenter.generateExpectedValueForReturn(methodInvocationUnderTest, body,
+//						units);
+//			}
+//
+//			// Find the
+//			Local actualReturnValue = null;
+//			for (Local local : body.getLocals().getElementsUnsorted()) {
+//				if ("returnValue".equals(local.getName())) {
+//					actualReturnValue = local;
+//					break;
+//				}
+//			}
+//			AssertionGenerator.gerenateRegressionAssertionOnReturnValue(body, units, expectedReturnValue,
+//					actualReturnValue);
+//		}
 
 		// FOR VISUAL DEBUG
 		if (logger.isDebugEnabled() || logger.isTraceEnabled()) {
 			System.out.println("Carver.main() JIMPLE FILES " + testCases.size());
 			for (SootClass testCase : testCases) {
 				System.out.println("Carver.main() JIMPLE FILE " + testCase);
-				// THis wont work for more than 1 file, it silenty fail/exit the for loop ?!
-//				JimpleUtils.prettyPrint(testCase);
+				// THis wont work for more than 1 file, it silenty fail/exit the
+				// for loop ?!
+				// JimpleUtils.prettyPrint(testCase);
 			}
 		}
 
@@ -357,8 +366,12 @@ public class Carver {
 			// Use default
 			outputDir = new File("./sootOutput/carvedTests");
 		}
+
 		TestCaseFactory.generateTestFiles(projectJars, outputDir, testCases);
+
 		System.out.println("Carver.main() End code generation");
+
+		// At this point we can start the minimization via delta debugging
 
 		long endTime = System.nanoTime();
 

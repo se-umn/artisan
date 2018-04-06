@@ -9,8 +9,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -26,6 +28,7 @@ import de.unipassau.abc.generation.impl.AllTestTogether;
 import de.unipassau.abc.utils.JimpleUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import soot.SootClass;
+import soot.SootMethod;
 
 public class CodeGenerationTest {
 
@@ -35,7 +38,8 @@ public class CodeGenerationTest {
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
-	private final List<MethodInvocationMatcher> excludeNoMethodInvocationsMatcher = Collections.singletonList(MethodInvocationMatcher.noMatch());
+	private final List<MethodInvocationMatcher> excludeNoMethodInvocationsMatcher = Collections
+			.singletonList(MethodInvocationMatcher.noMatch());
 
 	private final List<MethodInvocationMatcher> emptyMethodInvocationMatcherList = new ArrayList<MethodInvocationMatcher>();
 
@@ -96,79 +100,18 @@ public class CodeGenerationTest {
 
 		File projectJar = new File("./src/test/resources/Employee.jar");
 		Carver.setupSoot(Collections.singletonList(projectJar));
-		TestGenerator testGenerator = new TestGenerator( parsedTrace );
-		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
+		TestGenerator testGenerator = new TestGenerator(parsedTrace);
+		Collection<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases = testGenerator
+				.generateTestCases(carvedTests, new AllTestTogether());
+		assertEquals(1, carvedTestCases.size());
 
-		assertEquals(1, testCases.size());
+		Set<SootClass> testCases = new HashSet<>();
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
+			testCases.add(carvedTestCase.getThird().getDeclaringClass());
+		}
 		SootClass testCase = testCases.iterator().next();
 
 		JimpleUtils.prettyPrint(testCase);
-	}
-
-	@Ignore
-	@Test
-	public void generateTestCodeForEmployeeProject() throws FileNotFoundException, IOException, InterruptedException {
-		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>";
-		String employeeProjectJar = "./src/test/resources/Employee.jar";
-		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
-
-		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
-		// List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests =
-		// stackImplementation
-		// .fileTransformer(traceFile.getAbsolutePath(), methodToCarve);
-
-		// for( Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest :
-		// carvedTests ){
-		// carvedTest.getFirst().visualize();
-		// carvedTest.getSecond().visualize();
-		// }
-		//
-		//
-		// TestGenerator testGenerator = new TestGenerator(employeeProjectJar);
-		// Collection<SootClass> testCases =
-		// testGenerator.generateTestCases(carvedTests);
-		//
-		// assertEquals(1, testCases.size());
-		//
-		// System.out.println("CodeGenerationTest.generateTestCasesForEmployeeProject()
-		// test cases " + testCases);
-		//
-		// SootClass testCase = testCases.iterator().next();
-		// assumeTrue(2 == testCase.getMethods().size());
-		//
-		// // Assertions
-		// File outputDir = temporaryFolder.newFolder();
-		// File outputDir = new File(SourceLocator.v().getOutputDir());
-
-		// TestCaseFactory.generateTestFiles(outputDir, testCases );
-		//
-		// // Make assertions here becayse the file and folder will be deleted
-		// after the test by the rule !
-		// File[] generatedFiles = outputDir.listFiles();
-		// // one .class and one .java
-		// assertEquals(2, generatedFiles.length);
-		//
-		// // Print the java files
-		// for( File file : generatedFiles ){
-		//
-		// System.out.println( file.getAbsolutePath() );
-		// assertTrue( "Empty output file! " + file.getAbsolutePath() ,
-		// file.length() > 0 );
-		// System.out.println( file.lastModified());
-		//
-		// if( file.getAbsolutePath().endsWith(".java")){
-		// System.out.println("CodeGenerationTest.generateTestCodeForEmployeeProject()
-		// Reading from java file");
-		// List<String> allLines = Files.readAllLines( file.toPath(),
-		// Charset.defaultCharset());
-		// for( String line : allLines ){
-		// System.out.println( line );
-		// }
-		// }
-		// }
-
-		fail("Not implemented! ");
-
 	}
 
 }

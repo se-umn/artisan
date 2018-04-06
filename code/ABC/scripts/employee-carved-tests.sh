@@ -13,7 +13,7 @@ rm -r ${JACOCO_HTML_REPORT}
 
 CARVED_TESTS_CP="./employee-abcOutput"
 # Collect the name of tests
-CARVED_TESTS=$(find ${CARVED_TESTS_CP} -iname "Test*.class" -type f | sed "s|${CARVED_TESTS_CP}/||"| tr "/" "." | sed 's|\.class||g' | tr "\n" " ")
+CARVED_TESTS=$(find ${CARVED_TESTS_CP} -iname "Test*.java" -type f | sed "s|${CARVED_TESTS_CP}/||"| tr "/" "." | sed 's|\.java||g' | tr "\n" " ")
 
 PROJECT_JAR="../../../test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHOT.jar"
 TEST_JAR="../../../test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHOT-tests.jar"
@@ -32,7 +32,7 @@ JACOCO_CLI="../libs/jacococli.jar"
 # Recompile the tests to avoid problem with verification of bytecode
 javac \
     -cp ${CARVED_TESTS_CP}:${PROJECT_CP}:${JUNIT_CP}:${SUPPORTING_JARS} \
-        $(find ${CARVED_TESTS_CP} -iname "Test*.java")
+        $(find ${CARVED_TESTS_CP} -iname "Test*.java") 2>&1 | tee ${CARVED_TEST_LOG}
 
 ### Collect coverage information. This works only if tests pass, isn't it?.
 java \
@@ -41,7 +41,7 @@ java \
     ${JAVA_OPTS} \
         org.junit.runner.JUnitCore \
             ${CARVED_TESTS} \
-                2>&1 | tee ${CARVED_TEST_LOG}
+                2>&1 | tee -a ${CARVED_TEST_LOG}
 
 ### Generate the REPORT. HTML for us, XML for later processing
 java -jar ${JACOCO_CLI} report ${JACOCO_EXEC} \

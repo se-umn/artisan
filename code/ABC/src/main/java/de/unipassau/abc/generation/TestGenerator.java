@@ -69,14 +69,20 @@ public class TestGenerator {
 	 * TODO If we reset the count for the local, HERE we can easily find
 	 * duplicate test cases...
 	 * 
+	 * The return value might be smaller than the input because we filter out
+	 * duplicate test methods
+	 * 
 	 * @param carvedTests
 	 * @return
 	 * @throws IOException
 	 * @throws InterruptedException
 	 * @throws CarvingException
 	 */
-	public Collection<SootClass> generateTestCases(List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests,
-			TestClassGenerator testClassGenerator) throws IOException, InterruptedException {
+	public List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> generateTestCases(
+			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests, TestClassGenerator testClassGenerator)
+			throws IOException, InterruptedException {
+
+		List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> testCases = new ArrayList<>();
 
 		// Why we need to initialize soot here otherwise we cannot create
 		// methods and classes, and such
@@ -106,13 +112,16 @@ public class TestGenerator {
 				// TODO For the moment we name tests after their position and
 				// MUT
 				// ,i.e., last element
-				generateAndAddTestMethodToTestClass(testClass, carvedTest);
+				SootMethod testMethod = generateAndAddTestMethodToTestClass(testClass, carvedTest);
+				if (testMethod != null) {
+					testCases.add(new Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>(
+							carvedTest.getFirst(), carvedTest.getSecond(), testMethod));
+				}
 			} catch (CarvingException e) {
 				logger.warn("Cannot generate test ", e);
 			}
 		}
-
-		return testClassGenerator.getTestClasses();
+		return testCases;
 	}
 
 	private void validate(Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest) throws CarvingException {
@@ -163,7 +172,7 @@ public class TestGenerator {
 	 * generate a new test method add add that to the class unless there's
 	 * already an equivalent one
 	 */
-	private void generateAndAddTestMethodToTestClass(SootClass testClass,
+	private SootMethod generateAndAddTestMethodToTestClass(SootClass testClass,
 			Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest) throws CarvingException {
 
 		// For each element in the DataDependencyGraph create
@@ -209,48 +218,6 @@ public class TestGenerator {
 
 			String type = node.getType();
 
-			// // Patch for system in - Do not generate this multiple times
-			// if( node.equals(ObjectInstance.systemOut) ) {}
-			// else if ( node.equals(ObjectInstance.systemErr) ) {}
-			// if (node.equals(ObjectInstance.systemIn)) {
-			// // This is a fake type for System.in
-			// if (!localMap.containsKey(node.getType())) {
-			// localMap.put(type, new AtomicInteger(0));
-			// }
-			//
-			// //
-			// System.out.println("TestGenerator.generateAndAddTestMethodToTestClass()
-			// // Patch for System.in");
-			// // Generate a local for system in
-			// String localId = String.format("%02d",
-			// localMap.get(type).getAndIncrement());
-			//
-			// StringBuilder localName = new StringBuilder();
-			// // localName = localName.substring(localName.lastIndexOf('.') +
-			// // 1);
-			// for (String s : RefType.v(type).getClassName().split("\\.")) {
-			// // Apply code conventions
-			// localName.append(s.replaceFirst(s.substring(0, 1), s.substring(0,
-			// 1).toLowerCase()));
-			// }
-			// localName.append(localId);
-			// Local localVariable = Jimple.v().newLocal(localName.toString(),
-			// RefType.v(type));
-			// body.getLocals().add(localVariable);
-			//
-			// logger.trace(" >>>> Create a new local variable " + localVariable
-			// + " of type " + type + " and node "
-			// + node + " " + node.hashCode());
-			//
-			// dataDependencyGraph.setSootValueFor(node, localVariable);
-			//
-			// // Initialize the local with the assignment
-			// units.add(Jimple.v().newAssignStmt(localVariable,
-			// Jimple.v().newStaticFieldRef(
-			// Scene.v().getField("<java.lang.System: java.io.InputStream
-			// in>").makeRef())));
-			// } else {
-
 			if (!localMap.containsKey(type)) {
 				localMap.put(type, new AtomicInteger(0));
 			}
@@ -276,7 +243,8 @@ public class TestGenerator {
 				// Local local1 =
 				// localGenerator.generateLocal(ArrayType.v(RefType.v("java.lang.String"),
 				// 1));
-				// FIXME This might be another reason why it failed to generate a correct bytecode !
+				// FIXME This might be another reason why it failed to generate
+				// a correct bytecode !
 				Local newArrayLocal = Jimple.v().newLocal(localName.toString(), ArrayType.v(variableType, 1));
 				body.getLocals().add(newArrayLocal);
 
@@ -410,10 +378,12 @@ public class TestGenerator {
 			testClass.addMethod(testMethod);
 			// This identifies static methods
 			body.insertIdentityStmts();
+
+			return testMethod;
 		} else {
 			logger.debug("Found duplicate method " + testMethodName);
+			return null;
 		}
-
 	}
 
 	//
