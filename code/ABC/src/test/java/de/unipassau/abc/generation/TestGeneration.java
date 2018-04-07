@@ -138,6 +138,34 @@ public class TestGeneration {
 	}
 
 	@Test
+	public void testForceInitialization() throws IOException, ParserException, LexerException {
+		try {
+			List<File> projectJars = new ArrayList<>();
+			projectJars.add(new File("./src/test/resources/HotelReservationSystem.jar"));
+			projectJars.add(new File("./src/test/resources/HotelReservationSystem-tests.jar"));
+			projectJars.add(new File("./src/test/resources/system-rules-1.17.0.jar"));
+
+			String javaCode = new String(
+					Files.readAllBytes(Paths.get("./src/test/resources/javas/org.hotelme.TestRoom_10.javaz")));
+
+			CompilationUnit cu = JavaParser.parse(javaCode);
+			//
+			CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
+			combinedTypeSolver.add(new ReflectionTypeSolver());
+			for (File jar : projectJars) {
+				combinedTypeSolver.add(new JarTypeSolver(jar.getAbsolutePath()));
+			}
+
+			TestCaseFactory.forceObjectInitialization(cu, combinedTypeSolver);
+
+			System.out.println(cu);
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail();
+		}
+	}
+
+	@Test
 	public void testHotelGenericsUsage() throws IOException, ParserException, LexerException {
 		try {
 			List<File> projectJars = new ArrayList<>();
@@ -175,29 +203,28 @@ public class TestGeneration {
 						ResolvedType targetType = javaParserFacade.getType(n.getTarget());
 						ResolvedType valueType = javaParserFacade.getType(n.getValue());
 
-//						if (targetType.isReferenceType() && valueType.isReferenceType()) {
+						// if (targetType.isReferenceType() &&
+						// valueType.isReferenceType()) {
 
-							if (!targetType.isAssignableBy(valueType)) {
-							System.out.println(
-									n);
-								System.out.println(
-										"Cast needed " + targetType.describe() + " --> " + valueType.describe());
-								
-								CastExpr c = new CastExpr();
-								c.setType( targetType.describe());
-								c.setExpression( n.getValue() );
-								n.setValue( c );
-							}
-							//
-							// if (((ResolvedReferenceType)
-							// targetType).typeParametersMap().isEmpty()
-							// && !((ResolvedReferenceType)
-							// valueType).typeParametersMap().isEmpty()) {
-							// System.out.println(n.getTarget() + " misses type.
-							// Update to: " + valueType.describe());
-							// missingTypes.put(n.getTarget().toString(),
-							// valueType);
-//						}
+						if (!targetType.isAssignableBy(valueType)) {
+							System.out.println(n);
+							System.out.println("Cast needed " + targetType.describe() + " --> " + valueType.describe());
+
+							CastExpr c = new CastExpr();
+							c.setType(targetType.describe());
+							c.setExpression(n.getValue());
+							n.setValue(c);
+						}
+						//
+						// if (((ResolvedReferenceType)
+						// targetType).typeParametersMap().isEmpty()
+						// && !((ResolvedReferenceType)
+						// valueType).typeParametersMap().isEmpty()) {
+						// System.out.println(n.getTarget() + " misses type.
+						// Update to: " + valueType.describe());
+						// missingTypes.put(n.getTarget().toString(),
+						// valueType);
+						// }
 						// }
 					} catch (Exception e) {
 						// TODO: handle exception

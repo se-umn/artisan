@@ -33,7 +33,7 @@ public class CarverTest {
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
 
 	@Test
 	@Category(ManualTest.class)
@@ -54,17 +54,10 @@ public class CarverTest {
 			/*
 			 * This requires a setup of a file by means of Files.write, which is an external interface
 			 */
-//			String carveBy = "class=org.employee.FileHandle";
-//			String carveBy = "method=<org.employee.FileRead: void fileIsRead(java.lang.String)>";
-			String carveBy = "invocation=<org.employee.FileHandle: void addInFile(java.lang.String,java.lang.String)>_912";
-			 
-//			String carveBy = "invocation=<org.employee.FileRead: void <init>(java.io.File)>_290";
-//			String carveBy = "invocation=<org.employee.FileRead: void <init>(java.io.File)>_96";
-			
-//			String carveBy = "invocation=<org.employee.SoftwareTrainee: void calcCal()>_919";
-			
-			// FIXME : If the call is direct, the parameters are OK. If it belongs to external interface, is not...
-//			String carveBy = "invocation=<java.nio.file.Files: java.nio.file.Path write(java.nio.file.Path,byte\\[\\],java.nio.file.OpenOption\\[\\])>_210";
+			String carveBy = "class=org.employee.FileRead2";
+//			String carveBy = "method=<org.employee.FileRead2: void <init>()";
+//			String carveBy = "invocation=<org.employee.Validation: void <init>()>_54";
+
 			String[] args = new String[] {
 					"--carve-by", carveBy,
 					// String traceFile =

@@ -1066,7 +1066,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 						.cartesianProduct(new ArrayList<>(methodsWhichReturnTheObjects.values()));
 
 				// A new task for each sub-combination
-				System.out.println("Level_0_MethodCarver.level0TestCarving() Full Cartesian Product is : "
+				logger.trace("Level_0_MethodCarver.level0TestCarving() Full Cartesian Product is : "
 						+ fullCartesianProduct.size() + " each combination has "
 						+ methodsWhichReturnTheObjects.values().size() + " elements");
 				for (List<MethodInvocation> combination : fullCartesianProduct) {
