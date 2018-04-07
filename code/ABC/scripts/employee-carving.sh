@@ -19,9 +19,8 @@ EXTERNAL_INTERFACES="java.io.File java.nio.Path java.util.Scanner java.nio.file.
 EXCLUDE_BY="package=org.employee.systemtest class=org.employee.Employee"
 TEST_SETUP_BY="class=org.employee.systemtest.SystemTestUtils"
 
-# Additional options for the carve command - mostly random choice for CG
-export JAVA_OPTS="-Xmx4g -Xms512m -XX:+UseParallelGC -XX:NewRatio=2 -verbose:gc
--Dorg.slf4j.simpleLogger.defaultLogLevel=INFO"
+# Additional options for the carve command - mostly random choice for CG -verbose:gc
+export JAVA_OPTS="-Xmx4g -Xms512m -XX:+UseParallelGC -XX:NewRatio=2 -Dorg.slf4j.simpleLogger.defaultLogLevel=INFO"
 
 ${BIN_FOLDER}/carve \
             --carve-by ${CARVE_BY} \

@@ -11,6 +11,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.jboss.util.NotImplementedException;
 import org.junit.Rule;
@@ -42,7 +43,6 @@ import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
-import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
@@ -59,6 +59,7 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSol
 import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 
+import de.unipassau.abc.utils.JimpleUtils;
 import soot.Body;
 import soot.BooleanType;
 import soot.Local;
@@ -106,7 +107,6 @@ import soot.jimple.StringConstant;
 import soot.jimple.TableSwitchStmt;
 import soot.jimple.ThrowStmt;
 import soot.jimple.VirtualInvokeExpr;
-import soot.options.Options;
 
 public class TestCaseFactory {
 
@@ -149,9 +149,12 @@ public class TestCaseFactory {
 				} else if (argument instanceof FloatConstant) {
 					arguments.add(new DoubleLiteralExpr(argument.toString()));
 				} else if (argument instanceof StringConstant) {
-					arguments.add(new StringLiteralExpr(argument.toString()));
+					arguments.add(new NameExpr(argument.toString())
+					// new StringLiteralExpr(argument.toString())// This
+					// generates "" and ""
+					);
 				} else {
-					System.out.println("WARNING CANNOT handle Constant " + argument);
+					logger.warn("CANNOT handle Constant " + argument);
 					arguments.add(new NameExpr(argument.toString()));
 				}
 			} else if (argument instanceof Local) {
@@ -163,19 +166,18 @@ public class TestCaseFactory {
 							new IntegerLiteralExpr(arrayRef.getIndex().toString())));
 				} else if (argument instanceof FieldRef) {
 					FieldRef fieldRef = (FieldRef) argument;
-
-					System.out.println(
-							"TestCaseFactory.convertSootInvocationArguments() CANNOT HANDLE FIELD REF " + fieldRef);
+					// This should not be necessary since tests use only locals
+					logger.warn("TestCaseFactory.convertSootInvocationArguments() CANNOT HANDLE FIELD REF " + fieldRef);
 					// How do I access the ref to instance ?!
 					// arguments.add( new FieldAccessExpr(new NameExpr(
 					// fieldRef.getFieldRef().
 					// , new NameExpr( fieldRef.getField().getName())));
 
 				} else {
-					System.out.println("Cannot handle argument " + argument);
+					logger.info("Cannot handle argument " + argument);
 				}
 			} else {
-				System.out.println("Cannot handle argument " + argument);
+				logger.info("Cannot handle argument " + argument);
 			}
 		}
 		return arguments;
@@ -195,7 +197,7 @@ public class TestCaseFactory {
 			// Not sure this is correct
 			scope = new NameExpr(invokeExpr.getMethodRef().declaringClass().getName());
 		} else if (invokeExpr instanceof DynamicInvokeExpr) {
-			System.out.println("NOT SURE WHAT TO DO WITH A DynamicInvokeExpr");
+			logger.info("NOT SURE WHAT TO DO WITH A DynamicInvokeExpr");
 			return null;
 		}
 
@@ -223,7 +225,7 @@ public class TestCaseFactory {
 	public static void generateTestFiles(List<File> projectJars, File outputDir, Collection<SootClass> testClasses)
 			throws IOException {
 
-		Options.v().set_output_dir(outputDir.getAbsolutePath());
+		// Options.v().set_output_dir(outputDir.getAbsolutePath());
 
 		logger.debug("Output directory is " + outputDir.getAbsolutePath());
 
@@ -232,6 +234,13 @@ public class TestCaseFactory {
 		}
 
 		for (SootClass testClass : testClasses) {
+
+			// FOR VISUAL DEBUG
+			if (logger.isDebugEnabled() || logger.isTraceEnabled()) {
+				System.out.println("Carver.main() JIMPLE FILE " + testClass);
+				JimpleUtils.prettyPrint(testClass);
+			}
+
 			CompilationUnit javaCode = converSootClassToJavaClass(testClass);
 
 			// Resolve the missing generics
@@ -241,6 +250,9 @@ public class TestCaseFactory {
 				combinedTypeSolver.add(new JarTypeSolver(jar.getAbsolutePath()));
 			}
 
+			// Forcefully initialize all the Objects to null if they are not
+			// initialized !
+			forceObjectInitialization(javaCode, combinedTypeSolver);
 			// This updates the code
 			resolveMissingGenerics(javaCode, combinedTypeSolver);
 
@@ -252,6 +264,26 @@ public class TestCaseFactory {
 			Files.write(classFile.toPath(), javaCode.toString().getBytes(), StandardOpenOption.CREATE_NEW);
 
 		}
+
+	}
+
+	public static void forceObjectInitialization(CompilationUnit cu, TypeSolver typeSolver) {
+		cu.accept(new ModifierVisitor<JavaParserFacade>() {
+			public VariableDeclarator visit(final VariableDeclarator n, JavaParserFacade javaParserFacade) {
+				super.visit(n, javaParserFacade);
+				try {
+
+					if (!javaParserFacade.getType(n).isPrimitive() && n.getInitializer().equals(Optional.empty())) {
+						// System.out.println("Focing null init for " + n);
+						n.setInitializer(new NullLiteralExpr());
+					}
+				} catch (Exception e) {
+					// TODO: handle exception
+				}
+				return n;
+			}
+		}, JavaParserFacade.get(typeSolver));
+
 	}
 
 	public static void resolveMissingGenerics(CompilationUnit cu, TypeSolver typeSolver) {
@@ -274,7 +306,7 @@ public class TestCaseFactory {
 						//
 						if (((ResolvedReferenceType) targetType).typeParametersMap().isEmpty()
 								&& !((ResolvedReferenceType) valueType).typeParametersMap().isEmpty()) {
-							System.out.println(n.getTarget() + " misses type. Update to: " + valueType.describe());
+							logger.debug(n.getTarget() + " misses type. Update to: " + valueType.describe());
 							missingTypes.put(n.getTarget().toString(), valueType);
 
 						}
@@ -291,7 +323,7 @@ public class TestCaseFactory {
 			public VariableDeclarator visit(final VariableDeclarator n, Void arg) {
 				super.visit(n, arg);
 				if (missingTypes.containsKey(n.getName().asString())) {
-					System.out.println("Updating Type Def for " + n.getName());
+					logger.trace("Updating Type Def for " + n.getName());
 					n.setType(missingTypes.get(n.getName().asString()).describe());
 				}
 				return n;
@@ -328,7 +360,7 @@ public class TestCaseFactory {
 
 	public static CompilationUnit converSootClassToJavaClass(SootClass sootClass) {
 		// https://github.com/javaparser/javaparser/wiki/Manual
-		logger.info("TestCaseFactory.generateTestFiles() " + sootClass.getName());
+		logger.debug("TestCaseFactory.generateTestFiles() " + sootClass.getName());
 
 		CompilationUnit cu = new CompilationUnit();
 		cu.setPackageDeclaration(sootClass.getPackageName());
@@ -375,7 +407,6 @@ public class TestCaseFactory {
 				if (local.equals(method.getActiveBody().getThisLocal())) {
 					continue;
 				}
-
 				// That's naive but might work ...
 				VariableDeclarationExpr variableDeclaration = parseVariableDeclarationExpr(
 						local.getType().toString() + " " + local.getName());
@@ -385,71 +416,71 @@ public class TestCaseFactory {
 			final Body body = method.getActiveBody();
 			// Insert statement. Thos are ONLY assignments or invocations
 			for (final Unit unit : body.getUnits()) {
-				System.out.println("TestCaseFactory.generateTestFiles() Processing unit " + unit);
+				logger.trace("TestCaseFactory.generateTestFiles() Processing unit " + unit);
 				unit.apply(new AbstractStmtSwitch() {
 					@Override
 					public void caseBreakpointStmt(BreakpointStmt stmt) {
-						System.out.println("\t Skip");
+						logger.trace("\t Skip");
 					}
 
 					@Override
 					public void caseEnterMonitorStmt(EnterMonitorStmt stmt) {
-						System.out.println("\t Skip");
+						logger.trace("\t Skip");
 					}
 
 					@Override
 					public void caseExitMonitorStmt(ExitMonitorStmt stmt) {
-						System.out.println("\t Skip");
+						logger.trace("\t Skip");
 					}
 
 					@Override
 					public void caseGotoStmt(GotoStmt stmt) {
-						System.out.println("\t Skip");
+						logger.trace("\t Skip");
 					}
 
 					@Override
 					public void caseIdentityStmt(IdentityStmt stmt) {
-						System.out.println("\t Skip");
+						logger.trace("\t Skip");
 					}
 
 					@Override
 					public void caseIfStmt(IfStmt stmt) {
-						System.out.println("\t Skip");
+						logger.trace("\t Skip");
 					}
 
 					@Override
 					public void caseLookupSwitchStmt(LookupSwitchStmt stmt) {
-						System.out.println("\t Skip");
+						logger.trace("\t Skip");
 					}
 
 					@Override
 					public void caseNopStmt(NopStmt stmt) {
-						System.out.println("\t Skip");
+						logger.trace("\t Skip");
 					}
 
 					@Override
 					public void caseRetStmt(RetStmt stmt) {
-						System.out.println("\t Skip");
+						logger.trace("\t Skip");
 					}
 
 					@Override
 					public void caseReturnStmt(ReturnStmt stmt) {
-						System.out.println("\t Skip");
+						logger.trace("\t Skip");
 					}
 
 					@Override
 					public void caseReturnVoidStmt(ReturnVoidStmt stmt) {
-						System.out.println("\t Skip");
+						logger.trace("\t Skip");
 					}
 
 					@Override
 					public void caseTableSwitchStmt(TableSwitchStmt stmt) {
-						System.out.println("\t Skip");
+						logger.trace("\t Skip");
 					}
 
 					@Override
 					public void caseThrowStmt(ThrowStmt stmt) {
-						System.out.println("\t Skip");
+						logger.trace("\t Skip");
 					}
 
 					@Override
@@ -465,10 +496,9 @@ public class TestCaseFactory {
 									new NameExpr(((InstanceFieldRef) stmt.getLeftOp()).getBase().toString()),
 									fieldRef.getFieldRef().name());
 						} else if (stmt.getLeftOp() instanceof StaticFieldRef) {
-							throw new NotImplementedException();
-							// System.out.println(
-							// "TestCaseFactory.generateTestFiles() ACCESS
-							// TO STATIC FIELDS NOT IMPLEMENTED ");
+							StaticFieldRef fieldRef = (StaticFieldRef) stmt.getLeftOp();
+							leftExpr = new NameExpr(
+									fieldRef.getFieldRef().declaringClass() + "." + fieldRef.getFieldRef().name());
 						} else if (stmt.getLeftOp() instanceof ArrayRef) {
 							ArrayRef arrayRef = (ArrayRef) stmt.getLeftOp();
 							leftExpr = new ArrayAccessExpr(new NameExpr(arrayRef.getBase().toString()),
@@ -482,7 +512,6 @@ public class TestCaseFactory {
 						if (stmt.getRightOp() instanceof InstanceFieldRef) {
 							// throw new NotImplementedException();
 							FieldRef fieldRef = (FieldRef) stmt.getRightOp();
-
 							rightExpr = new FieldAccessExpr(
 									new NameExpr(((InstanceFieldRef) stmt.getRightOp()).getBase().toString()),
 									fieldRef.getFieldRef().name());
@@ -520,14 +549,14 @@ public class TestCaseFactory {
 						}
 
 						if (rightExpr == null || leftExpr == null) {
-							System.out.println("null expression. Skip " + leftExpr + " == " + rightExpr);
+							logger.trace("null expression. Skip " + leftExpr + " == " + rightExpr);
 							return;
 						}
 
 						ExpressionStmt e = new ExpressionStmt(
 								new AssignExpr(leftExpr, rightExpr, AssignExpr.Operator.ASSIGN));
 
-						System.out.println("caseAssignStmt()" + stmt + " --> " + e);
+						logger.debug("caseAssignStmt()" + stmt + " --> " + e);
 
 						methodBody.addStatement(e);
 					}
@@ -540,7 +569,7 @@ public class TestCaseFactory {
 
 						if (e == null) {
 							// this might happen for Object<init>
-							System.out.println("\t Skip");
+							logger.trace("\t Skip");
 							return;
 						}
 						if (invokeExpr instanceof SpecialInvokeExpr) {
@@ -553,7 +582,7 @@ public class TestCaseFactory {
 						} else {
 							methodBody.addStatement(e);
 						}
-						System.out.println("caseInvokeStmt() " + stmt + " --> " + e);
+						logger.debug("caseInvokeStmt() " + stmt + " --> " + e);
 					}
 				});
 			}

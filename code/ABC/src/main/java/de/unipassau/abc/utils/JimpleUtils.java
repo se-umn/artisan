@@ -71,8 +71,8 @@ public class JimpleUtils {
 		// String fileName = SourceLocator.v().getFileNameFor(sClass,
 		// Options.output_format_jimple);
 		try (PrintWriter writerOut = new PrintWriter(new OutputStreamWriter(System.out))) {
-//			Options.v().set_xml_attributes(true);
-			Options.v().set_print_tags_in_output( true );
+			// Options.v().set_xml_attributes(true);
+			Options.v().set_print_tags_in_output(true);
 			Printer.v().printTo(sClass, writerOut);
 			writerOut.flush();
 		}
@@ -116,6 +116,10 @@ public class JimpleUtils {
 	 * @return
 	 */
 	public static boolean classContainsEquivalentMethod(SootClass testClass, SootMethod testMethod) {
+		return getEquivalentMethod(testClass, testMethod) != null;
+	}
+
+	public static SootMethod getEquivalentMethod(SootClass testClass, SootMethod testMethod) {
 		String fakeIdentityStmts = String.format("this := @this: %s", testClass.getName());
 		// Patch: add the "this := @this: <ClassName>" entry
 		final String testMethodBody = fakeIdentityStmts + "\n" + prettyPrint(testMethod.getActiveBody());
@@ -123,10 +127,10 @@ public class JimpleUtils {
 		for (SootMethod method : testClass.getMethods()) {
 			String methoBody = prettyPrint(method.getActiveBody());
 			if (testMethodBody.equals(methoBody)) {
-				return true;
+				return method;
 			}
 		}
-		return false;
+		return null;
 	}
 
 	public static boolean isPrimitive(Type type) {

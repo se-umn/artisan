@@ -1,42 +1,102 @@
 package org.employee;
 
-import org.junit.Test;
-import java.io.Reader;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.InputStream;
-import java.io.DataInputStream;
-import java.io.FileInputStream;
-import java.util.Scanner;
-import java.io.File;
-import org.employee.systemtest.SystemTestUtils;
-import org.junit.contrib.java.lang.system.ExpectedSystemExit;
 import org.junit.Rule;
-import org.junit.contrib.java.lang.system.TextFromStandardInputStream;
+import org.junit.Test;
 
-public class TestFileRead_2
-{
-    @Rule
-    public final TextFromStandardInputStream userInputs;
-    @Rule
-    public final ExpectedSystemExit expectedSystemExit;
-    
-    @Test
-    public void test_34() throws Exception {
-        this.userInputs.provideLines(new String[] { "1", "admin" });
-        final InputStream in = System.in;
-        final File tempWorkingDir = SystemTestUtils.createTempWorkingDir();
-        SystemTestUtils.createFileInWorkingDir(tempWorkingDir, "username.txt", "123");
-        SystemTestUtils.createFileInWorkingDir(tempWorkingDir, "123", "Username:-->123\n" + "Name:-->test\n" + "Designnation:-->SeniorSoftwareEngineer Software Engineer\n" + "Gender-->M\n" + "Age:-->50\n" + "Experience-->10\n" + "30\n" + "20\n" + "10\n" + "96000.0\n");
-        final File file = new File((new String[] { tempWorkingDir.getAbsolutePath() })[0]);
-        final Scanner scanner = new Scanner(in);
-        scanner.next();
-        scanner.next();
-        new FileRead(file).fileIsRead(new BufferedReader(new InputStreamReader(new DataInputStream(new FileInputStream(new File(file, "username.txt"))))).readLine());
+public class TestFileRead_2 {
+
+    @Rule()
+    public org.junit.contrib.java.lang.system.TextFromStandardInputStream userInputs;
+
+    @Rule()
+    public org.junit.contrib.java.lang.system.ExpectedSystemExit expectedSystemExit;
+
+    @Test()
+    public void test_6() throws Exception {
+        java.lang.String javalangstring00 = null;
+        java.lang.String javalangstring01 = null;
+        java.lang.String javalangstring02 = null;
+        java.io.File javaiofile00 = null;
+        java.lang.String javalangstring03 = null;
+        java.lang.String javalangstring04 = null;
+        java.lang.String javalangstring05 = null;
+        java.lang.String javalangstring06 = null;
+        java.lang.String[] javalangstringArray00 = null;
+        java.lang.String javalangstring07 = null;
+        java.lang.String javalangstring08 = null;
+        java.lang.String javalangstring09 = null;
+        java.io.File javaiofile01 = null;
+        java.io.InputStream javaioinputStream00 = null;
+        java.lang.String javalangstring10 = null;
+        java.io.File javaiofile02 = null;
+        java.lang.StringBuilder javalangstringBuilder00 = null;
+        java.lang.String javalangstring11 = null;
+        java.io.File javaiofile03 = null;
+        java.io.File javaiofile04 = null;
+        java.lang.String javalangstring12 = null;
+        java.util.Scanner javautilscanner00 = null;
+        java.lang.String javalangstring13 = null;
+        org.employee.FileRead orgemployeefileRead00 = null;
+        java.lang.String javalangstring14 = null;
+        java.lang.String javalangstring15 = null;
+        java.io.FileInputStream javaiofileInputStream00 = null;
+        java.lang.String[] $r0 = null;
+        org.junit.contrib.java.lang.system.TextFromStandardInputStream $r1;
+        $r0 = new java.lang.String[2];
+        $r0[0] = "2";
+        $r0[1] = "123";
+        $r1 = this.userInputs;
+        $r1.provideLines($r0);
+        javaioinputStream00 = java.lang.System.in;
+        javaiofile03 = org.employee.systemtest.SystemTestUtils.createTempWorkingDir();
+        javalangstring06 = "username.txt";
+        javalangstring15 = "123";
+        javaiofile02 = org.employee.systemtest.SystemTestUtils.createFileInWorkingDir(javaiofile03, javalangstring06, javalangstring15);
+        javalangstringBuilder00 = new java.lang.StringBuilder();
+        javalangstring04 = "Username:-->123\n";
+        javalangstringBuilder00 = javalangstringBuilder00.append(javalangstring04);
+        javalangstring07 = "Name:-->test\n";
+        javalangstringBuilder00 = javalangstringBuilder00.append(javalangstring07);
+        javalangstring08 = "Designnation:-->SeniorSoftwareEngineer Software Engineer\n";
+        javalangstringBuilder00 = javalangstringBuilder00.append(javalangstring08);
+        javalangstring14 = "Gender-->M\n";
+        javalangstringBuilder00 = javalangstringBuilder00.append(javalangstring14);
+        javalangstring11 = "Age:-->50\n";
+        javalangstringBuilder00 = javalangstringBuilder00.append(javalangstring11);
+        javalangstring12 = "Experience-->10\n";
+        javalangstringBuilder00 = javalangstringBuilder00.append(javalangstring12);
+        javalangstring10 = "30\n";
+        javalangstringBuilder00 = javalangstringBuilder00.append(javalangstring10);
+        javalangstring02 = "20\n";
+        javalangstringBuilder00 = javalangstringBuilder00.append(javalangstring02);
+        javalangstring03 = "10\n";
+        javalangstringBuilder00 = javalangstringBuilder00.append(javalangstring03);
+        javalangstring09 = "96000.0\n";
+        javalangstringBuilder00 = javalangstringBuilder00.append(javalangstring09);
+        javalangstring13 = javalangstringBuilder00.toString();
+        javalangstring15 = "123";
+        javaiofile04 = org.employee.systemtest.SystemTestUtils.createFileInWorkingDir(javaiofile03, javalangstring15, javalangstring13);
+        javalangstringArray00 = new java.lang.String[1];
+        javalangstring00 = javaiofile03.getAbsolutePath();
+        javalangstringArray00[0] = javalangstring00;
+        javalangstring00 = javalangstringArray00[0];
+        javaiofile01 = new java.io.File(javalangstring00);
+        javautilscanner00 = new java.util.Scanner(javaioinputStream00);
+        javalangstring05 = javautilscanner00.next();
+        javalangstring01 = javautilscanner00.next();
+        javalangstring06 = "username.txt";
+        javaiofile00 = new java.io.File(javaiofile01, javalangstring06);
+        javaiofileInputStream00 = new java.io.FileInputStream(javaiofile00);
+        orgemployeefileRead00 = new org.employee.FileRead(javaiofile01);
+        orgemployeefileRead00.fileIsRead(javalangstring01);
     }
-    
+
     public TestFileRead_2() {
-        this.userInputs = TextFromStandardInputStream.emptyStandardInputStream();
-        this.expectedSystemExit = ExpectedSystemExit.none();
+        org.junit.contrib.java.lang.system.TextFromStandardInputStream $r0;
+        org.junit.contrib.java.lang.system.ExpectedSystemExit $r1;
+        $r0 = org.junit.contrib.java.lang.system.TextFromStandardInputStream.emptyStandardInputStream();
+        this.userInputs = $r0;
+        $r1 = org.junit.contrib.java.lang.system.ExpectedSystemExit.none();
+        this.expectedSystemExit = $r1;
     }
 }

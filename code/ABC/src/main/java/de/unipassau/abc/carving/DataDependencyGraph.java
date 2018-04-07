@@ -78,8 +78,8 @@ public class DataDependencyGraph {
 	@SuppressWarnings("unchecked")
 	public void addMethodInvocation(MethodInvocation methodInvocation, String... actualParameters) {
 
-		System.out.println("DataDependencyGraph.addMethodInvocation() " + methodInvocation + " "
-				+ Arrays.toString(actualParameters));
+//		System.out.println("DataDependencyGraph.addMethodInvocation() " + methodInvocation + " "
+//				+ Arrays.toString(actualParameters));
 
 		if (!graph.containsVertex(methodInvocation)) {
 			graph.addVertex(methodInvocation);

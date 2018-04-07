@@ -3,9 +3,10 @@ package de.unipassau.abc.carving;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
@@ -19,14 +20,15 @@ import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.carvers.Level_0_MethodCarver;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
+import de.unipassau.abc.generation.DeltaDebugger;
 import de.unipassau.abc.generation.MockingGenerator;
 import de.unipassau.abc.generation.TestCaseFactory;
 import de.unipassau.abc.generation.TestGenerator;
 import de.unipassau.abc.generation.impl.EachTestAlone;
-import de.unipassau.abc.utils.JimpleUtils;
 import soot.G;
 import soot.Scene;
 import soot.SootClass;
+import soot.SootMethod;
 import soot.options.Options;
 
 // TODO Use some sort of CLI/JewelCLI
@@ -41,7 +43,7 @@ public class Carver {
 		@Option(longName = "project-jar")
 		List<File> getProjectJar();
 
-		@Option(longName = "output-to", defaultToNull = true)
+		@Option(longName = "output-to", defaultValue = "./sootOutput/carvedTests")
 		File getOutputDir();
 
 		// This can be refined as package=<regex>, class=<regex>,
@@ -64,7 +66,7 @@ public class Carver {
 		// since most of the time, thos interfaces are organized in some way
 		@Option(longName = "external", defaultToNull = true)
 		List<String> getExternalInterfaces();
-		
+
 		@Option(longName = "test-setup-by", defaultToNull = true)
 		List<String> getTestSetupBy();
 
@@ -99,8 +101,8 @@ public class Carver {
 	 */
 	public static void setupSoot(List<File> projectJars) {
 		System.out.println("Carver.setupSoot() Project Jars: ");
-		for( File f : projectJars ){
-			System.out.println("- " + f );
+		for (File f : projectJars) {
+			System.out.println("- " + f);
 		}
 		G.reset();
 		//
@@ -124,7 +126,7 @@ public class Carver {
 
 		String traceJar = ABCUtils.getTraceJar();
 		String systemRulesJar = ABCUtils.getSystemRulesJar();
-		List<String> xStreamJars = ABCUtils.getXStreamJars();
+		List<File> xStreamJars = ABCUtils.getXStreamJars();
 
 		ArrayList<String> necessaryJar = new ArrayList<String>();
 		// Include here JUnit and Hamcrest
@@ -137,7 +139,9 @@ public class Carver {
 		//
 		necessaryJar.add(systemRulesJar);
 		//
-		necessaryJar.addAll(xStreamJars);
+		for (File projectLib : xStreamJars) {
+			necessaryJar.add(projectLib.getAbsolutePath());
+		}
 
 		/*
 		 * To process a JAR file, just use the same option but provide a path to
@@ -148,7 +152,7 @@ public class Carver {
 		System.setProperty("os.name", "Whatever");
 		Scene.v().loadNecessaryClasses();
 		System.setProperty("os.name", "Mac OS X");
-		
+
 	}
 
 	public static void main(String[] args) throws IOException, InterruptedException {
@@ -160,19 +164,17 @@ public class Carver {
 		MethodInvocationMatcher carveBy = null;
 		List<MethodInvocationMatcher> excludeBy = new ArrayList<>();
 		{
-			excludeBy.add( MethodInvocationMatcher.byPackage("java.lang"));
+			excludeBy.add(MethodInvocationMatcher.byPackage("java.lang"));
 		}
-		
+
 		List<MethodInvocationMatcher> testSetupBy = new ArrayList<>();
-		
-		
+
 		// TODO Code duplicate with InstrumentTracer
 		List<String> externalInterfaces = new ArrayList<>();
 		{
 			// Default Interfaces are the one for Files, Network, etc. ?
 		}
 
-		List<String> testSetupMethods = new ArrayList<>();
 		try {
 			CarverCLI cli = CliFactory.parseArguments(CarverCLI.class, args);
 			traceFile = cli.getTraceFile();
@@ -190,8 +192,8 @@ public class Carver {
 					excludeBy.add(getMatcherFor(excludeByTokens[0], excludeByTokens[1]));
 				}
 			}
-			
-			if( cli.getTestSetupBy() != null ){
+
+			if (cli.getTestSetupBy() != null) {
 				for (String testSetup : cli.getTestSetupBy()) {
 					String[] testSetupTokens = testSetup.split("=");
 					testSetupBy.add(getMatcherFor(testSetupTokens[0], testSetupTokens[1]));
@@ -210,32 +212,23 @@ public class Carver {
 		for (String externalInterface : externalInterfaces) {
 
 			System.out.println("Carver.main() >>>> external interface " + externalInterface);
-//			MethodInvocationMatcher.
+			// MethodInvocationMatcher.
 			// By default those are class matchers !
-			if( externalInterface.contains("=") ){
-				externalInterfaceMatchers.add(getMatcherFor(externalInterface.split("=")[0],externalInterface.split("=")[1]));
-				
+			if (externalInterface.contains("=")) {
+				externalInterfaceMatchers
+						.add(getMatcherFor(externalInterface.split("=")[0], externalInterface.split("=")[1]));
+
 			} else {
 				externalInterfaceMatchers.add(MethodInvocationMatcher.byClass(externalInterface));
 			}
 		}
 
-//		List<MethodInvocationMatcher> purityMatchers = new ArrayList<MethodInvocationMatcher>();
-//		for (String pureMethod : pureMethods) {
-//			// By default those are class method matchers!
-//			purityMatchers.add(MethodInvocationMatcher.byMethod(pureMethod));
-//		}
-//		//
-//		{
-//			// TODO Additional pure methods... this is TRICKY !
-//			// With this we'll kill the data flow from String, and string that
-//			// are returned from pure methods are discarded...
-//			// purityMatchers.add(MethodInvocationMatcher.byClass("java.lang.StringBuilder"));
-//		}
-
 		setupSoot(projectJars);
 
 		logger.info("Carver.main() Start parsing ");
+
+		long parsingTime = System.currentTimeMillis();
+
 		// Parse the trace file into graphs
 		StackImplementation traceParser = new StackImplementation(testSetupBy);
 		// TODO How to handle multiple trace files ? All together or one after
@@ -244,11 +237,14 @@ public class Carver {
 		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = traceParser
 				.parseTrace(traceFile.getAbsolutePath(), externalInterfaceMatchers);
 
-		logger.info("Carver.main() End parsing ");
-		logger.info(">> Analyzed " + parsedTrace.size() + " system tests");
+		parsingTime = System.currentTimeMillis() - parsingTime;
 
-		// Carving
+		logger.info("Carver.main() End parsing ");
+
+		logger.debug(">> Analyzed " + parsedTrace.size() + " system tests");
+
 		logger.info("Carver.main() Start carving");
+		long carvingTime = System.currentTimeMillis();
 
 		// TODO Propagate here the tracing link to system test if necessary
 		// For each system test we carve out unit tests and accumulate
@@ -261,17 +257,9 @@ public class Carver {
 			carvedTests.addAll(testCarver.carve(carveBy, excludeBy));
 		}
 
-		System.out.println("Carver.main() End carving");
-		System.out.println(">> Carved tests : " + carvedTests.size());
-		// for( Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest :
-		// carvedTests ){
-		// System.out.println(" Test : ");
-		// for( MethodInvocation mi :
-		// carvedTest.getFirst().getOrderedMethodInvocations()){
-		// System.out.println("\t " + mi);
-		// }
-		// }
-		
+		logger.info("Carver.main() End carving");
+		logger.debug(">> Carved tests : " + carvedTests.size());
+		carvingTime = System.currentTimeMillis() - carvingTime;
 
 		// Verify
 		// VERIFY THAT NO CARVED TEST IS EMPTY !
@@ -281,22 +269,32 @@ public class Carver {
 			}
 		}
 
-		System.out.println("Carver.main() Start code generation");
-		// Test Generation
-		TestGenerator testCaseGenerator = new TestGenerator( parsedTrace );
-		// DEFAULT SETTINGS
-		Collection<SootClass> testCases = testCaseGenerator.generateTestCases(carvedTests, new EachTestAlone());
+		logger.info("Carver.main() Start Test generation");
+		long testGenerationTime = System.currentTimeMillis();
 
+		// Test Generation
+		TestGenerator testCaseGenerator = new TestGenerator(parsedTrace);
+		// DEFAULT SETTINGS
+		List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases = testCaseGenerator
+				.generateTestCases(carvedTests, new EachTestAlone());
+
+		// Collect the test classes (back compatibility)
+		Set<SootClass> testClasses = new HashSet<>();
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
+			testClasses.add(carvedTestCase.getThird().getDeclaringClass());
+		}
+
+		logger.debug("Generating input mocking values");
 		// TODO Are assertions STILL generated ?!
 		//// DECORATORS HERE: ASSERTIONS AND MOCKING !
-		for (SootClass testClass : testCases) {
+		for (SootClass testClass : testClasses) {
 			MockingGenerator.addSystemIn(testClass, parsedTrace);
-			// FIXME ?!
-//			MockingGenerator.addSystemExit(testClass, parsedTrace);
+			// FIXME ?! -> How it is possible that I see system.exit on the
+			// output ?!
+			// MockingGenerator.addSystemExit(testClass, parsedTrace);
 		}
-		// System.out.println("Carver.main() Mocking Generation is disabled");
 
-		// TODO Add Asssertions here...
+		// logger.info("Generating regression assertions - SKIP");
 		// MethodInvocation methodInvocationUnderTest =
 		// executionFlowGraph.getLastMethodInvocation();
 		//
@@ -343,26 +341,46 @@ public class Carver {
 		// actualReturnValue);
 		// }
 
-		// FOR VISUAL DEBUG
-		if (logger.isDebugEnabled() || logger.isTraceEnabled()) {
-			System.out.println("Carver.main() JIMPLE FILES " + testCases.size());
-			for (SootClass testCase : testCases) {
-				System.out.println("Carver.main() JIMPLE FILE " + testCase);
-				// THis wont work for more than 1 file, it silenty fail/exit the for loop ?!
-//				JimpleUtils.prettyPrint(testCase);
-			}
-		}
+		// Output Regular Carved Tests
+		TestCaseFactory.generateTestFiles(projectJars, outputDir, testClasses);
 
-		if (outputDir == null) {
-			// Use default
-			outputDir = new File("./sootOutput/carvedTests");
+		testGenerationTime = System.currentTimeMillis() - testGenerationTime;
+		logger.info("Carver.main() End Test generation");
+
+		// Minimized Carved Tests
+		logger.info("Carver.main() Start Minimize via Delta Debugging");
+		long minimizationTime = System.currentTimeMillis();
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
+			// Note that after minimization there might be equivalent classes...
+			// TODO
+			DeltaDebugger.minimize(carvedTestCase, projectJars);
 		}
-		TestCaseFactory.generateTestFiles(projectJars, outputDir, testCases);
-		System.out.println("Carver.main() End code generation");
+		// Rename Classes to _min
+		Set<SootClass> minimizedTestClasses = new HashSet<>();
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
+			minimizedTestClasses.add(carvedTestCase.getThird().getDeclaringClass());
+		}
+		for (SootClass minimizedTestClass : minimizedTestClasses) {
+			minimizedTestClass.setName(minimizedTestClass.getName() + "_minimized");
+		}
+		TestCaseFactory.generateTestFiles(projectJars, outputDir, minimizedTestClasses);
+		minimizationTime = System.currentTimeMillis() - minimizationTime;
+
+		logger.info("Carver.main() End Minimize via Delta Debugging");
+
+		// At this point we can start the minimization via delta debugging
 
 		long endTime = System.nanoTime();
+		// Add statistics here ? number of tests etc ?
+		System.out.println("====================================");
+		//
+		System.out.println("parsingTime " + parsingTime );
+		System.out.println("carvingTime " + carvingTime );
+		System.out.println("testGenerationTime " + testGenerationTime );
+		System.out.println("minimizationTime " + minimizationTime );
+		System.out.println("====================================");
+		System.out.println("Total " + (endTime - startTime) / 1000000000.0 + " s");
 
-		logger.info("Unit Test Generation " + (endTime - startTime) / 1000000000.0 + " s");
 		// Why is this required? Will the application hang otherwise
 		// System.exit(0);
 	}

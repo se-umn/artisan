@@ -12,8 +12,10 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -30,6 +32,7 @@ import de.unipassau.abc.tracing.Trace;
 import de.unipassau.abc.utils.JimpleUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import soot.SootClass;
+import soot.SootMethod;
 
 public class CarvingTest {
 
@@ -91,9 +94,14 @@ public class CarvingTest {
 		Carver.setupSoot( Collections.singletonList( new File(employeeProjectJar) ) );
 		TestGenerator testGenerator = new TestGenerator( parsedTrace );
 
-		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
-		assertEquals(1, testCases.size());
+		Collection<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
+		assertEquals(1, carvedTestCases.size());
 
+		Set<SootClass> testCases = new HashSet<>();
+		for( Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases ){
+			testCases.add( carvedTestCase.getThird().getDeclaringClass() );
+		}
+		
 		for (SootClass testCase : testCases) {
 			JimpleUtils.prettyPrint(testCase);
 		}
@@ -151,8 +159,13 @@ public class CarvingTest {
 		Carver.setupSoot( Collections.singletonList( new File(employeeProjectJar) ) );
 		TestGenerator testGenerator = new TestGenerator( parsedTrace  );
 		
-		Collection<SootClass> testCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
-		assertEquals(1, testCases.size());
+		Collection<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
+		assertEquals(1, carvedTestCases.size());
+		
+		Set<SootClass> testCases = new HashSet<>();
+		for( Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases ){
+			testCases.add( carvedTestCase.getThird().getDeclaringClass() );
+		}
 
 		for (SootClass testCase : testCases) {
 			JimpleUtils.prettyPrint(testCase);

@@ -238,7 +238,7 @@ public class MockingGenerator {
 				methodInvocationToBeCarved);
 
 		if (valueReadFromInput == null) {
-			System.out.println("MockingGenerator.addSystemExitToTest() No system exit called for " + testMethod );
+			logger.debug("MockingGenerator.addSystemExitToTest() No system exit called for " + testMethod );
 			return;
 		}
 
