@@ -72,6 +72,9 @@ public class Carver {
 		@Option(longName = "test-setup-by", defaultToNull = true)
 		List<String> getTestSetupBy();
 
+		@Option(longName = "skip-minimize", defaultValue = "false")
+		boolean isSkipMinimize();
+
 	}
 
 	private static MethodInvocationMatcher getMatcherFor(final String type, final String regEx) {
@@ -166,6 +169,7 @@ public class Carver {
 	public static void main(String[] args) throws IOException, InterruptedException {
 		long startTime = System.nanoTime();
 
+		boolean skipMinimize = false;
 		File traceFile = null;
 		List<File> projectJars = new ArrayList<>();
 		File outputDir = null;
@@ -188,6 +192,8 @@ public class Carver {
 			traceFile = cli.getTraceFile();
 			outputDir = cli.getOutputDir();
 			projectJars.addAll(cli.getProjectJar());
+
+			skipMinimize = cli.isSkipMinimize();
 
 			// TODO This can be moved inside CLI parsing using an instance
 			// strategy
@@ -355,27 +361,31 @@ public class Carver {
 		testGenerationTime = System.currentTimeMillis() - testGenerationTime;
 		logger.info("Carver.main() End Test generation");
 
-		// Minimized Carved Tests
-		logger.info("Carver.main() Start Minimize via Delta Debugging");
 		long minimizationTime = System.currentTimeMillis();
-		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
-			// Note that after minimization there might be equivalent classes...
-			// TODO
-			DeltaDebugger.minimize(carvedTestCase, projectJars);
+		if (skipMinimize) {
+			// Minimized Carved Tests
+			logger.info("Carver.main() Start Minimize via Delta Debugging");
+			for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
+				// Note that after minimization there might be equivalent
+				// classes...
+				// TODO
+				DeltaDebugger.minimize(carvedTestCase, projectJars);
+			}
+			// Rename Classes to _min
+			Set<SootClass> minimizedTestClasses = new HashSet<>();
+			for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
+				minimizedTestClasses.add(carvedTestCase.getThird().getDeclaringClass());
+			}
+			for (SootClass minimizedTestClass : minimizedTestClasses) {
+				minimizedTestClass.setName(minimizedTestClass.getName() + "_minimized");
+			}
+			TestCaseFactory.generateTestFiles(projectJars, outputDir, minimizedTestClasses);
+
+			logger.info("Carver.main() End Minimize via Delta Debugging");
+		} else {
+			logger.info("Skip Minimize");
 		}
-		// Rename Classes to _min
-		Set<SootClass> minimizedTestClasses = new HashSet<>();
-		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
-			minimizedTestClasses.add(carvedTestCase.getThird().getDeclaringClass());
-		}
-		for (SootClass minimizedTestClass : minimizedTestClasses) {
-			minimizedTestClass.setName(minimizedTestClass.getName() + "_minimized");
-		}
-		TestCaseFactory.generateTestFiles(projectJars, outputDir, minimizedTestClasses);
 		minimizationTime = System.currentTimeMillis() - minimizationTime;
-
-		logger.info("Carver.main() End Minimize via Delta Debugging");
-
 		// At this point we can start the minimization via delta debugging
 
 		long endTime = System.nanoTime();
@@ -385,7 +395,7 @@ public class Carver {
 		System.out.println("parsingTime " + parsingTime);
 		System.out.println("carvingTime " + carvingTime);
 		System.out.println("testGenerationTime " + testGenerationTime);
-		System.out.println("minimizationTime " + minimizationTime);
+		if( ! skipMinimize ) { System.out.println("minimizationTime " + minimizationTime);}
 		System.out.println("====================================");
 		System.out.println("Total " + (endTime - startTime) / 1000000000.0 + " s");
 
