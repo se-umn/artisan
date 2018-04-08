@@ -1,5 +1,6 @@
 package de.unipassau.abc.generation;
 
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.BufferedReader;
@@ -18,13 +19,14 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.slf4j.event.Level;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.AssignExpr;
-import com.github.javaparser.ast.expr.CastExpr;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
@@ -35,6 +37,7 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 
 import de.unipassau.abc.carving.Carver;
+import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import soot.G;
 import soot.SootClass;
 import soot.SootResolver;
@@ -49,6 +52,9 @@ import soot.util.EscapedReader;
 
 public class TestGeneration {
 
+	@Rule
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
+	
 	@Before
 	public void setupSoot() {
 		G.reset();
@@ -173,18 +179,22 @@ public class TestGeneration {
 			projectJars.add(new File("./src/test/resources/HotelReservationSystem.jar"));
 			projectJars.add(new File("./src/test/resources/HotelReservationSystem-tests.jar"));
 			projectJars.add(new File("./src/test/resources/system-rules-1.17.0.jar"));
-
+			//
+			projectJars.add(new File("/Users/gambi/.m2/repository/joda-time/joda-time/2.9.4/joda-time-2.9.4.jar"));
+			projectJars.add(new File("/Users/gambi/.m2/repository/mysql/mysql-connector-java/5.1.39/mysql-connector-java-5.1.39.jar"));
+			
 			String javaCode = new String(
 					Files.readAllBytes(Paths.get("./src/test/resources/javas/org.hotelme.TestRoom_24.javaz")));
 
-			// javautilarrayList00 -> ArrayList<>
-			// javautilarrayList00.add( ROOM )
+			File tempDir = Files.createTempDirectory("Test").toFile();
+			tempDir.deleteOnExit();
 			//
-			// THIS IS THE PROBLEM: No casting. Ideally, we should define
-			// javautilarrayList00 as javautilarrayList00<Room>
-			// But casting might be easy to implement !
-			// orghotelmeroom00 = javautilarrayList00.get(0);
-
+			File dirFile = new File( tempDir, "org/hotelme");
+			dirFile.mkdirs();
+			
+			File classFile = new File( dirFile, "TestRoom_24.java");
+			classFile.createNewFile();
+			
 			CompilationUnit cu = JavaParser.parse(javaCode);
 			//
 			CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
@@ -192,55 +202,17 @@ public class TestGeneration {
 			for (File jar : projectJars) {
 				combinedTypeSolver.add(new JarTypeSolver(jar.getAbsolutePath()));
 			}
-
-			// Collect the Collections that are missing a generic type
-			final Map<String, ResolvedType> missingTypes = new HashMap<>();
-
-			cu.accept(new ModifierVisitor<JavaParserFacade>() {
-				public AssignExpr visit(final AssignExpr n, JavaParserFacade javaParserFacade) {
-					super.visit(n, javaParserFacade);
-
-					try {
-						ResolvedType targetType = javaParserFacade.getType(n.getTarget());
-						ResolvedType valueType = javaParserFacade.getType(n.getValue());
-
-						// if (targetType.isReferenceType() &&
-						// valueType.isReferenceType()) {
-
-						if (!targetType.isAssignableBy(valueType)) {
-							System.out.println(n);
-							System.out.println("Cast needed " + targetType.describe() + " --> " + valueType.describe());
-
-							CastExpr c = new CastExpr();
-							c.setType(targetType.describe());
-							c.setExpression(n.getValue());
-							n.setValue(c);
-						}
-						//
-						// if (((ResolvedReferenceType)
-						// targetType).typeParametersMap().isEmpty()
-						// && !((ResolvedReferenceType)
-						// valueType).typeParametersMap().isEmpty()) {
-						// System.out.println(n.getTarget() + " misses type.
-						// Update to: " + valueType.describe());
-						// missingTypes.put(n.getTarget().toString(),
-						// valueType);
-						// }
-						// }
-					} catch (Exception e) {
-						// TODO: handle exception
-					}
-					// if( missingTypes.containsKey( n.getName().asString() ) ){
-					// System.out.println("Updating Type Def for " +
-					// n.getName());
-					// n.setType( missingTypes.get( n.getName().asString( )
-					// ).describe() );
-					// }
-					return n;
-				}
-			}, JavaParserFacade.get(combinedTypeSolver));
-
+			
+			TestCaseFactory.resolveMissingGenerics(cu, combinedTypeSolver);
+			
 			System.out.println("TestGeneration.testHotelGenerics()\n" + cu);
+			
+			Files.write( classFile.toPath(), cu.toString().getBytes());
+			
+			// Assert by compiling the code !
+			boolean compiled = DeltaDebugger.compileAndRunJUnitTest("org.hotelme.TestRoom_24", tempDir, projectJars);
+
+			assertTrue( compiled );
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail();

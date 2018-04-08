@@ -213,7 +213,6 @@ public class DeltaDebugger {
 		cpBuilder.append(ABCUtils.getSystemRulesJar()).append(File.pathSeparator);
 		// Include XMLDumper
 		cpBuilder.append(ABCUtils.getTraceJar()).append(File.pathSeparator);
-		;
 		// Include XMLDumper
 		for (File jarFile : ABCUtils.getXStreamJars()) {
 			cpBuilder.append(jarFile.getAbsolutePath()).append(File.pathSeparator);
@@ -252,12 +251,12 @@ public class DeltaDebugger {
 		// processBuilder.command());
 
 		// This causes problems wher run on command line
-		// processBuilder.inheritIO();
+		 processBuilder.inheritIO();
 
 		Process process = processBuilder.start();
 
 		// Wait for the execution to end.
-		if (!process.waitFor(4000, TimeUnit.MICROSECONDS)) {
+		if (!process.waitFor(4000, TimeUnit.MILLISECONDS)) {
 			logger.info("Timeout for test execution !");
 			// timeout - kill the process.
 			process.destroyForcibly(); // consider using destroyForcibly instead
@@ -269,10 +268,11 @@ public class DeltaDebugger {
 			int result = process.exitValue(); // ;process.waitFor();
 
 			if (result != 0) {
-				logger.debug(" Test FAILED");
+				logger.debug(" Test FAILED " + result );
 			}
 			return (result == 0);
 		} catch (Throwable e) {
+			e.printStackTrace();
 			// Avoid resource leakeage. This should be IDEMPOTENT
 			process.destroyForcibly();
 			// TODO: handle exception

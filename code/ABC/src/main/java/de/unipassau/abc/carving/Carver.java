@@ -72,7 +72,7 @@ public class Carver {
 		@Option(longName = "test-setup-by", defaultToNull = true)
 		List<String> getTestSetupBy();
 
-		@Option(longName = "skip-minimize", defaultValue = "false")
+		@Option(longName = "skip-minimize")
 		boolean isSkipMinimize();
 
 	}
