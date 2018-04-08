@@ -357,7 +357,7 @@ public class TestCaseFactory {
 					System.out.println("Swallow " + e + " in " + n.toString());
 				}
 			}
-		}, null);
+		}, JavaParserFacade.get(typeSolver));
 
 	}
 
