@@ -70,20 +70,20 @@ public class JimpleUtils {
 	public static void prettyPrint(SootClass sClass) {
 		// String fileName = SourceLocator.v().getFileNameFor(sClass,
 		// Options.output_format_jimple);
-		try (PrintWriter writerOut = new PrintWriter(new OutputStreamWriter(System.out))) {
-			// Options.v().set_xml_attributes(true);
-			Options.v().set_print_tags_in_output(true);
-			Printer.v().printTo(sClass, writerOut);
-			writerOut.flush();
-		}
+//		try (PrintWriter writerOut = new PrintWriter(new OutputStreamWriter(System.out))) {
+//			// Options.v().set_xml_attributes(true);
+//			Options.v().set_print_tags_in_output(true);
+//			Printer.v().printTo(sClass, writerOut);
+//			writerOut.flush();
+//		}
 
-		// Iterator<SootMethod> i = sClass.methodIterator();
-		// System.out.println("Class " + sClass.getName());
-		// while (i.hasNext()) {
-		// SootMethod m = i.next();
-		// System.out.println("\t" + m.getDeclaration());
-		// System.out.println(prettyPrint(m.getActiveBody()));
-		// }
+		 Iterator<SootMethod> i = sClass.methodIterator();
+		 System.out.println("Class " + sClass.getName());
+		 while (i.hasNext()) {
+		 SootMethod m = i.next();
+		 System.out.println("\t" + m.getDeclaration());
+		 System.out.println(prettyPrint(m.getActiveBody()));
+		 }
 
 	}
 

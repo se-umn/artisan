@@ -2,6 +2,8 @@ package de.unipassau.abc.carving;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -148,10 +150,16 @@ public class Carver {
 		 * a JAR instead of a directory.
 		 */
 		Options.v().set_process_dir(necessaryJar);
-		// Patch to work on Mac OS X
+
+		// Soot has problems in working on mac.
+		String osName = System.getProperty("os.name");
 		System.setProperty("os.name", "Whatever");
 		Scene.v().loadNecessaryClasses();
-		System.setProperty("os.name", "Mac OS X");
+		//
+		System.setProperty("os.name", osName);
+		//
+		// p = Paths.get(file.getAbsolutePath());
+		// System.out.println("P = " + p);
 
 	}
 
@@ -374,10 +382,10 @@ public class Carver {
 		// Add statistics here ? number of tests etc ?
 		System.out.println("====================================");
 		//
-		System.out.println("parsingTime " + parsingTime );
-		System.out.println("carvingTime " + carvingTime );
-		System.out.println("testGenerationTime " + testGenerationTime );
-		System.out.println("minimizationTime " + minimizationTime );
+		System.out.println("parsingTime " + parsingTime);
+		System.out.println("carvingTime " + carvingTime);
+		System.out.println("testGenerationTime " + testGenerationTime);
+		System.out.println("minimizationTime " + minimizationTime);
 		System.out.println("====================================");
 		System.out.println("Total " + (endTime - startTime) / 1000000000.0 + " s");
 

@@ -286,7 +286,7 @@ public class MockingGenerator {
 
 		for (MethodInvocation methodInvocation : subsequentCalls) {
 			if (systemExitMethodMatcher.matches(methodInvocation)) {
-				System.out.println("MockingGenerator.collectExpectedSystemExitValue() System.exit call subsumed by " + methodInvocationToBeCarved );
+				logger.debug("MockingGenerator.collectExpectedSystemExitValue() System.exit call subsumed by " + methodInvocationToBeCarved );
 				return dataDependencyGraph.getParametersSootValueFor(methodInvocation).get(0);
 			}
 		}

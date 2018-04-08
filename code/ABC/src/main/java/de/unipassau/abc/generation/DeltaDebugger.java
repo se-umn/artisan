@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.tools.JavaCompiler;
@@ -30,6 +31,7 @@ import de.unipassau.abc.instrumentation.UtilInstrumenter;
 import soot.Body;
 import soot.Local;
 import soot.PatchingChain;
+import soot.RefType;
 import soot.Scene;
 import soot.SootClass;
 import soot.SootMethod;
@@ -84,14 +86,25 @@ public class DeltaDebugger {
 		// TODO We shall not consider newInvokeStatements here !
 		while (iterator.hasNext()) {
 			Unit unit = iterator.next();
-			
-			if( unit instanceof InvokeStmt ){
-				if( ((InvokeStmt) unit).getInvokeExpr() instanceof NewInvokeExpr ){
+
+			if (unit instanceof InvokeStmt) {
+				InvokeExpr invokeExp = ((InvokeStmt) unit).getInvokeExpr();
+				if (invokeExp instanceof NewInvokeExpr) {
 					logger.info("DeltaDebugger.minimize() -- Skip " + unit);
 					total--;
 					continue;
+				} else if (invokeExp instanceof InstanceInvokeExpr) {
+					Value owner = ((InstanceInvokeExpr) invokeExp).getBase();
+					if (owner.getType().equals(RefType.v("org.junit.contrib.java.lang.system.ExpectedSystemExit"))) {
+						logger.info("DeltaDebugger.minimize() -- Skip " + unit);
+						continue;
+					}
+
 				}
 			}
+			// Do not remove System.exit expectations otherwise the test breaks
+			// !
+
 			logger.debug("DeltaDebugger.minimize() -- Try to Remove " + unit);
 			Unit insertionPoint = units.getPredOf(unit);
 			if (insertionPoint == null) {
@@ -113,50 +126,51 @@ public class DeltaDebugger {
 		units.removeAll(validation);
 
 		// Clean up the unused the Variables !!
-		removeUnusedVariables( body );
-		
+		removeUnusedVariables(body);
+
 		logger.info("Removed " + removed + " out of " + total + " instructions from test " + testMethod + " "
-				+ ( ((double) removed / (double) total) * 100) );
-		
-		logger.debug( "Generated test " + TestCaseFactory.converSootClassToJavaClass(testMethod.getDeclaringClass()));
+				+ (((double) removed / (double) total) * 100));
+
+		logger.debug("Generated test " + TestCaseFactory.converSootClassToJavaClass(testMethod.getDeclaringClass()));
 	}
 
 	private static void removeUnusedVariables(Body body) {
 		final PatchingChain<Unit> units = body.getUnits();
-		
-		for( Iterator<Local> localsIterator = body.getLocals().iterator(); localsIterator.hasNext(); ){
-			if( ! localUsed( localsIterator.next(), units ) ){
+
+		for (Iterator<Local> localsIterator = body.getLocals().iterator(); localsIterator.hasNext();) {
+			if (!localUsed(localsIterator.next(), units)) {
 				localsIterator.remove();
 			}
 		}
-		
+
 	}
 
 	private static boolean localUsed(Local local, PatchingChain<Unit> units) {
 		final AtomicInteger used = new AtomicInteger(0);
-		for( Unit unit : units ){
-			unit.apply( new AbstractStmtSwitch() {
+		for (Unit unit : units) {
+			unit.apply(new AbstractStmtSwitch() {
 				@Override
 				public void caseAssignStmt(AssignStmt stmt) {
 					super.caseAssignStmt(stmt);
-					if( stmt.getLeftOp().equals( local ) ){
+					if (stmt.getLeftOp().equals(local)) {
 						used.incrementAndGet();
 					}
 				}
+
 				// Include also void and init
 				@Override
 				public void caseInvokeStmt(InvokeStmt stmt) {
 					super.caseInvokeStmt(stmt);
-					InvokeExpr invokeExpr= stmt.getInvokeExpr() ;
-					if( invokeExpr instanceof InstanceInvokeExpr ){
-						if(( (InstanceInvokeExpr) invokeExpr).getBase().equals( local )){
-							used.incrementAndGet();	
+					InvokeExpr invokeExpr = stmt.getInvokeExpr();
+					if (invokeExpr instanceof InstanceInvokeExpr) {
+						if (((InstanceInvokeExpr) invokeExpr).getBase().equals(local)) {
+							used.incrementAndGet();
 						}
 					}
 				}
 			});
 		}
-		return (used.intValue() > 0); 
+		return (used.intValue() > 0);
 	}
 
 	public static boolean verifyExecution(SootMethod testMethod, List<File> projectJars) {
@@ -171,12 +185,12 @@ public class DeltaDebugger {
 			return compileAndRunJUnitTest(testClass.getName(), tempOutputDir, projectJars);
 
 		} catch (IOException | URISyntaxException | InterruptedException e) {
-			//e.printStackTrace();
-			logger.debug("Failed verification of " + testMethod );
+			// e.printStackTrace();
+			logger.debug("Failed verification of " + testMethod);
 			return false;
-		} catch (Exception  e) {
+		} catch (Exception e) {
 			e.printStackTrace();
-			logger.debug("Failed verification of " + testMethod );
+			logger.debug("Failed verification of " + testMethod);
 			return false;
 		}
 	}
@@ -226,7 +240,7 @@ public class DeltaDebugger {
 				args.toArray(new String[] {}));
 
 		if (compilationResult != 0) {
-			// System.out.println("XXXX Compilation Failed");
+			logger.debug("Compilation failed");
 			return false;
 		}
 
@@ -234,7 +248,6 @@ public class DeltaDebugger {
 
 		ProcessBuilder processBuilder = new ProcessBuilder(javaPath, "-cp", classpath, "org.junit.runner.JUnitCore",
 				systemTestClassName);
-
 		// System.out.println("DeltaDebugger.runJUnitTest() " +
 		// processBuilder.command());
 
@@ -243,12 +256,20 @@ public class DeltaDebugger {
 
 		Process process = processBuilder.start();
 
-		int result = process.waitFor();
+		// Wait for the execution to end.
+		if (!process.waitFor(4000, TimeUnit.MICROSECONDS)) {
+			// timeout - kill the process.
+			process.destroy(); // consider using destroyForcibly instead
+		}
 
-		// if (result != 0) {
-		// System.out.println("DeltaDebugger.runJUnitTest() Verification FAILED
-		// ");
-		// }
+		int result = process.exitValue(); // ;process.waitFor();
+
+		// Avoid resource leakeage. This should be IDEMPOTENT
+		process.destroy();
+
+		if (result != 0) {
+			logger.debug(" Test FAILED");
+		}
 		return (result == 0);
 
 	}

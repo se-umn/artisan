@@ -340,8 +340,8 @@ public class TestCaseFactory {
 					ResolvedType valueType = javaParserFacade.getType(n.getValue());
 
 					if (!targetType.isAssignableBy(valueType)) {
-						System.out.println(n);
-						System.out.println("Cast needed " + targetType.describe() + " --> " + valueType.describe());
+						//System.out.println(n);
+						//System.out.println("Cast needed " + targetType.describe() + " --> " + valueType.describe());
 
 						CastExpr c = new CastExpr();
 						c.setType(targetType.describe());
