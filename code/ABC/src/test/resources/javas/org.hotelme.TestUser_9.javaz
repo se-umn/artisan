@@ -1,0 +1,143 @@
+package org.hotelme;
+
+import org.junit.Rule;
+import org.junit.Test;
+
+public class TestUser_9 {
+
+    @Rule()
+    public org.junit.contrib.java.lang.system.TextFromStandardInputStream userInputs;
+
+    @Rule()
+    public org.junit.contrib.java.lang.system.ExpectedSystemExit expectedSystemExit;
+
+    @Test()
+    public void test_74() throws Exception {
+        java.lang.String javalangstring00;
+        java.lang.StringBuilder javalangstringBuilder00;
+        java.sql.Date javasqldate00;
+        java.lang.String javalangstring01;
+        java.lang.String javalangstring02;
+        org.hotelme.HotelModel orghotelmehotelModel00;
+        java.lang.String javalangstring03;
+        java.lang.String javalangstring04;
+        java.sql.ResultSet javasqlresultSet00;
+        java.lang.String javalangstring05;
+        java.lang.String javalangstring06;
+        java.lang.String javalangstring07;
+        java.lang.String javalangstring08;
+        java.lang.String javalangstring09;
+        java.lang.String javalangstring10;
+        java.sql.Connection javasqlconnection00;
+        java.sql.PreparedStatement javasqlpreparedStatement00;
+        org.hotelme.User orghotelmeuser00;
+        java.lang.String javalangstring11;
+        java.sql.Date javasqldate01;
+        java.lang.String javalangstring12;
+        java.lang.String javalangstring13;
+        java.lang.String javalangstring14;
+        java.lang.String javalangstring15;
+        java.util.Scanner javautilscanner00;
+        java.sql.PreparedStatement javasqlpreparedStatement01;
+        java.lang.String javalangstring16;
+        java.sql.ResultSet javasqlresultSet01;
+        java.io.InputStream javaioinputStream00;
+        java.lang.String[] javalangstringArray00;
+        java.lang.String javalangstring17;
+        java.lang.String javalangstring18;
+        java.lang.String javalangstring19;
+        java.lang.String javalangstring20;
+        int returnValue;
+        java.lang.String[] $r0;
+        java.lang.String $r1;
+        java.lang.String $r2;
+        java.lang.String $r3;
+        java.lang.String $r4;
+        org.junit.contrib.java.lang.system.TextFromStandardInputStream $r5;
+        $r0 = new java.lang.String[8];
+        $r1 = java.lang.Integer.toString(1);
+        $r0[0] = $r1;
+        $r0[1] = "test";
+        $r0[2] = "1234";
+        $r2 = java.lang.Integer.toString(1);
+        $r0[3] = $r2;
+        $r3 = java.lang.Integer.toString(2);
+        $r0[4] = $r3;
+        $r0[5] = "04/04/18";
+        $r0[6] = "04/06/18";
+        $r4 = java.lang.Integer.toString(1);
+        $r0[7] = $r4;
+        $r5 = this.userInputs;
+        $r5.provideLines($r0);
+        javaioinputStream00 = java.lang.System.in;
+        javalangstring05 = "/hotelme.sql";
+        org.hotelme.utils.SystemTestUtils.dropAndRecreateTheDbFromResource(javalangstring05);
+        javalangstring07 = "jdbc:mysql://localhost:3306/hotelme";
+        javalangstring00 = "hotelmanager";
+        javalangstring09 = "qweasd";
+        javasqlconnection00 = java.sql.DriverManager.getConnection(javalangstring07, javalangstring00, javalangstring09);
+        orghotelmehotelModel00 = new org.hotelme.HotelModel(javasqlconnection00);
+        javautilscanner00 = new java.util.Scanner(javaioinputStream00);
+        javautilscanner00.nextInt();
+        javalangstring10 = javautilscanner00.next();
+        javalangstring08 = javautilscanner00.next();
+        javalangstringBuilder00 = new java.lang.StringBuilder();
+        javalangstringBuilder00 = javalangstringBuilder00.append(javalangstring10);
+        javalangstring02 = " ";
+        javalangstringBuilder00 = javalangstringBuilder00.append(javalangstring02);
+        javalangstringBuilder00 = javalangstringBuilder00.append(javalangstring08);
+        javalangstring15 = javalangstringBuilder00.toString();
+        javalangstring02 = " ";
+        javalangstringArray00 = javalangstring15.split(javalangstring02);
+        javalangstring14 = javalangstringArray00[0];
+        javalangstring16 = javalangstringArray00[1];
+        orghotelmehotelModel00.userLogin(javalangstring14, javalangstring16);
+        orghotelmeuser00 = orghotelmehotelModel00.getUser();
+        javalangstring20 = orghotelmeuser00.getFname();
+        javautilscanner00.nextInt();
+        javalangstring03 = "SELECT * FROM rooms LEFT OUTER JOIN reservations ON rooms.roomID = reservations.roomID WHERE reserveID IS NOT NULL AND userID = ?";
+        javasqlpreparedStatement01 = javasqlconnection00.prepareStatement(javalangstring03);
+        orghotelmeuser00.getUserID();
+        javasqlpreparedStatement01.setInt(1, 3);
+        javasqlresultSet01 = javasqlpreparedStatement01.executeQuery();
+        javasqlresultSet01.next();
+        javautilscanner00.nextInt();
+        javalangstring01 = javautilscanner00.next();
+        javalangstring19 = javautilscanner00.next();
+        javalangstring11 = "";
+        javalangstring11.equals(javalangstring11);
+        javautilscanner00.nextInt();
+        javalangstring13 = "Happy Double";
+        javalangstring04 = "invalid";
+        javalangstring13.equals(javalangstring04);
+        javalangstring13.equals(javalangstring11);
+        javalangstring13.equals(javalangstring04);
+        javalangstring13.equals(javalangstring11);
+        javalangstring13.equals(javalangstring11);
+        javasqldate00 = new java.sql.Date(1522792800000L);
+        javasqldate01 = new java.sql.Date(1522965600000L);
+        javalangstring18 = "SELECT * FROM rooms WHERE roomType = ? AND roomID NOT IN (SELECT roomID FROM reservations WHERE ? >= checkIn OR ? > checkIn)";
+        javasqlpreparedStatement00 = javasqlconnection00.prepareStatement(javalangstring18);
+        javasqlpreparedStatement00.setString(1, javalangstring13);
+        javasqlpreparedStatement00.setDate(2, javasqldate00);
+        javasqlpreparedStatement00.setDate(3, javasqldate01);
+        javasqlresultSet00 = javasqlpreparedStatement00.executeQuery();
+        javasqlresultSet00.next();
+        javalangstring12 = "roomID";
+        javasqlresultSet00.getInt(javalangstring12);
+        javalangstring06 = "price";
+        javasqlresultSet00.getInt(javalangstring06);
+        javalangstring17 = "maxOccupancy";
+        javasqlresultSet00.getInt(javalangstring17);
+        returnValue = orghotelmeuser00.getUserID();
+    }
+
+    public TestUser_9() {
+        org.junit.contrib.java.lang.system.TextFromStandardInputStream $r0;
+        org.junit.contrib.java.lang.system.ExpectedSystemExit $r1;
+        $r0 = org.junit.contrib.java.lang.system.TextFromStandardInputStream.emptyStandardInputStream();
+        this.userInputs = $r0;
+        $r1 = org.junit.contrib.java.lang.system.ExpectedSystemExit.none();
+        this.expectedSystemExit = $r1;
+    }
+}

@@ -1,0 +1,143 @@
+package org.hotelme;
+
+import org.junit.Rule;
+import org.junit.Test;
+
+public class TestRoom_10 {
+
+    @Rule()
+    public org.junit.contrib.java.lang.system.TextFromStandardInputStream userInputs;
+
+    @Rule()
+    public org.junit.contrib.java.lang.system.ExpectedSystemExit expectedSystemExit;
+
+    @Test()
+    public void test_72() throws Exception {
+        java.lang.String javalangstring00;
+        java.lang.StringBuilder javalangstringBuilder00;
+        java.sql.Date javasqldate00;
+        org.hotelme.Room orghotelmeroom00;
+        java.lang.String javalangstring01;
+        java.lang.String javalangstring02;
+        org.hotelme.HotelModel orghotelmehotelModel00;
+        java.lang.String javalangstring03;
+        java.lang.String javalangstring04;
+        java.lang.String javalangstring05;
+        java.lang.String javalangstring06;
+        java.lang.String javalangstring07;
+        java.lang.String javalangstring08;
+        java.sql.Connection javasqlconnection00;
+        org.hotelme.User orghotelmeuser00;
+        java.lang.String javalangstring09;
+        java.sql.Date javasqldate01;
+        java.lang.String javalangstring10;
+        java.lang.String javalangstring11;
+        java.lang.String javalangstring12;
+        java.util.Scanner javautilscanner00;
+        java.lang.String javalangstring13;
+        java.io.InputStream javaioinputStream00;
+        java.lang.String[] javalangstringArray00;
+        java.lang.String javalangstring14;
+        java.util.ArrayList javautilarrayList00;
+        java.lang.String returnValue;
+        java.lang.String[] $r0;
+        java.lang.String $r1;
+        java.lang.String $r2;
+        java.lang.String $r3;
+        java.lang.String $r4;
+        java.lang.String $r5;
+        java.lang.String $r6;
+        java.lang.String $r7;
+        org.junit.contrib.java.lang.system.TextFromStandardInputStream $r8;
+        $r0 = new java.lang.String[11];
+        $r1 = java.lang.Integer.toString(1);
+        $r0[0] = $r1;
+        $r0[1] = "test";
+        $r0[2] = "1234";
+        $r2 = java.lang.Integer.toString(1);
+        $r0[3] = $r2;
+        $r3 = java.lang.Integer.toString(2);
+        $r0[4] = $r3;
+        $r0[5] = "04/04/18";
+        $r0[6] = "04/06/18";
+        $r4 = java.lang.Integer.toString(1);
+        $r0[7] = $r4;
+        $r5 = java.lang.Integer.toString(1);
+        $r0[8] = $r5;
+        $r6 = java.lang.Integer.toString(2);
+        $r0[9] = $r6;
+        $r7 = java.lang.Integer.toString(2);
+        $r0[10] = $r7;
+        $r8 = this.userInputs;
+        $r8.provideLines($r0);
+        javaioinputStream00 = java.lang.System.in;
+        javalangstring04 = "/hotelme.sql";
+        org.hotelme.utils.SystemTestUtils.dropAndRecreateTheDbFromResource(javalangstring04);
+        javalangstring05 = "jdbc:mysql://localhost:3306/hotelme";
+        javalangstring00 = "hotelmanager";
+        javalangstring07 = "qweasd";
+        javasqlconnection00 = java.sql.DriverManager.getConnection(javalangstring05, javalangstring00, javalangstring07);
+        orghotelmehotelModel00 = new org.hotelme.HotelModel(javasqlconnection00);
+        javautilscanner00 = new java.util.Scanner(javaioinputStream00);
+        javautilscanner00.nextInt();
+        javalangstring08 = javautilscanner00.next();
+        javalangstring06 = javautilscanner00.next();
+        javalangstringBuilder00 = new java.lang.StringBuilder();
+        javalangstringBuilder00 = javalangstringBuilder00.append(javalangstring08);
+        javalangstring02 = " ";
+        javalangstringBuilder00 = javalangstringBuilder00.append(javalangstring02);
+        javalangstringBuilder00 = javalangstringBuilder00.append(javalangstring06);
+        javalangstring12 = javalangstringBuilder00.toString();
+        javalangstring02 = " ";
+        javalangstringArray00 = javalangstring12.split(javalangstring02);
+        javalangstring11 = javalangstringArray00[0];
+        javalangstring13 = javalangstringArray00[1];
+        orghotelmehotelModel00.userLogin(javalangstring11, javalangstring13);
+        orghotelmeuser00 = orghotelmehotelModel00.getUser();
+        javautilscanner00.nextInt();
+        orghotelmehotelModel00.checkReservedRooms();
+        javautilscanner00.nextInt();
+        javalangstring01 = javautilscanner00.next();
+        javalangstring14 = javautilscanner00.next();
+        javalangstring09 = "";
+        javalangstring09.equals(javalangstring09);
+        javautilscanner00.nextInt();
+        javalangstring10 = "Happy Double";
+        javalangstring03 = "invalid";
+        javalangstring10.equals(javalangstring03);
+        javalangstring10.equals(javalangstring09);
+        javalangstring10.equals(javalangstring03);
+        javalangstring10.equals(javalangstring09);
+        javalangstring10.equals(javalangstring09);
+        javasqldate00 = new java.sql.Date(1522792800000L);
+        javasqldate01 = new java.sql.Date(1522965600000L);
+        orghotelmehotelModel00.checkRoomsAvailable(javasqldate00, javasqldate01, javalangstring10);
+        javautilscanner00.nextInt();
+        javautilarrayList00 = orghotelmehotelModel00.getRoom();
+        orghotelmeroom00 = javautilarrayList00.get(0);
+        orghotelmeroom00.getMaxOccupancy();
+        javautilscanner00.nextInt();
+        javautilarrayList00 = orghotelmehotelModel00.getRoom();
+        orghotelmeroom00 = javautilarrayList00.get(0);
+        orghotelmeroom00.getMaxOccupancy();
+        javautilarrayList00 = orghotelmehotelModel00.getRoom();
+        orghotelmeroom00 = javautilarrayList00.get(0);
+        orghotelmeroom00.getMaxOccupancy();
+        javautilscanner00.nextInt();
+        javautilarrayList00 = orghotelmehotelModel00.getRoom();
+        orghotelmeroom00 = javautilarrayList00.get(0);
+        orghotelmeroom00.getRoomID();
+        javautilarrayList00 = orghotelmehotelModel00.getRoom();
+        orghotelmeroom00 = javautilarrayList00.get(0);
+        returnValue = orghotelmeroom00.getRoomType();
+    }
+
+    public TestRoom_10() {
+        org.junit.contrib.java.lang.system.TextFromStandardInputStream $r0;
+        org.junit.contrib.java.lang.system.ExpectedSystemExit $r1;
+        $r0 = org.junit.contrib.java.lang.system.TextFromStandardInputStream.emptyStandardInputStream();
+        this.userInputs = $r0;
+        $r1 = org.junit.contrib.java.lang.system.ExpectedSystemExit.none();
+        this.expectedSystemExit = $r1;
+    }
+}
