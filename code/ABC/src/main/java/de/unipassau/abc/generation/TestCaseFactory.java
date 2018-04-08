@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.jboss.util.NotImplementedException;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -330,29 +329,35 @@ public class TestCaseFactory {
 			}
 		}, null);
 
+		// This breaks somehow... java parser fails to find the types of some
+		// objects...
 		// Force Explicit cast if the collections/generic returns an object
-		cu.accept(new ModifierVisitor<JavaParserFacade>() {
-			public AssignExpr visit(final AssignExpr n, JavaParserFacade javaParserFacade) {
-				super.visit(n, javaParserFacade);
 
+		cu.accept(new VoidVisitorAdapter<JavaParserFacade>() {
+			public void visit(final AssignExpr n, JavaParserFacade javaParserFacade) {
+				super.visit(n, javaParserFacade);
 				try {
 					ResolvedType targetType = javaParserFacade.getType(n.getTarget());
 					ResolvedType valueType = javaParserFacade.getType(n.getValue());
 
 					if (!targetType.isAssignableBy(valueType)) {
-						//System.out.println(n);
-						//System.out.println("Cast needed " + targetType.describe() + " --> " + valueType.describe());
+						System.out.println(n);
+						System.out.println("Cast needed " + targetType.describe() + " --> " + valueType.describe());
 
 						CastExpr c = new CastExpr();
 						c.setType(targetType.describe());
 						c.setExpression(n.getValue());
 						n.setValue(c);
+					} else {
+						System.out.println("No Cast needed " + targetType.describe() + " --> " + valueType.describe()
+								+ " in " + n.toString());
+
 					}
 				} catch (Exception e) {
+					System.out.println("Swallow " + e + " in " + n.toString());
 				}
-				return n;
 			}
-		}, JavaParserFacade.get(typeSolver));
+		}, null);
 
 	}
 
