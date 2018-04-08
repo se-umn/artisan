@@ -7,9 +7,14 @@ if [ ! -d ./employee-sootOutput ]; then
 	exit 1
 fi
 
+if [ ! -d ./logs ]; then
+	mkdir ./logs
+fi
+
 
 INST_SYSTEM_TESTS_LOG=./logs/employee-system-tests.log
 SYSTEM_TESTS_LOG=./logs/employee-system-tests-coverage.log
+
 JACOCO_EXEC=./coverage/employee-system-tests.exec
 JACOCO_XML_REPORT=./coverage/employee-system-tests.xml
 JACOCO_HTML_REPORT=./coverage/employee-system-tests-report
@@ -17,6 +22,7 @@ JACOCO_HTML_REPORT=./coverage/employee-system-tests-report
 # CLEAN UP FILES
 rm ${SYSTEM_TESTS_LOG}
 rm ${INST_SYSTEM_TESTS_LOG}
+
 rm ${JACOCO_EXEC}
 rm ${JACOCO_XML_REPORT}
 rm -r ${JACOCO_HTML_REPORT}
@@ -34,10 +40,15 @@ TEST_CP="../../../test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHOT
 PROJECT_SRC="../../../test-subjects/Examples/Employee/src"
 
 # We require JUnit and Hamcrest for the tests, plus system-rules for mocking input to System.in
-JUNIT_CP="/Users/gambi/.m2/repository/junit/junit/4.12/junit-4.12.jar:/Users/gambi/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar:/Users/gambi/.m2/repository/com/github/stefanbirkner/system-rules/1.17.0/system-rules-1.17.0.jar"
+JUNIT_CP=$(find /home/alessio/.m2/repository -iname "junit-4.12.jar")":"\
+$(find /home/alessio/.m2/repository -iname "hamcrest-core-1.3.jar")":"\
+$(find /home/alessio/.m2/repository -iname "system-rules-1.17.0.jar")
 
 # ABC Tracing requires Xstream, XPull, and Xpp3 to dump object instances to XML files
-SUPPORTING_JARS="../libs/trace.jar:../src/test/resources/xmlpull-1.1.3.1.jar:../src/test/resources/xstream-1.4.10.jar:../src/test/resources/xpp3_min-1.1.4c.jar"
+SUPPORTING_JARS="../libs/trace.jar:"\
+$(find /home/alessio/.m2/repository -iname "xmlpull-1.1.3.1.jar")":"\
+$(find /home/alessio/.m2/repository -iname "xstream-1.4.10.jar")":"\
+$(find /home/alessio/.m2/repository -iname "xpp3_min-1.1.4c.jar")
 
 # Here's the list of system tests to execute
 SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestAdminLoginWithEmptyDb"
