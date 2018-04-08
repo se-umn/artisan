@@ -54,6 +54,7 @@ public class TestGeneration {
 		G.reset();
 	}
 
+	
 	@Test
 	public void testEmployee() throws IOException, ParserException, LexerException {
 		File projectJar = new File("./src/test/resources/Employee.jar");

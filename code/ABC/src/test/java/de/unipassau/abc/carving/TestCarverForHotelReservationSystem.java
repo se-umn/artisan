@@ -47,28 +47,12 @@ public class TestCarverForHotelReservationSystem {
 
 			String traceFile = "/Users/gambi/action-based-test-carving/code/ABC/scripts/hotelme-tracingOut/trace.txt";
 
-//			String carveBy = "package=org.hotelme";
-//			 String carveBy = "class=org.hotelme.HotelView";
+			// String carveBy = "package=org.hotelme";
+			String carveBy = "class=org.hotelme.HotelView";
 			// String carveBy = "method=<org.hotelme.Room: java.lang.String
 			// getRoomType()>";
-			// String carveBy = "method=<org.hotelme.HotelController: void
-			// <init>(org.hotelme.HotelModel,org.hotelme.HotelView)>";
-			// String carveBy = "method=<org.hotelme.HotelModel: int
-			// checkRoomsAvailable(java.sql.Date,java.sql.Date,java.lang.String)>";
-			// <org.hotelme.utils.ScriptRunner: void
-			// <init>(java.sql.Connection,boolean,boolean)>";
-			// String carveBy = "method=<org.hotelme.Room: int
-			// getMaxOccupancy()>"; //_4229";
-			// <org.hotelme.User: java.lang.String
-			// getFname()>_137";
-			 String carveBy = "invocation=<org.hotelme.HotelView: void exitMessage()>_1285";
-//			<org.hotelme.HotelModel: boolean
-			// userLogin(java.lang.String,java.lang.String)>_3905";
-			// <org.hotelme.HotelView: void
-			// mainMenu()>_2088";
-			// String carveBy = "method=<org.hotelme.HotelView: void
-			// mainMenu()>";
-			// String carveBy = "package=org.hotelme";
+			// String carveBy = "invocation=<org.hotelme.HotelView: void
+			// exitMessage()>_1285";
 
 			String[] args = new String[] { //
 					"--carve-by", carveBy,
