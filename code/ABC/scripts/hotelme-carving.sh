@@ -23,8 +23,8 @@ CARVE_BY="package=org.hotelme"
 EXTERNAL_INTERFACES="package=java.nio.file class=java.util.Scanner package=java.sql class=java.io.File"
 
 # Additional options for the carve command - mostly random choice for CG
-export JAVA_OPTS="-Xmx4g -Xms512m -XX:+UseParallelGC -XX:NewRatio=2 -verbose:gc
--Dorg.slf4j.simpleLogger.defaultLogLevel=INFO"
+#  -verbose:gc
+export JAVA_OPTS="-Xmx4g -Xms512m -XX:+UseParallelGC -XX:NewRatio=2 -Dorg.slf4j.simpleLogger.defaultLogLevel=INFO"
 
 set -x
 

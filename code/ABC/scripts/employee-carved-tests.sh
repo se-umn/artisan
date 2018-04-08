@@ -45,8 +45,9 @@ JACOCO_CLI="../libs/jacococli.jar"
 
 # Recompile all the tests to avoid problem with verification of bytecode
 javac \
--cp ${CARVED_TESTS_CP}:${PROJECT_CP}:${JUNIT_CP}:${SUPPORTING_JARS} \
-$(find ${CARVED_TESTS_CP} -iname "Test*.java") 2>&1 | tee ${CARVED_TEST_LOG}
+    -cp ${CARVED_TESTS_CP}:${PROJECT_CP}:${JUNIT_CP}:${SUPPORTING_JARS} \
+        $(find ${CARVED_TESTS_CP} -iname "Test*.java") 2>&1 | \
+            tee ${CARVED_TEST_LOG}
 
 echo "Processing Regular Carved Tests"
 
@@ -80,7 +81,7 @@ java \
 
 ### Generate the REPORT. HTML for us, XML for later processing
 java -jar ${JACOCO_CLI} report ${MIN_JACOCO_EXEC} \
---classfiles ${PROJECT_JAR} \
---name "${MIN_REPORT_NAME}" \
---html ${MIN_JACOCO_HTML_REPORT} \
---xml ${MIN_JACOCO_XML_REPORT}
+    --classfiles ${PROJECT_JAR} \
+    --name "${MIN_REPORT_NAME}" \
+    --html ${MIN_JACOCO_HTML_REPORT} \
+    --xml ${MIN_JACOCO_XML_REPORT}
