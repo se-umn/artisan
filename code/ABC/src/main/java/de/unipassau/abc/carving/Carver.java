@@ -362,7 +362,7 @@ public class Carver {
 		logger.info("Carver.main() End Test generation");
 
 		long minimizationTime = System.currentTimeMillis();
-		if (skipMinimize) {
+		if (!skipMinimize) {
 			// Minimized Carved Tests
 			logger.info("Carver.main() Start Minimize via Delta Debugging");
 			for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
@@ -395,7 +395,9 @@ public class Carver {
 		System.out.println("parsingTime " + parsingTime);
 		System.out.println("carvingTime " + carvingTime);
 		System.out.println("testGenerationTime " + testGenerationTime);
-		if( ! skipMinimize ) { System.out.println("minimizationTime " + minimizationTime);}
+		if (!skipMinimize) {
+			System.out.println("minimizationTime " + minimizationTime);
+		}
 		System.out.println("====================================");
 		System.out.println("Total " + (endTime - startTime) / 1000000000.0 + " s");
 
