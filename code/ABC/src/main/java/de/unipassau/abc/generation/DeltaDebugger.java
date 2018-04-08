@@ -258,19 +258,26 @@ public class DeltaDebugger {
 
 		// Wait for the execution to end.
 		if (!process.waitFor(4000, TimeUnit.MICROSECONDS)) {
+			logger.info("Timeout for test execution !");
 			// timeout - kill the process.
-			process.destroy(); // consider using destroyForcibly instead
+			process.destroyForcibly(); // consider using destroyForcibly instead
+			// Force Wait 1 sec to clean up
+			Thread.sleep(1000);
 		}
 
-		int result = process.exitValue(); // ;process.waitFor();
+		try {
+			int result = process.exitValue(); // ;process.waitFor();
 
-		// Avoid resource leakeage. This should be IDEMPOTENT
-		process.destroy();
-
-		if (result != 0) {
-			logger.debug(" Test FAILED");
+			if (result != 0) {
+				logger.debug(" Test FAILED");
+			}
+			return (result == 0);
+		} catch (Throwable e) {
+			// Avoid resource leakeage. This should be IDEMPOTENT
+			process.destroyForcibly();
+			// TODO: handle exception
 		}
-		return (result == 0);
+		return false;
 
 	}
 
