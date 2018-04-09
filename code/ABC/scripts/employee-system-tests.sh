@@ -40,15 +40,15 @@ TEST_CP="../../../test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHOT
 PROJECT_SRC="../../../test-subjects/Examples/Employee/src"
 
 # We require JUnit and Hamcrest for the tests, plus system-rules for mocking input to System.in
-JUNIT_CP=$(find /home/alessio/.m2/repository -iname "junit-4.12.jar")":"\
-$(find /home/alessio/.m2/repository -iname "hamcrest-core-1.3.jar")":"\
-$(find /home/alessio/.m2/repository -iname "system-rules-1.17.0.jar")
+JUNIT_CP=$(find ${HOME}/.m2/repository -iname "junit-4.12.jar")":"\
+$(find ${HOME}/.m2/repository -iname "hamcrest-core-1.3.jar")":"\
+$(find ${HOME}/.m2/repository -iname "system-rules-1.17.0.jar")
 
 # ABC Tracing requires Xstream, XPull, and Xpp3 to dump object instances to XML files
 SUPPORTING_JARS="../libs/trace.jar:"\
-$(find /home/alessio/.m2/repository -iname "xmlpull-1.1.3.1.jar")":"\
-$(find /home/alessio/.m2/repository -iname "xstream-1.4.10.jar")":"\
-$(find /home/alessio/.m2/repository -iname "xpp3_min-1.1.4c.jar")
+$(find ${HOME}/.m2/repository -iname "xmlpull-1.1.3.1.jar")":"\
+$(find ${HOME}/.m2/repository -iname "xstream-1.4.10.jar")":"\
+$(find ${HOME}/.m2/repository -iname "xpp3_min-1.1.4c.jar")
 
 # Here's the list of system tests to execute
 SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestAdminLoginWithEmptyDb"

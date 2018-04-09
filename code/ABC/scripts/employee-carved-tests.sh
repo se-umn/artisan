@@ -33,10 +33,16 @@ TEST_JAR="../../../test-subjects/Examples/Employee/target/Employee-0.0.1-SNAPSHO
 
 PROJECT_CP="${PROJECT_JAR}:${TEST_JAR}"
 
-JUNIT_CP="/Users/gambi/.m2/repository/junit/junit/4.12/junit-4.12.jar:/Users/gambi/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar:/Users/gambi/.m2/repository/com/github/stefanbirkner/system-rules/1.17.0/system-rules-1.17.0.jar"
+# We require JUnit and Hamcrest for the tests, plus system-rules for mocking input to System.in
+JUNIT_CP=$(find ${HOME}/.m2/repository -iname "junit-4.12.jar")":"\
+$(find ${HOME}/.m2/repository -iname "hamcrest-core-1.3.jar")":"\
+$(find ${HOME}/.m2/repository -iname "system-rules-1.17.0.jar")
 
-# Trace requires Xstream and XPull to load from file
-SUPPORTING_JARS="../libs/trace.jar:../src/test/resources/xmlpull-1.1.3.1.jar:../src/test/resources/xpp3_min-1.1.4c.jar:../src/test/resources/xstream-1.4.10.jar"
+# ABC Tracing requires Xstream, XPull, and Xpp3 to dump object instances to XML files
+SUPPORTING_JARS="../libs/trace.jar:"\
+$(find ${HOME}/.m2/repository -iname "xmlpull-1.1.3.1.jar")":"\
+$(find ${HOME}/.m2/repository -iname "xstream-1.4.10.jar")":"\
+$(find ${HOME}/.m2/repository -iname "xpp3_min-1.1.4c.jar")
 
 JACOCO_AGENT="../libs/jacocoagent.jar"
 JACOCO_CLI="../libs/jacococli.jar"
