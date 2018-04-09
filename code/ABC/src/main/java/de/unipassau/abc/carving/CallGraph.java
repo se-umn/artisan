@@ -133,33 +133,21 @@ public class CallGraph {
 	// This cannot be made as list because call graph is a tree and a node might
 	// have multiple childreen
 	/**
-	 * For some reason, the graph library says that a give edge is UNDIRECTED, while it is DIRECTED (we verify that at construction time).
-	 * I suspect some sort of buffer overflow or something... so NOW we need to double check all the operations ?!
+	 * For some reason, the graph library says that a give edge is UNDIRECTED,
+	 * while it is DIRECTED (we verify that at construction time). I suspect
+	 * some sort of buffer overflow or something... so NOW we need to double
+	 * check all the operations ?!
+	 * 
 	 * @param methodInvocation
 	 * @return
 	 */
 	public Set<MethodInvocation> getMethodInvocationsSubsumedBy(MethodInvocation methodInvocation) {
-//		System.out.println("CallGraph.getMethodInvocationsSubsumedBy() " + methodInvocation + " successors "
-//				+ getSuccessors(methodInvocation));
-//
-//		// The graph might be broken since it returns sometimes calls in the
-//		// opposite direction of the edge ...
-//		if (!getSuccessors(methodInvocation).isEmpty()
-//				&& methodInvocation.compareTo(Collections.min(getSuccessors(methodInvocation))) >= 0) {
-//			System.out.println("CallGraph.getMethodInvocationsSubsumedBy() Method " + methodInvocation);
-//			System.out.println(
-//					"CallGraph.getMethodInvocationsSubsumedBy() Predecessors " + getPredecessors(methodInvocation));
-//			System.out.println(
-//					"CallGraph.getMethodInvocationsSubsumedBy() Successors " + getSuccessors(methodInvocation));
-//			System.out.println("CallGraph.getMethodInvocationsSubsumedBy() WRONG SUCCESSOR "
-//					+ Collections.min(getSuccessors(methodInvocation)));
-//		}
-
 		Set<MethodInvocation> subsumedCalls = new HashSet<>();
 		for (MethodInvocation mi : getSuccessors(methodInvocation)) {
-			
-			if( mi.compareTo( methodInvocation) <= 0 ){
-				logger.error("Since successors " + mi + " is in the past or is the method invocation " + methodInvocation + " itself. we skip this !");
+
+			if (mi.compareTo(methodInvocation) <= 0) {
+				logger.error("Since successors " + mi + " is in the past or is the method invocation "
+						+ methodInvocation + " itself. we skip this !");
 				continue;
 			}
 			subsumedCalls.addAll(getMethodInvocationsSubsumedBy(mi));
@@ -260,7 +248,8 @@ public class CallGraph {
 			MethodInvocation dest = graph.getDest(edge);
 			if (subGraph.graph.containsVertex(source) && subGraph.graph.containsVertex(dest)) {
 				// Adding the edge to the sub graph
-//				System.out.println("CallGraph.getSubGraph() Keeping edge " + source + "--[" + edge + "]-->" + dest);
+				// System.out.println("CallGraph.getSubGraph() Keeping edge " +
+				// source + "--[" + edge + "]-->" + dest);
 				subGraph.graph.addEdge(edge, source, dest, EdgeType.DIRECTED);
 				if (source.compareTo(dest) >= 0) {
 					throw new RuntimeException("Cannot add a calling graph in the PAST !");
@@ -269,7 +258,7 @@ public class CallGraph {
 		}
 
 		subGraph.verify();
-		
+
 		logger.debug("CallGraph.getSubGraph() Original GRAPH " + vertices.size() + " -- " + edges.size());
 		logger.debug("CallGraph.getSubGraph() SUB GRAPH " + subGraph.graph.getVertexCount() + " -- "
 				+ subGraph.graph.getEdgeCount());
@@ -294,24 +283,23 @@ public class CallGraph {
 		// Add the parent once again
 		parent.setTestSetupCall(true);
 		//
-		System.out.println("Readded " + parent);
+		// System.out.println("Readded " + parent);
 		graph.addVertex(parent);
 		if (originalCallEdge != null) {
 			graph.addEdge(originalCallEdge, grandParent, parent);
 		}
 
-		System.out.println(
+		logger.debug(
 				"CallGraph.markParentAndPruneAfter() PRUNED " + graph.getVertexCount() + " -- " + graph.getEdgeCount());
 
 	}
 
 	private void remove(MethodInvocation node) {
-		
+
 		for (MethodInvocation child : getSuccessors(node)) {
 			remove(child);
 		}
-		boolean removed = graph.removeVertex(node);
-		System.out.println("Removed " + node  + " " + removed);
+		graph.removeVertex(node);
 	}
 
 	//
@@ -320,15 +308,15 @@ public class CallGraph {
 	}
 
 	public boolean contains(MethodInvocation methodUnderInspection) {
-		return graph.getVertices().contains( methodUnderInspection);
+		return graph.getVertices().contains(methodUnderInspection);
 	}
 
 	public int distanceToRoot(MethodInvocation key) {
 		int distance = 0;
-		MethodInvocation parent = getCallerOf( key );
-		while( parent != null ){
+		MethodInvocation parent = getCallerOf(key);
+		while (parent != null) {
 			distance++;
-			parent = getCallerOf( parent );
+			parent = getCallerOf(parent);
 		}
 		return distance;
 	}

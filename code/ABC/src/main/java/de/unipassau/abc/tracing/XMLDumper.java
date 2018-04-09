@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.UUID;
 
 import com.thoughtworks.xstream.XStream;
@@ -76,18 +75,6 @@ public class XMLDumper {
 		xstream.allowTypesByWildcard(new String[] { "java.lang.**" });
 		//
 		return xstream.fromXML(new File(xmlFile));
-	}
-
-	// This call compared an the owner and return type after the method
-	// invocations
-	// With the one stored during the execution
-	public static void verify(Object object, String xmlExpected) throws IOException {
-		// clear out existing permissions and set own ones
-		XStream xstream = new XStream();
-		String expected = new String(Files.readAllBytes(Paths.get(xmlExpected)));
-		String actual = xstream.toXML(object);
-		org.junit.Assert.assertEquals("Object " + object + " does not match its serialized form inside " + xmlExpected,
-				expected, actual);
 	}
 
 }

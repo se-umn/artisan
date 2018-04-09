@@ -54,13 +54,12 @@ public class TestGeneration {
 
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
-	
+
 	@Before
 	public void setupSoot() {
 		G.reset();
 	}
 
-	
 	@Test
 	public void testEmployee() throws IOException, ParserException, LexerException {
 		File projectJar = new File("./src/test/resources/Employee.jar");
@@ -172,47 +171,128 @@ public class TestGeneration {
 		}
 	}
 
+	private File setupCompilationUnit(String testClassName, List<File> projectJars) throws IOException {
+
+		String javaCode = new String(
+				Files.readAllBytes(Paths.get("./src/test/resources/javas/org.hotelme." + testClassName + ".javaz")));
+
+		File tempDir = Files.createTempDirectory("Test").toFile();
+		//
+//		tempDir.deleteOnExit();
+		//
+		File dirFile = new File(tempDir, "org/hotelme");
+		dirFile.mkdirs();
+
+		File classFile = new File(dirFile, testClassName + ".java");
+		classFile.createNewFile();
+
+		CompilationUnit cu = JavaParser.parse(javaCode);
+		//
+		CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
+		combinedTypeSolver.add(new ReflectionTypeSolver());
+		for (File jar : projectJars) {
+			combinedTypeSolver.add(new JarTypeSolver(jar.getAbsolutePath()));
+		}
+
+		TestCaseFactory.resolveMissingGenerics(cu, combinedTypeSolver);
+
+		System.out.println("TestGeneration.testHotelGenerics()\n" + cu);
+
+		Files.write(classFile.toPath(), cu.toString().getBytes());
+
+		return tempDir;
+	}
+
+	private List<File> getHotelMeProjectsJars() {
+		List<File> projectJars = new ArrayList<>();
+		projectJars.add(new File("./src/test/resources/HotelReservationSystem.jar"));
+		projectJars.add(new File("./src/test/resources/HotelReservationSystem-tests.jar"));
+		projectJars.add(new File("./src/test/resources/system-rules-1.17.0.jar"));
+		//
+		projectJars.add(new File("/Users/gambi/.m2/repository/joda-time/joda-time/2.9.4/joda-time-2.9.4.jar"));
+		projectJars.add(new File(
+				"/Users/gambi/.m2/repository/mysql/mysql-connector-java/5.1.39/mysql-connector-java-5.1.39.jar"));
+		//
+		return projectJars;
+	}
+
 	@Test
 	public void testHotelGenericsUsage() throws IOException, ParserException, LexerException {
 		try {
-			List<File> projectJars = new ArrayList<>();
-			projectJars.add(new File("./src/test/resources/HotelReservationSystem.jar"));
-			projectJars.add(new File("./src/test/resources/HotelReservationSystem-tests.jar"));
-			projectJars.add(new File("./src/test/resources/system-rules-1.17.0.jar"));
-			//
-			projectJars.add(new File("/Users/gambi/.m2/repository/joda-time/joda-time/2.9.4/joda-time-2.9.4.jar"));
-			projectJars.add(new File("/Users/gambi/.m2/repository/mysql/mysql-connector-java/5.1.39/mysql-connector-java-5.1.39.jar"));
-			
-			String javaCode = new String(
-					Files.readAllBytes(Paths.get("./src/test/resources/javas/org.hotelme.TestRoom_24.javaz")));
+			String testClassName = "TestRoom_16";
 
-			File tempDir = Files.createTempDirectory("Test").toFile();
-			tempDir.deleteOnExit();
-			//
-			File dirFile = new File( tempDir, "org/hotelme");
-			dirFile.mkdirs();
-			
-			File classFile = new File( dirFile, "TestRoom_24.java");
-			classFile.createNewFile();
-			
-			CompilationUnit cu = JavaParser.parse(javaCode);
-			//
-			CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
-			combinedTypeSolver.add(new ReflectionTypeSolver());
-			for (File jar : projectJars) {
-				combinedTypeSolver.add(new JarTypeSolver(jar.getAbsolutePath()));
-			}
-			
-			TestCaseFactory.resolveMissingGenerics(cu, combinedTypeSolver);
-			
-			System.out.println("TestGeneration.testHotelGenerics()\n" + cu);
-			
-			Files.write( classFile.toPath(), cu.toString().getBytes());
-			
+			List<File> projectJars = getHotelMeProjectsJars();
+
+			File tempDir = setupCompilationUnit(testClassName, projectJars);
+
 			// Assert by compiling the code !
-			boolean compiled = DeltaDebugger.compileAndRunJUnitTest("org.hotelme.TestRoom_24", tempDir, projectJars);
+			boolean compiled = DeltaDebugger.compileAndRunJUnitTest("org.hotelme." + testClassName, tempDir,
+					projectJars);
 
-			assertTrue( compiled );
+			assertTrue(compiled);
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail();
+		}
+
+	}
+
+	@Test
+	public void testHotelGenericsUsage_1() throws IOException, ParserException, LexerException {
+		try {
+			String testClassName = "TestRoom_17";
+
+			List<File> projectJars = getHotelMeProjectsJars();
+
+			File tempDir = setupCompilationUnit(testClassName, projectJars);
+
+			// Assert by compiling the code !
+			boolean compiled = DeltaDebugger.compileAndRunJUnitTest("org.hotelme." + testClassName, tempDir,
+					projectJars);
+
+			assertTrue(compiled);
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail();
+		}
+
+	}
+
+	@Test
+	public void testHotelGenericsUsage2() throws IOException, ParserException, LexerException {
+		try {
+			String testClassName = "TestRoom_18";
+
+			List<File> projectJars = getHotelMeProjectsJars();
+
+			File tempDir = setupCompilationUnit(testClassName, projectJars);
+
+			// Assert by compiling the code !
+			boolean compiled = DeltaDebugger.compileAndRunJUnitTest("org.hotelme." + testClassName, tempDir,
+					projectJars);
+
+			assertTrue(compiled);
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail();
+		}
+
+	}
+
+	@Test
+	public void testHotelGenericsUsage3() throws IOException, ParserException, LexerException {
+		try {
+			String testClassName = "TestRoom_19";
+
+			List<File> projectJars = getHotelMeProjectsJars();
+
+			File tempDir = setupCompilationUnit(testClassName, projectJars);
+
+			// Assert by compiling the code !
+			boolean compiled = DeltaDebugger.compileAndRunJUnitTest("org.hotelme." + testClassName, tempDir,
+					projectJars);
+
+			assertTrue(compiled);
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail();

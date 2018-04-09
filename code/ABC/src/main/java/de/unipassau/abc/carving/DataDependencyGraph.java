@@ -164,7 +164,7 @@ public class DataDependencyGraph {
 		} else if (((ObjectInstance) node).getType()
 				.startsWith("org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock")) {
 			// TODO This feels wrong... Check if this is System.in mocking
-			logger.info("DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with "
+			logger.debug("DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with "
 					+ ObjectInstance.systemIn);
 			return ObjectInstance.systemIn;
 		} else if (((ObjectInstance) node).getType().endsWith("[]")) {
@@ -187,7 +187,7 @@ public class DataDependencyGraph {
 			ObjectInstance alias = getVertexById(((ObjectInstance) node).getObjectId());
 			if (alias != null) {
 				// TODO Check interface !
-				logger.info("DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with " + alias);
+				logger.debug("DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with " + alias);
 				return alias;
 			}
 		}

@@ -333,29 +333,66 @@ public class TestCaseFactory {
 		// objects...
 		// Force Explicit cast if the collections/generic returns an object
 
-		cu.accept(new VoidVisitorAdapter<JavaParserFacade>() {
-			public void visit(final AssignExpr n, JavaParserFacade javaParserFacade) {
+		// Cache repetitive assign expression to avoid calling type solver
+		// which is somehow broken..
+		final Map<String, AssignExpr> cache = new HashMap<>();
+		
+		cu.accept(new ModifierVisitor<JavaParserFacade>() {
+
+			public AssignExpr visit(final AssignExpr n, JavaParserFacade javaParserFacade) {
 				super.visit(n, javaParserFacade);
+
+				if (cache.containsKey(n.toString())) {
+					return cache.get(n.toString());
+				} 
+				
+
+				// Left
+				ResolvedType targetType = null;
+				// Right
+				ResolvedType valueType = null;
+
 				try {
-					ResolvedType targetType = javaParserFacade.getType(n.getTarget());
-					ResolvedType valueType = javaParserFacade.getType(n.getValue());
-
-					if (!targetType.isAssignableBy(valueType)) {
-						System.out.println(n);
-						System.out.println("Cast needed " + targetType.describe() + " --> " + valueType.describe());
-
-						CastExpr c = new CastExpr();
-						c.setType(targetType.describe());
-						c.setExpression(n.getValue());
-						n.setValue(c);
-					} else {
-						System.out.println("No Cast needed " + targetType.describe() + " --> " + valueType.describe()
-								+ " in " + n.toString());
-
-					}
+					targetType = javaParserFacade.getType(n.getTarget());
 				} catch (Exception e) {
-					System.out.println("Swallow " + e + " in " + n.toString());
+					logger.debug("Cannot resolve targetType in " + n.toString() + " reason. " + e);
+//					e.printStackTrace();
 				}
+				try {
+					valueType = javaParserFacade.getType(n.getValue());
+				} catch (Exception e) {
+					logger.debug("Cannot resolve valueType in " + n.toString() + " reason. " + e);
+//					e.printStackTrace();
+				}
+
+				if (targetType == null || valueType == null) {
+					logger.trace("Type info is missing: " + targetType);
+					return n;
+				}
+
+				if (!targetType.isAssignableBy(valueType)) {
+//					System.out.println(n);
+//					System.out.println("Cast needed " + targetType.describe() + " --> " + valueType.describe());
+
+					String original = n.toString();
+					
+					CastExpr c = new CastExpr();
+					c.setType(targetType.describe());
+					c.setExpression(n.getValue());
+					n.setValue(c);
+					// Here's the data race: the adapter somehow updates ONLY parts of the original AST
+					// so we need to keep both signatures to avoid exceptions
+					cache.put(original , n);
+					// 
+					cache.put(n.toString() , n);
+				}
+				// else {
+				// System.out.println("No Cast needed " + targetType.describe()
+				// + " --> " + valueType.describe()
+				// + " in " + n.toString());
+				//
+				// }
+				return n;
 			}
 		}, JavaParserFacade.get(typeSolver));
 

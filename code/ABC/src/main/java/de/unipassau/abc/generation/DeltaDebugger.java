@@ -117,7 +117,7 @@ public class DeltaDebugger {
 				logger.debug("DeltaDebugger.minimize() Verification Passed, remove " + unit);
 				removed++;
 			} else {
-				logger.debug("DeltaDebugger.minimize() Verification Failed, Keep " + unit);
+				logger.info("DeltaDebugger.minimize() Verification Failed ! Keep stmt: " + unit);
 				units.insertAfter(unit, insertionPoint);
 			}
 		}
@@ -247,17 +247,16 @@ public class DeltaDebugger {
 
 		ProcessBuilder processBuilder = new ProcessBuilder(javaPath, "-cp", classpath, "org.junit.runner.JUnitCore",
 				systemTestClassName);
-		// System.out.println("DeltaDebugger.runJUnitTest() " +
-		// processBuilder.command());
+//		 System.out.println("DeltaDebugger.runJUnitTest() " + processBuilder.command());
 
 		// This causes problems wher run on command line
-		 processBuilder.inheritIO();
+//		processBuilder.inheritIO();
 
 		Process process = processBuilder.start();
 
 		// Wait for the execution to end.
 		if (!process.waitFor(4000, TimeUnit.MILLISECONDS)) {
-			logger.info("Timeout for test execution !");
+			logger.info("Timeout for test execution");
 			// timeout - kill the process.
 			process.destroyForcibly(); // consider using destroyForcibly instead
 			// Force Wait 1 sec to clean up
@@ -268,7 +267,7 @@ public class DeltaDebugger {
 			int result = process.exitValue(); // ;process.waitFor();
 
 			if (result != 0) {
-				logger.debug(" Test FAILED " + result );
+				logger.debug(" Test FAILED " + result);
 			}
 			return (result == 0);
 		} catch (Throwable e) {
@@ -296,7 +295,7 @@ public class DeltaDebugger {
 		methodUnderTest.apply(new AbstractStmtSwitch() {
 
 			final SootMethod xmlDumperVerify = Scene.v()
-					.getMethod("<de.unipassau.abc.tracing.XMLDumper: void verify(java.lang.Object,java.lang.String)>");
+					.getMethod("<de.unipassau.abc.tracing.XMLVerifier: void verify(java.lang.Object,java.lang.String)>");
 
 			// return value
 			public void caseAssignStmt(soot.jimple.AssignStmt stmt) {
