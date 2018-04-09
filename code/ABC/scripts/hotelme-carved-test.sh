@@ -29,15 +29,22 @@ MIN_CARVED_TESTS=$(find ${CARVED_TESTS_CP} -iname "Test*.java" -iname "*_minimiz
 
 PROJECT_JAR="../../../test-subjects/CommandLineUtilities/HotelMe/target/HotelReservationSystem-0.0.1-SNAPSHOT.jar"
 TEST_CP="../../../test-subjects/CommandLineUtilities/HotelMe/target/HotelReservationSystem-0.0.1-SNAPSHOT-tests.jar"
-DEPS="/Users/gambi/.m2/repository/joda-time/joda-time/2.9.4/joda-time-2.9.4.jar:/Users/gambi/.m2/repository/mysql/mysql-connector-java/5.1.39/mysql-connector-java-5.1.39.jar"
+
+DEPS=$(find ${HOME}/.m2/repository -iname "joda-time-2.9.4.jar")":"\
+$(find ${HOME}/.m2/repository -iname "mysql-connector-java-5.1.39.jar")
+
+# We require JUnit and Hamcrest for the tests, plus system-rules for mocking input to System.in
+JUNIT_CP=$(find /home/alessio/.m2/repository -iname "junit-4.12.jar")":"\
+$(find /home/alessio/.m2/repository -iname "hamcrest-core-1.3.jar")":"\
+$(find /home/alessio/.m2/repository -iname "system-rules-1.17.0.jar")
+
+# ABC Tracing requires Xstream, XPull, and Xpp3 to dump object instances to XML files
+SUPPORTING_JARS="../libs/trace.jar:"\
+$(find /home/alessio/.m2/repository -iname "xmlpull-1.1.3.1.jar")":"\
+$(find /home/alessio/.m2/repository -iname "xstream-1.4.10.jar")":"\
+$(find /home/alessio/.m2/repository -iname "xpp3_min-1.1.4c.jar")
 
 PROJECT_CP="${PROJECT_JAR}:${TEST_CP}:${DEPS}"
-
-JUNIT_CP="/Users/gambi/.m2/repository/junit/junit/4.12/junit-4.12.jar:/Users/gambi/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar:/Users/gambi/.m2/repository/com/github/stefanbirkner/system-rules/1.17.0/system-rules-1.17.0.jar"
-
-# Trace requires Xstream and XPull to load from file
-SUPPORTING_JARS="../libs/trace.jar:../src/test/resources/xmlpull-1.1.3.1.jar:../src/test/resources/xpp3_min-1.1.4c.jar:../src/test/resources/xstream-1.4.10.jar"
-
 
 JACOCO_AGENT="../libs/jacocoagent.jar"
 JACOCO_CLI="../libs/jacococli.jar"
