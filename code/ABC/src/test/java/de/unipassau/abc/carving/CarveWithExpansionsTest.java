@@ -51,7 +51,7 @@ public class CarveWithExpansionsTest {
 
 	// @Before
 	// public void setupSoot(){
-	// Carver.setupSoot( Collections.EMPTY_LIST);
+	// Carver.setupSoot( new ArrayList<File>());
 	// }
 	// @After
 	// public void resetSoot(){
@@ -109,7 +109,7 @@ public class CarveWithExpansionsTest {
 
 			// Generate code
 			File outputDir = temporaryFolder.newFolder();
-			TestCaseFactory.generateTestFiles( Collections.EMPTY_LIST, outputDir, testCases);
+			TestCaseFactory.generateTestFiles( new ArrayList<File>(), outputDir, testCases, true);
 
 			// TODO Assertion: 1 .class, 1 .java
 			int total = ABCTestUtils.countFiles(outputDir, ".class") + ABCTestUtils.countFiles(outputDir, ".java");
@@ -170,7 +170,7 @@ public class CarveWithExpansionsTest {
 
 		// Generate code
 		File outputDir = temporaryFolder.newFolder();
-		TestCaseFactory.generateTestFiles(Collections.EMPTY_LIST, outputDir, testCases);
+		TestCaseFactory.generateTestFiles(new ArrayList<File>(), outputDir, testCases, true);
 
 		int total = ABCTestUtils.countFiles(outputDir, ".class") + ABCTestUtils.countFiles(outputDir, ".java");
 		assertEquals(2, total);
@@ -227,7 +227,7 @@ public class CarveWithExpansionsTest {
 
 		// Generate code
 		File outputDir = temporaryFolder.newFolder();
-		TestCaseFactory.generateTestFiles(Collections.EMPTY_LIST, outputDir, testCases);
+		TestCaseFactory.generateTestFiles(new ArrayList<File>(), outputDir, testCases, true);
 
 		int total = ABCTestUtils.countFiles(outputDir, ".class") + ABCTestUtils.countFiles(outputDir, ".java");
 		assertEquals(2, total);
@@ -297,7 +297,7 @@ public class CarveWithExpansionsTest {
 
 		// Generate code
 		File outputDir = temporaryFolder.newFolder();
-		TestCaseFactory.generateTestFiles(Collections.EMPTY_LIST, outputDir, testCases);
+		TestCaseFactory.generateTestFiles(new ArrayList<File>(), outputDir, testCases, true);
 
 		int total = ABCTestUtils.countFiles(outputDir, ".class") + ABCTestUtils.countFiles(outputDir, ".java");
 		assertEquals(2, total);
@@ -372,7 +372,7 @@ public class CarveWithExpansionsTest {
 
 		// Generate code
 		File outputDir = temporaryFolder.newFolder();
-		TestCaseFactory.generateTestFiles(Collections.EMPTY_LIST, outputDir, testCases);
+		TestCaseFactory.generateTestFiles(new ArrayList<File>(), outputDir, testCases, true);
 
 		int total = ABCTestUtils.countFiles(outputDir, ".class") + ABCTestUtils.countFiles(outputDir, ".java");
 		assertEquals(2, total);
@@ -432,7 +432,7 @@ public class CarveWithExpansionsTest {
 
 		// Generate code
 		File outputDir = temporaryFolder.newFolder();
-		TestCaseFactory.generateTestFiles(Collections.EMPTY_LIST, outputDir, testCases);
+		TestCaseFactory.generateTestFiles(new ArrayList<File>(), outputDir, testCases, true);
 
 		int total = ABCTestUtils.countFiles(outputDir, ".class") + ABCTestUtils.countFiles(outputDir, ".java");
 		assertEquals(2, total);
@@ -492,7 +492,7 @@ public class CarveWithExpansionsTest {
 
 		// Generate code
 		File outputDir = temporaryFolder.newFolder();
-		TestCaseFactory.generateTestFiles(Collections.EMPTY_LIST, outputDir, testCases);
+		TestCaseFactory.generateTestFiles(new ArrayList<File>(), outputDir, testCases, true);
 
 		int total = ABCTestUtils.countFiles(outputDir, ".class") + ABCTestUtils.countFiles(outputDir, ".java");
 		assertEquals(2, total);
@@ -547,7 +547,7 @@ public class CarveWithExpansionsTest {
 
 		// Generate code
 		File outputDir = temporaryFolder.newFolder();
-		TestCaseFactory.generateTestFiles(Collections.EMPTY_LIST, outputDir, testCases);
+		TestCaseFactory.generateTestFiles(new ArrayList<File>(), outputDir, testCases, true);
 
 		int total = ABCTestUtils.countFiles(outputDir, ".class") + ABCTestUtils.countFiles(outputDir, ".java");
 		assertEquals(2, total);

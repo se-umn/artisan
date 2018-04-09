@@ -27,4 +27,11 @@ public class XMLVerifier {
 				expected, actual);
 	}
 
+	// Primitive Values Are Different !
+	public static void verifyPrimitive(Object boxedPrimitive, String valueToString) throws IOException {
+		// clear out existing permissions and set own ones
+		org.junit.Assert.assertEquals("Object " + boxedPrimitive + " does not match its expected value" + valueToString,
+				boxedPrimitive.toString(), valueToString);
+	}
+
 }

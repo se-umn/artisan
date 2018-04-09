@@ -10,8 +10,10 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -19,8 +21,18 @@ import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
 
 import org.apache.commons.lang3.SystemUtils;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.TypeDeclaration;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.visitor.ModifierVisitor;
+import com.github.javaparser.ast.visitor.Visitable;
 
 import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.DataDependencyGraph;
@@ -28,6 +40,7 @@ import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.instrumentation.UtilInstrumenter;
+import de.unipassau.abc.utils.JimpleUtils;
 import soot.Body;
 import soot.Local;
 import soot.PatchingChain;
@@ -46,20 +59,170 @@ import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
 import soot.jimple.StaticInvokeExpr;
 import soot.jimple.StringConstant;
-import soot.jimple.parser.node.Start;
 
 public class DeltaDebugger {
 
 	private final static Logger logger = LoggerFactory.getLogger(DeltaDebugger.class);
 
-	public static void minimize(final Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase,
+	// minimizedTestClass.setName(minimizedTestClass.getName() + "_minimized");
+	public static void minimize(File outputDir,
+			final List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases,
+			List<File> projectJars) throws IOException, URISyntaxException, InterruptedException {
+
+		// Method under test is the last before XMLValidation
+
+		// Include in the tests the validation
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
+
+			MethodInvocation mut = carvedTestCase.getFirst().getLastMethodInvocation();
+			SootMethod testMethod = carvedTestCase.getThird();
+
+			// If the return value is a primitive it cannot be found in the xml
+			// file !
+			List<Unit> validation = generateValidationUnit(testMethod, mut.getXmlDumpForOwner(),
+					mut.getXmlDumpForReturn(), carvedTestCase.getSecond().getReturnObjectLocalFor(mut));
+
+			System.out.println("DeltaDebugger.minimize() Validation code: " + validation);
+			final Body body = testMethod.getActiveBody();
+			// The very last unit is the "return" we need the one before it...
+			final PatchingChain<Unit> units = body.getUnits();
+			// Insert the validation code - if any ?!
+			if (validation.isEmpty()) {
+				logger.warn("DeltaDebugger.minimize() VALIDAITON IS EMPTY FOR " + testMethod);
+			} else {
+				units.insertBefore(validation, units.getLast());
+			}
+		}
+
+		Set<SootClass> _testClasses = new HashSet<>();
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
+			SootClass sClass = carvedTestCase.getThird().getDeclaringClass();
+			if (!_testClasses.contains(sClass)) {
+				_testClasses.add(sClass);
+			}
+		}
+		//
+		boolean resolveTypes = true;
+		File tempFolder = Files.createTempDirectory("DeltaDebug").toFile();
+		Set<CompilationUnit> testClasses = TestCaseFactory.generateTestFiles(projectJars, tempFolder, _testClasses,
+				resolveTypes);
+
+		// Run Delta Debug for each test in each class
+		for (CompilationUnit testClass : testClasses) {
+			// Modify the test unit by tentatively removing a statement
+
+			TypeDeclaration<?> typeD = testClass.getType(0);
+			for (Object _method : typeD.getMethods()) {
+				if (!(_method instanceof MethodDeclaration)) {
+					logger.debug("DeltaDebugger.minimize() Skip " + _method + " not a method");
+				}
+				MethodDeclaration testMethod = (MethodDeclaration) _method;
+				if (!testMethod.isAnnotationPresent(Test.class)) {
+					logger.debug("DeltaDebugger.minimize() Skip " + _method + "  not a @Test method");
+				}
+
+				BlockStmt body = testMethod.getBody().get();
+				List<Statement> statements = new ArrayList<>(body.getStatements());
+				Collections.reverse(statements);
+
+				int removed = 0;
+				int total = statements.size();
+
+				int mutIndex = Integer.MAX_VALUE;
+				for (int index = total - 1; index > 0; index--) {
+					Statement s = body.getStatement(index);
+					if (s.toString().contains("XMLVerifier")) {
+						mutIndex = index - 1;
+						continue;
+					}
+				}
+
+				for (int index = mutIndex - 1; index > 0; index--) {
+					// TODO Invocations to new and invocations to
+					// System.Exit cannot be removed...
+
+					BlockStmt originalBody = testMethod.getBody().get().clone();
+					BlockStmt modifiedBody = testMethod.getBody().get().clone();
+					//
+					final Statement s = modifiedBody.getStatement(index);
+
+					// System.out.println("DeltaDebugger.minimize() " +
+					// modifiedBody
+					// .getStatements().size());
+					modifiedBody.remove(s);
+					// System.out.println("DeltaDebugger.minimize() " +
+					// modifiedBody
+					// .getStatements().size());
+					//
+					testMethod.setBody(modifiedBody);
+					//
+					logger.info("DeltaDebugger.minimize() Try to remove stmt " + index + " -> " + s);
+					// //
+					if (compileAndRunJUnitTest(testClass, testMethod, projectJars)) {
+						logger.info("DeltaDebugger.minimize() Verification Passed, remove " + s);
+						removed++;
+					} else {
+						logger.info("DeltaDebugger.minimize() Verification Failed, keep " + s);
+						// Use the previous body
+						testMethod.setBody(originalBody);
+					}
+				}
+
+				// Remove the calls to verify !
+				body = testMethod.getBody().get();
+				body.accept(new ModifierVisitor<Void>() {
+					public Visitable visit(MethodCallExpr n, Void arg) {
+						
+						if( n.getScope().isPresent()  && n.getScope().get().toString().equals("de.unipassau.abc.tracing.XMLVerifier")) {
+//							System.out.println("Removing ABC verify call " + n);
+							return null;
+						}
+						return super.visit(n, arg);
+					}
+
+				}, null);
+
+				logger.info("Removed " + removed + " out of " + total + " instructions from test "
+						+ testMethod.getNameAsString() + " " + (((double) removed / (double) total) * 100));
+
+			}
+
+			// At this point save the minimized class to file
+			String testClassName = testClass.getType(0).getNameAsString();
+			testClass.getType(0).setName(testClassName.concat("_minimized"));
+			//
+			testClassName = testClass.getType(0).getNameAsString();
+			String packageDeclaration = testClass.getPackageDeclaration().get().getNameAsString();
+
+			// Create the structure as javac expects
+			File packageFile = new File(outputDir, packageDeclaration.replaceAll("\\.", File.separator));
+			packageFile.mkdirs();
+
+			// Store the testClassName into a File inside the tempOutputDir
+			File classFile = new File(packageFile, testClassName + "_minimized.java");
+
+			// Not nice to pass by String ...
+			Files.write(classFile.toPath(), testClass.toString().getBytes());
+
+		}
+
+	}
+
+	@Deprecated
+	public static void minimize(File testSourceFolder,
+			final Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase,
 			List<File> projectJars) {
-		// Generate the soot units to validate the given test
+
+		// Generate the code to validate the given test
 		MethodInvocation mut = carvedTestCase.getFirst().getLastMethodInvocation();
 		SootMethod testMethod = carvedTestCase.getThird();
 
+		// .getMethod("<de.unipassau.abc.tracing.XMLVerifier: void
+		// verify(java.lang.Object,java.lang.String)>");
+
 		logger.debug("DeltaDebugger.minimize() mut is " + mut);
-		List<Unit> validation = generateValidationUnit(testMethod, mut.getXmlDumpForOwner(), mut.getXmlDumpForReturn());
+		List<Unit> validation = generateValidationUnit(testMethod, mut.getXmlDumpForOwner(), mut.getXmlDumpForReturn(),
+				null);
 
 		final Body body = testMethod.getActiveBody();
 		// The very last unit is the "return" we need the one before it...
@@ -177,11 +340,14 @@ public class DeltaDebugger {
 	public static boolean verifyExecution(SootMethod testMethod, List<File> projectJars) {
 		long time = System.currentTimeMillis();
 		try {
+			boolean resolveTypes = false;
+			//
 			File tempOutputDir = Files.createTempDirectory("ABC-Delta-Debug").toFile();
 			tempOutputDir.deleteOnExit();
 			//
 			SootClass testClass = testMethod.getDeclaringClass();
-			TestCaseFactory.generateTestFiles(projectJars, tempOutputDir, Collections.singleton(testClass));
+			TestCaseFactory.generateTestFiles(projectJars, tempOutputDir, Collections.singleton(testClass),
+					resolveTypes);
 
 			// Execute tests in tempOutputDir
 			return compileAndRunJUnitTest(testClass.getName(), tempOutputDir, projectJars);
@@ -194,12 +360,128 @@ public class DeltaDebugger {
 			e.printStackTrace();
 			logger.debug("Failed verification of " + testMethod);
 			return false;
-		} finally{
+		} finally {
 			time = System.currentTimeMillis() - time;
 			logger.info("Verification done in " + time + " ms");
 		}
 	}
 
+	public static boolean compileAndRunJUnitTest(//
+			CompilationUnit testClass, MethodDeclaration testMethod, //
+			List<File> projectJars) throws IOException, URISyntaxException, InterruptedException {
+
+		long time = System.currentTimeMillis();
+		try {
+			// https://javabeat.net/the-java-6-0-compiler-api/
+			File tempOutputDir = Files.createTempDirectory("DeltaDebug").toFile();
+			tempOutputDir.deleteOnExit();
+
+			String testClassName = testClass.getType(0).getNameAsString();
+			String packageDeclaration = testClass.getPackageDeclaration().get().getNameAsString();
+
+			// Create the structure as javac expects
+			File packageFile = new File(tempOutputDir, packageDeclaration.replaceAll("\\.", File.separator));
+			packageFile.mkdirs();
+
+			// Store the testClassName into a File inside the tempOutputDir
+			File classFile = new File(packageFile, testClassName + ".java");
+
+			// Not nice to pass by String ...
+			Files.write(classFile.toPath(), testClass.toString().getBytes());
+
+			///
+			StringBuilder cpBuilder = new StringBuilder();
+			// Include the class we are delta debugging
+			cpBuilder.append(tempOutputDir.getAbsolutePath()).append(File.pathSeparator);
+			// Include the project deps
+			for (File jarFile : projectJars) {
+				cpBuilder.append(jarFile.getAbsolutePath()).append(File.pathSeparator);
+			}
+			// Include JUnit
+			cpBuilder.append(ABCUtils.buildJUnit4Classpath()).append(File.pathSeparator);
+			// Include System rules for
+			cpBuilder.append(ABCUtils.getSystemRulesJar()).append(File.pathSeparator);
+			// Include XMLDumper
+			cpBuilder.append(ABCUtils.getTraceJar()).append(File.pathSeparator);
+			// Include XMLDumper
+			for (File jarFile : ABCUtils.getXStreamJars()) {
+				cpBuilder.append(jarFile.getAbsolutePath()).append(File.pathSeparator);
+			}
+
+			String classpath = cpBuilder.toString();
+
+			final List<String> args = new ArrayList<>();
+			args.add("-classpath");
+			args.add(classpath);
+
+			java.nio.file.Files.walkFileTree(tempOutputDir.toPath(), new SimpleFileVisitor<Path>() {
+				@Override
+				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+					if (file.toString().endsWith(".java")) {
+						args.add(file.toFile().getAbsolutePath());
+					}
+					return super.visitFile(file, attrs);
+				}
+			});
+
+			JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+			int compilationResult = compiler.run(null, null, null, //
+					args.toArray(new String[] {}));
+
+			if (compilationResult != 0) {
+				logger.debug("Compilation failed");
+				return false;
+			}
+
+			String javaPath = SystemUtils.JAVA_HOME + File.separator + "bin" + File.separator + "java";
+
+			// TODO Here it would be nice to execute a single test, but this
+			// requires a custom runner that must be used instead of plain
+			// JUnitCore
+			// https://stackoverflow.com/questions/9288107/run-single-test-from-a-junit-class-using-command-line
+			ProcessBuilder processBuilder = new ProcessBuilder(javaPath, "-cp", classpath, "org.junit.runner.JUnitCore",
+					packageDeclaration + "." + testClassName);
+
+			// if (logger.isTraceEnabled()) {
+			logger.trace("DeltaDebugger.runJUnitTest() " + processBuilder.command());
+			// This causes problems wher run on command line
+			processBuilder.inheritIO();
+			// }
+
+			Process process = processBuilder.start();
+
+			// Wait for the execution to end.
+			if (!process.waitFor(4000, TimeUnit.MILLISECONDS)) {
+				logger.info("Timeout for test execution");
+				// timeout - kill the process.
+				process.destroyForcibly(); // consider using destroyForcibly
+											// instead
+				// Force Wait 1 sec to clean up
+				Thread.sleep(1000);
+			}
+
+			try {
+				int result = process.exitValue(); // ;process.waitFor();
+
+				if (result != 0) {
+					logger.debug(" Test FAILED " + result);
+				}
+				return (result == 0);
+			} catch (Throwable e) {
+				e.printStackTrace();
+				// Avoid resource leakeage. This should be IDEMPOTENT
+				process.destroyForcibly();
+				// TODO: handle exception
+			}
+			return false;
+		} finally {
+			time = System.currentTimeMillis() - time;
+			logger.info("Verification done in " + time + " ms");
+		}
+
+	}
+
+	@Deprecated
 	public static boolean compileAndRunJUnitTest(String systemTestClassName, File tempOutputDir, List<File> projectJars)
 			throws IOException, URISyntaxException, InterruptedException {
 		// https://javabeat.net/the-java-6-0-compiler-api/
@@ -252,10 +534,11 @@ public class DeltaDebugger {
 
 		ProcessBuilder processBuilder = new ProcessBuilder(javaPath, "-cp", classpath, "org.junit.runner.JUnitCore",
 				systemTestClassName);
-//		 System.out.println("DeltaDebugger.runJUnitTest() " + processBuilder.command());
+		// System.out.println("DeltaDebugger.runJUnitTest() " +
+		// processBuilder.command());
 
 		// This causes problems wher run on command line
-//		processBuilder.inheritIO();
+		// processBuilder.inheritIO();
 
 		Process process = processBuilder.start();
 
@@ -286,7 +569,8 @@ public class DeltaDebugger {
 	}
 
 	public static List<Unit> generateValidationUnit(final SootMethod testMethod, final String xmlOwner,
-			final String xmlReturnValue) {
+			final String xmlReturnValue, //
+			final Value primitiveReturnValue) {
 
 		final List<Unit> validationUnits = new ArrayList<>();
 
@@ -299,8 +583,11 @@ public class DeltaDebugger {
 		// methodUnderTest);
 		methodUnderTest.apply(new AbstractStmtSwitch() {
 
-			final SootMethod xmlDumperVerify = Scene.v()
-					.getMethod("<de.unipassau.abc.tracing.XMLVerifier: void verify(java.lang.Object,java.lang.String)>");
+			final SootMethod xmlDumperVerify = Scene.v().getMethod(
+					"<de.unipassau.abc.tracing.XMLVerifier: void verify(java.lang.Object,java.lang.String)>");
+
+			final SootMethod xmlDumperVerifyPrimitive = Scene.v().getMethod(
+					"<de.unipassau.abc.tracing.XMLVerifier: void verifyPrimitive(java.lang.Object,java.lang.String)>");
 
 			// return value
 			public void caseAssignStmt(soot.jimple.AssignStmt stmt) {
@@ -309,6 +596,7 @@ public class DeltaDebugger {
 				if (!(invokeExpr instanceof StaticInvokeExpr)) {
 					generateValidationForCut(((InstanceInvokeExpr) invokeExpr).getBase());
 				}
+
 				generateValidationForReturnValue(stmt.getLeftOp());
 			};
 
@@ -324,26 +612,37 @@ public class DeltaDebugger {
 			}
 
 			private void generateValidationForReturnValue(Value value) {
-				// Object -> actualValue = this is LOCAL by design but might
-				// require boxing !
-				// Pair<Value, List<Unit>> tmpArgsListAndInstructions =
-				// UtilInstrumenter
-				// .generateParameterArray(RefType.v("java.lang.Object"),
-				// parameterList, body);
-				// Returns a Pair which contains the array and the instructions
-				// to
-				// create it
 				Value wrappedValue = UtilInstrumenter.generateCorrectObject(body, value, validationUnits);
-				generateValidationForValue(wrappedValue, xmlReturnValue, validationUnits);
+				if (JimpleUtils.isPrimitive(value.getType())) {
+					generateValidationForPrimitiveValue(wrappedValue, primitiveReturnValue, validationUnits);
+				} else {
+					generateValidationForValue(wrappedValue, xmlReturnValue, validationUnits);
+				}
 			}
 
 			private void generateValidationForCut(Value value) {
 				generateValidationForValue(value, xmlOwner, validationUnits);
 			}
 
-			// This expects Objects as values, not primitives... I hope that's
-			// not a problem ...
+			private void generateValidationForPrimitiveValue(Value actualValue, Value expectedValue,
+					List<Unit> validationUnits) {
+
+				List<Value> methodStartParameters = new ArrayList<Value>();
+				methodStartParameters.add(actualValue);
+				// Wrap everythign into a String !
+				methodStartParameters.add(StringConstant.v(expectedValue.toString()));
+
+				// Create the invocation object
+				validationUnits.add(Jimple.v().newInvokeStmt(
+						Jimple.v().newStaticInvokeExpr(xmlDumperVerifyPrimitive.makeRef(), methodStartParameters)));
+			};
+
 			private void generateValidationForValue(Value value, String xmlFile, List<Unit> validationUnits) {
+
+				if (!new File(xmlFile).exists()) {
+					System.out.println("Cannot file XML File" + xmlFile + ", do not create validation call");
+					return;
+				}
 
 				List<Value> methodStartParameters = new ArrayList<Value>();
 				methodStartParameters.add(value);

@@ -364,7 +364,7 @@ public class StackImplementation implements TraceParser {
 		//
 		for (MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations()) {
 			if (isTestSetupCall(mi)) {
-				System.out.println(" Matched test setup call " + mi);
+//				System.out.println(" Matched test setup call " + mi);
 				callGraph.markParentAndPruneAfter(mi);
 
 				//
@@ -389,7 +389,7 @@ public class StackImplementation implements TraceParser {
 
 			for (MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations()) {
 				if (isTestSetupCall(mi)) {
-					System.out.println(" Matched test setup call " + mi);
+//					System.out.println(" Matched test setup call " + mi);
 					callGraph.markParentAndPruneAfter(mi);
 
 					//

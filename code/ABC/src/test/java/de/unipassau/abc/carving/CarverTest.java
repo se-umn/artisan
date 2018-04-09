@@ -54,8 +54,8 @@ public class CarverTest {
 			/*
 			 * This requires a setup of a file by means of Files.write, which is an external interface
 			 */
-			String carveBy = "class=org.employee.FileRead2";
-//			String carveBy = "method=<org.employee.FileRead2: void <init>()";
+//			String carveBy = "class=org.employee.FileRead2";
+			String carveBy = "method=<org.employee.FileRead2: int fileIsRead(java.lang.String,java.lang.String)>";
 //			String carveBy = "invocation=<org.employee.Validation: void <init>()>_54";
 
 			String[] args = new String[] {

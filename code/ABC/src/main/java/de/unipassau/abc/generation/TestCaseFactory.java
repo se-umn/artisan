@@ -9,9 +9,11 @@ import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -221,11 +223,11 @@ public class TestCaseFactory {
 		}
 	}
 
-	public static void generateTestFiles(List<File> projectJars, File outputDir, Collection<SootClass> testClasses)
-			throws IOException {
+	public static Set<CompilationUnit> generateTestFiles(List<File> projectJars, File outputDir, Collection<SootClass> testClasses,
+			boolean resolveTypes) throws IOException {
 
-		// Options.v().set_output_dir(outputDir.getAbsolutePath());
-
+		Set<CompilationUnit> generatedTestClasses = new HashSet<>();
+		
 		logger.debug("Output directory is " + outputDir.getAbsolutePath());
 
 		if (!outputDir.exists() && !outputDir.mkdirs()) {
@@ -252,8 +254,12 @@ public class TestCaseFactory {
 			// Forcefully initialize all the Objects to null if they are not
 			// initialized !
 			forceObjectInitialization(javaCode, combinedTypeSolver);
-			// This updates the code
-			resolveMissingGenerics(javaCode, combinedTypeSolver);
+
+			// During delta debugging there's no need to resolve types
+			if (resolveTypes) {
+				// This updates the code
+				resolveMissingGenerics(javaCode, combinedTypeSolver);
+			}
 
 			// Store to file
 			File packageDir = new File(outputDir, testClass.getPackageName().replaceAll("\\.", File.separator));
@@ -262,7 +268,10 @@ public class TestCaseFactory {
 			//
 			Files.write(classFile.toPath(), javaCode.toString().getBytes(), StandardOpenOption.CREATE_NEW);
 
+			generatedTestClasses.add( javaCode );
 		}
+		
+		return generatedTestClasses;
 
 	}
 
@@ -336,7 +345,7 @@ public class TestCaseFactory {
 		// Cache repetitive assign expression to avoid calling type solver
 		// which is somehow broken..
 		final Map<String, AssignExpr> cache = new HashMap<>();
-		
+
 		cu.accept(new ModifierVisitor<JavaParserFacade>() {
 
 			public AssignExpr visit(final AssignExpr n, JavaParserFacade javaParserFacade) {
@@ -344,8 +353,7 @@ public class TestCaseFactory {
 
 				if (cache.containsKey(n.toString())) {
 					return cache.get(n.toString());
-				} 
-				
+				}
 
 				// Left
 				ResolvedType targetType = null;
@@ -356,13 +364,13 @@ public class TestCaseFactory {
 					targetType = javaParserFacade.getType(n.getTarget());
 				} catch (Exception e) {
 					logger.debug("Cannot resolve targetType in " + n.toString() + " reason. " + e);
-//					e.printStackTrace();
+					// e.printStackTrace();
 				}
 				try {
 					valueType = javaParserFacade.getType(n.getValue());
 				} catch (Exception e) {
 					logger.debug("Cannot resolve valueType in " + n.toString() + " reason. " + e);
-//					e.printStackTrace();
+					// e.printStackTrace();
 				}
 
 				if (targetType == null || valueType == null) {
@@ -371,20 +379,22 @@ public class TestCaseFactory {
 				}
 
 				if (!targetType.isAssignableBy(valueType)) {
-//					System.out.println(n);
-//					System.out.println("Cast needed " + targetType.describe() + " --> " + valueType.describe());
+					// System.out.println(n);
+					// System.out.println("Cast needed " + targetType.describe()
+					// + " --> " + valueType.describe());
 
 					String original = n.toString();
-					
+
 					CastExpr c = new CastExpr();
 					c.setType(targetType.describe());
 					c.setExpression(n.getValue());
 					n.setValue(c);
-					// Here's the data race: the adapter somehow updates ONLY parts of the original AST
+					// Here's the data race: the adapter somehow updates ONLY
+					// parts of the original AST
 					// so we need to keep both signatures to avoid exceptions
-					cache.put(original , n);
-					// 
-					cache.put(n.toString() , n);
+					cache.put(original, n);
+					//
+					cache.put(n.toString(), n);
 				}
 				// else {
 				// System.out.println("No Cast needed " + targetType.describe()

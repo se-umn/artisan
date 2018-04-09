@@ -998,7 +998,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 								// closest = Collections.min(ranked);
 								// }
 								// }
-								logger.warn("MULTIPLE METHODS RETURN " + data + "\n" + tempSet
+								logger.debug("MULTIPLE METHODS RETURN " + data + "\n" + tempSet
 										+ " \n choosing the closest " + closest + " to " + entry.getKey());
 							}
 							methodsWhichReturnTheObject.add(closest);

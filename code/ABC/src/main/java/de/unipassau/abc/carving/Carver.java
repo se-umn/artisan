@@ -2,6 +2,7 @@ package de.unipassau.abc.carving;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -14,6 +15,7 @@ import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.javaparser.ast.CompilationUnit;
 import com.lexicalscope.jewel.cli.ArgumentValidationException;
 import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
@@ -166,7 +168,7 @@ public class Carver {
 
 	}
 
-	public static void main(String[] args) throws IOException, InterruptedException {
+	public static void main(String[] args) throws IOException, InterruptedException, URISyntaxException {
 		long startTime = System.nanoTime();
 
 		boolean skipMinimize = false;
@@ -355,31 +357,21 @@ public class Carver {
 		// actualReturnValue);
 		// }
 
-		// Output Regular Carved Tests
-		TestCaseFactory.generateTestFiles(projectJars, outputDir, testClasses);
+		// Output Regular Carved Tests to files and returns them as CompilationUnit. Note that these classes have no problems with generics and casting.
+		boolean resolveTypes = true;
+		TestCaseFactory.generateTestFiles(projectJars, outputDir, testClasses, resolveTypes);
 
 		testGenerationTime = System.currentTimeMillis() - testGenerationTime;
 		logger.info("Carver.main() End Test generation");
 
 		long minimizationTime = System.currentTimeMillis();
 		if (!skipMinimize) {
-			// Minimized Carved Tests
+			// Minimized Carved Tests - We work at the level of JAVA files instead of SootMethods since soot methods do not carry 
+			// Information about "generics", it's JVM fault BTW since bytecode does not have that.
+			//
 			logger.info("Carver.main() Start Minimize via Delta Debugging");
-			for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
-				// Note that after minimization there might be equivalent
-				// classes...
-				// TODO
-				DeltaDebugger.minimize(carvedTestCase, projectJars);
-			}
-			// Rename Classes to _min
-			Set<SootClass> minimizedTestClasses = new HashSet<>();
-			for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
-				minimizedTestClasses.add(carvedTestCase.getThird().getDeclaringClass());
-			}
-			for (SootClass minimizedTestClass : minimizedTestClasses) {
-				minimizedTestClass.setName(minimizedTestClass.getName() + "_minimized");
-			}
-			TestCaseFactory.generateTestFiles(projectJars, outputDir, minimizedTestClasses);
+			
+			DeltaDebugger.minimize(outputDir, carvedTestCases, projectJars);
 
 			logger.info("Carver.main() End Minimize via Delta Debugging");
 		} else {
