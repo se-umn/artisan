@@ -46,6 +46,7 @@ import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
 import soot.jimple.StaticInvokeExpr;
 import soot.jimple.StringConstant;
+import soot.jimple.parser.node.Start;
 
 public class DeltaDebugger {
 
@@ -174,6 +175,7 @@ public class DeltaDebugger {
 	}
 
 	public static boolean verifyExecution(SootMethod testMethod, List<File> projectJars) {
+		long time = System.currentTimeMillis();
 		try {
 			File tempOutputDir = Files.createTempDirectory("ABC-Delta-Debug").toFile();
 			tempOutputDir.deleteOnExit();
@@ -192,6 +194,9 @@ public class DeltaDebugger {
 			e.printStackTrace();
 			logger.debug("Failed verification of " + testMethod);
 			return false;
+		} finally{
+			time = System.currentTimeMillis() - time;
+			logger.info("Verification done in " + time + " ms");
 		}
 	}
 
