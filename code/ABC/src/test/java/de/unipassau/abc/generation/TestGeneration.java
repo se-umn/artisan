@@ -170,6 +170,30 @@ public class TestGeneration {
 			fail();
 		}
 	}
+	
+	@Test
+	public void testRenameToMinimized() throws IOException, ParserException, LexerException {
+		try {
+			List<File> projectJars = new ArrayList<>();
+			projectJars.add(new File("./src/test/resources/HotelReservationSystem.jar"));
+			projectJars.add(new File("./src/test/resources/HotelReservationSystem-tests.jar"));
+			projectJars.add(new File("./src/test/resources/system-rules-1.17.0.jar"));
+
+			String javaCode = new String(
+					Files.readAllBytes(Paths.get("./src/test/resources/javas/org.hotelme.TestRoom_10.javaz")));
+
+			CompilationUnit cu = JavaParser.parse(javaCode);
+
+			DeltaDebugger.renameClass( cu, "_minimized");
+			
+			// Assert class name is new, assert constructor returns the new name
+			//
+			System.out.println(cu);
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail();
+		}
+	}
 
 	private File setupCompilationUnit(String testClassName, List<File> projectJars) throws IOException {
 

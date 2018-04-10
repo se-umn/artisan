@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
@@ -109,6 +110,10 @@ public class DeltaDebugger {
 
 		// Run Delta Debug for each test in each class
 		for (CompilationUnit testClass : testClasses) {
+
+			// Refactor the class (name, constructor, etc)
+			renameClass(testClass, "_minimized");
+
 			// Modify the test unit by tentatively removing a statement
 
 			TypeDeclaration<?> typeD = testClass.getType(0);
@@ -172,9 +177,11 @@ public class DeltaDebugger {
 				body = testMethod.getBody().get();
 				body.accept(new ModifierVisitor<Void>() {
 					public Visitable visit(MethodCallExpr n, Void arg) {
-						
-						if( n.getScope().isPresent()  && n.getScope().get().toString().equals("de.unipassau.abc.tracing.XMLVerifier")) {
-//							System.out.println("Removing ABC verify call " + n);
+
+						if (n.getScope().isPresent()
+								&& n.getScope().get().toString().equals("de.unipassau.abc.tracing.XMLVerifier")) {
+							// System.out.println("Removing ABC verify call " +
+							// n);
 							return null;
 						}
 						return super.visit(n, arg);
@@ -187,24 +194,39 @@ public class DeltaDebugger {
 
 			}
 
-			// At this point save the minimized class to file
-			String testClassName = testClass.getType(0).getNameAsString();
-			testClass.getType(0).setName(testClassName.concat("_minimized"));
-			//
-			testClassName = testClass.getType(0).getNameAsString();
-			String packageDeclaration = testClass.getPackageDeclaration().get().getNameAsString();
-
 			// Create the structure as javac expects
+			String packageDeclaration = testClass.getPackageDeclaration().get().getNameAsString();
+			String testClassName = testClass.getType(0).getNameAsString();
+
 			File packageFile = new File(outputDir, packageDeclaration.replaceAll("\\.", File.separator));
 			packageFile.mkdirs();
 
 			// Store the testClassName into a File inside the tempOutputDir
-			File classFile = new File(packageFile, testClassName + "_minimized.java");
+			File classFile = new File(packageFile, testClassName + ".java");
 
 			// Not nice to pass by String ...
 			Files.write(classFile.toPath(), testClass.toString().getBytes());
 
 		}
+
+	}
+
+	public static void renameClass(CompilationUnit testClass, String postFix) {
+		// Change the class name
+		final String originalTestClassName = testClass.getType(0).getNameAsString();
+		String newTestClassName = originalTestClassName.concat( postFix );
+		// New name 
+		testClass.getType(0).setName( newTestClassName );
+		//
+		testClass.accept(new ModifierVisitor<Void>() {
+			@Override
+			public Visitable visit(ConstructorDeclaration n, Void arg) {
+				if( originalTestClassName.equals( n.getNameAsString() ) ){
+					n.setName( newTestClassName );
+				}
+				return super.visit(n, arg);
+			}
+		}, null);
 
 	}
 
