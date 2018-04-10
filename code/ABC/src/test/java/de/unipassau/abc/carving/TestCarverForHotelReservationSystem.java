@@ -48,11 +48,11 @@ public class TestCarverForHotelReservationSystem {
 			String traceFile = "/Users/gambi/action-based-test-carving/code/ABC/scripts/hotelme-tracingOut/trace.txt";
 
 			// String carveBy = "package=org.hotelme";
-			String carveBy = "class=org.hotelme.HotelView";
+//			String carveBy = "class=org.hotelme.User";
+			
 			// String carveBy = "method=<org.hotelme.Room: java.lang.String
 			// getRoomType()>";
-			// String carveBy = "invocation=<org.hotelme.HotelView: void
-			// exitMessage()>_1285";
+			 String carveBy = "invocation=<org.hotelme.User: int getUserID()>_4038";
 
 			String[] args = new String[] { //
 					"--carve-by", carveBy,
@@ -72,8 +72,10 @@ public class TestCarverForHotelReservationSystem {
 					"class=org.hotelme.Main", //
 					"--external", //
 					"package=java.nio.file", "class=java.util.Scanner", "package=java.sql", "class=java.io.File",
-					//
-					"--test-setup-by", "class=org.hotelme.utils.SystemTestUtils" //
+					// This is for carving
+					"--test-setup-by", "class=org.hotelme.utils.SystemTestUtils", //
+					// This is for delta debugging
+					"--reset-environment-by", "org.hotelme.utils.SystemTestUtils.dropAndRecreateTheDb()" //
 			};
 			//// "class=org.hotelme.utils.ScriptRunner", //
 			//

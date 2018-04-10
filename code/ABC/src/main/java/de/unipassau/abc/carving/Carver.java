@@ -3,8 +3,6 @@ package de.unipassau.abc.carving;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -15,7 +13,6 @@ import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.github.javaparser.ast.CompilationUnit;
 import com.lexicalscope.jewel.cli.ArgumentValidationException;
 import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
@@ -73,6 +70,11 @@ public class Carver {
 
 		@Option(longName = "test-setup-by", defaultToNull = true)
 		List<String> getTestSetupBy();
+		
+		// This is for delta debugging, to deal with state pollution like filling in a db with predefined data...
+		// It a static fully qualified method with void like "SystemTestUtils.dropAndRecreateTheDb();"
+		@Option(longName = "reset-environment-by", defaultToNull = true)
+		String getResetEnvironmentBy();
 
 		@Option(longName = "skip-minimize")
 		boolean isSkipMinimize();
@@ -172,6 +174,7 @@ public class Carver {
 		long startTime = System.nanoTime();
 
 		boolean skipMinimize = false;
+		String resetEnvironmentBy = null;
 		File traceFile = null;
 		List<File> projectJars = new ArrayList<>();
 		File outputDir = null;
@@ -195,6 +198,8 @@ public class Carver {
 			outputDir = cli.getOutputDir();
 			projectJars.addAll(cli.getProjectJar());
 
+			resetEnvironmentBy=cli.getResetEnvironmentBy();
+			
 			skipMinimize = cli.isSkipMinimize();
 
 			// TODO This can be moved inside CLI parsing using an instance
@@ -371,7 +376,7 @@ public class Carver {
 			//
 			logger.info("Carver.main() Start Minimize via Delta Debugging");
 			
-			DeltaDebugger.minimize(outputDir, carvedTestCases, projectJars);
+			DeltaDebugger.minimize(outputDir, carvedTestCases, resetEnvironmentBy, projectJars);
 
 			logger.info("Carver.main() End Minimize via Delta Debugging");
 		} else {

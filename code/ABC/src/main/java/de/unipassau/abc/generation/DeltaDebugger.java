@@ -21,15 +21,18 @@ import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
 
 import org.apache.commons.lang3.SystemUtils;
+import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
@@ -68,6 +71,7 @@ public class DeltaDebugger {
 	// minimizedTestClass.setName(minimizedTestClass.getName() + "_minimized");
 	public static void minimize(File outputDir,
 			final List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases,
+			String resetEnvironmentBy, //
 			List<File> projectJars) throws IOException, URISyntaxException, InterruptedException {
 
 		// Method under test is the last before XMLValidation
@@ -93,6 +97,7 @@ public class DeltaDebugger {
 			} else {
 				units.insertBefore(validation, units.getLast());
 			}
+
 		}
 
 		Set<SootClass> _testClasses = new HashSet<>();
@@ -111,19 +116,28 @@ public class DeltaDebugger {
 		// Run Delta Debug for each test in each class
 		for (CompilationUnit testClass : testClasses) {
 
+			// Include the reset environment call if needed
+			createAtBeforeResetMethod(resetEnvironmentBy, testClass);
+
 			// Refactor the class (name, constructor, etc)
 			renameClass(testClass, "_minimized");
 
 			// Modify the test unit by tentatively removing a statement
 
 			TypeDeclaration<?> typeD = testClass.getType(0);
+			
+			// Process the class methods
 			for (Object _method : typeD.getMethods()) {
 				if (!(_method instanceof MethodDeclaration)) {
 					logger.debug("DeltaDebugger.minimize() Skip " + _method + " not a method");
+					continue;
 				}
+				
 				MethodDeclaration testMethod = (MethodDeclaration) _method;
+				
 				if (!testMethod.isAnnotationPresent(Test.class)) {
 					logger.debug("DeltaDebugger.minimize() Skip " + _method + "  not a @Test method");
+					continue;
 				}
 
 				BlockStmt body = testMethod.getBody().get();
@@ -133,6 +147,7 @@ public class DeltaDebugger {
 				int removed = 0;
 				int total = statements.size();
 
+				// Skip the XML Verifier calls
 				int mutIndex = Integer.MAX_VALUE;
 				for (int index = total - 1; index > 0; index--) {
 					Statement s = body.getStatement(index);
@@ -141,7 +156,11 @@ public class DeltaDebugger {
 						continue;
 					}
 				}
+				if( mutIndex == Integer.MAX_VALUE ){
+					System.out.println("DeltaDebugger.minimize() No XMLVerifier Calls ?!");
+				}
 
+				// Process the method
 				for (int index = mutIndex - 1; index > 0; index--) {
 					// TODO Invocations to new and invocations to
 					// System.Exit cannot be removed...
@@ -173,16 +192,17 @@ public class DeltaDebugger {
 					}
 				}
 
+				removeAtBeforeResetMethod(testClass);
+
 				// Remove the calls to verify !
 				body = testMethod.getBody().get();
 				body.accept(new ModifierVisitor<Void>() {
 					public Visitable visit(MethodCallExpr n, Void arg) {
 
-						if (n.getScope().isPresent()
-								&& n.getScope().get().toString().equals("de.unipassau.abc.tracing.XMLVerifier")) {
-							// System.out.println("Removing ABC verify call " +
-							// n);
-							return null;
+						if (n.getScope().isPresent()) {
+							if (n.getScope().get().toString().equals("de.unipassau.abc.tracing.XMLVerifier")) {
+								return null;
+							}
 						}
 						return super.visit(n, arg);
 					}
@@ -211,18 +231,40 @@ public class DeltaDebugger {
 
 	}
 
+	// create a @Before method which invokes resetEnvironment by unless there's
+	// already one
+	public static void createAtBeforeResetMethod(String resetEnvironmentBy, CompilationUnit testClass) {
+		if (resetEnvironmentBy == null) {
+			return;
+		}
+		//
+		TypeDeclaration<?> testType = testClass.getTypes().get(0);
+		for (MethodDeclaration md : testType.getMethods()) {
+			if (md.isAnnotationPresent(Before.class)) {
+				return;
+			}
+		}
+		//
+		MethodDeclaration setupMethod = testType.addMethod("setup", Modifier.PUBLIC);
+		setupMethod.addAnnotation(Before.class);
+		BlockStmt body = new BlockStmt();
+		body.addStatement(new NameExpr(resetEnvironmentBy));
+		setupMethod.setBody(body);
+
+	}
+
 	public static void renameClass(CompilationUnit testClass, String postFix) {
 		// Change the class name
 		final String originalTestClassName = testClass.getType(0).getNameAsString();
-		String newTestClassName = originalTestClassName.concat( postFix );
-		// New name 
-		testClass.getType(0).setName( newTestClassName );
+		String newTestClassName = originalTestClassName.concat(postFix);
+		// New name
+		testClass.getType(0).setName(newTestClassName);
 		//
 		testClass.accept(new ModifierVisitor<Void>() {
 			@Override
 			public Visitable visit(ConstructorDeclaration n, Void arg) {
-				if( originalTestClassName.equals( n.getNameAsString() ) ){
-					n.setName( newTestClassName );
+				if (originalTestClassName.equals(n.getNameAsString())) {
+					n.setName(newTestClassName);
 				}
 				return super.visit(n, arg);
 			}
@@ -682,6 +724,19 @@ public class DeltaDebugger {
 		// other -> validate both CUT and ReturnValue
 
 		return validationUnits;
+	}
+
+	public static void removeAtBeforeResetMethod(CompilationUnit cu) {
+		cu.accept(new ModifierVisitor<Void>() {
+			@Override
+			public Visitable visit(MethodDeclaration n, Void arg) {
+				if (n.isAnnotationPresent(Before.class)) {
+					return null;
+				}
+				return super.visit(n, arg);
+			}
+		}, null);
+
 	}
 
 }

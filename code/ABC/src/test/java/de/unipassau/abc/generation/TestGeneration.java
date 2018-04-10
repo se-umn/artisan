@@ -25,9 +25,14 @@ import org.slf4j.event.Level;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.AssignExpr;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
+import com.github.javaparser.ast.visitor.Visitable;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import com.github.javaparser.resolution.types.ResolvedType;
@@ -37,10 +42,12 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 
 import de.unipassau.abc.carving.Carver;
+import de.unipassau.abc.utils.JimpleUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import soot.G;
 import soot.SootClass;
 import soot.SootResolver;
+import soot.jimple.Jimple;
 import soot.jimple.parser.Walker;
 import soot.jimple.parser.lexer.Lexer;
 import soot.jimple.parser.lexer.LexerException;
@@ -194,6 +201,36 @@ public class TestGeneration {
 			fail();
 		}
 	}
+	
+	@Test
+	public void testAddBefore() throws IOException, ParserException, LexerException {
+		try {
+			List<File> projectJars = new ArrayList<>();
+			projectJars.add(new File("./src/test/resources/HotelReservationSystem.jar"));
+			projectJars.add(new File("./src/test/resources/HotelReservationSystem-tests.jar"));
+			projectJars.add(new File("./src/test/resources/system-rules-1.17.0.jar"));
+
+			String javaCode = new String(
+					Files.readAllBytes(Paths.get("./src/test/resources/javas/org.hotelme.TestRoom_10.javaz")));
+
+			CompilationUnit cu = JavaParser.parse(javaCode);
+
+			String resetEnvironmentBy = "org.hotelme.utils.SystemTestUtils.dropAndRecreateTheDb()";
+			
+			DeltaDebugger.createAtBeforeResetMethod(resetEnvironmentBy, cu);
+
+			System.out.println(cu);
+			
+			// Now clean it up
+			DeltaDebugger.removeAtBeforeResetMethod(cu);
+			
+			System.out.println(cu);
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail();
+		}
+	}
+
 
 	private File setupCompilationUnit(String testClassName, List<File> projectJars) throws IOException {
 
