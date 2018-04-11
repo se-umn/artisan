@@ -113,6 +113,15 @@ public class DeltaDebugger {
 		Set<CompilationUnit> testClasses = TestCaseFactory.generateTestFiles(projectJars, tempFolder, _testClasses,
 				resolveTypes);
 
+		
+		// THIS CAN BE MADE MUCH MORE FASTER IF WE RUN ALL THE TESTS TOGETHER INSTEAD OF
+		// ONE BY ONE:
+		// MAKE DELTA DEBUGGING A SCRIPT TO BE INVOKED ON A SINGLE TEST
+		// DO NOT REMOVE VARIABLE INITIALIZATION  ( = null)
+		// Modify all the test classes -> 
+		// Compile run  -> remove the one who did non pass
+		// Run all of the remainin tests
+		// Parse the result
 		// Run Delta Debug for each test in each class
 		for (CompilationUnit testClass : testClasses) {
 
@@ -232,7 +241,7 @@ public class DeltaDebugger {
 	}
 
 	// create a @Before method which invokes resetEnvironment by unless there's
-	// already one
+	// already one - This one must just wipe out the DB completely
 	public static void createAtBeforeResetMethod(String resetEnvironmentBy, CompilationUnit testClass) {
 		if (resetEnvironmentBy == null) {
 			return;
