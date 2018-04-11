@@ -39,6 +39,7 @@ MIN_CARVED_TESTS=$(find ${CARVED_TESTS_CP}${FIND} -iname "Test*.class" -iname "*
 
 echo "MIN_CARVED_TESTS ${MIN_CARVED_TESTS}"
 
+
 cd Employee
 
 rm cp.txt
@@ -74,13 +75,14 @@ echo "Found ${i} src files in the project"
 echo "Repackage"
 mvn -q clean package -DskipTests
 
-echo "Remove Ekstazi Folder"
+echo "Remove Ekstazi Folders"
 rm -rf .ekstazi
 rm -rf .ekstazi-system
 rm -rf .ekstazi-carved
 rm -rf .ekstazi-carved-min
 
 echo "Running System Tests"
+
 read -r TIME_TOTAL_SYSTEM_TEST TOTAL_SYSTEM_TEST <<< $(java \
     -cp ${PROJECT_CP}:${DEPS} \
     -javaagent:${EKSTAZI}=mode=junit \
