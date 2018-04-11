@@ -30,17 +30,15 @@ SYSTEM_TESTS="${SYSTEM_TESTS} org.hotelme.systemtests.TestHotelAlreadyRegistered
 DATA_FILE=${HERE}/hotelme-rts.csv
 rm ${DATA_FILE}
 
-CARVED_TESTS=$(find ${CARVED_TESTS_CP} -iname "Test*.class" -type f | sed "s|${CARVED_TESTS_CP}/||"| tr "/" "." | sed 's|\.class||g' | tr "\n" " ")
+CARVED_TESTS=$(find ${CARVED_TESTS_CP}/ -iname "Test*.class" -type f | sed "s|${CARVED_TESTS_CP}/||"| tr "/" "." | sed 's|\.class||g' | tr "\n" " ")
 
 cd HotelMe
 
-if [ ! -f cp.txt ]; then
+rm cp.txt
 echo "Build CP"
-mvn dependency:build-classpath -Dmdep.outputFile=cp.txt
-fi
+mvn -q dependency:build-classpath -Dmdep.outputFile=cp.txt
 
 JUNIT_CP=$(cat cp.txt | tr "\n" ":")
-
 
 echo "Reset project"
 ORIGINAL_SHA=$(git rev-list --max-parents=0 HEAD)
@@ -62,7 +60,7 @@ echo "Found ${i} src files in the project"
 ##### Original Version
 
 echo "Repackage"
-mvn clean package -DskipTests
+mvn -q clean package -DskipTests
 
 echo "Remove Ekstazi Folder"
 rm -rf .ekstazi
@@ -79,6 +77,11 @@ TOTAL_SYSTEM_TEST=$(java \
 
 echo "Ran ${TOTAL_SYSTEM_TEST}"
 
+if [ ! -d .ekstazi ]; then
+  echo "No Ekstazi"
+  exit 1
+fi
+
 mv .ekstazi .ekstazi-system
 
 echo "Running Carved Tests"
@@ -90,6 +93,11 @@ TOTAL_CARVED_TEST=$(java \
 
 
 echo "Ran ${TOTAL_CARVED_TEST}"
+
+if [ ! -d .ekstazi ]; then
+  echo "No Ekstazi"
+  exit 1
+fi
 
 mv .ekstazi .ekstazi-carved
 
