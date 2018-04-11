@@ -110,31 +110,50 @@ public class DeltaDebugger {
 		//
 		boolean resolveTypes = true;
 		File tempFolder = Files.createTempDirectory("DeltaDebug").toFile();
-		Set<CompilationUnit> testClasses = TestCaseFactory.generateTestFiles(projectJars, tempFolder, _testClasses,
+		Set<CompilationUnit> allTestClasses = TestCaseFactory.generateTestFiles(projectJars, tempFolder, _testClasses,
 				resolveTypes);
 
+		for (CompilationUnit testClass : allTestClasses) {
+			// Rename and include XML validation
+			prepareClass(testClass, resetEnvironmentBy);
+		}
+
+
+		TestSuiteMinimizer testSuiteMinimizer = new TestSuiteMinimizer(allTestClasses, resetEnvironmentBy, new TestSuiteExecutor( projectJars ));
+		
+		Set<CompilationUnit> testClassesToMinimize = new HashSet<>(allTestClasses);
+		while ( ! testSuiteMinimizer.isDone() ) {
+			testSuiteMinimizer.performAMinimizationStep();
+		}
+
+		for (CompilationUnit testClass : allTestClasses) {
+			removeAtBeforeResetMethod(testClass);
+
+			removeXMLVerifierCalls(testClass);
+
+			// logger.info("Removed " + removed + " out of " + total + "
+			// instructions from test "
+			// + testMethod.getNameAsString() + " " + (((double) removed /
+			// (double) total) * 100));
+
+		}
+
 		// Run Delta Debug for each test in each class
-		for (CompilationUnit testClass : testClasses) {
-
-			// Include the reset environment call if needed
-			createAtBeforeResetMethod(resetEnvironmentBy, testClass);
-
-			// Refactor the class (name, constructor, etc)
-			renameClass(testClass, "_minimized");
+		for (CompilationUnit testClass : allTestClasses) {
 
 			// Modify the test unit by tentatively removing a statement
 
 			TypeDeclaration<?> typeD = testClass.getType(0);
-			
+
 			// Process the class methods
 			for (Object _method : typeD.getMethods()) {
 				if (!(_method instanceof MethodDeclaration)) {
 					logger.debug("DeltaDebugger.minimize() Skip " + _method + " not a method");
 					continue;
 				}
-				
+
 				MethodDeclaration testMethod = (MethodDeclaration) _method;
-				
+
 				if (!testMethod.isAnnotationPresent(Test.class)) {
 					logger.debug("DeltaDebugger.minimize() Skip " + _method + "  not a @Test method");
 					continue;
@@ -156,7 +175,7 @@ public class DeltaDebugger {
 						continue;
 					}
 				}
-				if( mutIndex == Integer.MAX_VALUE ){
+				if (mutIndex == Integer.MAX_VALUE) {
 					System.out.println("DeltaDebugger.minimize() No XMLVerifier Calls ?!");
 				}
 
@@ -228,6 +247,36 @@ public class DeltaDebugger {
 			Files.write(classFile.toPath(), testClass.toString().getBytes());
 
 		}
+
+	}
+
+	public static void removeXMLVerifierCalls(CompilationUnit testClass) {
+		// Remove the calls to verify from each test method !
+		for (MethodDeclaration testMethod : testClass.getType(0).getMethods()) {
+			if (testMethod.isAnnotationPresent(Test.class)) {
+				testMethod.getBody().get().accept(new ModifierVisitor<Void>() {
+					public Visitable visit(MethodCallExpr n, Void arg) {
+
+						if (n.getScope().isPresent()) {
+							if (n.getScope().get().toString().equals("de.unipassau.abc.tracing.XMLVerifier")) {
+								return null;
+							}
+						}
+						return super.visit(n, arg);
+					}
+
+				}, null);
+			}
+		}
+
+	}
+
+	public static void prepareClass(CompilationUnit testClass, String resetEnvironmentBy) {
+		// Include the reset environment call if needed
+		createAtBeforeResetMethod(resetEnvironmentBy, testClass);
+
+		// Refactor the class (name, constructor, etc)
+		renameClass(testClass, "_minimized");
 
 	}
 
@@ -430,120 +479,7 @@ public class DeltaDebugger {
 		}
 	}
 
-	public static boolean compileAndRunJUnitTest(//
-			CompilationUnit testClass, MethodDeclaration testMethod, //
-			List<File> projectJars) throws IOException, URISyntaxException, InterruptedException {
-
-		long time = System.currentTimeMillis();
-		try {
-			// https://javabeat.net/the-java-6-0-compiler-api/
-			File tempOutputDir = Files.createTempDirectory("DeltaDebug").toFile();
-			tempOutputDir.deleteOnExit();
-
-			String testClassName = testClass.getType(0).getNameAsString();
-			String packageDeclaration = testClass.getPackageDeclaration().get().getNameAsString();
-
-			// Create the structure as javac expects
-			File packageFile = new File(tempOutputDir, packageDeclaration.replaceAll("\\.", File.separator));
-			packageFile.mkdirs();
-
-			// Store the testClassName into a File inside the tempOutputDir
-			File classFile = new File(packageFile, testClassName + ".java");
-
-			// Not nice to pass by String ...
-			Files.write(classFile.toPath(), testClass.toString().getBytes());
-
-			///
-			StringBuilder cpBuilder = new StringBuilder();
-			// Include the class we are delta debugging
-			cpBuilder.append(tempOutputDir.getAbsolutePath()).append(File.pathSeparator);
-			// Include the project deps
-			for (File jarFile : projectJars) {
-				cpBuilder.append(jarFile.getAbsolutePath()).append(File.pathSeparator);
-			}
-			// Include JUnit
-			cpBuilder.append(ABCUtils.buildJUnit4Classpath()).append(File.pathSeparator);
-			// Include System rules for
-			cpBuilder.append(ABCUtils.getSystemRulesJar()).append(File.pathSeparator);
-			// Include XMLDumper
-			cpBuilder.append(ABCUtils.getTraceJar()).append(File.pathSeparator);
-			// Include XMLDumper
-			for (File jarFile : ABCUtils.getXStreamJars()) {
-				cpBuilder.append(jarFile.getAbsolutePath()).append(File.pathSeparator);
-			}
-
-			String classpath = cpBuilder.toString();
-
-			final List<String> args = new ArrayList<>();
-			args.add("-classpath");
-			args.add(classpath);
-
-			java.nio.file.Files.walkFileTree(tempOutputDir.toPath(), new SimpleFileVisitor<Path>() {
-				@Override
-				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					if (file.toString().endsWith(".java")) {
-						args.add(file.toFile().getAbsolutePath());
-					}
-					return super.visitFile(file, attrs);
-				}
-			});
-
-			JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-			int compilationResult = compiler.run(null, null, null, //
-					args.toArray(new String[] {}));
-
-			if (compilationResult != 0) {
-				logger.debug("Compilation failed");
-				return false;
-			}
-
-			String javaPath = SystemUtils.JAVA_HOME + File.separator + "bin" + File.separator + "java";
-
-			// TODO Here it would be nice to execute a single test, but this
-			// requires a custom runner that must be used instead of plain
-			// JUnitCore
-			// https://stackoverflow.com/questions/9288107/run-single-test-from-a-junit-class-using-command-line
-			ProcessBuilder processBuilder = new ProcessBuilder(javaPath, "-cp", classpath, "org.junit.runner.JUnitCore",
-					packageDeclaration + "." + testClassName);
-
-			// if (logger.isTraceEnabled()) {
-			logger.trace("DeltaDebugger.runJUnitTest() " + processBuilder.command());
-			// This causes problems wher run on command line
-			processBuilder.inheritIO();
-			// }
-
-			Process process = processBuilder.start();
-
-			// Wait for the execution to end.
-			if (!process.waitFor(4000, TimeUnit.MILLISECONDS)) {
-				logger.info("Timeout for test execution");
-				// timeout - kill the process.
-				process.destroyForcibly(); // consider using destroyForcibly
-											// instead
-				// Force Wait 1 sec to clean up
-				Thread.sleep(1000);
-			}
-
-			try {
-				int result = process.exitValue(); // ;process.waitFor();
-
-				if (result != 0) {
-					logger.debug(" Test FAILED " + result);
-				}
-				return (result == 0);
-			} catch (Throwable e) {
-				e.printStackTrace();
-				// Avoid resource leakeage. This should be IDEMPOTENT
-				process.destroyForcibly();
-				// TODO: handle exception
-			}
-			return false;
-		} finally {
-			time = System.currentTimeMillis() - time;
-			logger.info("Verification done in " + time + " ms");
-		}
-
-	}
+	
 
 	@Deprecated
 	public static boolean compileAndRunJUnitTest(String systemTestClassName, File tempOutputDir, List<File> projectJars)
