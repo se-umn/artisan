@@ -28,7 +28,6 @@ SYSTEM_TESTS="${SYSTEM_TESTS} org.hotelme.systemtests.TestHotelAlreadyRegistered
 
 
 DATA_FILE=${HERE}/hotelme-rts.csv
-rm ${DATA_FILE}
 
 rm ${DATA_FILE}
 
@@ -40,15 +39,10 @@ MIN_CARVED_TESTS=$(find ${CARVED_TESTS_CP}${FIND} -iname "Test*.class" -iname "*
 
 echo "MIN_CARVED_TESTS ${MIN_CARVED_TESTS}"
 
-cd HotelMe
-
-rm cp.txt
-
 echo "Build CP"
 mvn -q dependency:build-classpath -Dmdep.outputFile=cp.txt
 
 DEPS=$(cat cp.txt | tr "\n" ":")
-
 
 echo "Reset project"
 ORIGINAL_SHA=$(git rev-list --max-parents=0 HEAD)
@@ -95,6 +89,11 @@ echo "Ekstazi Folder missing";
 exit 1
 fi
 
+if [ ! -d .ekstazi ]; then
+  echo "No Ekstazi"
+  exit 1
+fi
+
 mv .ekstazi .ekstazi-system
 
 echo "Running Carved Tests"
@@ -109,6 +108,11 @@ echo "Ran ${TOTAL_CARVED_TEST} in ${TIME_TOTAL_CARVED_TEST}"
 if [ ! -e .ekstazi ]; then
 echo "Ekstazi Folder missing";
 exit 1
+fi
+
+if [ ! -d .ekstazi ]; then
+  echo "No Ekstazi"
+  exit 1
 fi
 
 mv .ekstazi .ekstazi-carved
