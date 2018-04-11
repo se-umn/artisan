@@ -216,7 +216,7 @@ We repeat the process for 20 times and for n from 1 to N (N is application class
 \begin{tabular}{l l l l l l l l l}
 Project & System Tests &  Carved Tests & Class Coverage & Statement Coverage & Branch Coverage & time SYS &  time Carv &  time Carv MIN\\
 Employee & 7  & 87 &  100\% & 35\% & 14\%  & 0.045 & 0.081 & --\\
-Hotel Reservation & 5 & 128 & 100\% & 41 \% & 29\% & 0.615 & 7.78 & --\\
+Hotel Reservation & 5 & 143 & 100\% & 41 \% & 29\% & 0.615 & 7.78 & --\\
 \end{tabular}
 \end{table*}
 
@@ -240,6 +240,7 @@ Hotel Reservation & 5809 &  6,110 & 7,485 & 3423,924 \\
 %testGenerationTime 7265
 %minimizationTime 3609319
 %====================================
+%
 
 \begin{figure*}[t]
 \centering
@@ -264,8 +265,10 @@ We can generate tests for all the classes
 Does minimization make sense?
 
 Delta Debugging dominates the test generation time.
+There's no difference in RST with and without minimized test cases.
+For SOME REASON the minimized tests it takes more time to execute than the normal ones..
 %
-How many tests minimized?
+How many tests minimized? and how much?
 Employee: 87, 13 minimized (~14\%), those have an avg minimization of 95.55\%
 
 % Is there a differnce in RTS.
