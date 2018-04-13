@@ -9,16 +9,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PushbackReader;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-
-import com.github.javaparser.JavaParser;
-import com.github.javaparser.ast.CompilationUnit;
 
 import soot.G;
 import soot.SootClass;
@@ -49,6 +49,30 @@ public class TestDeltaDebugger {
 	}
 
 	@Test
+	public void parseOutput() {
+		final Pattern failedTestPattern = Pattern.compile("\\d\\d*\\) (.*)"
+					+ "\\(([a-zA_Z_][\\.\\w]*(\\[\\])?)?(,[a-zA_Z_][\\.\\w]*(\\[\\])?)*\\)");
+
+		Set<String> failedTests = new HashSet<>();
+		
+		for (String line : new String[] { "There was 1 failure:", "1) test_1(org.employee.TestFileHandle_1_minimized)",
+				"java.lang.NullPointerException", "1) test_2(org.employee.TestFileHandle_2_minimized)",
+				"at org.employee.TestFileHandle_1_minimized.test_1(TestFileHandle_1_minimized.java:106)" }) {
+			Matcher matcher = failedTestPattern.matcher(line);
+			if( matcher.matches() ){
+				String testMethod = matcher.group(1);
+				String testClass = matcher.group(2);
+						
+				
+				System.out.println("TestDeltaDebugger.parseOutput() " + testClass + "." + testMethod);
+				failedTests.add(  testClass + "." + testMethod );
+			}
+		}
+
+		Assert.assertEquals( 2 , failedTests.size());
+	}
+
+	@Test
 	public void testDeltaDebuggerWithSystemExit() {
 		try {
 			List<File> projectJars = new ArrayList<>();
@@ -57,8 +81,7 @@ public class TestDeltaDebugger {
 			projectJars.add(new File("./src/test/resources/system-rules-1.17.0.jar"));
 
 			SootClass sootClass = readFromJimple("./src/test/resources/jimples/org.employee.TestFileRead_1.jimple");
-			
-			
+
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail();

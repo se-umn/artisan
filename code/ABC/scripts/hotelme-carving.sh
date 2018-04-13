@@ -40,7 +40,7 @@ EXTERNAL_INTERFACES="package=java.nio.file class=java.util.Scanner package=java.
 #  -verbose:gc
 export JAVA_OPTS="-Xmx4g -Xms512m -XX:+UseParallelGC -XX:NewRatio=2 -Dorg.slf4j.simpleLogger.defaultLogLevel=INFO"
 
-set -x
+RESET_ENV="--reset-environment-by org.hotelme.utils.SystemTestUtils.dropAndRecreateTheDb()"
 
 ${BIN_FOLDER}/carve \
             --carve-by ${CARVE_BY} \
@@ -48,7 +48,7 @@ ${BIN_FOLDER}/carve \
                 --trace-file ${TRACE_FILE} \
                 --project-jar $(echo ${PROJECT_CP}| tr ":" " ") \
                 --external ${EXTERNAL_INTERFACES} \
-                --test-setup-by "class=org.hotelme.utils.SystemTestUtils" \
                 --exclude-by ${EXCLUDE} \
                 --output-to ${OUTPUT_DIR} \
+		${RESET_ENV} \
                 2>&1 | tee ${LOG}

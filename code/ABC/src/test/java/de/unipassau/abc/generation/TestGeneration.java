@@ -25,14 +25,9 @@ import org.slf4j.event.Level;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.AssignExpr;
-import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
-import com.github.javaparser.ast.visitor.Visitable;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import com.github.javaparser.resolution.types.ResolvedType;
@@ -42,12 +37,10 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 
 import de.unipassau.abc.carving.Carver;
-import de.unipassau.abc.utils.JimpleUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import soot.G;
 import soot.SootClass;
 import soot.SootResolver;
-import soot.jimple.Jimple;
 import soot.jimple.parser.Walker;
 import soot.jimple.parser.lexer.Lexer;
 import soot.jimple.parser.lexer.LexerException;
@@ -191,7 +184,7 @@ public class TestGeneration {
 
 			CompilationUnit cu = JavaParser.parse(javaCode);
 
-			DeltaDebugger.renameClass( cu, "_minimized");
+			TestSuiteMinimizer.renameClass( cu, "_minimized");
 			
 			// Assert class name is new, assert constructor returns the new name
 			//
@@ -217,12 +210,12 @@ public class TestGeneration {
 
 			String resetEnvironmentBy = "org.hotelme.utils.SystemTestUtils.dropAndRecreateTheDb()";
 			
-			DeltaDebugger.createAtBeforeResetMethod(resetEnvironmentBy, cu);
+			TestSuiteMinimizer.createAtBeforeResetMethod(resetEnvironmentBy, cu);
 
 			System.out.println(cu);
 			
 			// Now clean it up
-			DeltaDebugger.removeAtBeforeResetMethod(cu);
+			TestSuiteMinimizer.removeAtBeforeResetMethod(cu);
 			
 			System.out.println(cu);
 		} catch (Exception e) {

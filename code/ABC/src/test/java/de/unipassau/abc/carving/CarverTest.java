@@ -33,7 +33,7 @@ public class CarverTest {
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
 	@Test
 	@Category(ManualTest.class)
@@ -48,14 +48,14 @@ public class CarverTest {
 			String traceFile = "/Users/gambi/action-based-test-carving/code/ABC/scripts/employee-tracingOut/trace.txt";
 //			String carveBy = "method=" + jimpleMethodToCarve;
 //			String carveBy = "class=DummyObjectToPassAsParameter";
-//			String carveBy = "package=org.employee";
 //			String carveBy = "invocation=<org.employee.DummyObjectToPassAsParameter: void <init>()>_40";
 			
 			/*
 			 * This requires a setup of a file by means of Files.write, which is an external interface
 			 */
+			String carveBy = "package=org.employee";
 //			String carveBy = "class=org.employee.FileRead2";
-			String carveBy = "method=<org.employee.FileRead2: int fileIsRead(java.lang.String,java.lang.String)>";
+//			String carveBy = "method=<org.employee.FileRead2: int fileIsRead(java.lang.String,java.lang.String)>";
 //			String carveBy = "invocation=<org.employee.Validation: void <init>()>_54";
 
 			String[] args = new String[] {

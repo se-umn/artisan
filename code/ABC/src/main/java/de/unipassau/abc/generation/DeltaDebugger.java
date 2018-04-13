@@ -73,7 +73,9 @@ public class DeltaDebugger {
 
 	private final static Logger logger = LoggerFactory.getLogger(DeltaDebugger.class);
 
-	// minimizedTestClass.setName(minimizedTestClass.getName() + "_minimized");
+	/*
+	 * Minimize all the test in parallalel
+	 */
 	public static void minimize(File outputDir,
 			final List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases,
 			String resetEnvironmentBy, //
@@ -81,7 +83,7 @@ public class DeltaDebugger {
 
 		// Method under test is the last before XMLValidation
 
-		// Include in the tests the validation
+		// Include in the tests the XML Assertions
 		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
 
 			MethodInvocation mut = carvedTestCase.getFirst().getLastMethodInvocation();
@@ -92,7 +94,7 @@ public class DeltaDebugger {
 			List<Unit> validation = generateValidationUnit(testMethod, mut.getXmlDumpForOwner(),
 					mut.getXmlDumpForReturn(), carvedTestCase.getSecond().getReturnObjectLocalFor(mut));
 
-			System.out.println("DeltaDebugger.minimize() Validation code: " + validation);
+			logger.info("DeltaDebugger.minimize() Validation code: " + validation);
 			final Body body = testMethod.getActiveBody();
 			// The very last unit is the "return" we need the one before it...
 			final PatchingChain<Unit> units = body.getUnits();
@@ -115,128 +117,15 @@ public class DeltaDebugger {
 		//
 		boolean resolveTypes = true;
 		File tempFolder = Files.createTempDirectory("DeltaDebug").toFile();
-		Set<CompilationUnit> testClasses = TestCaseFactory.generateTestFiles(projectJars, tempFolder, _testClasses,
+		Set<CompilationUnit> allTestClasses = TestCaseFactory.generateTestFiles(projectJars, tempFolder, _testClasses,
 				resolveTypes);
 
-		
-		// THIS CAN BE MADE MUCH MORE FASTER IF WE RUN ALL THE TESTS TOGETHER INSTEAD OF
-		// ONE BY ONE:
-		// MAKE DELTA DEBUGGING A SCRIPT TO BE INVOKED ON A SINGLE TEST
-		// DO NOT REMOVE VARIABLE INITIALIZATION  ( = null)
-		// Modify all the test classes -> 
-		// Compile run  -> remove the one who did non pass
-		// Run all of the remainin tests
-		// Parse the result
-		// Run Delta Debug for each test in each class
-		for (CompilationUnit testClass : testClasses) {
+		TestSuiteMinimizer testSuiteMinimizer = new TestSuiteMinimizer(allTestClasses, resetEnvironmentBy, new TestSuiteExecutor( projectJars ));
+		// This will change allTestClasses by running delta debugging
+		testSuiteMinimizer.minimize();
 
-			// Include the reset environment call if needed
-			createAtBeforeResetMethod(resetEnvironmentBy, testClass);
-
-			// Refactor the class (name, constructor, etc)
-			renameClass(testClass, "_minimized");
-
-			// Modify the test unit by tentatively removing a statement
-
-			TypeDeclaration<?> typeD = testClass.getType(0);
-			
-			// Process the class methods
-			for (Object _method : typeD.getMethods()) {
-				if (!(_method instanceof MethodDeclaration)) {
-					logger.debug("DeltaDebugger.minimize() Skip " + _method + " not a method");
-					continue;
-				}
-				
-				MethodDeclaration testMethod = (MethodDeclaration) _method;
-				
-				if (!testMethod.isAnnotationPresent(Test.class)) {
-					logger.debug("DeltaDebugger.minimize() Skip " + _method + "  not a @Test method");
-					continue;
-				}
-
-				BlockStmt body = testMethod.getBody().get();
-				List<Statement> statements = new ArrayList<>(body.getStatements());
-				Collections.reverse(statements);
-
-				int removed = 0;
-				int total = statements.size();
-
-				// Skip the XML Verifier calls
-				int mutIndex = Integer.MAX_VALUE;
-				for (int index = total - 1; index > 0; index--) {
-					Statement s = body.getStatement(index);
-					if (s.toString().contains("XMLVerifier")) {
-						mutIndex = index - 1;
-						continue;
-					}
-				}
-				if( mutIndex == Integer.MAX_VALUE ){
-					System.out.println("DeltaDebugger.minimize() No XMLVerifier Calls ?!");
-				}
-
-				// Process the method
-				for (int index = mutIndex - 1; index > 0; index--) {
-					// TODO Invocations to new and invocations to
-					// System.Exit cannot be removed...
-
-					BlockStmt originalBody = testMethod.getBody().get().clone();
-					BlockStmt modifiedBody = testMethod.getBody().get().clone();
-					//
-					final Statement s = modifiedBody.getStatement(index);
-					
-					// If this is X = null, that is an Variable declaration/ initialization. Skip it !
-					// We will clean up unused variables later
-					// TODO This is brutal, but I do not see any better option now
-					if( s.toString().contains("= null") ){
-						logger.debug("Skip variable initialization");
-						continue;
-					}
-					
-					
-					logger.info("DeltaDebugger.minimize() Try to remove stmt " + index + " -> " + s);
-
-					// System.out.println("DeltaDebugger.minimize() " +
-					// modifiedBody
-					// .getStatements().size());
-					modifiedBody.remove(s);
-					// System.out.println("DeltaDebugger.minimize() " +
-					// modifiedBody
-					// .getStatements().size());
-					//
-					testMethod.setBody(modifiedBody);
-					//
-					// //
-					if (compileAndRunJUnitTest(testClass, testMethod, projectJars)) {
-						logger.info("DeltaDebugger.minimize() Verification Passed, remove " + s);
-						removed++;
-					} else {
-						logger.info("DeltaDebugger.minimize() Verification Failed, keep " + s);
-						// Use the previous body
-						testMethod.setBody(originalBody);
-					}
-				}
-
-				removeAtBeforeResetMethod(testClass);
-
-				// Remove the calls to verify !
-				body = testMethod.getBody().get();
-				body.accept(new ModifierVisitor<Void>() {
-					public Visitable visit(MethodCallExpr n, Void arg) {
-
-						if (n.getScope().isPresent()) {
-							if (n.getScope().get().toString().equals("de.unipassau.abc.tracing.XMLVerifier")) {
-								return null;
-							}
-						}
-						return super.visit(n, arg);
-					}
-
-				}, null);
-
-				logger.info("Removed " + removed + " out of " + total + " instructions from test "
-						+ testMethod.getNameAsString() + " " + (((double) removed / (double) total) * 100));
-
-			}
+		// Eventually output the files
+		for (CompilationUnit testClass : allTestClasses) {
 
 			// Create the structure as javac expects
 			String packageDeclaration = testClass.getPackageDeclaration().get().getNameAsString();
@@ -255,46 +144,7 @@ public class DeltaDebugger {
 
 	}
 
-	// create a @Before method which invokes resetEnvironment by unless there's
-	// already one - This one must just wipe out the DB completely
-	public static void createAtBeforeResetMethod(String resetEnvironmentBy, CompilationUnit testClass) {
-		if (resetEnvironmentBy == null) {
-			return;
-		}
-		//
-		TypeDeclaration<?> testType = testClass.getTypes().get(0);
-		for (MethodDeclaration md : testType.getMethods()) {
-			if (md.isAnnotationPresent(Before.class)) {
-				return;
-			}
-		}
-		//
-		MethodDeclaration setupMethod = testType.addMethod("setup", Modifier.PUBLIC);
-		setupMethod.addAnnotation(Before.class);
-		BlockStmt body = new BlockStmt();
-		body.addStatement(new NameExpr(resetEnvironmentBy));
-		setupMethod.setBody(body);
-
-	}
-
-	public static void renameClass(CompilationUnit testClass, String postFix) {
-		// Change the class name
-		final String originalTestClassName = testClass.getType(0).getNameAsString();
-		String newTestClassName = originalTestClassName.concat(postFix);
-		// New name
-		testClass.getType(0).setName(newTestClassName);
-		//
-		testClass.accept(new ModifierVisitor<Void>() {
-			@Override
-			public Visitable visit(ConstructorDeclaration n, Void arg) {
-				if (originalTestClassName.equals(n.getNameAsString())) {
-					n.setName(newTestClassName);
-				}
-				return super.visit(n, arg);
-			}
-		}, null);
-
-	}
+	
 
 	@Deprecated
 	public static void minimize(File testSourceFolder,
@@ -454,120 +304,7 @@ public class DeltaDebugger {
 		}
 	}
 
-	public static boolean compileAndRunJUnitTest(//
-			CompilationUnit testClass, MethodDeclaration testMethod, //
-			List<File> projectJars) throws IOException, URISyntaxException, InterruptedException {
-
-		long time = System.currentTimeMillis();
-		try {
-			// https://javabeat.net/the-java-6-0-compiler-api/
-			File tempOutputDir = Files.createTempDirectory("DeltaDebug").toFile();
-			tempOutputDir.deleteOnExit();
-
-			String testClassName = testClass.getType(0).getNameAsString();
-			String packageDeclaration = testClass.getPackageDeclaration().get().getNameAsString();
-
-			// Create the structure as javac expects
-			File packageFile = new File(tempOutputDir, packageDeclaration.replaceAll("\\.", File.separator));
-			packageFile.mkdirs();
-
-			// Store the testClassName into a File inside the tempOutputDir
-			File classFile = new File(packageFile, testClassName + ".java");
-
-			// Not nice to pass by String ...
-			Files.write(classFile.toPath(), testClass.toString().getBytes());
-
-			///
-			StringBuilder cpBuilder = new StringBuilder();
-			// Include the class we are delta debugging
-			cpBuilder.append(tempOutputDir.getAbsolutePath()).append(File.pathSeparator);
-			// Include the project deps
-			for (File jarFile : projectJars) {
-				cpBuilder.append(jarFile.getAbsolutePath()).append(File.pathSeparator);
-			}
-			// Include JUnit
-			cpBuilder.append(ABCUtils.buildJUnit4Classpath()).append(File.pathSeparator);
-			// Include System rules for
-			cpBuilder.append(ABCUtils.getSystemRulesJar()).append(File.pathSeparator);
-			// Include XMLDumper
-			cpBuilder.append(ABCUtils.getTraceJar()).append(File.pathSeparator);
-			// Include XMLDumper
-			for (File jarFile : ABCUtils.getXStreamJars()) {
-				cpBuilder.append(jarFile.getAbsolutePath()).append(File.pathSeparator);
-			}
-
-			String classpath = cpBuilder.toString();
-
-			final List<String> args = new ArrayList<>();
-			args.add("-classpath");
-			args.add(classpath);
-
-			java.nio.file.Files.walkFileTree(tempOutputDir.toPath(), new SimpleFileVisitor<Path>() {
-				@Override
-				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					if (file.toString().endsWith(".java")) {
-						args.add(file.toFile().getAbsolutePath());
-					}
-					return super.visitFile(file, attrs);
-				}
-			});
-
-			JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-			int compilationResult = compiler.run(null, null, null, //
-					args.toArray(new String[] {}));
-
-			if (compilationResult != 0) {
-				logger.debug("Compilation failed");
-				return false;
-			}
-
-			String javaPath = SystemUtils.JAVA_HOME + File.separator + "bin" + File.separator + "java";
-
-			// TODO Here it would be nice to execute a single test, but this
-			// requires a custom runner that must be used instead of plain
-			// JUnitCore
-			// https://stackoverflow.com/questions/9288107/run-single-test-from-a-junit-class-using-command-line
-			ProcessBuilder processBuilder = new ProcessBuilder(javaPath, "-cp", classpath, "org.junit.runner.JUnitCore",
-					packageDeclaration + "." + testClassName);
-
-			// if (logger.isTraceEnabled()) {
-			logger.trace("DeltaDebugger.runJUnitTest() " + processBuilder.command());
-			// This causes problems wher run on command line
-			processBuilder.inheritIO();
-			// }
-
-			Process process = processBuilder.start();
-
-			// Wait for the execution to end.
-			if (!process.waitFor(4000, TimeUnit.MILLISECONDS)) {
-				logger.info("Timeout for test execution");
-				// timeout - kill the process.
-				process.destroyForcibly(); // consider using destroyForcibly
-											// instead
-				// Force Wait 1 sec to clean up
-				Thread.sleep(1000);
-			}
-
-			try {
-				int result = process.exitValue(); // ;process.waitFor();
-
-				if (result != 0) {
-					logger.debug(" Test FAILED " + result);
-				}
-				return (result == 0);
-			} catch (Throwable e) {
-				e.printStackTrace();
-				// Avoid resource leakeage. This should be IDEMPOTENT
-				process.destroyForcibly();
-				// TODO: handle exception
-			}
-			return false;
-		} finally {
-			time = System.currentTimeMillis() - time;
-			logger.info("Verification done in " + time + " ms");
-		}
-
-	}
+	
 
 	@Deprecated
 	public static boolean compileAndRunJUnitTest(String systemTestClassName, File tempOutputDir, List<File> projectJars)
@@ -750,17 +487,6 @@ public class DeltaDebugger {
 		return validationUnits;
 	}
 
-	public static void removeAtBeforeResetMethod(CompilationUnit cu) {
-		cu.accept(new ModifierVisitor<Void>() {
-			@Override
-			public Visitable visit(MethodDeclaration n, Void arg) {
-				if (n.isAnnotationPresent(Before.class)) {
-					return null;
-				}
-				return super.visit(n, arg);
-			}
-		}, null);
-
-	}
+	
 
 }
