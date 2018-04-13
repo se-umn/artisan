@@ -15,8 +15,11 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
@@ -26,10 +29,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.body.CallableDeclaration.Signature;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
 import de.unipassau.abc.ABCUtils;
+import de.unipassau.abc.data.Pair;
 
 // Execute the give test classes, parse the results and returns a data structor for pass/fail tests
 // XXXX THIS WORKS UNDER THE ASSUMPTION THAT THERE"S ONLY ONE TEST METHOD FOR EACH TEST CLASS !!
@@ -68,13 +73,25 @@ public class TestSuiteExecutor {
 
 	// XXXX THIS WORKS UNDER THE ASSUMPTION THAT THERE"S ONLY ONE TEST METHOD
 	// FOR EACH TEST CLASS !!
-	public Set<MethodDeclaration> executeAndReportFailedTests(Set<CompilationUnit> testClasses) {
+	// FOR THE MOMENT WE COMPILE AND RUN EVERYTHING EVERYTIME
+	public Collection<Pair<CompilationUnit, Signature>> executeAndReportFailedTests(
+			Map<Pair<CompilationUnit, Signature>, Integer> currentIndex) {
 
-		Set<MethodDeclaration> failedTests = new HashSet<>();
-		Iterator<CompilationUnit> iterator = testClasses.iterator();
+		Collection<Pair<CompilationUnit, Signature>> failedTests = new HashSet<>();
+
+		Set<CompilationUnit> _testClasses = new HashSet<>();
+
+		for (Pair<CompilationUnit, Signature> p : currentIndex.keySet()) {
+			_testClasses.add(p.getFirst());
+		}
+		//
+		Iterator<CompilationUnit> iterator = _testClasses.iterator();
+		// Note that this is correct only for the case of 1 test class 1 test
+		// method !!
 		while (iterator.hasNext()) {
 			CompilationUnit testClass = iterator.next();
 			if (!compileJUnitTest(testClass)) {
+				System.out.println(" Cannot compile " + testClass.getType(0).getNameAsString());
 				// Accumulate the test methods in this call
 				failedTests.addAll(getTestMethods(testClass));
 				//
@@ -83,25 +100,45 @@ public class TestSuiteExecutor {
 		}
 		// At this point the testClasses set should contain only compilable
 		// tests
-		failedTests.addAll(compileAndRunJUnitTests(testClasses));
+		// final Pattern methodName =
+		// Pattern.compile("^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$");
+
+		for (Pair<String, String> failedTest : compileAndRunJUnitTests(_testClasses)) {
+			// Find the corresponding Method Declaration
+			for (CompilationUnit testClass : _testClasses) {
+
+				if (failedTest.getFirst().equals(testClass.getPackageDeclaration().get().getNameAsString() + "."
+						+ testClass.getType(0).getNameAsString())) {
+					testClass.accept(new VoidVisitorAdapter() {
+						public void visit(MethodDeclaration n, Object arg) {
+
+							if (n.getNameAsString().equals(failedTest.getSecond())) {
+								failedTests.add(new Pair<CompilationUnit, Signature>(testClass, n.getSignature()));
+							}
+							super.visit(n, arg);
+						}
+					}, null);
+				}
+			}
+		}
 		//
 		return failedTests;
 
 	}
 
-	private Set<MethodDeclaration> getTestMethods(CompilationUnit testClass) {
-		final Set<MethodDeclaration> testMethods = new HashSet<>();
+	private Set<Pair<CompilationUnit, Signature>> getTestMethods(CompilationUnit testClass) {
+		final Set<Pair<CompilationUnit, Signature>> testMethods = new HashSet<>();
 		testClass.accept(new VoidVisitorAdapter<Void>() {
 			@Override
 			public void visit(MethodDeclaration n, Void arg) {
 				if (n.isAnnotationPresent(org.junit.Test.class)) {
-					testMethods.add(n);
+					testMethods.add(new Pair<CompilationUnit, Signature>(testClass, n.getSignature()));
 				}
 				super.visit(n, arg);
 			}
 		}, null);
 
-		return null;
+		return testMethods;
 	}
 
 	private boolean compileJUnitTest(CompilationUnit junitClass) {
@@ -171,9 +208,13 @@ public class TestSuiteExecutor {
 		}
 	}
 
-	public Set<String> compileAndRunJUnitTests(Collection<CompilationUnit> testClasses)
-			throws IOException, URISyntaxException, InterruptedException {
-		final Set<String> failedTests = new HashSet<>();
+	public Set<Pair<String, String>> compileAndRunJUnitTests(Collection<CompilationUnit> testClasses) {
+		final Set<Pair<String, String>> failedTests = new HashSet<>();
+		
+		if( testClasses.isEmpty() ){
+			return failedTests;
+		}
+		
 		try {
 			// https://javabeat.net/the-java-6-0-compiler-api/
 			File tempOutputDir = Files.createTempDirectory("DeltaDebug").toFile();
@@ -185,62 +226,93 @@ public class TestSuiteExecutor {
 
 			// Now execute all of classes under tempOutputDir
 			// Refactor
-
+			List<String> commands = new ArrayList<>();
 			String javaPath = SystemUtils.JAVA_HOME + File.separator + "bin" + File.separator + "java";
-
+			commands.add( javaPath );
+	
 			// TODO Here it would be nice to execute a single test, but this
 			// requires a custom runner that must be used instead of plain
 			// JUnitCore
 			// https://stackoverflow.com/questions/9288107/run-single-test-from-a-junit-class-using-command-line
 			String classpath = buildClassPath(tempOutputDir);
-
-			StringBuilder testClassNames = new StringBuilder();
+			commands.add("-cp");
+			commands.add( classpath );
+			
+			commands.add("org.junit.runner.JUnitCore");
+			
 			for (CompilationUnit testClass : testClasses) {
-				if (testClassNames.length() != 0) {
-					testClassNames.append(" ");
-				}
-				testClassNames.append(testClass.getPackageDeclaration().get().getNameAsString()).append(".")
-						.append(testClass.getTypes().get(0).getNameAsString());
+				commands.add(
+						testClass.getPackageDeclaration().get().getNameAsString()+"."+
+						testClass.getTypes().get(0).getNameAsString());
 			}
 
-			ProcessBuilder processBuilder = new ProcessBuilder(javaPath, "-cp", classpath, "org.junit.runner.JUnitCore",
-					testClassNames.toString());
+			ProcessBuilder processBuilder = new ProcessBuilder(commands);
 
 			logger.trace("DeltaDebugger.runJUnitTest() " + processBuilder.command());
 
 			// Parse output ...
 
+			processBuilder.redirectError();
+			processBuilder.redirectInput();
+			processBuilder.redirectOutput();
 			Process process = processBuilder.start();
-			try (
-					BufferedReader reader = new BufferedReader (new InputStreamReader(process.getOutputStream()));){
 
-				// Wait for the execution to end.
-				if (!process.waitFor(4000 * testClasses.size(), TimeUnit.MILLISECONDS)) {
-					logger.info("Timeout for test execution");
-					// timeout - kill the process.
-					process.destroyForcibly(); // consider using destroyForcibly
-												// instead
-					// Force Wait 1 sec to clean up
-					Thread.sleep(1000);
-				}
+			final Pattern failedTestPattern = Pattern.compile("\\d\\d*\\) (.*)"
+					+ "\\(([a-zA_Z_][\\.\\w]*(\\[\\])?)?(,[a-zA_Z_][\\.\\w]*(\\[\\])?)*\\)");
+			
+			// PUT THIS INTO A THREAD !
+			Thread t = new Thread(new Runnable() {
 
-				// I hope that at this point we still have the stream ?
-				while (read.hasNext()) {
-					if (scanner.nextLine().matches("")) {
-						// FQN OF THE FILE
-						failedTests.add("");
+				@Override
+				public void run() {
+					// TODO Auto-generated method stub
+					try (BufferedReader output = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+						String line = null;
+						while ((line = output.readLine()) != null) {
+							System.out.println(
+									">>> " + line );
+							Matcher matcher = failedTestPattern.matcher( line );
+							if( matcher.matches() ){
+								String testMethod = matcher.group(1);
+								String testClass = matcher.group(2);
+								logger.debug(">>> Failed Test " + testClass + "."+ testMethod);
+								failedTests.add(  new Pair<String, String>(testClass, testMethod));
+							}
+						}
+					} catch (IOException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
 					}
 				}
-
-			} catch (Throwable e) {
-				e.printStackTrace();
-				// Avoid resource leakeage. This should be IDEMPOTENT
-				process.destroyForcibly();
-				// TODO: handle exception
+			});
+			t.start();
+			
+			//
+			
+			// Wait for the execution to end.
+			if (!process.waitFor(4000 * testClasses.size(), TimeUnit.MILLISECONDS)) {
+				logger.info("Timeout for test execution");
+				// timeout - kill the process.
+				process.destroyForcibly(); // consider using destroyForcibly
+											// instead
+				// Force Wait 1 sec to clean up
+				Thread.sleep(1000);
 			}
+
+			// This should be into a finally
+			process.destroyForcibly(); // consider using destroyForcibly
+			// instead
+			// NOT SURE
+			
+			// Are we sure that at this point the thread finished to read all the input ?
+			t.interrupt();
+
 		} catch (Exception e) {
 			// TODO: handle exception
+			e.printStackTrace();
 		}
+
+		return failedTests;
 
 	}
 

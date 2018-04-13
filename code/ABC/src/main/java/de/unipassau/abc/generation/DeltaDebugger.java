@@ -68,7 +68,9 @@ public class DeltaDebugger {
 
 	private final static Logger logger = LoggerFactory.getLogger(DeltaDebugger.class);
 
-	// minimizedTestClass.setName(minimizedTestClass.getName() + "_minimized");
+	/*
+	 * Minimize all the test in parallalel
+	 */
 	public static void minimize(File outputDir,
 			final List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases,
 			String resetEnvironmentBy, //
@@ -76,7 +78,7 @@ public class DeltaDebugger {
 
 		// Method under test is the last before XMLValidation
 
-		// Include in the tests the validation
+		// Include in the tests the XML Assertions
 		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
 
 			MethodInvocation mut = carvedTestCase.getFirst().getLastMethodInvocation();
@@ -87,7 +89,7 @@ public class DeltaDebugger {
 			List<Unit> validation = generateValidationUnit(testMethod, mut.getXmlDumpForOwner(),
 					mut.getXmlDumpForReturn(), carvedTestCase.getSecond().getReturnObjectLocalFor(mut));
 
-			System.out.println("DeltaDebugger.minimize() Validation code: " + validation);
+			logger.info("DeltaDebugger.minimize() Validation code: " + validation);
 			final Body body = testMethod.getActiveBody();
 			// The very last unit is the "return" we need the one before it...
 			final PatchingChain<Unit> units = body.getUnits();
@@ -113,125 +115,12 @@ public class DeltaDebugger {
 		Set<CompilationUnit> allTestClasses = TestCaseFactory.generateTestFiles(projectJars, tempFolder, _testClasses,
 				resolveTypes);
 
-		for (CompilationUnit testClass : allTestClasses) {
-			// Rename and include XML validation
-			prepareClass(testClass, resetEnvironmentBy);
-		}
-
-
 		TestSuiteMinimizer testSuiteMinimizer = new TestSuiteMinimizer(allTestClasses, resetEnvironmentBy, new TestSuiteExecutor( projectJars ));
-		
-		Set<CompilationUnit> testClassesToMinimize = new HashSet<>(allTestClasses);
-		while ( ! testSuiteMinimizer.isDone() ) {
-			testSuiteMinimizer.performAMinimizationStep();
-		}
+		// This will change allTestClasses by running delta debugging
+		testSuiteMinimizer.minimize();
 
+		// Eventually output the files
 		for (CompilationUnit testClass : allTestClasses) {
-			removeAtBeforeResetMethod(testClass);
-
-			removeXMLVerifierCalls(testClass);
-
-			// logger.info("Removed " + removed + " out of " + total + "
-			// instructions from test "
-			// + testMethod.getNameAsString() + " " + (((double) removed /
-			// (double) total) * 100));
-
-		}
-
-		// Run Delta Debug for each test in each class
-		for (CompilationUnit testClass : allTestClasses) {
-
-			// Modify the test unit by tentatively removing a statement
-
-			TypeDeclaration<?> typeD = testClass.getType(0);
-
-			// Process the class methods
-			for (Object _method : typeD.getMethods()) {
-				if (!(_method instanceof MethodDeclaration)) {
-					logger.debug("DeltaDebugger.minimize() Skip " + _method + " not a method");
-					continue;
-				}
-
-				MethodDeclaration testMethod = (MethodDeclaration) _method;
-
-				if (!testMethod.isAnnotationPresent(Test.class)) {
-					logger.debug("DeltaDebugger.minimize() Skip " + _method + "  not a @Test method");
-					continue;
-				}
-
-				BlockStmt body = testMethod.getBody().get();
-				List<Statement> statements = new ArrayList<>(body.getStatements());
-				Collections.reverse(statements);
-
-				int removed = 0;
-				int total = statements.size();
-
-				// Skip the XML Verifier calls
-				int mutIndex = Integer.MAX_VALUE;
-				for (int index = total - 1; index > 0; index--) {
-					Statement s = body.getStatement(index);
-					if (s.toString().contains("XMLVerifier")) {
-						mutIndex = index - 1;
-						continue;
-					}
-				}
-				if (mutIndex == Integer.MAX_VALUE) {
-					System.out.println("DeltaDebugger.minimize() No XMLVerifier Calls ?!");
-				}
-
-				// Process the method
-				for (int index = mutIndex - 1; index > 0; index--) {
-					// TODO Invocations to new and invocations to
-					// System.Exit cannot be removed...
-
-					BlockStmt originalBody = testMethod.getBody().get().clone();
-					BlockStmt modifiedBody = testMethod.getBody().get().clone();
-					//
-					final Statement s = modifiedBody.getStatement(index);
-
-					// System.out.println("DeltaDebugger.minimize() " +
-					// modifiedBody
-					// .getStatements().size());
-					modifiedBody.remove(s);
-					// System.out.println("DeltaDebugger.minimize() " +
-					// modifiedBody
-					// .getStatements().size());
-					//
-					testMethod.setBody(modifiedBody);
-					//
-					logger.info("DeltaDebugger.minimize() Try to remove stmt " + index + " -> " + s);
-					// //
-					if (compileAndRunJUnitTest(testClass, testMethod, projectJars)) {
-						logger.info("DeltaDebugger.minimize() Verification Passed, remove " + s);
-						removed++;
-					} else {
-						logger.info("DeltaDebugger.minimize() Verification Failed, keep " + s);
-						// Use the previous body
-						testMethod.setBody(originalBody);
-					}
-				}
-
-				removeAtBeforeResetMethod(testClass);
-
-				// Remove the calls to verify !
-				body = testMethod.getBody().get();
-				body.accept(new ModifierVisitor<Void>() {
-					public Visitable visit(MethodCallExpr n, Void arg) {
-
-						if (n.getScope().isPresent()) {
-							if (n.getScope().get().toString().equals("de.unipassau.abc.tracing.XMLVerifier")) {
-								return null;
-							}
-						}
-						return super.visit(n, arg);
-					}
-
-				}, null);
-
-				logger.info("Removed " + removed + " out of " + total + " instructions from test "
-						+ testMethod.getNameAsString() + " " + (((double) removed / (double) total) * 100));
-
-			}
 
 			// Create the structure as javac expects
 			String packageDeclaration = testClass.getPackageDeclaration().get().getNameAsString();
@@ -250,76 +139,7 @@ public class DeltaDebugger {
 
 	}
 
-	public static void removeXMLVerifierCalls(CompilationUnit testClass) {
-		// Remove the calls to verify from each test method !
-		for (MethodDeclaration testMethod : testClass.getType(0).getMethods()) {
-			if (testMethod.isAnnotationPresent(Test.class)) {
-				testMethod.getBody().get().accept(new ModifierVisitor<Void>() {
-					public Visitable visit(MethodCallExpr n, Void arg) {
-
-						if (n.getScope().isPresent()) {
-							if (n.getScope().get().toString().equals("de.unipassau.abc.tracing.XMLVerifier")) {
-								return null;
-							}
-						}
-						return super.visit(n, arg);
-					}
-
-				}, null);
-			}
-		}
-
-	}
-
-	public static void prepareClass(CompilationUnit testClass, String resetEnvironmentBy) {
-		// Include the reset environment call if needed
-		createAtBeforeResetMethod(resetEnvironmentBy, testClass);
-
-		// Refactor the class (name, constructor, etc)
-		renameClass(testClass, "_minimized");
-
-	}
-
-	// create a @Before method which invokes resetEnvironment by unless there's
-	// already one
-	public static void createAtBeforeResetMethod(String resetEnvironmentBy, CompilationUnit testClass) {
-		if (resetEnvironmentBy == null) {
-			return;
-		}
-		//
-		TypeDeclaration<?> testType = testClass.getTypes().get(0);
-		for (MethodDeclaration md : testType.getMethods()) {
-			if (md.isAnnotationPresent(Before.class)) {
-				return;
-			}
-		}
-		//
-		MethodDeclaration setupMethod = testType.addMethod("setup", Modifier.PUBLIC);
-		setupMethod.addAnnotation(Before.class);
-		BlockStmt body = new BlockStmt();
-		body.addStatement(new NameExpr(resetEnvironmentBy));
-		setupMethod.setBody(body);
-
-	}
-
-	public static void renameClass(CompilationUnit testClass, String postFix) {
-		// Change the class name
-		final String originalTestClassName = testClass.getType(0).getNameAsString();
-		String newTestClassName = originalTestClassName.concat(postFix);
-		// New name
-		testClass.getType(0).setName(newTestClassName);
-		//
-		testClass.accept(new ModifierVisitor<Void>() {
-			@Override
-			public Visitable visit(ConstructorDeclaration n, Void arg) {
-				if (originalTestClassName.equals(n.getNameAsString())) {
-					n.setName(newTestClassName);
-				}
-				return super.visit(n, arg);
-			}
-		}, null);
-
-	}
+	
 
 	@Deprecated
 	public static void minimize(File testSourceFolder,
@@ -662,17 +482,6 @@ public class DeltaDebugger {
 		return validationUnits;
 	}
 
-	public static void removeAtBeforeResetMethod(CompilationUnit cu) {
-		cu.accept(new ModifierVisitor<Void>() {
-			@Override
-			public Visitable visit(MethodDeclaration n, Void arg) {
-				if (n.isAnnotationPresent(Before.class)) {
-					return null;
-				}
-				return super.visit(n, arg);
-			}
-		}, null);
-
-	}
+	
 
 }
