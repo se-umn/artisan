@@ -44,6 +44,7 @@ RESET_ENV="--reset-environment-by org.hotelme.utils.SystemTestUtils.dropAndRecre
 
 ${BIN_FOLDER}/carve \
             --carve-by ${CARVE_BY} \
+		--skip-minimize \
                 --trace-file ${TRACE_FILE} \
                 --project-jar $(echo ${PROJECT_CP}| tr ":" " ") \
                 --external ${EXTERNAL_INTERFACES} \

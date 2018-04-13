@@ -1,7 +1,5 @@
 package de.unipassau.abc.instrumentation;
 
-import static org.junit.Assert.assertEquals;
-
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -64,16 +62,16 @@ public class InstrumentClassAccess {
 					"--output-type", "jimple", 
 					"--include", "de.unipassau.abc.testsubject4.*" });
 			//
-			final AtomicInteger count = new AtomicInteger(0);
-			Files.walkFileTree(outputDir.toPath(), new SimpleFileVisitor<Path>() {
-				@Override
-				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					if (file.toString().endsWith(".jimple")) {
-						count.incrementAndGet();
-					}
-					return super.visitFile(file, attrs);
-				}
-			});
+//			final AtomicInteger count = new AtomicInteger(0);
+//			Files.walkFileTree(outputDir.toPath(), new SimpleFileVisitor<Path>() {
+//				@Override
+//				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+//					if (file.toString().endsWith(".jimple")) {
+//						count.incrementAndGet();
+//					}
+//					return super.visitFile(file, attrs);
+//				}
+//			});
 
 			// TODO Separate methos call; Visualize the JIMPLE Files
 			for( File jimpleFile : outputDir.listFiles(new FilenameFilter() {

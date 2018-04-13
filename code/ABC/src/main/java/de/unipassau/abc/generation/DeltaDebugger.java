@@ -64,6 +64,11 @@ import soot.jimple.Jimple;
 import soot.jimple.StaticInvokeExpr;
 import soot.jimple.StringConstant;
 
+/**
+ * TODO Do we need to remove elements in the inputs if we remove calls to scanner.next? in theory we shall
+ * @author gambi
+ *
+ */
 public class DeltaDebugger {
 
 	private final static Logger logger = LoggerFactory.getLogger(DeltaDebugger.class);

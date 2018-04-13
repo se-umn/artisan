@@ -2,8 +2,8 @@
 
 unameOut="$(uname -s)"
 case "${unameOut}" in
-Linux*)     machine=Linux; doShuffle='shuf'; sedOption='-i';;
-Darwin*)    machine=Mac; doShuffle='gshuf'; sedOption="-i ''";;
+Linux*)     machine=Linux; doShuffle='shuf'; sedOption='-i'; FIND="/";;
+Darwin*)    machine=Mac; doShuffle='gshuf'; sedOption='-i .bkp';;
 *)          machine="UNKNOWN:${unameOut}"
 esac
 echo ${machine}
@@ -31,13 +31,22 @@ DATA_FILE=${HERE}/hotelme-rts.csv
 
 rm ${DATA_FILE}
 
-CARVED_TESTS=$(find ${CARVED_TESTS_CP}${FIND} -iname "Test*.class" -not -iname "*minimized*" -type f | sed "s|${CARVED_TESTS_CP}/||"| tr "/" "." | sed 's|\.class||g' | tr "\n" " ")
+#CARVED_TESTS=$(find ${CARVED_TESTS_CP}${FIND} -iname "Test*.class" -not -iname "*minimized*" -type f | sed "s|${CARVED_TESTS_CP}/||"| tr "/" "." | sed 's|\.class||g' | tr "\n" " ")
 
-echo "CARVED_TESTS ${CARVED_TESTS}"
+#echo "CARVED_TESTS ${CARVED_TESTS}"
 
 MIN_CARVED_TESTS=$(find ${CARVED_TESTS_CP}${FIND} -iname "Test*.class" -iname "*minimized*" -type f | sed "s|${CARVED_TESTS_CP}/||"| tr "/" "." | sed 's|\.class||g' | tr "\n" " ")
 
-echo "MIN_CARVED_TESTS ${MIN_CARVED_TESTS}"
+#echo "MIN_CARVED_TESTS ${MIN_CARVED_TESTS}"
+
+
+cd HotelMe
+
+if [ ! -d .git ]; then
+    echo "Missing GIT FOLDER ! Abort"
+    exit 1
+fi
+
 
 echo "Build CP"
 mvn -q dependency:build-classpath -Dmdep.outputFile=cp.txt
@@ -79,6 +88,7 @@ echo "Running System Tests"
 read -r TIME_TOTAL_SYSTEM_TEST TOTAL_SYSTEM_TEST <<< $(java \
 -cp ${PROJECT_CP}:${DEPS} \
 -javaagent:${EKSTAZI}=mode=junit \
+${DELAY_OPTS} \
 org.junit.runner.JUnitCore ${SYSTEM_TESTS} 2>/dev/null | \
 grep -E "Time|OK" | sed -e 's|Time: \(.*\)$|\1|' -e 's|OK (\(.*\) .*)|\1|' | tr "\n" " ")
 
@@ -100,44 +110,52 @@ echo "Running Carved Tests"
 read -r TIME_TOTAL_CARVED_TEST TOTAL_CARVED_TEST <<< $(java \
 -cp ${CARVED_TESTS_CP}:${PROJECT_CP}:${DEPS} \
 -javaagent:${EKSTAZI}=mode=junit \
+${DELAY_OPTS} \
 org.junit.runner.JUnitCore ${CARVED_TESTS} 2>/dev/null | \
 grep -E "Time|OK" | sed -e 's|Time: \(.*\)$|\1|' -e 's|OK (\(.*\) .*)|\1|' | tr "\n" " ")
 
 echo "Ran ${TOTAL_CARVED_TEST} in ${TIME_TOTAL_CARVED_TEST}"
 
+if [ "${TOTAL_CARVED_TEST}" -ne "0" ]; then
 if [ ! -e .ekstazi ]; then
 echo "Ekstazi Folder missing";
 exit 1
 fi
 
-if [ ! -d .ekstazi ]; then
-  echo "No Ekstazi"
-  exit 1
-fi
-
 mv .ekstazi .ekstazi-carved
+
+fi
 
 echo "Running Min Carved Tests"
 read -r TIME_MIN_TOTAL_CARVED_TEST MIN_TOTAL_CARVED_TEST <<< $(java \
 -cp ${CARVED_TESTS_CP}:${PROJECT_CP}:${DEPS} \
 -javaagent:${EKSTAZI}=mode=junit \
+${DELAY_OPTS} \
 org.junit.runner.JUnitCore ${MIN_CARVED_TESTS} 2>/dev/null | \
 grep -E "Time|OK" | sed -e 's|Time: \(.*\)$|\1|' -e 's|OK (\(.*\) .*)|\1|' | tr "\n" " ")
 
 echo "Ran ${MIN_TOTAL_CARVED_TEST} in ${TIME_MIN_TOTAL_CARVED_TEST}"
 
+if [ "${MIN_TOTAL_CARVED_TEST}" -ne "0" ]; then
 if [ ! -e .ekstazi ]; then
 echo "Ekstazi Folder missing";
 exit 1
 fi
 
 mv .ekstazi .ekstazi-carved-min
+fi
 
 ##### Start the data collection
 
 CARVED_LOG="carved.log"
 
-REPETITION=20
+##### Start the actual data collection
+REPETITION=1
+DELAY_OPTS="-Dmin.delay=100 -Dmax.delay=200"
+
+
+#####
+REPETITION=${REPETITION:-20}
 
 for N in $(seq  1 $i);
 do
@@ -162,9 +180,11 @@ echo "Running system tests"
 read -r TIME_SYSTEM_TESTS N_SYSTEM_TESTS <<< $(java \
 -cp ${PROJECT_CP}:${DEPS} \
 -javaagent:${EKSTAZI}=mode=junit \
+${DELAY_OPTS} \
 org.junit.runner.JUnitCore ${SYSTEM_TESTS} 2>/dev/null | \
 grep -E "Time|OK" | sed -e 's|Time: \(.*\)$|\1|' -e 's|OK (\(.*\) .*)|\1|' | tr "\n" " ")
 
+if [ "${TOTAL_CARVED_TEST}" -ne "0" ]; then
 echo "Reset .ekstazi folder to original "
 rm -r .ekstazi
 cp -r .ekstazi-carved .ekstazi
@@ -174,9 +194,13 @@ echo "Running carved tests"
 read -r TIME_CARVED_TESTS N_CARVED_TESTS <<< $(java \
 -cp ${CARVED_TESTS_CP}:${PROJECT_CP}:${DEPS} \
 -javaagent:${EKSTAZI}=mode=junit \
+${DELAY_OPTS} \
 org.junit.runner.JUnitCore ${CARVED_TESTS} 2>/dev/null  | \
 grep -E "Time|OK" | sed -e 's|Time: \(.*\)$|\1|' -e 's|OK (\(.*\) .*)|\1|' | tr "\n" " ")
 
+fi
+
+if [ "${MIN_TOTAL_CARVED_TEST}" -ne "0" ]; then
 echo "Reset .ekstazi folder to original "
 rm -r .ekstazi
 cp -r .ekstazi-carved-min .ekstazi
@@ -186,9 +210,11 @@ echo "Running minimized carved tests"
 read -r TIME_MIN_CARVED_TESTS N_MIN_CARVED_TESTS <<< $(java \
 -cp ${CARVED_TESTS_CP}:${PROJECT_CP}:${DEPS} \
 -javaagent:${EKSTAZI}=mode=junit \
+${DELAY_OPTS} \
 org.junit.runner.JUnitCore ${MIN_CARVED_TESTS} 2>/dev/null  | \
 grep -E "Time|OK" | sed -e 's|Time: \(.*\)$|\1|' -e 's|OK (\(.*\) .*)|\1|' | tr "\n" " ")
 
+fi
 
 
 echo "$N,$N_SYSTEM_TESTS,$TOTAL_SYSTEM_TEST,${TIME_SYSTEM_TESTS},$N_CARVED_TESTS,$TOTAL_CARVED_TEST,${TIME_CARVED_TESTS},$N_MIN_CARVED_TESTS,$MIN_TOTAL_CARVED_TEST,${TIME_MIN_CARVED_TESTS}" | tee -a ${DATA_FILE}
@@ -200,5 +226,9 @@ git checkout .
 
     done
 done
+
+# Reset the code to the initial state
+
+# Remove .git folder?
 
 cd ${HERE}

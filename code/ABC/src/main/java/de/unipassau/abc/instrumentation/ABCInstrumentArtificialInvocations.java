@@ -9,8 +9,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import javax.sound.midi.Instrument;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -155,11 +153,11 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 			ClassConstant classConstant) {
 
 		String invokeType = "ClassOperation";
-		// "Static"
-		String fakeMethodSignature = "<abc.Class: java.lang.Class get(java.lang.String)>";
+		// "Static" - This corresponds to <Instance>.class - Maybe embed the actual class in the Action?
+		String fakeMethodSignature = "<abc.Class: java.lang.Class get()>";
 		//
 		List<Value> parameterList = new ArrayList<>();
-		parameterList.add(StringConstant.v(classConstant.value));
+//		parameterList.add(StringConstant.v(classConstant.value));
 		//
 		List<Unit> generatedBefore = new ArrayList<>();
 		List<Unit> generatedAfter = new ArrayList<>();

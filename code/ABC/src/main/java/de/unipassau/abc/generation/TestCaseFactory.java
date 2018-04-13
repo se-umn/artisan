@@ -595,7 +595,11 @@ public class TestCaseFactory {
 							rightExpr = new ArrayCreationExpr(elementType)
 									.setLevels(new NodeList<ArrayCreationLevel>(it)).setInitializer(null);
 
-						} else {
+						} else if ( stmt.getRightOp() instanceof ClassConstant ){
+							ClassConstant clazz = (ClassConstant)stmt.getRightOp();
+							rightExpr = new NameExpr( clazz.getValue().replaceAll("\\/", ".") + ".class");
+						} 
+						else {
 							// NOT SURE... constants ?
 							rightExpr = new NameExpr(stmt.getRightOp().toString());
 						}
