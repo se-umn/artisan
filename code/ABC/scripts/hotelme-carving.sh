@@ -17,15 +17,15 @@ DEPS=$(find ${HOME}/.m2/repository -iname "joda-time-2.9.4.jar")":"\
 $(find ${HOME}/.m2/repository -iname "mysql-connector-java-5.1.39.jar")
 
 # We require JUnit and Hamcrest for the tests, plus system-rules for mocking input to System.in
-JUNIT_CP=$(find /home/alessio/.m2/repository -iname "junit-4.12.jar")":"\
-$(find /home/alessio/.m2/repository -iname "hamcrest-core-1.3.jar")":"\
-$(find /home/alessio/.m2/repository -iname "system-rules-1.17.0.jar")
+JUNIT_CP=$(find ${HOME}/.m2/repository -iname "junit-4.12.jar")":"\
+$(find ${HOME}/.m2/repository -iname "hamcrest-core-1.3.jar")":"\
+$(find ${HOME}/.m2/repository -iname "system-rules-1.17.0.jar")
 
 # ABC Tracing requires Xstream, XPull, and Xpp3 to dump object instances to XML files
 SUPPORTING_JARS="../libs/trace.jar:"\
-$(find /home/alessio/.m2/repository -iname "xmlpull-1.1.3.1.jar")":"\
-$(find /home/alessio/.m2/repository -iname "xstream-1.4.10.jar")":"\
-$(find /home/alessio/.m2/repository -iname "xpp3_min-1.1.4c.jar")
+$(find ${HOME}/.m2/repository -iname "xmlpull-1.1.3.1.jar")":"\
+$(find ${HOME}/.m2/repository -iname "xstream-1.4.10.jar")":"\
+$(find ${HOME}/.m2/repository -iname "xpp3_min-1.1.4c.jar")
 
 PROJECT_CP="${PROJECT_JAR}:${TEST_CP}:${DEPS}"
 
@@ -40,14 +40,14 @@ EXTERNAL_INTERFACES="package=java.nio.file class=java.util.Scanner package=java.
 #  -verbose:gc
 export JAVA_OPTS="-Xmx4g -Xms512m -XX:+UseParallelGC -XX:NewRatio=2 -Dorg.slf4j.simpleLogger.defaultLogLevel=INFO"
 
-set -x
+RESET_ENV="--reset-environment-by org.hotelme.utils.SystemTestUtils.dropAndRecreateTheDb()"
 
 ${BIN_FOLDER}/carve \
             --carve-by ${CARVE_BY} \
                 --trace-file ${TRACE_FILE} \
                 --project-jar $(echo ${PROJECT_CP}| tr ":" " ") \
                 --external ${EXTERNAL_INTERFACES} \
-                --test-setup-by "class=org.hotelme.utils.SystemTestUtils" \
                 --exclude-by ${EXCLUDE} \
                 --output-to ${OUTPUT_DIR} \
+		${RESET_ENV} \
                 2>&1 | tee ${LOG}
