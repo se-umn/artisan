@@ -115,23 +115,7 @@ Including test setup methods (conservative): We do not instrument nor carve test
 The motivation here is that those methods configure the test environment for the system tests, i.e., they do not belong to the application logic,
 but rather to system tests logic. Nevertheless, carving tests (might) require those methods to be in place. For example, a typical setup method drop and recreate the mysql database. This ensures that system tests start from a known state of the database. Since tests carved from the system tests rely on the same assumptions, we need to include and replicate the same setup before executing them. Again we adopt the conservative approach of including all the required setup calls to generate carving tests. This has the benefit to ensure that the right preconditions are in place, but has the drawback to increase the execution overhead of the carved test. Imagine the case a carved test performs a basic check on an input, i.e., the input shall be greater than 0. If this test was carve out of a system test which requires a databased filled with test data, our conservative approach will recreate the databased also for the carved test, unnecessarily. Because of this, we will proceed by minimizing the test cases and removing all the unnecessary method invocations from the carved test.
 
-Delta debugging:
-	generate validation instruction based on XML serialized state. We do not literally compare the serialized state, because some objects cannot be serialized in a meaningful way (i.e., open data base connections, file descriptors, streams) and some objects are parameters of the tests and are injected as dependencies during testing. For example, temporary working dir, date objects relative to current date, and other data that are generated randomly at the beginning of each test (and never changed during the execution?). 
-	
-	\xxx{Give examples here on Employee and HotelReservation ? this means we need to introduce them as motivating scenarios?}
-	
-	Otherwise, we cannot remove dependencies correctly. \xxx{This requires an example}.
-	We compare both the return value of the MUT if any, and the state of CUT.
-	
-	Starting from the instruction before MUT and going backwards, we remove one instruction, repeat the test execution, and check that the test passes. That is, no unhandled exceptions and no failed assertions.
 
-	We assume a reset environment function, i.e., wipe out the database, is provided by the user to avoid polluting, and invalidating the result of delta debugging. Note that the carved tests instead do not require this, and are correct by design.
-	
-	\xxx{How much do we save in terms of instructions? and execution time?}
-
-This is simple but effective solutions, however, it incurrs in a huge performance overhead because each carved test must be re-executed a number of times equals to the amount of instructions it contains. Optimization based on static analysis and data-flow analysis might be used here to identify cluster of invocations that belong together and possibly can be removed or left in the carved test all together. However, this is out of the scope of this paper and will be addressed in future work.
-	\xxx{How much does it cost to run delta debugging?}
-		
 The last step is the actual test generation where we take carved and minimized tests are produce executable java (JUnit) tests. We use open source library to generate the java code from our internal representation based on jimple/soot.
 
 \section{Evaluation}
@@ -154,13 +138,42 @@ while only a relevant subset of carved tests are re-executed.
 %
 \xxx{For the sake of completeness we show how execution time varies during regression, compared to fully re-executing all the carved tests?}
 
+Delta debugging -> this one becomes part of the evaluation. Since we adopt a conservative approach to include all the calls which might be state chaging,
+we are interesting to investigate if this is "a bad thing". How many of those actions are superfluous and can be safely removed?
+This also gives us a hint on if/how it would be beneficial to use delta debugging to minimize the carved tests cases.
+
+For doing so, we implemente a delta debugging appraoch to remove and test each action, and compare the results on execution time, coverage and regression test selection of original and minimized test to see.
+	generate validation instruction based on XML serialized state. We do not literally compare the serialized state, because some objects cannot be serialized in a meaningful way (i.e., open data base connections, file descriptors, streams) and some objects are parameters of the tests and are injected as dependencies during testing. For example, temporary working dir, date objects relative to current date, and other data that are generated randomly at the beginning of each test (and never changed during the execution?). 
+	
+	\xxx{Give examples here on Employee and HotelReservation ? this means we need to introduce them as motivating scenarios?}
+	
+	Otherwise, we cannot remove dependencies correctly. \xxx{This requires an example}.
+	We compare both the return value of the MUT if any, and the state of CUT.
+	
+	Starting from the instruction before MUT and going backwards, we remove one instruction, repeat the test execution, and check that the test passes. That is, no unhandled exceptions and no failed assertions.
+
+	We assume a reset environment function, i.e., wipe out the database, is provided by the user to avoid polluting, and invalidating the result of delta debugging. Note that the carved tests instead do not require this, and are correct by design.
+	
+	\xxx{How much do we save in terms of instructions? and execution time?}
+
+This is simple but effective solutions, however, it incurrs in a huge performance overhead because each carved test must be re-executed a number of times equals to the amount of instructions it contains. Optimization based on static analysis and data-flow analysis might be used here to identify cluster of invocations that belong together and possibly can be removed or left in the carved test all together. However, this is out of the scope of this paper and will be addressed in future work.
+	\xxx{How much does it cost to run delta debugging?}
+
 Benefits of Delta Debugging. Since delta debugging is expensive, we want to investigate/assess its cost/benefits. We do so by comparing execution time and number of instructions before and after minimization, as well as regression test selection.
 %
 Note that in this cases the evaluation is biased by the choice of the test subject, which do not involve external services (which might be slow and expensive to use), but only locally available resources.
 
+\xxx{Maybe seel this thing of delta debugging as part of the evaluation to show that, because delta debugging does not remove many instructions, 
+then the carved tests are already good, cannot be improved in that sense. Note that this accounts for the instructions not the method invocations executed !}
+
 Overhead of carving.
 We are also interested in assessing the overhead of the overall approach to derive conclusions on its practical applicability.
 For this, we measure and report execution and slow down factors of instrumentation, tracing, carving, test generation, and delta debugging.
+
+I suspect that delta debugging might shows benefits for those classes which do not involve or depend on external interfaces,
+and are used frequently.
+For example HotelView has barely no logic, but to test it there's a lot of setup that can be removed.
+Really relevant?
 
 
 \xxx{Carved tests are faster to execute than system tests.}
@@ -210,49 +223,82 @@ We repeat the process for 20 times and for n from 1 to N (N is application class
 
 \subsection{Results}
 
+%\begin{table*}
+%\centering
+%\caption{Summary of Test Carving}
+%\begin{tabular}{l l l l l l l l l}
+%Project & System Tests &  Carved Tests & Class Coverage & Statement Coverage & Branch Coverage & time SYS &  time Carv &  time Carv MIN\\
+%Employee & 7  & 87 &  100\% & 35\% & 14\%  & 0.045 & 0.081 & --\\
+%Hotel Reservation & 5 & 145 & 100\% & 41 \% & 29\% & 0.615 & 7.78 & --\\
+%\end{tabular}
+%\end{table*}
+
 \begin{table*}
 \centering
 \caption{Summary of Test Carving}
-\begin{tabular}{l l l l l l l l l}
-Project & System Tests &  Carved Tests & Class Coverage & Statement Coverage & Branch Coverage & time SYS &  time Carv &  time Carv MIN\\
-Employee & 7  & 87 &  100\% & 35\% & 14\%  & 0.045 & 0.081 & --\\
-Hotel Reservation & 5 & 143 & 100\% & 41 \% & 29\% & 0.615 & 7.78 & --\\
+\begin{tabular}{l r r r r r r r r r r r}
+\toprule
+\multicolumn{1}{c}{Project} &
+	\multicolumn{3}{c}{Tests} &
+	\multicolumn{3}{c}{Stmt. Coverage} &
+	\multicolumn{3}{c}{Branch Coverage} &
+	\multicolumn{2}{c}{Time} \\
+&
+	\multicolumn{1}{c}{S} & \multicolumn{1}{c}{C} & \multicolumn{1}{c}{M} & 
+	\multicolumn{1}{c}{S} & \multicolumn{1}{c}{C} & \multicolumn{1}{c}{M} &
+	\multicolumn{1}{c}{S} & \multicolumn{1}{c}{C} & \multicolumn{1}{c}{M} &
+	\multicolumn{1}{c}{Carving} & \multicolumn{1}{c}{Minimiz.}
+	\\
+\midrule % Size of trace 1136 5809
+Employee & 7  & 89 & 89 & 34\% & 34\% & 30\% & 14\% & 14\% & 12\% & 11 & 1,011 \\
+Hotel Reservation & 5 & 145 & 145 & 41\% & 41\% & 40\% & 29\% & 29\% & 28\% & 19 & 4,839 \\
+\bottomrule
 \end{tabular}
-\end{table*}
 
-\begin{table*}
-\centering
-\caption{Overhead of Test Carving}
-\begin{tabular}{l l l l l}
-Project name & Size of Trace & carvingTime & testGenerationTime & minimizationTime \\
-Employee & 1136 & 16,391 s & 4,225 s & 831,060 \\
-Hotel Reservation & 5809 &  6,110 & 7,485 & 3423,924 \\
-\end{tabular}
-\xxx{Repeat this more time and take the average}
-\end{table*}
+Size of carved test
+	min	max mean
+E	25 	98	56.57
+H	17	184	90.06
+	
+Average Minimization for
+	Employee: 60.88583 \%, 9 out of 89 where NOT minimized
+	Hotel Me : 65.8468 \%, 8 out of 145 where NOT minimized
 
-%Time: 7.362
-%
-%OK (128 tests)
-%====================================
-%parsingTime 1031
-%carvingTime 6095
-%testGenerationTime 7265
-%minimizationTime 3609319
-%====================================
-%
+
+
+\xxx{Repeat the analysis and that the average execution time}
+\end{table*}
 
 \begin{figure*}[t]
 \centering
 \begin{minipage}[b]{.45\textwidth}
-\includegraphics[width=\columnwidth]{figures/employee}
+\includegraphics[width=\columnwidth]{figures/employee-rts-size}
 \caption{Test Regression Selection - Employee}
 \end{minipage}\hfill
 \begin{minipage}[b]{.45\textwidth}
-\includegraphics[width=\columnwidth]{figures/hotelme}
+\includegraphics[width=\columnwidth]{figures/hotelme-rts-size}
 \caption{Test Regression Selection - Hotel Reservation}
 \end{minipage}
 \end{figure*}
+
+
+\begin{figure*}[t]
+\centering
+\begin{minipage}[b]{.45\textwidth}
+\includegraphics[width=\columnwidth]{figures/employee-rts-time}
+\caption{Test Regression Selection - Execution time - Employee}
+\xxx{Not sure this is relevant - update the system tests to last longer and explore more app behaviors}
+\end{minipage}\hfill
+\begin{minipage}[b]{.45\textwidth}
+\includegraphics[width=\columnwidth]{figures/hotelme-rts-time}
+\caption{Test Regression Selection  - Execution time -  Hotel Reservation}
+\xxx{Not sure this is relevant - update the system tests to last longer and explore more app behaviors}
+\end{minipage}
+\end{figure*}
+
+\subsection{Observation}
+\xxx{For employee, Why the number of carved tests keep changing for hotel me?}
+\xxx{For some }
 
 
 \subsection{Discussion}
@@ -264,19 +310,27 @@ We can generate tests for all the classes
 
 Does minimization make sense?
 
+
+Should I keep or not the test setup calls intact? Should I instead disassemble those as well ?!
+
 Delta Debugging dominates the test generation time.
 There's no difference in RST with and without minimized test cases.
 For SOME REASON the minimized tests it takes more time to execute than the normal ones..
 %
 How many tests minimized? and how much?
-Employee: 87, 13 minimized (~14\%), those have an avg minimization of 95.55\%
+%Employee: 87, 13 minimized (~14\%), those have an avg minimization of 95.55\%
 
 % Is there a differnce in RTS.
 Employee: there no difference in RTS, exactly the same tests are selected upon the same modifications.
 
+\subsection{Limitations}
+Action based carving need to "see" how object instances are created, otherwise might not be able to perform the carving because there's no way for the carver to reconstruct the object instance.
 
+We observed this problem for example with test setup calls?
 
 \subsection{Discussion}
 
+Complex programs with GUI and WebApplications call for a hybrid approach: the hybrid approach provides (if possible) the parameters to the entry points of the application, for example, the servlet or the logic behind the GUI, which otherwise cannot observe the object creation thus replicate it.
+With an hybrid approach, one might serialize the parameters of the calls and reload them to spin off the carving. E.g., one can define mocks that provide http requests, fill in with values objserved during the execution.
 
 \end{document}
