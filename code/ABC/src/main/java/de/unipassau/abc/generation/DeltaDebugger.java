@@ -64,6 +64,11 @@ import soot.jimple.Jimple;
 import soot.jimple.StaticInvokeExpr;
 import soot.jimple.StringConstant;
 
+/**
+ * TODO Do we need to remove elements in the inputs if we remove calls to scanner.next? in theory we shall
+ * @author gambi
+ *
+ */
 public class DeltaDebugger {
 
 	private final static Logger logger = LoggerFactory.getLogger(DeltaDebugger.class);
@@ -178,6 +183,17 @@ public class DeltaDebugger {
 					BlockStmt modifiedBody = testMethod.getBody().get().clone();
 					//
 					final Statement s = modifiedBody.getStatement(index);
+					
+					// If this is X = null, that is an Variable declaration/ initialization. Skip it !
+					// We will clean up unused variables later
+					// TODO This is brutal, but I do not see any better option now
+					if( s.toString().contains("= null") ){
+						logger.debug("Skip variable initialization");
+						continue;
+					}
+					
+					
+					logger.info("DeltaDebugger.minimize() Try to remove stmt " + index + " -> " + s);
 
 					// System.out.println("DeltaDebugger.minimize() " +
 					// modifiedBody
@@ -189,7 +205,6 @@ public class DeltaDebugger {
 					//
 					testMethod.setBody(modifiedBody);
 					//
-					logger.info("DeltaDebugger.minimize() Try to remove stmt " + index + " -> " + s);
 					// //
 					if (compileAndRunJUnitTest(testClass, testMethod, projectJars)) {
 						logger.info("DeltaDebugger.minimize() Verification Passed, remove " + s);

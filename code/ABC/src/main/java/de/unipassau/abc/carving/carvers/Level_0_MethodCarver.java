@@ -129,8 +129,10 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 		// THIS ONE IS THE ONE WHICH ACTUALLYS COMPUTE THE CARVE using recursion
 		// and FULL CARTESIAN
-		level0TestCarving(workList, carvedTests, context);
 		
+		boolean skipCartesian = false;
+		level0TestCarving(workList, carvedTests, context, skipCartesian);
+
 		// Ensure that any required testSetupCall, which is not yet included in
 		// the carved test, is taken into account,
 		// including its own carved preconditions
@@ -228,9 +230,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 		// If the method invocation is not there yet, include it.
 		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
-			
+
 			for (MethodInvocation testSetupFromContext : testSetupMethosInvocations) {
-				
+
 				if (!carvedTest.getFirst().contains(testSetupFromContext)) {
 					logger.trace("Level_0_MethodCarver.includeTestSetupCalls() INCLUDING Test Setup Call "
 							+ testSetupFromContext + " in carved test "
@@ -266,7 +268,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 					if (!preconditionCache.containsKey(testSetupFromContext)) {
 						// NOTE context -> testSetupContext
-						level0TestCarving(workList, carvedPreconditions, testSetupContext);
+						boolean skipCartesian = true;
+						level0TestCarving(workList, carvedPreconditions, testSetupContext, skipCartesian);
 						//
 						Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition = carvedPreconditions
 								.iterator().next();
@@ -312,15 +315,15 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 			//
 			Set<MethodInvocation> subsumedCallByCarvedTest = new HashSet<>();
-			for( MethodInvocation mi : carvedTest.getFirst().getOrderedMethodInvocations() ){
-				subsumedCallByCarvedTest.add( mi );
-				subsumedCallByCarvedTest.addAll( context.getThird().getMethodInvocationsSubsumedBy( mi ) );
+			for (MethodInvocation mi : carvedTest.getFirst().getOrderedMethodInvocations()) {
+				subsumedCallByCarvedTest.add(mi);
+				subsumedCallByCarvedTest.addAll(context.getThird().getMethodInvocationsSubsumedBy(mi));
 			}
-				
+
 			for (MethodInvocation methodInvocationToExternalInterface : methosInvocationsToExternalInterfaces) {
-				
-				if (! subsumedCallByCarvedTest.contains( methodInvocationToExternalInterface ) ) {
-					logger.trace("Level_0_MethodCarver.includeTestSetupCalls() INCLUDING Call to E.I. "
+
+				if (!subsumedCallByCarvedTest.contains(methodInvocationToExternalInterface)) {
+					logger.info("Level_0_MethodCarver.includeTestSetupCalls() INCLUDING Call to E.I. "
 							+ methodInvocationToExternalInterface + " in carved test "
 							+ carvedTest.getFirst().getOrderedMethodInvocations());
 
@@ -353,59 +356,68 @@ public class Level_0_MethodCarver implements MethodCarver {
 					//
 
 					if (!preconditionCache.containsKey(methodInvocationToExternalInterface)) {
-						
-						/// This one is tricky ! Because of string aliasing calls to different EI, or EI already discarded might be included here as well !
-						// For example, if scanner.next returns "test" multiple times and we get a deps on "test" then we get ALL the deps on it !
-						
-						
-						level0TestCarving(workList, carvedPreconditions, testSetupContext);
-						// TODO We might need to include all of them if we have problems carving preconditions with subsumed calls ?!
+
+						/// This one is tricky ! Because of string aliasing
+						/// calls to different EI, or EI already discarded might
+						/// be included here as well !
+						// For example, if scanner.next returns "test" multiple
+						/// times and we get a deps on "test" then we get ALL
+						/// the deps on it !
+						boolean skipCartesian = true;
+						level0TestCarving(workList, carvedPreconditions, testSetupContext, skipCartesian);
+						// TODO We might need to include all of them if we have
+						// problems carving preconditions with subsumed calls ?!
 						// In case there's more than one because of cartesian
 						// product, pick the first one.
 						Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition = carvedPreconditions
 								.iterator().next();
 						preconditionCache.put(methodInvocationToExternalInterface,
 								carvedPrecondition.getFirst().getOrderedMethodInvocations());
-						logger.trace("Level_0_MethodCarver.includeTestSetupCalls() PRECONDITION for "
+						logger.info("Level_0_MethodCarver.includeTestSetupCalls() PRECONDITION for "
 								+ methodInvocationToExternalInterface + " STORE IN THE CACHE:\n"
-										+ carvedPrecondition.getFirst().getOrderedMethodInvocations()
-										+ "");
+								+ carvedPrecondition.getFirst().getOrderedMethodInvocations() + "");
 					}
 
 					Set<MethodInvocation> mergedSorted = new HashSet<MethodInvocation>(
 							carvedTest.getFirst().getOrderedMethodInvocations());
-					
-					// Check that no methods in the precondition will delete methods already in the carved test.
-					// But also check that the method is not already subsumed by the carved test case !!! TO AVOID STRING ALIASING !
+
+					// Check that no methods in the precondition will delete
+					// methods already in the carved test.
+					// But also check that the method is not already subsumed by
+					// the carved test case !!! TO AVOID STRING ALIASING !
 					boolean mergePreconditions = true;
-					
-					List<MethodInvocation> filteredPreconditionsFromCache = new ArrayList<>(preconditionCache.get(methodInvocationToExternalInterface));
-					for( Iterator<MethodInvocation> iterator = filteredPreconditionsFromCache.iterator(); iterator.hasNext();){
+
+					List<MethodInvocation> filteredPreconditionsFromCache = new ArrayList<>(
+							preconditionCache.get(methodInvocationToExternalInterface));
+					for (Iterator<MethodInvocation> iterator = filteredPreconditionsFromCache.iterator(); iterator
+							.hasNext();) {
 						//
 						MethodInvocation precondition = iterator.next();
-						Set<MethodInvocation> subsumedByPrecondition = context.getThird().getMethodInvocationsSubsumedBy( precondition);
+						Set<MethodInvocation> subsumedByPrecondition = context.getThird()
+								.getMethodInvocationsSubsumedBy(precondition);
 						// Precondition might be already there, so we are fine..
-						subsumedByPrecondition.remove( precondition );
+						subsumedByPrecondition.remove(precondition);
 
-						if( ! Collections.disjoint(
-								subsumedByPrecondition,
-								carvedTest.getFirst().getOrderedMethodInvocations() )
-								){
-							logger.trace("\n\n >>>>> Level_0_MethodCarver.includeCallsToExternalInterfaces() Precondition " + precondition + " subsumes calls already in the carved test !! \n\n");
+						if (!Collections.disjoint(subsumedByPrecondition,
+								carvedTest.getFirst().getOrderedMethodInvocations())) {
+							logger.trace(
+									"\n\n >>>>> Level_0_MethodCarver.includeCallsToExternalInterfaces() Precondition "
+											+ precondition + " subsumes calls already in the carved test !! \n\n");
 							mergePreconditions = false;
 							break;
-						} else if (subsumedCallByCarvedTest.contains( precondition ) ) {
+						} else if (subsumedCallByCarvedTest.contains(precondition)) {
 							// This might be caused by String aliasing !
-							logger.trace("\n\n >>>>> Level_0_MethodCarver.includeCallsToExternalInterfaces() Precondition " + precondition + " subsumed by test DO NOT INCLUDE IT TWICE ! \n\n");
+							logger.trace(
+									"\n\n >>>>> Level_0_MethodCarver.includeCallsToExternalInterfaces() Precondition "
+											+ precondition + " subsumed by test DO NOT INCLUDE IT TWICE ! \n\n");
 							iterator.remove();
-						} 
+						}
 					}
-					
-					
-					if( mergePreconditions){
+
+					if (mergePreconditions) {
 						// Return this from the cache !
 						mergedSorted.addAll(filteredPreconditionsFromCache);
-						
+
 						List<MethodInvocation> orderedSlice = new ArrayList<>(mergedSorted);
 						Collections.sort(orderedSlice);
 						//
@@ -416,7 +428,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 				} else {
 					logger.trace("Level_0_MethodCarver.includeTestSetupCalls() Cannot include Call to E.I. "
 							+ methodInvocationToExternalInterface + " in carved test.");
-					logger.trace("Subsumed by: " + context.getThird().getOrderedSubsumingMethodInvocationsFor( methodInvocationToExternalInterface ));
+					logger.trace("Subsumed by: " + context.getThird()
+							.getOrderedSubsumingMethodInvocationsFor(methodInvocationToExternalInterface));
 				}
 			}
 		}
@@ -459,8 +472,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 		Collections.reverse(externalInterfaceInvocations);
 
-		logger.trace(
-				"Level_0_MethodCarver.processExternalInterfaces() Size " + externalInterfaceInvocations.size());
+		logger.trace("Level_0_MethodCarver.processExternalInterfaces() Size " + externalInterfaceInvocations.size());
 		// Remove from this list all the external interface invocations that are
 		// ALREADY in the carved test
 		externalInterfaceInvocations.removeAll(carvedTest.getFirst().getOrderedMethodInvocations());
@@ -684,7 +696,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 			// This is the node to expand
 			Queue<Pair<Set<MethodInvocation>, Set<MethodInvocation>>> workList, //
 			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests, //
-			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context) throws CarvingException {
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context, //
+			boolean skipCartesian) throws CarvingException {
 
 		ExecutionFlowGraph _executionFlowGraph = context.getFirst();
 		DataDependencyGraph _dataDependencyGraph = context.getSecond();
@@ -725,11 +738,11 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 					// TODO
 					// Before carving this, check in the cache
-//					if (preconditionCache.containsKey(methodInvocation)) {
-//						 Cache IT
-//					} else {
-//						 Cache MISS
-//					}
+					// if (preconditionCache.containsKey(methodInvocation)) {
+					// Cache IT
+					// } else {
+					// Cache MISS
+					// }
 
 					/*
 					 * 1 - Include all the invocations that happen before
@@ -766,13 +779,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 							"Level_0_MethodCarver.level0TestCarving() Dependencies on Methods " + backwardSlice.size());
 					logger.trace("" + backwardSlice);
 
-					// TODO This might include calls which subsume also other calls !
-					
-					
-					
-					
-					
-					
+					// TODO This might include calls which subsume also other
+					// calls !
+
 					// Accumulate the backwardSlice in the worklist
 					methodDependencies.addAll(backwardSlice);
 
@@ -986,8 +995,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 										distance = target - current;
 										ranked = new HashSet<>();
 										ranked.add(mi);
-										logger.trace("Level_0_MethodCarver.level0TestCarving() New distance "
-												+ distance + " for " + mi);
+										logger.trace("Level_0_MethodCarver.level0TestCarving() New distance " + distance
+												+ " for " + mi);
 									}
 								}
 								logger.trace("Level_0_MethodCarver.level0TestCarving() RANKED CALLS " + ranked);
@@ -1043,8 +1052,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 								Collections.sort(firstCall);
 								firstCallSet = new HashSet();
 								firstCallSet.add(firstCall.get(0));
-								logger.trace(
-										"Level_0_MethodCarver.level0TestCarving() REPLACING WITH " + firstCallSet);
+								logger.trace("Level_0_MethodCarver.level0TestCarving() REPLACING WITH " + firstCallSet);
 								methodsWhichReturnTheObjects.put(data, firstCallSet);
 
 							} else {
@@ -1061,6 +1069,28 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 				///////
 
+				if (skipCartesian) {
+					// Reduce to only one option for each. Constructors are
+					// preferred
+					logger.trace("Reducing the size to skip Cartesian Product ! \n\n");
+					for (Entry<ObjectInstance, Set<MethodInvocation>> methodsWhichReturnTheObject : methodsWhichReturnTheObjects
+							.entrySet()) {
+						if (methodsWhichReturnTheObject.getValue().size() > 1) {
+							// Keep only the constructor
+							Set<MethodInvocation> methods = methodsWhichReturnTheObject.getValue();
+							for (MethodInvocation method : methods) {
+								if (method.getJimpleMethod().contains("<init>")) {
+									logger.trace("Reduce the combination for " + methodsWhichReturnTheObject.getKey());
+									methodsWhichReturnTheObject.setValue(Collections.singleton(method));
+									break;
+								}
+							}
+
+						}
+
+					}
+				}
+
 				// Full cartesian
 				Set<List<MethodInvocation>> fullCartesianProduct = Sets
 						.cartesianProduct(new ArrayList<>(methodsWhichReturnTheObjects.values()));
@@ -1069,6 +1099,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 				logger.trace("Level_0_MethodCarver.level0TestCarving() Full Cartesian Product is : "
 						+ fullCartesianProduct.size() + " each combination has "
 						+ methodsWhichReturnTheObjects.values().size() + " elements");
+
 				for (List<MethodInvocation> combination : fullCartesianProduct) {
 
 					// Move the method invocations considered so far in the
@@ -1842,9 +1873,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestsPetMethodInvocation = new ArrayList<>();
 
 			try {
-				logger.info("\n\n====================================================\n" +
-				"Starting the carve of " + methodInvocationUnderTest + "\n" +
-				"====================================================");
+				logger.info("\n\n====================================================\n" + "Starting the carve of "
+						+ methodInvocationUnderTest + "\n" + "====================================================");
 				carvedTestsPetMethodInvocation.addAll(level0TestCarving(methodInvocationUnderTest));
 
 				// Simplify the carved tests: Following the data dependencies we

@@ -40,6 +40,7 @@ import soot.Value;
 import soot.VoidType;
 import soot.jimple.ArrayRef;
 import soot.jimple.AssignStmt;
+import soot.jimple.ClassConstant;
 import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
 import soot.jimple.JimpleBody;
@@ -526,6 +527,28 @@ public class TestGenerator {
 			} else {
 				logger.error("ERROR WRONG method invocation: " + methodInvocation);
 			}
+			break;
+		case "ClassOperation":
+			/*
+			 * This correspond to <instance>.class which returns the .class
+			 * 
+			 */
+
+			logger.info("Processing method invocation " + methodInvocation.getJimpleMethod() + " -- "
+					+ methodInvocation.getInvocationType() + " on local " + objLocal + " with params "
+					+ parametersValues + " to return " + returnObjLocal);
+			// Generate the call to <class>.class which returns a class to
+			// returnObjectLocal. Read the "value" of the class from the XML
+			// stored during the execution.
+			try {
+				Class clazz = (Class) XMLDumper.loadObject(methodInvocation.getXmlDumpForReturn());
+				//
+				units.add( Jimple.v().newAssignStmt(returnObjLocal, ClassConstant.v(clazz.getName().replaceAll("\\.", "/"))));
+			} catch (Throwable e) {
+				throw new CarvingException("Cannot find a dumped value for Class " + returnObjLocal + " in file "
+						+ methodInvocation.getXmlDumpForReturn(), e);
+			}
+
 			break;
 		default:
 			logger.error("Unexpected Invocation type " + methodInvocation.getInvocationType());

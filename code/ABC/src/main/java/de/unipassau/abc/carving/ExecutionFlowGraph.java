@@ -180,7 +180,8 @@ public class ExecutionFlowGraph {
 
 	/**
 	 * Return the calls in the Execution Flow Graph which match carveBy
-	 * (include) but not excludeBy (exclude)
+	 * (include) but not excludeBy (exclude). We also omit private method
+	 * invocations since those cannot be carved !
 	 * 
 	 * @param carveBy
 	 * @param excludeBy
@@ -190,6 +191,11 @@ public class ExecutionFlowGraph {
 			MethodInvocationMatcher... excludeBy) {
 		ArrayList<MethodInvocation> matching = new ArrayList<>();
 		for (MethodInvocation mi : graph.getVertices()) {
+
+			if (mi.isPrivate()) {
+				continue;
+			}
+
 			if (carveBy.matches(mi)) {
 				// TODO Refactor with an AND matcher? not really want to go
 				// there...

@@ -23,7 +23,7 @@ public class TestCarverForJPass {
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
 
 	@Test
 	@Category(ManualTest.class)
@@ -36,21 +36,38 @@ public class TestCarverForJPass {
 
 			String traceFile = "/Users/gambi/action-based-test-carving/code/ABC/scripts/jpass-tracingOut/trace.txt";
 
+			// This produces some tests
 //			String carveBy = "package=jpass.data";
-			String carveBy = "class=jpass.data.DataModel";
+			String carveBy = "package=jpass.ui";
+			
+//			String carveBy = "class=jpass.data.DataModel";
 
 			String[] args = new String[] { //
 					"--carve-by", carveBy,
 					// String traceFile =
 					"--trace-file", traceFile,
 					// String projectJar =
-					"--project-jar", "./src/test/resources/jpass-0.1.17-SNAPSHOT.jar",
+					"--project-jar", 
+					"/Users/gambi/Documents/Passau/Research/action-based-test-carving/test-subjects/GUI/jpass/target/jpass-0.1.17-SNAPSHOT.jar",
+//					"./src/test/resources/jpass-0.1.17-SNAPSHOT.jar",
+					
+//					"/Users/gambi/.m2/repository/com/fasterxml/jackson/dataformat/jackson-dataformat-xml/2.9.3/jackson-dataformat-xml-2.9.3.jar"
+//					"/Users/gambi/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.9.3/jackson-core-2.9.3.jar"
+//					"/Users/gambi/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.9.0/jackson-annotations-2.9.0.jar"
+//					"/Users/gambi/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.9.3/jackson-databind-2.9.3.jar"
+//					"/Users/gambi/.m2/repository/com/fasterxml/jackson/module/jackson-module-jaxb-annotations/2.9.3/jackson-module-jaxb-annotations-2.9.3.jar"
+//					"/Users/gambi/.m2/repository/org/codehaus/woodstox/stax2-api/3.1.4/stax2-api-3.1.4.jar"
+//					"/Users/gambi/.m2/repository/com/fasterxml/woodstox/woodstox-core/5.0.3/woodstox-core-5.0.3.jar"
+//					"/Users/gambi/.m2/repository/junit/junit/4.11/junit-4.11.jar"
+//					"/Users/gambi/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar"
 					// Why providing those jars it does not work anymore ?
 					"--output-to", outputDirectory.getAbsolutePath(), //
 					// To not create tests for those
 					"--exclude-by", "class=jpass.JPass", //
 					"--external", //
-					"package=java.nio.file", "class=java.util.Scanner", "package=java.sql", "class=java.io.File"
+					"package=java.nio.file", "class=java.util.Scanner", "package=java.sql", "class=java.io.File", //
+					"package=com.fasterxm", //
+					"--skip-minimize"
 			};
 			//
 			carver.main(args);

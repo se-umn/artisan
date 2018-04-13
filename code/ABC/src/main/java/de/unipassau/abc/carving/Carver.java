@@ -225,6 +225,7 @@ public class Carver {
 					(cli.getExternalInterfaces() != null) ? cli.getExternalInterfaces() : new ArrayList<String>());
 
 		} catch (ArgumentValidationException e) {
+			throw new RuntimeException( e );
 		}
 
 		// Build the externalInterfaceMatchers, during parsers those will mark
