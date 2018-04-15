@@ -323,7 +323,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 			for (MethodInvocation methodInvocationToExternalInterface : methosInvocationsToExternalInterfaces) {
 
 				if (!subsumedCallByCarvedTest.contains(methodInvocationToExternalInterface)) {
-					logger.info("Level_0_MethodCarver.includeTestSetupCalls() INCLUDING Call to E.I. "
+					logger.trace("Level_0_MethodCarver.includeTestSetupCalls() INCLUDING Call to E.I. "
 							+ methodInvocationToExternalInterface + " in carved test "
 							+ carvedTest.getFirst().getOrderedMethodInvocations());
 
@@ -373,7 +373,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 								.iterator().next();
 						preconditionCache.put(methodInvocationToExternalInterface,
 								carvedPrecondition.getFirst().getOrderedMethodInvocations());
-						logger.info("Level_0_MethodCarver.includeTestSetupCalls() PRECONDITION for "
+						logger.trace("Level_0_MethodCarver.includeTestSetupCalls() PRECONDITION for "
 								+ methodInvocationToExternalInterface + " STORE IN THE CACHE:\n"
 								+ carvedPrecondition.getFirst().getOrderedMethodInvocations() + "");
 					}

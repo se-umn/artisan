@@ -20,9 +20,11 @@ import com.github.javaparser.ast.body.CallableDeclaration.Signature;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
+import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
@@ -68,12 +70,8 @@ public class TestSuiteMinimizer {
 			if (newIndex == 0) {
 				toRemove.add(testMethodData);
 				continue;
-			} else {
-				newIndex = newIndex - 1;
 			}
-
 			// Copy and store the original body
-
 			String methodName = testMethodData.getSecond().getName();
 			Type[] _parameterTypes = testMethodData.getSecond().getParameterTypes().toArray(new Type[] {});
 			String[] parameterTypes = new String[_parameterTypes.length];
@@ -86,15 +84,27 @@ public class TestSuiteMinimizer {
 			MethodDeclaration testMethod = testMethodData.getFirst().getType(0)
 					.getMethodsBySignature(methodName, parameterTypes).get(0);
 
+			// Find the next statement to remove, skip mandatory calls
+			Statement s = null;
+			newIndex = currentIndex.get(testMethodData);
+			do {
+				// Go to the next
+				s = testMethod.getBody().get().getStatement( newIndex );
+				logger.debug("Try to remove " + s + " from " + methodName + " at position " + newIndex);
+				boolean mandatory = isMandatory(s);
+				if( mandatory){
+					logger.debug( s + " is mandatory ");
+				}
+			// Move to next statmt
+				newIndex = newIndex - 1;
+			} while ( isMandatory(s) );
+
 			BlockStmt originalBody = testMethod.getBody().get().clone();
 			originalBodies.put(testMethod.getSignature().asString(), originalBody);
 
-			// Modify the actual method body by removing a statement
 			BlockStmt modifiedBody = testMethod.getBody().get().clone();
-			final Statement s = modifiedBody.getStatement(currentIndex.get(testMethodData));
 			modifiedBody.remove(s);
 
-			logger.debug("Try to remove " + s + " from " + methodName + " at position " + (newIndex + 1));
 
 			testMethod.setBody(modifiedBody);
 
@@ -103,8 +113,8 @@ public class TestSuiteMinimizer {
 		}
 
 		for (Pair<CompilationUnit, Signature> p : toRemove) {
-			System.out.println("TestSuiteMinimizer.performAMinimizationStep() Completed " + p.getFirst().getType(0).getNameAsString()
-					+ "." + p.getSecond().asString());
+			System.out.println("TestSuiteMinimizer.performAMinimizationStep() Completed "
+					+ p.getFirst().getType(0).getNameAsString() + "." + p.getSecond().asString());
 			currentIndex.remove(p);
 		}
 
@@ -240,6 +250,9 @@ public class TestSuiteMinimizer {
 			// Refactor the class (name, constructor, etc)
 			renameClass(testClass, "_minimized");
 
+			// Remove methods that statically are not state-changing
+			removePureMethods(testClass);
+
 			// Extract the TestMethods and set the currentIndex at the right
 			// position. Put all since a test class might contain more test
 			// methods !
@@ -261,6 +274,50 @@ public class TestSuiteMinimizer {
 			// (double) total) * 100));
 
 		}
+
+	}
+
+	// TODO Hardcoded values for the moment. Make strong assumption. We should
+	// have the symbol solver instead, but that's unrealiable !
+	// TODO We should check that the instance type is String tho !
+	public boolean isPure(MethodCallExpr methodCall) {
+		// TODO Assume tMethodCall are not Assign Expt !
+		String m = methodCall.getNameAsString();
+		return m.equals("length") || m.equals("startsWith") || m.equals("endsWith") || m.equals("lastIndexOf") || false;
+
+	}
+
+	// TODO Assume tMethodCall are not Assign Expt !
+	public boolean isMandatory(Statement statement) {
+//		return m.equals("close") || false;
+		if( statement instanceof ExpressionStmt ){
+			ExpressionStmt es = (ExpressionStmt) statement;
+			Expression e = es.getExpression();
+			// Naive
+			String exp = e.toString();
+//			System.out.println("TestSuiteMinimizer.isMandatory() Processing " + statement );
+			return exp.contains(".close()");
+		} else {
+			// Skop string initialization !
+			statement instanceof 
+		}
+		return false;
+
+	}
+
+	public void removePureMethods(CompilationUnit testClass) {
+		testClass.accept(new ModifierVisitor<Void>() {
+
+			@Override
+			public Visitable visit(MethodCallExpr n, Void arg) {
+				if (isPure(n)) {
+					logger.debug(" Remove pure method call " + n);
+					return null;
+				}
+				return super.visit(n, arg);
+			}
+
+		}, null);
 
 	}
 

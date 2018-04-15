@@ -1,6 +1,7 @@
 package de.unipassau.abc.generation;
 
 import static com.github.javaparser.JavaParser.parseVariableDeclarationExpr;
+import static com.github.javaparser.JavaParser.parseName;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,8 +41,10 @@ import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.IntegerLiteralExpr;
 import com.github.javaparser.ast.expr.LongLiteralExpr;
+import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
@@ -70,6 +73,7 @@ import soot.SootField;
 import soot.SootMethod;
 import soot.Unit;
 import soot.Value;
+import soot.JastAddJ.ParseName;
 import soot.jimple.AbstractStmtSwitch;
 import soot.jimple.ArrayRef;
 import soot.jimple.AssignStmt;
@@ -223,11 +227,11 @@ public class TestCaseFactory {
 		}
 	}
 
-	public static Set<CompilationUnit> generateTestFiles(List<File> projectJars, File outputDir, Collection<SootClass> testClasses,
-			boolean resolveTypes) throws IOException {
+	public static Set<CompilationUnit> generateTestFiles(List<File> projectJars, File outputDir,
+			Collection<SootClass> testClasses, boolean resolveTypes) throws IOException {
 
 		Set<CompilationUnit> generatedTestClasses = new HashSet<>();
-		
+
 		logger.debug("Output directory is " + outputDir.getAbsolutePath());
 
 		if (!outputDir.exists() && !outputDir.mkdirs()) {
@@ -268,9 +272,9 @@ public class TestCaseFactory {
 			//
 			Files.write(classFile.toPath(), javaCode.toString().getBytes(), StandardOpenOption.CREATE_NEW);
 
-			generatedTestClasses.add( javaCode );
+			generatedTestClasses.add(javaCode);
 		}
-		
+
 		return generatedTestClasses;
 
 	}
@@ -446,7 +450,11 @@ public class TestCaseFactory {
 				genericMethodDeclaration = new MethodDeclaration(modifiers, new VoidType(), method.getName());
 				myClass.addMember(genericMethodDeclaration);
 
-				genericMethodDeclaration.addAnnotation(Test.class);
+				NormalAnnotationExpr annotation = genericMethodDeclaration.addAndGetAnnotation(Test.class);
+				MemberValuePair timeout = new MemberValuePair("timeout", new NameExpr("4000"));
+				NodeList<MemberValuePair> attrs = new NodeList<>();
+				annotation.getPairs().add(timeout);
+				//
 				genericMethodDeclaration.addThrownException(Exception.class);
 			}
 
@@ -595,11 +603,10 @@ public class TestCaseFactory {
 							rightExpr = new ArrayCreationExpr(elementType)
 									.setLevels(new NodeList<ArrayCreationLevel>(it)).setInitializer(null);
 
-						} else if ( stmt.getRightOp() instanceof ClassConstant ){
-							ClassConstant clazz = (ClassConstant)stmt.getRightOp();
-							rightExpr = new NameExpr( clazz.getValue().replaceAll("\\/", ".") + ".class");
-						} 
-						else {
+						} else if (stmt.getRightOp() instanceof ClassConstant) {
+							ClassConstant clazz = (ClassConstant) stmt.getRightOp();
+							rightExpr = new NameExpr(clazz.getValue().replaceAll("\\/", ".") + ".class");
+						} else {
 							// NOT SURE... constants ?
 							rightExpr = new NameExpr(stmt.getRightOp().toString());
 						}

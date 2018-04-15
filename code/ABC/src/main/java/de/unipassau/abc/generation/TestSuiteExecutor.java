@@ -17,6 +17,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -208,13 +211,24 @@ public class TestSuiteExecutor {
 		}
 	}
 
+	private final static ExecutorService testExecutorThreadsPool = Executors.newFixedThreadPool(5);
+
 	public Set<Pair<String, String>> compileAndRunJUnitTests(Collection<CompilationUnit> testClasses) {
+
+		long time = System.currentTimeMillis();
+
+		List<String> testClassesAsArg = new ArrayList<>();
+		for (CompilationUnit testClass : testClasses) {
+			testClassesAsArg.add(testClass.getPackageDeclaration().get().getNameAsString() + "."
+					+ testClass.getTypes().get(0).getNameAsString());
+		}
+
 		final Set<Pair<String, String>> failedTests = new HashSet<>();
-		
-		if( testClasses.isEmpty() ){
+
+		if (testClasses.isEmpty()) {
 			return failedTests;
 		}
-		
+
 		try {
 			// https://javabeat.net/the-java-6-0-compiler-api/
 			File tempOutputDir = Files.createTempDirectory("DeltaDebug").toFile();
@@ -228,23 +242,20 @@ public class TestSuiteExecutor {
 			// Refactor
 			List<String> commands = new ArrayList<>();
 			String javaPath = SystemUtils.JAVA_HOME + File.separator + "bin" + File.separator + "java";
-			commands.add( javaPath );
-	
+			commands.add(javaPath);
+
 			// TODO Here it would be nice to execute a single test, but this
 			// requires a custom runner that must be used instead of plain
 			// JUnitCore
 			// https://stackoverflow.com/questions/9288107/run-single-test-from-a-junit-class-using-command-line
 			String classpath = buildClassPath(tempOutputDir);
 			commands.add("-cp");
-			commands.add( classpath );
-			
+			commands.add(classpath);
+
 			commands.add("org.junit.runner.JUnitCore");
-			
-			for (CompilationUnit testClass : testClasses) {
-				commands.add(
-						testClass.getPackageDeclaration().get().getNameAsString()+"."+
-						testClass.getTypes().get(0).getNameAsString());
-			}
+
+			// Include test names
+			commands.addAll(testClassesAsArg);
 
 			ProcessBuilder processBuilder = new ProcessBuilder(commands);
 
@@ -252,64 +263,75 @@ public class TestSuiteExecutor {
 
 			// Parse output ...
 
-			processBuilder.redirectError();
-			processBuilder.redirectInput();
+			// processBuilder.redirectError();
+			// processBuilder.redirectInput();
 			processBuilder.redirectOutput();
 			Process process = processBuilder.start();
 
-			final Pattern failedTestPattern = Pattern.compile("\\d\\d*\\) (.*)"
-					+ "\\(([a-zA_Z_][\\.\\w]*(\\[\\])?)?(,[a-zA_Z_][\\.\\w]*(\\[\\])?)*\\)");
-			
+			final Pattern failedTestPattern = Pattern
+					.compile("\\d\\d*\\) (.*)" + "\\(([a-zA_Z_][\\.\\w]*(\\[\\])?)?(,[a-zA_Z_][\\.\\w]*(\\[\\])?)*\\)");
+
 			// PUT THIS INTO A THREAD !
-			Thread t = new Thread(new Runnable() {
+			testExecutorThreadsPool.submit(new Callable<Void>() {
 
 				@Override
-				public void run() {
+				public Void call() throws Exception {
+					// TODO Auto-generated method stub
 					// TODO Auto-generated method stub
 					try (BufferedReader output = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
 						String line = null;
 						while ((line = output.readLine()) != null) {
-							System.out.println(
-									">>> " + line );
-							Matcher matcher = failedTestPattern.matcher( line );
-							if( matcher.matches() ){
+							// System.out.println(
+							// ">>> " + line );
+							Matcher matcher = failedTestPattern.matcher(line);
+							if (matcher.matches()) {
 								String testMethod = matcher.group(1);
 								String testClass = matcher.group(2);
-								logger.debug(">>> Failed Test " + testClass + "."+ testMethod);
-								failedTests.add(  new Pair<String, String>(testClass, testMethod));
+								// logger.debug(">>> Failed Test " + testClass +
+								// "."+ testMethod);
+								failedTests.add(new Pair<String, String>(testClass, testMethod));
 							}
 						}
 					} catch (IOException e1) {
 						// TODO Auto-generated catch block
-						e1.printStackTrace();
+						// e1.printStackTrace();
+					} catch (Exception e) {
+						// TODO: handle exception
+						// e.printStackTrace();
 					}
+					// System.out.println("End Test Execution");
+					return null;
 				}
 			});
-			t.start();
-			
-			//
-			
-			// Wait for the execution to end.
-			if (!process.waitFor(4000 * testClasses.size(), TimeUnit.MILLISECONDS)) {
-				logger.info("Timeout for test execution");
-				// timeout - kill the process.
-				process.destroyForcibly(); // consider using destroyForcibly
-											// instead
-				// Force Wait 1 sec to clean up
-				Thread.sleep(1000);
-			}
 
+			// TODO Check:
+			// https://stackoverflow.com/questions/27038351/getting-list-of-tests-from-junit-command-line
+			// Wait for the execution to end.
+			// I hope that we do not get fooled by calling System.exit
+			process.waitFor();
+
+			// if (!process.waitFor(4000 * testClasses.size(),
+			// TimeUnit.MILLISECONDS)) {
+			// logger.info("Timeout for test execution");
+			// // timeout - kill the process.
+			// process.destroyForcibly(); // consider using destroyForcibly
+			// // instead
+			// // Force Wait 1 sec to clean up
+			// Thread.sleep(1000);
+			// }
 			// This should be into a finally
-			process.destroyForcibly(); // consider using destroyForcibly
+			// process.destroyForcibly(); // consider using destroyForcibly
 			// instead
 			// NOT SURE
-			
-			// Are we sure that at this point the thread finished to read all the input ?
-			t.interrupt();
+			// Are we sure that at this point the thread finished to read all
+			// the input ?
 
 		} catch (Exception e) {
 			// TODO: handle exception
 			e.printStackTrace();
+		} finally {
+			logger.info(
+					"Execution of " + testClassesAsArg.size() + " tests took " + (System.currentTimeMillis() - time));
 		}
 
 		return failedTests;
@@ -435,5 +457,4 @@ public class TestSuiteExecutor {
 		}
 
 	}
-
 }
