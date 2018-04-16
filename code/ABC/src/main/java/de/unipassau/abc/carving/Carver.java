@@ -70,9 +70,11 @@ public class Carver {
 
 		@Option(longName = "test-setup-by", defaultToNull = true)
 		List<String> getTestSetupBy();
-		
-		// This is for delta debugging, to deal with state pollution like filling in a db with predefined data...
-		// It a static fully qualified method with void like "SystemTestUtils.dropAndRecreateTheDb();"
+
+		// This is for delta debugging, to deal with state pollution like
+		// filling in a db with predefined data...
+		// It a static fully qualified method with void like
+		// "SystemTestUtils.dropAndRecreateTheDb();"
 		@Option(longName = "reset-environment-by", defaultToNull = true)
 		String getResetEnvironmentBy();
 
@@ -198,8 +200,8 @@ public class Carver {
 			outputDir = cli.getOutputDir();
 			projectJars.addAll(cli.getProjectJar());
 
-			resetEnvironmentBy=cli.getResetEnvironmentBy();
-			
+			resetEnvironmentBy = cli.getResetEnvironmentBy();
+
 			skipMinimize = cli.isSkipMinimize();
 
 			// TODO This can be moved inside CLI parsing using an instance
@@ -225,7 +227,7 @@ public class Carver {
 					(cli.getExternalInterfaces() != null) ? cli.getExternalInterfaces() : new ArrayList<String>());
 
 		} catch (ArgumentValidationException e) {
-			throw new RuntimeException( e );
+			throw new RuntimeException(e);
 		}
 
 		// Build the externalInterfaceMatchers, during parsers those will mark
@@ -363,27 +365,47 @@ public class Carver {
 		// actualReturnValue);
 		// }
 
-		// Output Regular Carved Tests to files and returns them as CompilationUnit. Note that these classes have no problems with generics and casting.
+		// Output Regular Carved Tests to files and returns them as
+		// CompilationUnit. Note that these classes have no problems with
+		// generics and casting.
 		boolean resolveTypes = true;
 		TestCaseFactory.generateTestFiles(projectJars, outputDir, testClasses, resolveTypes);
 
 		testGenerationTime = System.currentTimeMillis() - testGenerationTime;
 		logger.info("Carver.main() End Test generation");
 
+		long testSuiteMinimizationTime = System.currentTimeMillis();
+		// Minimized Carved Tests - We work at the level of JAVA files instead
+		// of SootMethods since soot methods do not carry
+		// Information about "generics", it's JVM fault BTW since bytecode does
+		// not have that.
+		//
+		logger.info("Carver.main() Start Minimize Test Suite");
+
+		DeltaDebugger deltaDebugger = new DeltaDebugger(outputDir, carvedTestCases, resetEnvironmentBy, projectJars);
+		deltaDebugger.minimizeTestSuite();
+		
+		logger.info("Carver.main() End Minimize Test Suite");
+		testSuiteMinimizationTime = System.currentTimeMillis() - testSuiteMinimizationTime;
+
 		long minimizationTime = System.currentTimeMillis();
 		if (!skipMinimize) {
-			// Minimized Carved Tests - We work at the level of JAVA files instead of SootMethods since soot methods do not carry 
-			// Information about "generics", it's JVM fault BTW since bytecode does not have that.
+			// Minimized Carved Tests - We work at the level of JAVA files
+			// instead of SootMethods since soot methods do not carry
+			// Information about "generics", it's JVM fault BTW since bytecode
+			// does not have that.
 			//
-			logger.info("Carver.main() Start Minimize via Delta Debugging");
-			
-			DeltaDebugger.minimize(outputDir, carvedTestCases, resetEnvironmentBy, projectJars);
+			logger.info("Carver.main() Start Minimize Test Cases via Delta Debugging");
 
-			logger.info("Carver.main() End Minimize via Delta Debugging");
-		} else {
-			logger.info("Skip Minimize");
+			deltaDebugger.minimizeTestCases();
+
+			logger.info("Carver.main() End Minimize Test Cases via Delta Debugging");
 		}
 		minimizationTime = System.currentTimeMillis() - minimizationTime;
+
+		// Output the files
+		deltaDebugger.outputToFile();
+		
 		// At this point we can start the minimization via delta debugging
 
 		long endTime = System.nanoTime();
@@ -393,6 +415,7 @@ public class Carver {
 		System.out.println("parsingTime " + parsingTime);
 		System.out.println("carvingTime " + carvingTime);
 		System.out.println("testGenerationTime " + testGenerationTime);
+		System.out.println("testSuiteMinimizationTime " + testSuiteMinimizationTime); 
 		if (!skipMinimize) {
 			System.out.println("minimizationTime " + minimizationTime);
 		}

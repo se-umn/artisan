@@ -53,7 +53,9 @@ import soot.jimple.StaticInvokeExpr;
 import soot.jimple.StringConstant;
 
 /**
- * TODO Do we need to remove elements in the inputs if we remove calls to scanner.next? in theory we shall
+ * TODO Do we need to remove elements in the inputs if we remove calls to
+ * scanner.next? in theory we shall
+ * 
  * @author gambi
  *
  */
@@ -61,15 +63,29 @@ public class DeltaDebugger {
 
 	private final static Logger logger = LoggerFactory.getLogger(DeltaDebugger.class);
 
-	/*
-	 * Minimize all the test in parallalel
-	 */
-	public static void minimize(File outputDir,
-			final List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases,
-			String resetEnvironmentBy, //
-			List<File> projectJars) throws IOException, URISyntaxException, InterruptedException {
+	private Set<CompilationUnit> testClasses;
+	private File outputDir;
+	private String resetEnvironmentBy;
+	private List<File> projectJars;
 
-		// Method under test is the last before XMLValidation
+	private TestSuiteMinimizer testSuiteMinimizer;
+
+	public DeltaDebugger(File outputDir,
+			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases,
+			String resetEnvironmentBy, //
+			List<File> projectJars) throws IOException {
+
+		this.testClasses = getTestClasses(carvedTestCases, projectJars);
+		this.outputDir = outputDir;
+		this.resetEnvironmentBy = resetEnvironmentBy;
+		this.projectJars = projectJars;
+		this.testSuiteMinimizer = new TestSuiteMinimizer(testClasses, resetEnvironmentBy,
+				new TestSuiteExecutor(projectJars));
+	}
+
+	private Set<CompilationUnit> getTestClasses(
+			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases,
+			List<File> projectJars) throws IOException {
 
 		// Include in the tests the XML Assertions
 		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
@@ -105,15 +121,20 @@ public class DeltaDebugger {
 		//
 		boolean resolveTypes = true;
 		File tempFolder = Files.createTempDirectory("DeltaDebug").toFile();
-		Set<CompilationUnit> allTestClasses = TestCaseFactory.generateTestFiles(projectJars, tempFolder, _testClasses,
+		//
+		return TestCaseFactory.generateTestFiles(projectJars, tempFolder, _testClasses,
 				resolveTypes);
+	}
 
-		TestSuiteMinimizer testSuiteMinimizer = new TestSuiteMinimizer(allTestClasses, resetEnvironmentBy, new TestSuiteExecutor( projectJars ));
+	public void minimizeTestSuite() throws IOException, URISyntaxException, InterruptedException {
+
 		// This will change allTestClasses by running delta debugging
-		testSuiteMinimizer.minimize();
+		testSuiteMinimizer.minimizeTestSuite();
+	}
 
+	public void outputToFile() throws IOException {
 		// Eventually output the files
-		for (CompilationUnit testClass : allTestClasses) {
+		for (CompilationUnit testClass : testClasses) {
 
 			// Create the structure as javac expects
 			String packageDeclaration = testClass.getPackageDeclaration().get().getNameAsString();
@@ -129,10 +150,15 @@ public class DeltaDebugger {
 			Files.write(classFile.toPath(), testClass.toString().getBytes());
 
 		}
-
 	}
 
-	
+	/*
+	 * Minimize all the test in parallalel
+	 */
+	public void minimizeTestCases() throws IOException, URISyntaxException, InterruptedException {
+
+		testSuiteMinimizer.minimizeTestMethods();
+	}
 
 	@Deprecated
 	public static void minimize(File testSourceFolder,
@@ -291,8 +317,6 @@ public class DeltaDebugger {
 			logger.info("Verification done in " + time + " ms");
 		}
 	}
-
-	
 
 	@Deprecated
 	public static boolean compileAndRunJUnitTest(String systemTestClassName, File tempOutputDir, List<File> projectJars)
@@ -474,7 +498,5 @@ public class DeltaDebugger {
 
 		return validationUnits;
 	}
-
-	
 
 }

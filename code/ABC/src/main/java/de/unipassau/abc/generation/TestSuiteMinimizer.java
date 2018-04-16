@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,6 +34,13 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
 import de.unipassau.abc.data.Pair;
 
+
+/// org.codedefenders.multiplayer.CoverageGenerator
+// Test suite minimizer uses DeltaDebugger and TestSuite reduction via Coverage analyss !
+/*
+ * Greedy run tests (all, per CUT, per MUT), measure coverage, remove a test
+ *reexecuted and re-meausre coverage. If coverage is lower, keep test, if same remove test
+ */
 public class TestSuiteMinimizer {
 
 	private Set<CompilationUnit> testClasses;
@@ -44,7 +52,8 @@ public class TestSuiteMinimizer {
 	public TestSuiteMinimizer(Set<CompilationUnit> allTestClasses, String resetEnvironmentBy,
 			TestSuiteExecutor testSuiteExecutor) {
 
-		this.testClasses = new HashSet<>(allTestClasses);
+//		this.testClasses = new HashSet<>(allTestClasses);
+		this.testClasses = allTestClasses;
 		this.resetEnvironmentBy = resetEnvironmentBy;
 		this.testSuiteExecutor = testSuiteExecutor;
 	}
@@ -53,7 +62,6 @@ public class TestSuiteMinimizer {
 		return testClasses.isEmpty();
 	}
 
-	// maybe pair<Signature>, pair<MethodDeclaration,Interger?>
 	public void performAMinimizationStep(Map<Pair<CompilationUnit, Signature>, Integer> currentIndex) {
 
 		// NOTE THAT CompilationUnit IS changed as we go !!
@@ -89,22 +97,28 @@ public class TestSuiteMinimizer {
 			newIndex = currentIndex.get(testMethodData);
 			do {
 				// Go to the next
-				s = testMethod.getBody().get().getStatement( newIndex );
+				s = testMethod.getBody().get().getStatement(newIndex);
 				logger.debug("Try to remove " + s + " from " + methodName + " at position " + newIndex);
 				boolean mandatory = isMandatory(s);
-				if( mandatory){
-					logger.debug( s + " is mandatory ");
+				if (mandatory) {
+					System.out.println(s + " is mandatory ");
+					logger.debug(s + " is mandatory ");
 				}
-			// Move to next statmt
+				// Move to next statmt
 				newIndex = newIndex - 1;
-			} while ( isMandatory(s) );
+			} while (isMandatory(s) && newIndex > 0);
+
+			// At this point if there's nothing more to check, we skip
+			if (newIndex == 0) {
+				toRemove.add(testMethodData);
+				continue;
+			}
 
 			BlockStmt originalBody = testMethod.getBody().get().clone();
 			originalBodies.put(testMethod.getSignature().asString(), originalBody);
 
 			BlockStmt modifiedBody = testMethod.getBody().get().clone();
 			modifiedBody.remove(s);
-
 
 			testMethod.setBody(modifiedBody);
 
@@ -239,7 +253,39 @@ public class TestSuiteMinimizer {
 
 	}
 
-	public void minimize() {
+	/**
+	 * Greedly remove tests which do not increase coverage
+	 */
+	public void minimizeTestSuite() {
+		
+		Set<CompilationUnit> testsToRun;
+		
+		// Run tests and collect coverage
+		double totalCoverage = testSuiteExecutor.compileRunAndGetCoverageJUnitTests(testClasses);
+		System.out.println("TestSuiteMinimizer.minimizeTestSuite() Total coverage " + totalCoverage );
+		int removed = 0;
+		for(Iterator<CompilationUnit> testClassIterator = testClasses.iterator(); testClassIterator.hasNext();){
+			CompilationUnit testClass = testClassIterator.next();
+			System.out.println("TestSuiteMinimizer.minimizeTestSuite() Try without " + testClass.getType(0).getNameAsString() );
+			
+			testsToRun = new HashSet<>( testClasses );
+			testsToRun.remove( testClass );
+			
+			// Do the execution
+			double coverage = testSuiteExecutor.compileRunAndGetCoverageJUnitTests(testsToRun );
+			
+			System.out.println("TestSuiteMinimizer.minimizeTestSuite() Coverage " + coverage );
+			if( coverage == totalCoverage ){
+				System.out.println("Coverage unchanged. Remove " + testClass.getType(0).getNameAsString());
+				testClassIterator.remove();
+				removed = removed + 1;
+			}
+		}
+		// At this point testToMinimize contains the minimial set.
+		System.out.println("TestSuiteMinimizer.minimizeTestSuite() Removed " + removed + ", remaining " + testClasses.size() +" test classes");
+	}
+	
+	public void minimizeTestMethods() {
 
 		Map<Pair<CompilationUnit, Signature>, Integer> currentIndex = new HashMap<>();
 
@@ -289,17 +335,16 @@ public class TestSuiteMinimizer {
 
 	// TODO Assume tMethodCall are not Assign Expt !
 	public boolean isMandatory(Statement statement) {
-//		return m.equals("close") || false;
-		if( statement instanceof ExpressionStmt ){
+		// return m.equals("close") || false;
+		if (statement instanceof ExpressionStmt) {
 			ExpressionStmt es = (ExpressionStmt) statement;
 			Expression e = es.getExpression();
 			// Naive
 			String exp = e.toString();
-//			System.out.println("TestSuiteMinimizer.isMandatory() Processing " + statement );
-			return exp.contains(".close()");
-		} else {
-			// Skop string initialization !
-			statement instanceof 
+			// System.out.println("TestSuiteMinimizer.isMandatory() Processing "
+			// + statement );
+			// Thos are all hardcoded
+			return exp.contains(".close()") || exp.contains("= null");
 		}
 		return false;
 

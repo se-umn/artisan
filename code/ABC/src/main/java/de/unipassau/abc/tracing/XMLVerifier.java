@@ -21,9 +21,14 @@ public class XMLVerifier {
 	public static void verify(Object object, String xmlExpected) throws IOException {
 		// clear out existing permissions and set own ones
 		XStream xstream = new XStream();
+		
 		String expected = new String(Files.readAllBytes(Paths.get(xmlExpected)));
 		String actual = xstream.toXML(object);
-		org.junit.Assert.assertEquals("Object " + object + " does not match its serialized form inside " + xmlExpected,
+		//
+		System.out.println("XMLVerifier.verify() Actual : " + object );
+		System.out.println("XMLVerifier.verify() Stored : " + XMLDumper.loadObject( xmlExpected ) );
+		//
+		org.junit.Assert.assertEquals("Object " + object + " does not match its serialized form " + XMLDumper.loadObject( xmlExpected ) + " inside file " + xmlExpected,
 				expected, actual);
 	}
 

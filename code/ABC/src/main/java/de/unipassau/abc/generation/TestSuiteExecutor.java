@@ -1,5 +1,6 @@
 package de.unipassau.abc.generation;
 
+import java.awt.color.ICC_ProfileRGB;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -28,6 +29,13 @@ import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
 
 import org.apache.commons.lang3.SystemUtils;
+import org.jacoco.core.analysis.Analyzer;
+import org.jacoco.core.analysis.CoverageBuilder;
+import org.jacoco.core.analysis.IBundleCoverage;
+import org.jacoco.core.analysis.IClassCoverage;
+import org.jacoco.core.analysis.ICounter;
+import org.jacoco.core.analysis.ILine;
+import org.jacoco.core.tools.ExecFileLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -213,6 +221,112 @@ public class TestSuiteExecutor {
 
 	private final static ExecutorService testExecutorThreadsPool = Executors.newFixedThreadPool(5);
 
+	/**
+	 * Execute test cases and return stmt coverage
+	 * 
+	 * @param testClasses
+	 * @return
+	 */
+	public double compileRunAndGetCoverageJUnitTests(
+			Collection<CompilationUnit> testClasses) {
+		long time = System.currentTimeMillis();
+
+		double coverage = 0;
+		List<String> testClassesAsArg = new ArrayList<>();
+		for (CompilationUnit testClass : testClasses) {
+			testClassesAsArg.add(testClass.getPackageDeclaration().get().getNameAsString() + "."
+					+ testClass.getTypes().get(0).getNameAsString());
+		}
+
+		if (testClasses.isEmpty()) {
+			// No test no coverage
+			return coverage;
+		}
+
+		try {
+			// https://javabeat.net/the-java-6-0-compiler-api/
+			File tempOutputDir = Files.createTempDirectory("DeltaDebug").toFile();
+			tempOutputDir.deleteOnExit();
+
+			if (!compileJUnitTests(testClasses, tempOutputDir)) {
+				throw new RuntimeException("Compilation should not fail at this point !!!");
+			}
+
+			// Now execute all of classes under tempOutputDir
+			// Refactor
+			List<String> commands = new ArrayList<>();
+			String javaPath = SystemUtils.JAVA_HOME + File.separator + "bin" + File.separator + "java";
+			commands.add(javaPath);
+
+			// Add JaCoCo agent
+			File jacocoExec = new File(tempOutputDir, "jacoco.exec");
+			// TODO FIXME
+			String jacocoAgent = ABCUtils.getJacocoAget();
+
+			// TODO FIXME
+			String excludeList = "org.hotelme.Main,org.hotelme.systemtests.*,org.hotelme.utils.*";
+
+			commands.add("-javaagent:" + jacocoAgent + "=destfile=" + jacocoExec.getAbsolutePath() + ",excludes="
+					+ excludeList);
+
+			String classpath = buildClassPath(tempOutputDir);
+			commands.add("-cp");
+			commands.add(classpath);
+
+			commands.add("org.junit.runner.JUnitCore");
+
+			// Include test names
+			commands.addAll(testClassesAsArg);
+
+			ProcessBuilder processBuilder = new ProcessBuilder(commands);
+
+			System.out.println("Execute for coverage: " + processBuilder.command());
+
+			 processBuilder.inheritIO();
+
+			Process process = processBuilder.start();
+			// Tests include TIMEOUT already
+			int result = process.waitFor();
+
+			if (result != 0) {
+				System.out.println("TestSuiteExecutor.compileRunAndGetCoverageJUnitTests() ERROR IN EXECUTION !");
+			}
+			// Compute coverage
+			ExecFileLoader execFileLoader = new ExecFileLoader();
+			execFileLoader.load(jacocoExec);
+
+			//
+			CoverageBuilder coverageBuilder = new CoverageBuilder();
+			Analyzer analyzer = new Analyzer(execFileLoader.getExecutionDataStore(), coverageBuilder);
+			
+			// The source not the tests !
+			for( File projectJar : projectJars ){
+				analyzer.analyzeAll( projectJar );
+			}
+
+			// TODO NOt sure about the title
+			IBundleCoverage bundle = coverageBuilder.getBundle("ABC");
+			coverage = bundle.getLineCounter().getCoveredRatio();
+			// bundle.getBranchCounter().getCoveredRatio();
+
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+		} finally {
+			logger.info(
+					"Execution of " + testClassesAsArg.size() + " tests took " + (System.currentTimeMillis() - time));
+		}
+
+		return coverage;
+
+	}
+
+	/**
+	 * Execute test cases and return failed tests
+	 * 
+	 * @param testClasses
+	 * @return
+	 */
 	public Set<Pair<String, String>> compileAndRunJUnitTests(Collection<CompilationUnit> testClasses) {
 
 		long time = System.currentTimeMillis();

@@ -55,7 +55,7 @@ public class InstrumentEmployeeTest {
 				"--output-type", "jimple" });
 
 		// TODO Maybe a Hamcrest matcher here?
-		assertEquals(13, outputDir.listFiles(new FilenameFilter() {
+		assertEquals(11, outputDir.listFiles(new FilenameFilter() {
 
 			@Override
 			public boolean accept(File dir, String name) {
