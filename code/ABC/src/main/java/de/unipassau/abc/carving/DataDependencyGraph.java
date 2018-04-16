@@ -704,6 +704,9 @@ public class DataDependencyGraph {
 	}
 
 	/// Note that static instances have no init method ...
+	// Soot calls super.<init> recursively for each super class of this instance before calling the actual 
+	// <init> method. So we need to return the one which actually matches the type of the object
+	//
 	public MethodInvocation getInitMethodInvocationFor(ObjectInstance objectInstance) {
 
 		// include the init call
@@ -712,7 +715,10 @@ public class DataDependencyGraph {
 				if (graph.getOpposite(objectInstance, outgoingEdge) instanceof MethodInvocation) {
 					MethodInvocation methodInvocation = (MethodInvocation) graph.getOpposite(objectInstance,
 							outgoingEdge);
-					if (methodInvocation.getJimpleMethod().contains("<init>")) {
+					
+					
+					if (methodInvocation.getJimpleMethod().contains("<init>") &&
+							JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod()).equals(objectInstance.getType())) {
 						return ((MethodInvocation) graph.getOpposite(objectInstance, outgoingEdge));
 					}
 				}
