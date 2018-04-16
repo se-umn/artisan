@@ -203,9 +203,9 @@ public class StackImplementation implements TraceParser {
 		// tokens[0] is METHOD_OBJECT_TOKEN
 		String jimpleMethod = tokens[1];
 		// This might be empty but the ";" MUST be there !
-		String xmlFile = tokens[2];
+		// String xmlFile = tokens[2];
 		// Static methods
-		StringBuffer thisObject = new StringBuffer(tokens[3]);
+		StringBuffer thisObject = new StringBuffer(tokens[2]);
 		int peekIndex = startLine + 1;
 		// Accumulate strings
 		while (peekIndex < allLines.size() && !allLines.get(peekIndex).startsWith(Trace.METHOD_START_TOKEN)
@@ -221,7 +221,7 @@ public class StackImplementation implements TraceParser {
 		//
 		MethodInvocation methodInvocation = callGraph.peek();
 		methodInvocation.setOwner(owner);
-		methodInvocation.setXmlDumpForOwner(xmlFile);
+		// methodInvocation.setXmlDumpForOwner(xmlFile);
 
 		// if (!purityFlag) {
 		dataDependencyGraph.addDataDependencyOnOwner(methodInvocation, thisObject.toString());
@@ -239,11 +239,18 @@ public class StackImplementation implements TraceParser {
 
 		// Void methods are not reported...
 		StringBuffer returnValue = new StringBuffer();
-		String xmlFile = null;
-		int peekIndex = startLine + 1;
+		String ownerXmlFile = null;
+		String returnXmlFile = null;
+
+		// The ";;;".split() returns an empty array 
 		if (tokens.length > 2) {
-			xmlFile = tokens[2];
-			returnValue.append(tokens[3]);
+			ownerXmlFile = tokens[2];
+		}
+
+		int peekIndex = startLine + 1;
+		if (tokens.length > 3) {
+			returnXmlFile = tokens[3];
+			returnValue.append(tokens[4]);
 
 			// Accumulate strings
 			while (peekIndex < allLines.size() && !allLines.get(peekIndex).startsWith(Trace.METHOD_START_TOKEN)
@@ -260,10 +267,12 @@ public class StackImplementation implements TraceParser {
 
 		MethodInvocation methodInvocation = callGraph.pop();
 
-		// if (!purityFlag) {
+		if (!methodInvocation.isStatic()) {
+			methodInvocation.setXmlDumpForOwner(ownerXmlFile);
+		}
 
 		if (!JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()))) {
-			methodInvocation.setXmlDumpForReturn(xmlFile);
+			methodInvocation.setXmlDumpForReturn(returnXmlFile);
 		}
 
 		// TODO This is tricky: one might actually encode the string null
@@ -361,7 +370,7 @@ public class StackImplementation implements TraceParser {
 		//
 		for (MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations()) {
 			if (isTestSetupCall(mi)) {
-//				System.out.println(" Matched test setup call " + mi);
+				// System.out.println(" Matched test setup call " + mi);
 				callGraph.markParentAndPruneAfter(mi);
 
 				//
@@ -386,7 +395,7 @@ public class StackImplementation implements TraceParser {
 
 			for (MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations()) {
 				if (isTestSetupCall(mi)) {
-//					System.out.println(" Matched test setup call " + mi);
+					// System.out.println(" Matched test setup call " + mi);
 					callGraph.markParentAndPruneAfter(mi);
 
 					//

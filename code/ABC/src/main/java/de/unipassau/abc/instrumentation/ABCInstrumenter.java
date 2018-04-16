@@ -60,13 +60,13 @@ public class ABCInstrumenter {
 	}
 
 	public static List<Unit> addTraceStop(// SootMethod method,
-			String methodSignature, Value returnValue, Body body) {
+			String methodSignature, Value ownerValue, Value returnValue, Body body) {
 
 		List<Unit> generated = new ArrayList<Unit>();
 
 		{
 			final SootMethod methodStop = Scene.v()
-					.getMethod("<de.unipassau.abc.tracing.Trace: void methodStop(java.lang.String,java.lang.Object)>");
+					.getMethod("<de.unipassau.abc.tracing.Trace: void methodStop(java.lang.String,java.lang.Object,java.lang.Object)>");
 			// Trace.methodStop requires
 			// String -> methodName
 			// Object -> Return value
@@ -75,6 +75,10 @@ public class ABCInstrumenter {
 			// Method Name
 			methodStopParameters.add(StringConstant.v(methodSignature));
 
+			// Method Owner
+			methodStopParameters.add(ownerValue);
+			
+			// Process return value 
 			// Why we need this ?
 
 			// This box return value or null or void constants
@@ -84,6 +88,7 @@ public class ABCInstrumenter {
 						new ArrayList<Unit>());
 
 			} else if (returnValue == null) {
+				// Sure ? Why not?
 				throw new RuntimeException("Cannot have a null returnValue at this point " + methodSignature);
 			} else {
 				tmpReturnValueAndInstructions = UtilInstrumenter.generateReturnValue(returnValue, body);

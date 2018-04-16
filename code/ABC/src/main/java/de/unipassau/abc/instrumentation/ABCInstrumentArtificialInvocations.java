@@ -166,7 +166,8 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 		/*
 		 * This avoid duplicating the access to the static field
 		 */
-		generatedAfter.addAll(addTraceStop(fakeMethodSignature, classConstant, body));
+		// Static method have null - TODO This will break it ?
+		generatedAfter.addAll(addTraceStop(fakeMethodSignature, NullConstant.v(), classConstant, body));
 		//
 		// // TAG OUR CODE ?
 		PatchingChain<Unit> units = body.getUnits();
@@ -192,7 +193,7 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 		/*
 		 * This avoid duplicating the access to the static field
 		 */
-		generatedAfter.addAll(addTraceStop(fakeMethodSignature, staticFieldLocal, body));
+		generatedAfter.addAll(addTraceStop(fakeMethodSignature, NullConstant.v(), staticFieldLocal, body));
 		//
 		// // TAG OUR CODE ?
 		PatchingChain<Unit> units = body.getUnits();
@@ -223,7 +224,8 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 
 		generatedBefore.addAll(addTraceStart(invokeType, fakeMethodSignature, parameterList, body));
 
-		generatedAfter.addAll(addTraceStop(fakeMethodSignature, value, body));
+		// FIXME Not sure how to handle this.
+		generatedAfter.addAll(addTraceStop(fakeMethodSignature, NullConstant.v(), value, body));
 
 		PatchingChain<Unit> units = body.getUnits();
 		units.insertBefore(generatedBefore, currentUnit);
@@ -258,7 +260,7 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 		// This assume that we observed a call to "new"
 		generatedAfter.addAll(addTraceObject(array, fakeMethodSignature));
 
-		generatedAfter.addAll(addTraceStop(fakeMethodSignature, null, body));
+		generatedAfter.addAll(addTraceStop(fakeMethodSignature, array, NullConstant.v(), body));
 
 		injectTracingCode(body, currentUnit, generatedBefore, generatedAfter);
 
@@ -294,7 +296,7 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 
 		generatedAfter.addAll(addTraceObject(array, fakeMethodSignature));
 
-		generatedAfter.addAll(addTraceStop(fakeMethodSignature, null, body));
+		generatedAfter.addAll(addTraceStop(fakeMethodSignature, array, NullConstant.v(), body));
 
 		injectTracingCode(body, currentUnit, generatedBefore, generatedAfter);
 	}
@@ -327,7 +329,7 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 
 		generatedAfter.addAll(addTraceObject(array, fakeMethodSignature));
 
-		generatedAfter.addAll(addTraceStop(fakeMethodSignature, leftOp, body));
+		generatedAfter.addAll(addTraceStop(fakeMethodSignature, array, leftOp, body));
 
 		
 		System.out.println("ABCInstrumentArtificialInvocations.instrumentArrayAccessExpression() GENERATED CODE: ");
@@ -366,7 +368,7 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 
 		// Since "abc.String" is static we do not trace its owner
 
-		generatedAfter.addAll(addTraceStop(fakeMethodSignature, value, body));
+		generatedAfter.addAll(addTraceStop(fakeMethodSignature, NullConstant.v(), value, body));
 
 		injectTracingCode(body, currentUnit, generatedBefore, generatedAfter);
 
