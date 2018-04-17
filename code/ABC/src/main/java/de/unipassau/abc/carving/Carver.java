@@ -3,6 +3,7 @@ package de.unipassau.abc.carving;
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -13,6 +14,7 @@ import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.javaparser.ast.CompilationUnit;
 import com.lexicalscope.jewel.cli.ArgumentValidationException;
 import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
@@ -27,10 +29,22 @@ import de.unipassau.abc.generation.MockingGenerator;
 import de.unipassau.abc.generation.TestCaseFactory;
 import de.unipassau.abc.generation.TestGenerator;
 import de.unipassau.abc.generation.impl.EachTestAlone;
+import de.unipassau.abc.instrumentation.UtilInstrumenter;
+import de.unipassau.abc.utils.JimpleUtils;
+import soot.Body;
 import soot.G;
+import soot.PatchingChain;
 import soot.Scene;
 import soot.SootClass;
 import soot.SootMethod;
+import soot.Unit;
+import soot.Value;
+import soot.jimple.AbstractStmtSwitch;
+import soot.jimple.InstanceInvokeExpr;
+import soot.jimple.InvokeExpr;
+import soot.jimple.Jimple;
+import soot.jimple.StaticInvokeExpr;
+import soot.jimple.StringConstant;
 import soot.options.Options;
 
 // TODO Use some sort of CLI/JewelCLI
@@ -370,23 +384,26 @@ public class Carver {
 		TestCaseFactory.generateTestFiles(projectJars, outputDir, testClasses, resolveTypes);
 
 		testGenerationTime = System.currentTimeMillis() - testGenerationTime;
+
 		logger.info("Carver.main() End Test generation");
 
 		long testSuiteMinimizationTime = System.currentTimeMillis();
+
+		logger.info("Carver.main() Start Minimize Test Suite");
+		// Generate Java Code from JimpleCode and add the validation units
+		Set<CompilationUnit> _testClasses = getTestClasses(carvedTestCases, projectJars);
+
 		// Minimized Carved Tests - We work at the level of JAVA files instead
 		// of SootMethods since soot methods do not carry
 		// Information about "generics", it's JVM fault BTW since bytecode does
 		// not have that.
 		//
-		logger.info("Carver.main() Start Minimize Test Suite");
-
-		DeltaDebugger deltaDebugger = new DeltaDebugger(outputDir, carvedTestCases, resetEnvironmentBy,
-				projectJars);
+		DeltaDebugger deltaDebugger = new DeltaDebugger(outputDir, _testClasses, resetEnvironmentBy, projectJars);
 		try {
 			deltaDebugger.minimizeTestSuite();
 		} catch (CarvingException e) {
 			logger.error("Error while minimimize the test suite !", e);
-			System.exit( 1 );
+			System.exit(1);
 		}
 
 		logger.info("Carver.main() End Minimize Test Suite");
@@ -430,4 +447,144 @@ public class Carver {
 		// System.exit(0);
 	}
 
+	public static Set<CompilationUnit> getTestClasses(
+			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases,
+			List<File> projectJars) throws IOException {
+
+		// Include in the tests the XML Assertions
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
+
+			MethodInvocation mut = carvedTestCase.getFirst().getLastMethodInvocation();
+			SootMethod testMethod = carvedTestCase.getThird();
+
+			// If the return value is a primitive it cannot be found in the xml
+			// file !
+			List<Unit> validation = generateValidationUnit(testMethod, mut.getXmlDumpForOwner(),
+					mut.getXmlDumpForReturn(), carvedTestCase.getSecond().getReturnObjectLocalFor(mut));
+
+			logger.info("DeltaDebugger.minimize() Validation code: " + validation);
+			final Body body = testMethod.getActiveBody();
+			// The very last unit is the "return" we need the one before it...
+			final PatchingChain<Unit> units = body.getUnits();
+			// Insert the validation code - if any ?!
+			if (validation.isEmpty()) {
+				logger.warn("DeltaDebugger.minimize() VALIDAITON IS EMPTY FOR " + testMethod);
+			} else {
+				units.insertBefore(validation, units.getLast());
+			}
+
+		}
+
+		Set<SootClass> _testClasses = new HashSet<>();
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
+			SootClass sClass = carvedTestCase.getThird().getDeclaringClass();
+			if (!_testClasses.contains(sClass)) {
+				_testClasses.add(sClass);
+			}
+		}
+		//
+		boolean resolveTypes = true;
+		File tempFolder = Files.createTempDirectory("DeltaDebug").toFile();
+		//
+		return TestCaseFactory.generateTestFiles(projectJars, tempFolder, _testClasses, resolveTypes);
+	}
+
+	public static List<Unit> generateValidationUnit(final SootMethod testMethod, final String xmlOwner,
+			final String xmlReturnValue, //
+			final Value primitiveReturnValue) {
+
+		final List<Unit> validationUnits = new ArrayList<>();
+
+		final Body body = testMethod.getActiveBody();
+		// The very last unit is the "return" we need the one before it...
+		PatchingChain<Unit> units = body.getUnits();
+		final Unit methodUnderTest = units.getPredOf(units.getLast());
+
+		// System.out.println("DeltaDebugger.generateValidationUnit() for " +
+		// methodUnderTest);
+		methodUnderTest.apply(new AbstractStmtSwitch() {
+
+			final SootMethod xmlDumperVerify = Scene.v().getMethod(
+					"<de.unipassau.abc.tracing.XMLVerifier: void verify(java.lang.Object,java.lang.String)>");
+
+			final SootMethod xmlDumperVerifyPrimitive = Scene.v().getMethod(
+					"<de.unipassau.abc.tracing.XMLVerifier: void verifyPrimitive(java.lang.Object,java.lang.String)>");
+
+			// return value
+			public void caseAssignStmt(soot.jimple.AssignStmt stmt) {
+				InvokeExpr invokeExpr = stmt.getInvokeExpr();
+
+				if (!(invokeExpr instanceof StaticInvokeExpr)) {
+					generateValidationForCut(((InstanceInvokeExpr) invokeExpr).getBase());
+				}
+
+				generateValidationForReturnValue(stmt.getLeftOp());
+			};
+
+			// No Return value
+			public void caseInvokeStmt(soot.jimple.InvokeStmt stmt) {
+				InvokeExpr invokeExpr = stmt.getInvokeExpr();
+				if (stmt.containsInvokeExpr()) {
+					if (!(stmt.getInvokeExpr() instanceof StaticInvokeExpr)) {
+						// Extract OWNER
+						generateValidationForCut(((InstanceInvokeExpr) invokeExpr).getBase());
+					}
+				}
+			}
+
+			private void generateValidationForReturnValue(Value value) {
+				Value wrappedValue = UtilInstrumenter.generateCorrectObject(body, value, validationUnits);
+				if (JimpleUtils.isPrimitive(value.getType())) {
+					generateValidationForPrimitiveValue(wrappedValue, primitiveReturnValue, validationUnits);
+				} else {
+					generateValidationForValue(wrappedValue, xmlReturnValue, validationUnits);
+				}
+			}
+
+			private void generateValidationForCut(Value value) {
+				generateValidationForValue(value, xmlOwner, validationUnits);
+			}
+
+			private void generateValidationForPrimitiveValue(Value actualValue, Value expectedValue,
+					List<Unit> validationUnits) {
+
+				List<Value> methodStartParameters = new ArrayList<Value>();
+				methodStartParameters.add(actualValue);
+				// Wrap everythign into a String !
+				methodStartParameters.add(StringConstant.v(expectedValue.toString()));
+
+				// Create the invocation object
+				validationUnits.add(Jimple.v().newInvokeStmt(
+						Jimple.v().newStaticInvokeExpr(xmlDumperVerifyPrimitive.makeRef(), methodStartParameters)));
+			};
+
+			private void generateValidationForValue(Value value, String xmlFile, List<Unit> validationUnits) {
+
+				if( xmlFile == null ){
+					System.out.println("Null XML File for " + value +" cannot do not create validation call");
+					return;
+				}
+				
+				if (!new File(xmlFile).exists()) {
+					System.out.println("Cannot find XML File" + xmlFile + ", do not create validation call");
+					return;
+				}
+
+				List<Value> methodStartParameters = new ArrayList<Value>();
+				methodStartParameters.add(value);
+				methodStartParameters.add(StringConstant.v(xmlFile));
+
+				// Create the invocation object
+				validationUnits.add(Jimple.v().newInvokeStmt(
+						Jimple.v().newStaticInvokeExpr(xmlDumperVerify.makeRef(), methodStartParameters)));
+			};
+		});
+
+		// This can be a void method -> validate only CUT
+		// a static method call -> validate only ReturnValue
+		// a static void method call -> no validation needed
+		// other -> validate both CUT and ReturnValue
+
+		return validationUnits;
+	}
 }

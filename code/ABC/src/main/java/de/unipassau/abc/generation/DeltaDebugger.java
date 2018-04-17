@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import com.github.javaparser.ast.CompilationUnit;
 
 import de.unipassau.abc.ABCUtils;
+import de.unipassau.abc.carving.Carver;
 import de.unipassau.abc.carving.DataDependencyGraph;
 import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
@@ -71,57 +72,14 @@ public class DeltaDebugger {
 
 
 	public DeltaDebugger(File outputDir,
-			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases,
+			Set<CompilationUnit> testClasses, //
 			String resetEnvironmentBy, //
 			List<File> projectJars) throws IOException {
 
-		this.testClasses = getTestClasses(carvedTestCases, projectJars);
+		this.testClasses = testClasses;
 		this.outputDir = outputDir;
 		this.resetEnvironmentBy = resetEnvironmentBy;
 		this.projectJars = projectJars;
-	}
-
-	private Set<CompilationUnit> getTestClasses(
-			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases,
-			List<File> projectJars) throws IOException {
-
-		// Include in the tests the XML Assertions
-		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
-
-			MethodInvocation mut = carvedTestCase.getFirst().getLastMethodInvocation();
-			SootMethod testMethod = carvedTestCase.getThird();
-
-			// If the return value is a primitive it cannot be found in the xml
-			// file !
-			List<Unit> validation = generateValidationUnit(testMethod, mut.getXmlDumpForOwner(),
-					mut.getXmlDumpForReturn(), carvedTestCase.getSecond().getReturnObjectLocalFor(mut));
-
-			logger.info("DeltaDebugger.minimize() Validation code: " + validation);
-			final Body body = testMethod.getActiveBody();
-			// The very last unit is the "return" we need the one before it...
-			final PatchingChain<Unit> units = body.getUnits();
-			// Insert the validation code - if any ?!
-			if (validation.isEmpty()) {
-				logger.warn("DeltaDebugger.minimize() VALIDAITON IS EMPTY FOR " + testMethod);
-			} else {
-				units.insertBefore(validation, units.getLast());
-			}
-
-		}
-
-		Set<SootClass> _testClasses = new HashSet<>();
-		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
-			SootClass sClass = carvedTestCase.getThird().getDeclaringClass();
-			if (!_testClasses.contains(sClass)) {
-				_testClasses.add(sClass);
-			}
-		}
-		//
-		boolean resolveTypes = true;
-		File tempFolder = Files.createTempDirectory("DeltaDebug").toFile();
-		//
-		return TestCaseFactory.generateTestFiles(projectJars, tempFolder, _testClasses,
-				resolveTypes);
 	}
 
 	public void minimizeTestSuite() throws CarvingException {
@@ -174,7 +132,7 @@ public class DeltaDebugger {
 		// verify(java.lang.Object,java.lang.String)>");
 
 		logger.debug("DeltaDebugger.minimize() mut is " + mut);
-		List<Unit> validation = generateValidationUnit(testMethod, mut.getXmlDumpForOwner(), mut.getXmlDumpForReturn(),
+		List<Unit> validation = Carver.generateValidationUnit(testMethod, mut.getXmlDumpForOwner(), mut.getXmlDumpForReturn(),
 				null);
 
 		final Body body = testMethod.getActiveBody();
@@ -406,98 +364,8 @@ public class DeltaDebugger {
 
 	}
 
-	public static List<Unit> generateValidationUnit(final SootMethod testMethod, final String xmlOwner,
-			final String xmlReturnValue, //
-			final Value primitiveReturnValue) {
-
-		final List<Unit> validationUnits = new ArrayList<>();
-
-		final Body body = testMethod.getActiveBody();
-		// The very last unit is the "return" we need the one before it...
-		PatchingChain<Unit> units = body.getUnits();
-		final Unit methodUnderTest = units.getPredOf(units.getLast());
-
-		// System.out.println("DeltaDebugger.generateValidationUnit() for " +
-		// methodUnderTest);
-		methodUnderTest.apply(new AbstractStmtSwitch() {
-
-			final SootMethod xmlDumperVerify = Scene.v().getMethod(
-					"<de.unipassau.abc.tracing.XMLVerifier: void verify(java.lang.Object,java.lang.String)>");
-
-			final SootMethod xmlDumperVerifyPrimitive = Scene.v().getMethod(
-					"<de.unipassau.abc.tracing.XMLVerifier: void verifyPrimitive(java.lang.Object,java.lang.String)>");
-
-			// return value
-			public void caseAssignStmt(soot.jimple.AssignStmt stmt) {
-				InvokeExpr invokeExpr = stmt.getInvokeExpr();
-
-				if (!(invokeExpr instanceof StaticInvokeExpr)) {
-					generateValidationForCut(((InstanceInvokeExpr) invokeExpr).getBase());
-				}
-
-				generateValidationForReturnValue(stmt.getLeftOp());
-			};
-
-			// No Return value
-			public void caseInvokeStmt(soot.jimple.InvokeStmt stmt) {
-				InvokeExpr invokeExpr = stmt.getInvokeExpr();
-				if (stmt.containsInvokeExpr()) {
-					if (!(stmt.getInvokeExpr() instanceof StaticInvokeExpr)) {
-						// Extract OWNER
-						generateValidationForCut(((InstanceInvokeExpr) invokeExpr).getBase());
-					}
-				}
-			}
-
-			private void generateValidationForReturnValue(Value value) {
-				Value wrappedValue = UtilInstrumenter.generateCorrectObject(body, value, validationUnits);
-				if (JimpleUtils.isPrimitive(value.getType())) {
-					generateValidationForPrimitiveValue(wrappedValue, primitiveReturnValue, validationUnits);
-				} else {
-					generateValidationForValue(wrappedValue, xmlReturnValue, validationUnits);
-				}
-			}
-
-			private void generateValidationForCut(Value value) {
-				generateValidationForValue(value, xmlOwner, validationUnits);
-			}
-
-			private void generateValidationForPrimitiveValue(Value actualValue, Value expectedValue,
-					List<Unit> validationUnits) {
-
-				List<Value> methodStartParameters = new ArrayList<Value>();
-				methodStartParameters.add(actualValue);
-				// Wrap everythign into a String !
-				methodStartParameters.add(StringConstant.v(expectedValue.toString()));
-
-				// Create the invocation object
-				validationUnits.add(Jimple.v().newInvokeStmt(
-						Jimple.v().newStaticInvokeExpr(xmlDumperVerifyPrimitive.makeRef(), methodStartParameters)));
-			};
-
-			private void generateValidationForValue(Value value, String xmlFile, List<Unit> validationUnits) {
-
-				if (!new File(xmlFile).exists()) {
-					System.out.println("Cannot file XML File" + xmlFile + ", do not create validation call");
-					return;
-				}
-
-				List<Value> methodStartParameters = new ArrayList<Value>();
-				methodStartParameters.add(value);
-				methodStartParameters.add(StringConstant.v(xmlFile));
-
-				// Create the invocation object
-				validationUnits.add(Jimple.v().newInvokeStmt(
-						Jimple.v().newStaticInvokeExpr(xmlDumperVerify.makeRef(), methodStartParameters)));
-			};
-		});
-
-		// This can be a void method -> validate only CUT
-		// a static method call -> validate only ReturnValue
-		// a static void method call -> no validation needed
-		// other -> validate both CUT and ReturnValue
-
-		return validationUnits;
+	// Run delta debugger from Command Line
+	public static void main(String[] args) {
+		
 	}
-
 }
