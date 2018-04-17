@@ -23,7 +23,7 @@ public class TestCarverForJPass {
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
 
 	@Test
 	@Category(ManualTest.class)
@@ -63,8 +63,12 @@ public class TestCarverForJPass {
 					// Why providing those jars it does not work anymore ?
 					"--output-to", outputDirectory.getAbsolutePath(), //
 					// To not create tests for those
-					"--exclude-by", "class=jpass.JPass", //
+					"--exclude-by", 
+					"class=jpass.JPass", //
+					"package=jpass.ui", // Do not carve UI Classes 
+					"package=jpass.xml", // Do not carve XML Classes
 					"--external", //
+					// The problem with this approach is that in whatever remote part of the app, I can read a file, and this brings IN all sort of crap !
 //					"package=javax.swing",//
 					"package=java.nio.file", "class=java.util.Scanner", "package=java.sql", "class=java.io.File", //
 					"package=com.fasterxm", //

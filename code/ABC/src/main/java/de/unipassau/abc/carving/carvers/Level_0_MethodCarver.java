@@ -129,8 +129,12 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 		// THIS ONE IS THE ONE WHICH ACTUALLYS COMPUTE THE CARVE using recursion
 		// and FULL CARTESIAN
+
 		
-		boolean skipCartesian = false;
+		// We cannot simply skip cartesian, because there's private methods which are invoked otherwise !
+		// For example, private constructors instead of factory methods !
+//		boolean skipCartesian = false;
+		boolean skipCartesian = true;
 		level0TestCarving(workList, carvedTests, context, skipCartesian);
 
 		// Ensure that any required testSetupCall, which is not yet included in
@@ -1083,16 +1087,24 @@ public class Level_0_MethodCarver implements MethodCarver {
 					for (Entry<ObjectInstance, Set<MethodInvocation>> methodsWhichReturnTheObject : methodsWhichReturnTheObjects
 							.entrySet()) {
 						if (methodsWhichReturnTheObject.getValue().size() > 1) {
-							// Keep only the constructor
+							// Keep only the constructor, unless it is private !
 							Set<MethodInvocation> methods = methodsWhichReturnTheObject.getValue();
 							for (MethodInvocation method : methods) {
-								if (method.getJimpleMethod().contains("<init>")) {
+								if (method.getJimpleMethod().contains("<init>") && ! method.isPrivate() ) {
 									logger.trace("Reduce the combination for " + methodsWhichReturnTheObject.getKey());
 									methodsWhichReturnTheObject.setValue(Collections.singleton(method));
 									break;
 								}
 							}
-
+							// At this point what do we pick ? One at random ?
+							for (MethodInvocation method : methods) {
+								if ( ! method.getJimpleMethod().contains("<init>") && ! method.isPrivate() ) {
+									logger.trace("RANDOMLY SELECT " + method + "To reduce the combination for " + methodsWhichReturnTheObject.getKey());
+									methodsWhichReturnTheObject.setValue(Collections.singleton(method));
+									break;
+								}
+							}
+							
 						}
 
 					}

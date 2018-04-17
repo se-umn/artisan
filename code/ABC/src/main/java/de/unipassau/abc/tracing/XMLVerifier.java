@@ -43,6 +43,14 @@ public class XMLVerifier {
 			actualValueToString = "0";
 		}
 		
+		if( "true".equalsIgnoreCase( expecteValueToString) ){
+			expecteValueToString = "1";
+		} else if ("false".equalsIgnoreCase( expecteValueToString ) ){
+			expecteValueToString = "0";
+		}
+		
+		
+		
 		// clear out existing permissions and set own ones
 		org.junit.Assert.assertEquals("Object " + actualValueToString + " does not match its expected value " + expecteValueToString,
 				expecteValueToString, actualValueToString);
