@@ -31,8 +31,15 @@ import com.github.javaparser.ast.visitor.ModifierVisitor;
 import com.github.javaparser.ast.visitor.Visitable;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
+import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Pair;
 
+/// org.codedefenders.multiplayer.CoverageGenerator
+// Test suite minimizer uses DeltaDebugger and TestSuite reduction via Coverage analyss !
+/*
+ * Greedy run tests (all, per CUT, per MUT), measure coverage, remove a test
+ *reexecuted and re-meausre coverage. If coverage is lower, keep test, if same remove test
+ */
 public class TestSuiteMinimizer {
 
 	private Set<CompilationUnit> testClasses;
@@ -44,7 +51,8 @@ public class TestSuiteMinimizer {
 	public TestSuiteMinimizer(Set<CompilationUnit> allTestClasses, String resetEnvironmentBy,
 			TestSuiteExecutor testSuiteExecutor) {
 
-		this.testClasses = new HashSet<>(allTestClasses);
+		// this.testClasses = new HashSet<>(allTestClasses);
+		this.testClasses = allTestClasses;
 		this.resetEnvironmentBy = resetEnvironmentBy;
 		this.testSuiteExecutor = testSuiteExecutor;
 	}
@@ -53,7 +61,6 @@ public class TestSuiteMinimizer {
 		return testClasses.isEmpty();
 	}
 
-	// maybe pair<Signature>, pair<MethodDeclaration,Interger?>
 	public void performAMinimizationStep(Map<Pair<CompilationUnit, Signature>, Integer> currentIndex) {
 
 		// NOTE THAT CompilationUnit IS changed as we go !!
@@ -89,22 +96,27 @@ public class TestSuiteMinimizer {
 			newIndex = currentIndex.get(testMethodData);
 			do {
 				// Go to the next
-				s = testMethod.getBody().get().getStatement( newIndex );
+				s = testMethod.getBody().get().getStatement(newIndex);
 				logger.debug("Try to remove " + s + " from " + methodName + " at position " + newIndex);
 				boolean mandatory = isMandatory(s);
-				if( mandatory){
-					logger.debug( s + " is mandatory ");
+				if (mandatory) {
+					logger.debug(s + " is mandatory ");
 				}
-			// Move to next statmt
+				// Move to next statmt
 				newIndex = newIndex - 1;
-			} while ( isMandatory(s) );
+			} while (isMandatory(s) && newIndex > 0);
+
+			// At this point if there's nothing more to check, we skip
+			if (newIndex == 0) {
+				toRemove.add(testMethodData);
+				continue;
+			}
 
 			BlockStmt originalBody = testMethod.getBody().get().clone();
 			originalBodies.put(testMethod.getSignature().asString(), originalBody);
 
 			BlockStmt modifiedBody = testMethod.getBody().get().clone();
 			modifiedBody.remove(s);
-
 
 			testMethod.setBody(modifiedBody);
 
@@ -239,7 +251,87 @@ public class TestSuiteMinimizer {
 
 	}
 
-	public void minimize() {
+	/**
+	 * Greedly remove tests which do not increase coverage
+	 * @throws CarvingException 
+	 */
+	public void minimizeTestSuite() throws CarvingException {
+
+		for (CompilationUnit testClass : testClasses) {
+			// Include the reset environment call if needed
+			createAtBeforeResetMethod(resetEnvironmentBy, testClass);
+
+			// Refactor the class (name, constructor, etc)
+			renameClass(testClass, "_minimized");
+
+		}
+
+		double totalCoverage = Double.MAX_VALUE;
+		try {
+			// Run tests and collect coverage
+			totalCoverage = testSuiteExecutor.compileRunAndGetCoverageJUnitTests(testClasses);
+			logger.debug("TestSuiteMinimizer.minimizeTestSuite() Total coverage " + totalCoverage);
+		} catch (CarvingException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new CarvingException("Wrapping", e);
+		}
+
+		int removed = 0;
+
+		// Let's use the index and an array !
+		CompilationUnit[] _testClasses = testClasses.toArray(new CompilationUnit[] {});
+
+		for (int i = 0; i < _testClasses.length; i++) {
+
+			logger.trace("TestSuiteMinimizer.minimizeTestSuite() Try to remove "
+					+ _testClasses[i].getType(0).getNameAsString());
+
+			Set<CompilationUnit> testsToRun = new HashSet<>();
+			for (int j = 0; j < _testClasses.length; j++) {
+				if (_testClasses[j] != null && j != i) { // Skip i
+					testsToRun.add(_testClasses[j]);
+				}
+			}
+
+			// Do the execution
+			double coverage = testSuiteExecutor.compileRunAndGetCoverageJUnitTests(testsToRun);
+
+			logger.trace("TestSuiteMinimizer.minimizeTestSuite() Coverage " + coverage);
+
+			if (coverage == totalCoverage) {
+				logger.debug("TestSuiteMinimizer.minimizeTestSuite() Coverage unchanged. Remove "
+						+ _testClasses[i].getType(0).getNameAsString());
+				removed = removed + 1;
+				_testClasses[i] = null;
+			} else {
+				logger.debug("TestSuiteMinimizer.minimizeTestSuite() Coverage changed. Keep "
+						+ _testClasses[i].getType(0).getNameAsString());
+			}
+
+		}
+		// At this point testToMinimize contains the minimial set.
+		logger.info("TestSuiteMinimizer.minimizeTestSuite() Removed " + removed + ", remaining " + testClasses.size()
+				+ " test classes");
+
+		// Now replace testClasses with the non null elements of _testClasses
+		testClasses.clear();
+
+		for (int i = 0; i < _testClasses.length; i++) {
+			if (_testClasses[i] != null) {
+				testClasses.add(_testClasses[i]);
+			}
+		}
+
+		for (CompilationUnit testClass : testClasses) {
+			removeAtBeforeResetMethod(testClass);
+
+			removeXMLVerifierCalls(testClass);
+		}
+
+	}
+
+	public void minimizeTestMethods() {
 
 		Map<Pair<CompilationUnit, Signature>, Integer> currentIndex = new HashMap<>();
 
@@ -289,17 +381,16 @@ public class TestSuiteMinimizer {
 
 	// TODO Assume tMethodCall are not Assign Expt !
 	public boolean isMandatory(Statement statement) {
-//		return m.equals("close") || false;
-		if( statement instanceof ExpressionStmt ){
+		// return m.equals("close") || false;
+		if (statement instanceof ExpressionStmt) {
 			ExpressionStmt es = (ExpressionStmt) statement;
 			Expression e = es.getExpression();
 			// Naive
 			String exp = e.toString();
-//			System.out.println("TestSuiteMinimizer.isMandatory() Processing " + statement );
-			return exp.contains(".close()");
-		} else {
-			// Skop string initialization !
-			statement instanceof 
+			// System.out.println("TestSuiteMinimizer.isMandatory() Processing "
+			// + statement );
+			// Thos are all hardcoded
+			return exp.contains(".close()") || exp.contains("= null");
 		}
 		return false;
 

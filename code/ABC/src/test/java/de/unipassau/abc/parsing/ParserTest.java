@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -27,6 +29,7 @@ import de.unipassau.abc.carving.StackImplementation;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
+import edu.emory.mathcs.backport.java.util.Arrays;
 import soot.G;
 
 public class ParserTest {
@@ -34,16 +37,29 @@ public class ParserTest {
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevel = new Slf4jSimpleLoggerRule(Level.TRACE);
 
-	@BeforeClass
-	public static void setupSoot() {
-		Carver.setupSoot(Collections.EMPTY_LIST);
-	}
+//	@BeforeClass
+//	public static void setupSoot() {
+//		Carver.setupSoot(Collections.EMPTY_LIST);
+//	}
 
-	@AfterClass
-	public static void resetSoot() {
-		G.reset();
-	}
+//	@AfterClass
+//	public static void resetSoot() {
+//		G.reset();
+//	}
 
+	@Test
+	public void testParseMethodEndWithoutXML(){
+//		Pattern pattern = Pattern.compile("^http://.*?/(.*?)/.*?$");
+//		Matcher matcher = pattern.matcher(urlString);
+//		matcher.group(0);
+		
+		String methodEnd = "[<];<java.io.File: boolean createNewFile()>;;;true";
+		String[] tokens = methodEnd.split(";");
+		System.out.println( Arrays.toString( tokens ));
+		
+		
+	}
+	
 	@Test
 	public void testParseStaticMethodStartWithArrayParameters() throws FileNotFoundException, IOException {
 		List<String> lines = new ArrayList<>();

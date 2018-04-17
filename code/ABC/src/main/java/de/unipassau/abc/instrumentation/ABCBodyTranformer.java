@@ -12,6 +12,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de.unipassau.abc.utils.JimpleUtils;
 import soot.Body;
 import soot.BodyTransformer;
 import soot.Local;
@@ -29,6 +30,7 @@ import soot.jimple.InterfaceInvokeExpr;
 import soot.jimple.InvokeExpr;
 import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
+import soot.jimple.NullConstant;
 import soot.jimple.SpecialInvokeExpr;
 import soot.jimple.StaticInvokeExpr;
 import soot.jimple.VirtualInvokeExpr;
@@ -50,7 +52,6 @@ public class ABCBodyTranformer extends BodyTransformer {
 		final SootMethod containerMethod = body.getMethod();
 
 		System.out.println("ABCBodyTranformer.internalTransform() STARTING " + containerMethod);
-		
 
 		// Skip the instrumentation of those methods. I.e., do not instrument
 		// them
@@ -83,8 +84,8 @@ public class ABCBodyTranformer extends BodyTransformer {
 					if (stmt.getLeftOp() instanceof Local && stmt.getRightOp() instanceof InvokeExpr) {
 
 						logger.debug("Processing " + stmt);
-						
-						if( stmt.hasTag( ABCTag.TAG_NAME ) ){
+
+						if (stmt.hasTag(ABCTag.TAG_NAME)) {
 							System.out.println("Do not trace stmt " + stmt);
 						}
 
@@ -223,8 +224,8 @@ public class ABCBodyTranformer extends BodyTransformer {
 			 * Type of invocation.
 			 */
 			String invokeType) {
-		
-		if( method.getSignature().equals("<java.lang.Integer: java.lang.Integer valueOf(int)>")){
+
+		if (method.getSignature().equals("<java.lang.Integer: java.lang.Integer valueOf(int)>")) {
 			System.err.println("GOTCHA");
 		}
 
@@ -233,13 +234,11 @@ public class ABCBodyTranformer extends BodyTransformer {
 			logger.debug("Do not trace calls to " + method);
 			return;
 		}
-		
+
 		if (currentUnit.hasTag(ABCTag.TAG_NAME)) {
 			logger.info("DO NOT TRACE OUR OWN CODE " + currentUnit);
 		}
-		
-		
-		
+
 		/*
 		 * Instrument body to include a call to Trace.start BEFORE the execution
 		 * of method, we store its parameters as well.
@@ -255,16 +254,20 @@ public class ABCBodyTranformer extends BodyTransformer {
 		 * making the call unless the method is static. In this case there's no
 		 * object instance, hence no trace entry
 		 */
-		if (!Jimple.STATICINVOKE.equals(invokeType)) {
+		if (! "StaticInvokeExpr".equals(invokeType)) {
 			// NOTE THAT HERE WE NEED TO SWAP THIS...
 			if (method.getSignature().contains("<init>")) {
 				generatedAfter.addAll(addTraceObject(instanceValue, method.getSignature()));
 			} else {
 				generatedBefore.addAll(addTraceObject(instanceValue, method.getSignature()));
 			}
+
+			generatedAfter.addAll(addTraceStop(method.getSignature(), instanceValue, returnValue, body));
+		} else {
+			// Static invoke
+			generatedAfter.addAll(addTraceStop(method.getSignature(), NullConstant.v(), returnValue, body));
 		}
 
-		generatedAfter.addAll(addTraceStop(method.getSignature(), returnValue, body));
 		/*
 		 * Instrument body to include a call to Trace.stop AFTER the execution
 		 * of method, we store its return type as well.
@@ -282,7 +285,7 @@ public class ABCBodyTranformer extends BodyTransformer {
 	private void injectTracingCode(Body body, Unit currentUnit, List<Unit> generatedBefore, List<Unit> generatedAfter) {
 		PatchingChain<Unit> units = body.getUnits();
 		for (Unit unit : generatedBefore) {
-			System.out.println("ABCInstrumentArtificialInvocations.injectTracingCode() Tagging >>> " + unit );
+			System.out.println("ABCInstrumentArtificialInvocations.injectTracingCode() Tagging >>> " + unit);
 			unit.addTag(ABCTag.TAG);
 		}
 

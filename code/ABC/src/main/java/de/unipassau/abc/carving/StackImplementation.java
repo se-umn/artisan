@@ -22,6 +22,8 @@ import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.tracing.Trace;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.Scene;
+import soot.SootClass;
+import soot.SootMethod;
 
 /**
  * @author gambi
@@ -89,6 +91,8 @@ public class StackImplementation implements TraceParser {
 		// tokens[0] is METHOD_START_TOKEN
 		String typeOfInvocation = tokens[1];
 		String jimpleMethod = tokens[2];
+
+		jimpleMethod = findCorrectJimpleMethod(jimpleMethod);
 
 		MethodInvocation methodInvocation = new MethodInvocation(jimpleMethod, invocationCount.incrementAndGet());
 		methodInvocation.setInvocationType(typeOfInvocation);
@@ -191,6 +195,56 @@ public class StackImplementation implements TraceParser {
 		return peekIndex - 1;
 	}
 
+	private String findCorrectJimpleMethod(String jimpleMethod) {
+		try {
+			
+			if( JimpleUtils.getClassNameForMethod(jimpleMethod).startsWith("abc")){
+				// This is an artificial method
+				return jimpleMethod;
+			}
+			
+			if( JimpleUtils.getClassNameForMethod(jimpleMethod).endsWith("[]")){
+				// This is an artificial method
+				return jimpleMethod;
+			}
+			
+			if( JimpleUtils.getMethodName(jimpleMethod).equals("<init>")){
+				return jimpleMethod;
+			}
+			
+			// If the method exists, returns it otherwise lookup into the
+			// SuperClasses until we find one
+			return Scene.v().getMethod(jimpleMethod).getSignature();
+
+		} catch (Throwable e) {
+			// We handle this here because this is rare case
+			SootClass sClass = Scene.v().getSootClass(JimpleUtils.getClassNameForMethod(jimpleMethod));
+			//
+			try {
+				// This raise exception if there's no superclass !
+				SootClass superClass = sClass.getSuperclass();
+				while (superClass != null) {
+					for (SootMethod sMethod : superClass.getMethods()) {
+						if (JimpleUtils.getMethodName(sMethod.getSignature())
+								.equals(JimpleUtils.getMethodName(jimpleMethod))
+								&& Arrays.equals(JimpleUtils.getParameterList(sMethod.getSignature()),
+										JimpleUtils.getParameterList(jimpleMethod))) {
+							System.out.println(
+									"Found substitue method "+sMethod.getSignature() + " for " +jimpleMethod + "in super class " + superClass.getName());
+							return sMethod.getSignature();
+						}
+					}
+					// Try with next super class 
+					superClass = sClass.getSuperclass();
+				}
+			} catch (Exception e1) {
+				// TODO: handle exception
+			}
+		}
+
+		throw new RuntimeException("Cannot find Soot Method for " + jimpleMethod );
+	}
+
 	// This is called at the end of the invocation, right before methodEnd
 	// So invocationCount is wrong. We need to rely on the Stack for this !
 	private int parseMethodThis(int startLine, List<String> allLines) {
@@ -203,25 +257,27 @@ public class StackImplementation implements TraceParser {
 		// tokens[0] is METHOD_OBJECT_TOKEN
 		String jimpleMethod = tokens[1];
 		// This might be empty but the ";" MUST be there !
-		String xmlFile = tokens[2];
+		// String xmlFile = tokens[2];
 		// Static methods
-		StringBuffer thisObject = new StringBuffer(tokens[3]);
+		StringBuffer thisObject = new StringBuffer(tokens[2]);
+
 		int peekIndex = startLine + 1;
-		// Accumulate strings
-		while (peekIndex < allLines.size() && !allLines.get(peekIndex).startsWith(Trace.METHOD_START_TOKEN)
-				&& !allLines.get(peekIndex).startsWith(Trace.METHOD_END_TOKEN)
-				&& !allLines.get(peekIndex).startsWith(Trace.METHOD_OBJECT_TOKEN)) {
-			thisObject.append("\n");
-			thisObject.append(allLines.get(peekIndex));
-			peekIndex++;
-		}
+		// // Accumulate strings
+		// while (peekIndex < allLines.size() &&
+		// !allLines.get(peekIndex).startsWith(Trace.METHOD_START_TOKEN)
+		// && !allLines.get(peekIndex).startsWith(Trace.METHOD_END_TOKEN)
+		// && !allLines.get(peekIndex).startsWith(Trace.METHOD_OBJECT_TOKEN)) {
+		// thisObject.append("\n");
+		// thisObject.append(allLines.get(peekIndex));
+		// peekIndex++;
+		// }
 
 		// Static methods are automatically skipped
 		ObjectInstance owner = new ObjectInstance(thisObject.toString());
 		//
 		MethodInvocation methodInvocation = callGraph.peek();
 		methodInvocation.setOwner(owner);
-		methodInvocation.setXmlDumpForOwner(xmlFile);
+		// methodInvocation.setXmlDumpForOwner(xmlFile);
 
 		// if (!purityFlag) {
 		dataDependencyGraph.addDataDependencyOnOwner(methodInvocation, thisObject.toString());
@@ -239,20 +295,29 @@ public class StackImplementation implements TraceParser {
 
 		// Void methods are not reported...
 		StringBuffer returnValue = new StringBuffer();
-		String xmlFile = null;
-		int peekIndex = startLine + 1;
+		String ownerXmlFile = null;
+		String returnXmlFile = null;
+
+		// The ";;;".split() returns an empty array
 		if (tokens.length > 2) {
-			xmlFile = tokens[2];
-			returnValue.append(tokens[3]);
+			ownerXmlFile = tokens[2];
+		}
+
+		int peekIndex = startLine + 1;
+		if (tokens.length > 3) {
+			returnXmlFile = tokens[3];
+			returnValue.append(tokens[4]);
 
 			// Accumulate strings
-			while (peekIndex < allLines.size() && !allLines.get(peekIndex).startsWith(Trace.METHOD_START_TOKEN)
-					&& !allLines.get(peekIndex).startsWith(Trace.METHOD_END_TOKEN)
-					&& !allLines.get(peekIndex).startsWith(Trace.METHOD_OBJECT_TOKEN)) {
-				returnValue.append("\n");
-				returnValue.append(allLines.get(peekIndex));
-				peekIndex++;
-			}
+			// while (peekIndex < allLines.size() &&
+			// !allLines.get(peekIndex).startsWith(Trace.METHOD_START_TOKEN)
+			// && !allLines.get(peekIndex).startsWith(Trace.METHOD_END_TOKEN)
+			// &&
+			// !allLines.get(peekIndex).startsWith(Trace.METHOD_OBJECT_TOKEN)) {
+			// returnValue.append("\n");
+			// returnValue.append(allLines.get(peekIndex));
+			// peekIndex++;
+			// }
 			// logger.info(">> Return value " + jimpleMethod + " returnValue " +
 			// returnValue);
 
@@ -260,10 +325,24 @@ public class StackImplementation implements TraceParser {
 
 		MethodInvocation methodInvocation = callGraph.pop();
 
-		// if (!purityFlag) {
+		while (!methodInvocation.getJimpleMethod().equals(
+				findCorrectJimpleMethod(
+				jimpleMethod))) {
+			// This can be explained as the result of an exception being throw
+			// inside the method, which cause the method end NOT to be reached !
+			// throw new RuntimeException("Wrong call stack found " +
+			// methodInvocation.getJimpleMethod() + " but expecting " +
+			// jimpleMethod );
+			logger.warn("Possibly Exceptional behavior. Try to skip " + methodInvocation.getJimpleMethod());
+			methodInvocation = callGraph.pop();
+		}
+
+		if (!methodInvocation.isStatic()) {
+			methodInvocation.setXmlDumpForOwner(ownerXmlFile);
+		}
 
 		if (!JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()))) {
-			methodInvocation.setXmlDumpForReturn(xmlFile);
+			methodInvocation.setXmlDumpForReturn(returnXmlFile);
 		}
 
 		// TODO This is tricky: one might actually encode the string null
@@ -310,6 +389,9 @@ public class StackImplementation implements TraceParser {
 		int positionAfterSystemExit = -1;
 
 		for (int i = initialPosition; i < lines.size(); i++) {
+
+			logger.trace("\t\t Next line " + i);
+
 			String each = lines.get(i);
 
 			// if (each.contains("org.apache.commons.codec.binary.")) {
@@ -361,7 +443,7 @@ public class StackImplementation implements TraceParser {
 		//
 		for (MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations()) {
 			if (isTestSetupCall(mi)) {
-//				System.out.println(" Matched test setup call " + mi);
+				// System.out.println(" Matched test setup call " + mi);
 				callGraph.markParentAndPruneAfter(mi);
 
 				//
@@ -386,7 +468,7 @@ public class StackImplementation implements TraceParser {
 
 			for (MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations()) {
 				if (isTestSetupCall(mi)) {
-//					System.out.println(" Matched test setup call " + mi);
+					// System.out.println(" Matched test setup call " + mi);
 					callGraph.markParentAndPruneAfter(mi);
 
 					//

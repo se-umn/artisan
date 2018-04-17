@@ -169,27 +169,17 @@ public class Trace {
 	/**
 	 * @param method
 	 *            - The method name
-	 * @param o
+	 * @param owner
 	 *            - the Id of the object
 	 */
-	public static void methodObject(String method, Object o) {
+	public static void methodObject(String method, Object owner) {
 		// There should be only one
 		String parameterType = extractClassType(method);
 
-		String xmlFile = null;
-		try {
-			// Primitives are not tracked already but we do not store string to
-			// file
-			// we pass around by value
-			// if (!isString(parameterType) && o != null) {
-			xmlFile = XMLDumper.dumpObject(method, o);
-			// }
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		String content = METHOD_OBJECT_TOKEN + method + ";" //
-				+ ((xmlFile != null) ? xmlFile : "") + ";";//
+		// Dumping the XML of the object BEFORE the calls is useless, since that
+		// status is the result of some other call.
+		// The dump shall be taken at Method Stop !
+		String content = METHOD_OBJECT_TOKEN + method + ";";
 
 		if (isArray(parameterType)) {
 			// System.out.println("Trace.methodObject() " + parameterType );
@@ -197,15 +187,15 @@ public class Trace {
 			// We transform:
 			// [Ljava.nio.file.attribute.FileAttribute;@448354164
 			// To java.nio.file.attribute.FileAttribute[]@448354164
-			String transformedClassName = o.getClass().getName().replace("[L", "").replace(";", "") + "[]";
-			content += transformedClassName + "@" + System.identityHashCode(o);
+			String transformedClassName = owner.getClass().getName().replace("[L", "").replace(";", "") + "[]";
+			content += transformedClassName + "@" + System.identityHashCode(owner);
 		}
 		// else if (isString(parameterType) && o != null) {
 		// // Not null string By Value
 		// content += String.valueOf(o);
 		// }
 		else {
-			content += "" + o.getClass().getName() + "@" + System.identityHashCode(o);
+			content += "" + owner.getClass().getName() + "@" + System.identityHashCode(owner);
 		}
 
 		appendToTraceFile(content + "\n");
@@ -215,7 +205,8 @@ public class Trace {
 	private static void methodStopForPrimitive(String methodName, String returnValue) {
 		String content = METHOD_END_TOKEN + //
 				methodName + ";" + //
-				"" + ";" + //
+				"" + ";" + // XML Owner
+				"" + ";" + // Return value Owner
 				returnValue;
 		appendToTraceFile(content + "\n");
 	}
@@ -233,7 +224,7 @@ public class Trace {
 		return type.equals("void");
 	}
 
-	public static void methodStop(String method, Object returnValue) {
+	public static void methodStop(String method, Object owner, Object returnValue) {
 
 		// We distinguish primitives and boxed using methodName which specifies
 		// the return type !
@@ -244,18 +235,50 @@ public class Trace {
 											 */) {
 			methodStopForPrimitive(method, returnValue.toString());
 		} else if (isVoid(extractReturnType(method))) {
-			methodStopForVoid(method);
+			methodStopForVoid(method, owner);
 		} else {
-			methodStopForObject(method, returnValue);
+			methodStopForObject(method, owner, returnValue);
 		}
 	}
 
-	private static void methodStopForObject(String methodName, Object returnValue) {
-		String xmlFile = null;
+	private static void methodStopForObject(String methodName, Object owner, Object returnValue) {
+		String ownerXmlFile = null;
+		String returnXmlFile = null;
+		try {
+			if (owner != null) {
+				ownerXmlFile = XMLDumper.dumpObject(methodName, owner);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
 		try {
 			// Returns null for null objects
 			if (returnValue != null) {
-				xmlFile = XMLDumper.dumpObject(methodName, returnValue);
+				returnXmlFile = XMLDumper.dumpObject(methodName, returnValue);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		
+		
+		String content = METHOD_END_TOKEN + //
+				methodName + ";" + //
+				((ownerXmlFile != null) ? ownerXmlFile : "") + ";" + // Owner
+				((returnXmlFile != null) ? returnXmlFile : "") + ";" + // Return
+				extractReturnType(methodName) + "@" + System.identityHashCode(returnValue) + ";";
+
+		appendToTraceFile(content + "\n");
+
+	}
+
+	private static void methodStopForVoid(String methodName, Object owner) {
+		// System.out.println("Trace.methodStop() " + methodName);
+		String xmlFile = null;
+		try {
+			if (owner != null) {
+				xmlFile = XMLDumper.dumpObject(methodName, owner);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -263,18 +286,9 @@ public class Trace {
 
 		String content = METHOD_END_TOKEN + //
 				methodName + ";" + //
-				((xmlFile != null) ? xmlFile : "") + ";" + //
-				extractReturnType(methodName) + "@" + System.identityHashCode(returnValue) + ";";
-
-		appendToTraceFile(content + "\n");
-
-	}
-
-	private static void methodStopForVoid(String methodName) {
-		// System.out.println("Trace.methodStop() " + methodName);
-		String content = METHOD_END_TOKEN + //
-				methodName + ";" + //
-				"" + ";"; // Empty XML File
+				((xmlFile != null) ? xmlFile : "") + ";" + // Owner XML File
+															// null for Static
+				"" + ";"; // Return Object XML File
 		appendToTraceFile(content + "\n");
 	}
 

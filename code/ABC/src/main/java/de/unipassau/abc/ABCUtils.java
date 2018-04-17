@@ -90,4 +90,24 @@ public class ABCUtils {
 		return junitCPBuilder.toString();
 
 	}
+
+	public static String getJacocoAget() {
+//		
+		String agentJar = "./libs/jacocoagent.jar"; // Eclipse testing
+
+		if (!new File(agentJar).exists()) {
+			agentJar = "../libs/jacocoagent.jar"; // Actual usage ...
+			if (!new File(agentJar).exists()) {
+				throw new RuntimeException(new File(agentJar).getAbsolutePath() + " file is missing");
+			}
+		}
+		return agentJar;
+		
+//		for (String cpEntry : SystemUtils.JAVA_CLASS_PATH.split(File.pathSeparator)) {
+//			if (cpEntry.contains("org.jacoco.agent")) {
+//				return cpEntry;
+//			}
+//		}
+//		throw new RuntimeException("JaCoCo Agent is missing");
+	}
 }

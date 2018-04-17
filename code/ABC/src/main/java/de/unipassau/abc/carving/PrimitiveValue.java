@@ -67,7 +67,12 @@ public class PrimitiveValue implements ValueNode {
 		case "long":
 			return LongConstant.v(Long.parseLong(stringValue));
 		case "boolean":
-			return Boolean.parseBoolean(stringValue) ? IntConstant.v(1) : IntConstant.v(0);
+			// For whatever reason, in some cases we got true/false and in others 1/0 !?
+			try{
+				return IntConstant.v( Integer.parseInt(stringValue));
+			} catch (NumberFormatException e) {
+				return Boolean.parseBoolean(stringValue) ? IntConstant.v(1 ) : IntConstant.v(0) ;
+			}
 		default:
 			throw new RuntimeException("Unknonw primitive type " + type);
 		}

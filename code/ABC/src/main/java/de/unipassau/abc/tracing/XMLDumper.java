@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.util.UUID;
 
 import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.security.AnyTypePermission;
 import com.thoughtworks.xstream.security.NoTypePermission;
 import com.thoughtworks.xstream.security.NullPermission;
 import com.thoughtworks.xstream.security.PrimitiveTypePermission;
@@ -68,7 +69,9 @@ public class XMLDumper {
 		XStream xstream = new XStream();
 
 		// clear out existing permissions and set own ones
-		xstream.addPermission(NoTypePermission.NONE);
+//		xstream.addPermission(NoTypePermission.NONE);
+		xstream.addPermission(AnyTypePermission.ANY);
+
 		// allow some basics
 		xstream.addPermission(NullPermission.NULL);
 		xstream.addPermission(PrimitiveTypePermission.PRIMITIVES);
