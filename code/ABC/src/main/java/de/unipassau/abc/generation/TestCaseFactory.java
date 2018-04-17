@@ -451,7 +451,7 @@ public class TestCaseFactory {
 				myClass.addMember(genericMethodDeclaration);
 
 				NormalAnnotationExpr annotation = genericMethodDeclaration.addAndGetAnnotation(Test.class);
-				MemberValuePair timeout = new MemberValuePair("timeout", new NameExpr("4000"));
+				MemberValuePair timeout = new MemberValuePair("timeout", new NameExpr("10000"));
 				NodeList<MemberValuePair> attrs = new NodeList<>();
 				annotation.getPairs().add(timeout);
 				//
