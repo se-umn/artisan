@@ -1,6 +1,5 @@
 package de.unipassau.abc.generation;
 
-import java.awt.color.ICC_ProfileRGB;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -32,9 +31,6 @@ import org.apache.commons.lang3.SystemUtils;
 import org.jacoco.core.analysis.Analyzer;
 import org.jacoco.core.analysis.CoverageBuilder;
 import org.jacoco.core.analysis.IBundleCoverage;
-import org.jacoco.core.analysis.IClassCoverage;
-import org.jacoco.core.analysis.ICounter;
-import org.jacoco.core.analysis.ILine;
 import org.jacoco.core.tools.ExecFileLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +41,7 @@ import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
 import de.unipassau.abc.ABCUtils;
+import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Pair;
 
 // Execute the give test classes, parse the results and returns a data structor for pass/fail tests
@@ -227,8 +224,7 @@ public class TestSuiteExecutor {
 	 * @param testClasses
 	 * @return
 	 */
-	public double compileRunAndGetCoverageJUnitTests(
-			Collection<CompilationUnit> testClasses) {
+	public double compileRunAndGetCoverageJUnitTests(Collection<CompilationUnit> testClasses) throws CarvingException {
 		long time = System.currentTimeMillis();
 
 		double coverage = 0;
@@ -246,10 +242,9 @@ public class TestSuiteExecutor {
 		try {
 			// https://javabeat.net/the-java-6-0-compiler-api/
 			File tempOutputDir = Files.createTempDirectory("DeltaDebug").toFile();
-			tempOutputDir.deleteOnExit();
 
 			if (!compileJUnitTests(testClasses, tempOutputDir)) {
-				throw new RuntimeException("Compilation should not fail at this point !!!");
+				throw new CarvingException("Compilation should not fail at this point !!!");
 			}
 
 			// Now execute all of classes under tempOutputDir
@@ -280,17 +275,23 @@ public class TestSuiteExecutor {
 
 			ProcessBuilder processBuilder = new ProcessBuilder(commands);
 
-			System.out.println("Execute for coverage: " + processBuilder.command());
+			logger.trace("Execute for coverage: " + processBuilder.command());
 
-			 processBuilder.inheritIO();
+			// This is only for debugging
+			processBuilder.inheritIO();
 
 			Process process = processBuilder.start();
 			// Tests include TIMEOUT already
 			int result = process.waitFor();
 
 			if (result != 0) {
-				System.out.println("TestSuiteExecutor.compileRunAndGetCoverageJUnitTests() ERROR IN EXECUTION !");
+				throw new CarvingException(
+						"Test execution cannot fail at this point ! Check " + processBuilder.command());
 			}
+			// Delete the folder ONLY if the tests pass, otherwise keep this
+			// around for post mortem debug
+			tempOutputDir.deleteOnExit();
+
 			// Compute coverage
 			ExecFileLoader execFileLoader = new ExecFileLoader();
 			execFileLoader.load(jacocoExec);
@@ -298,10 +299,10 @@ public class TestSuiteExecutor {
 			//
 			CoverageBuilder coverageBuilder = new CoverageBuilder();
 			Analyzer analyzer = new Analyzer(execFileLoader.getExecutionDataStore(), coverageBuilder);
-			
+
 			// The source not the tests !
-			for( File projectJar : projectJars ){
-				analyzer.analyzeAll( projectJar );
+			for (File projectJar : projectJars) {
+				analyzer.analyzeAll(projectJar);
 			}
 
 			// TODO NOt sure about the title
@@ -309,6 +310,9 @@ public class TestSuiteExecutor {
 			coverage = bundle.getLineCounter().getCoveredRatio();
 			// bundle.getBranchCounter().getCoveredRatio();
 
+		} catch (CarvingException e) {
+			// Re-throw this one
+			throw e;
 		} catch (Exception e) {
 			// TODO: handle exception
 			e.printStackTrace();

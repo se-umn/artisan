@@ -25,9 +25,6 @@ public class XMLVerifier {
 		String expected = new String(Files.readAllBytes(Paths.get(xmlExpected)));
 		String actual = xstream.toXML(object);
 		//
-		System.out.println("XMLVerifier.verify() Actual : " + object );
-		System.out.println("XMLVerifier.verify() Stored : " + XMLDumper.loadObject( xmlExpected ) );
-		//
 		org.junit.Assert.assertEquals("Object " + object + " does not match its serialized form " + XMLDumper.loadObject( xmlExpected ) + " inside file " + xmlExpected,
 				expected, actual);
 	}
@@ -35,7 +32,7 @@ public class XMLVerifier {
 	// Primitive Values Are Different !
 	public static void verifyPrimitive(Object boxedPrimitive, String valueToString) throws IOException {
 		// clear out existing permissions and set own ones
-		org.junit.Assert.assertEquals("Object " + boxedPrimitive + " does not match its expected value" + valueToString,
+		org.junit.Assert.assertEquals("Object " + boxedPrimitive + " does not match its expected value " + valueToString,
 				boxedPrimitive.toString(), valueToString);
 	}
 

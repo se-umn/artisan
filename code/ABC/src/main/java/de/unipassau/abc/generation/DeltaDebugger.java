@@ -30,6 +30,7 @@ import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.DataDependencyGraph;
 import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
+import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.instrumentation.UtilInstrumenter;
 import de.unipassau.abc.utils.JimpleUtils;
@@ -68,7 +69,6 @@ public class DeltaDebugger {
 	private String resetEnvironmentBy;
 	private List<File> projectJars;
 
-	private TestSuiteMinimizer testSuiteMinimizer;
 
 	public DeltaDebugger(File outputDir,
 			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases,
@@ -79,8 +79,6 @@ public class DeltaDebugger {
 		this.outputDir = outputDir;
 		this.resetEnvironmentBy = resetEnvironmentBy;
 		this.projectJars = projectJars;
-		this.testSuiteMinimizer = new TestSuiteMinimizer(testClasses, resetEnvironmentBy,
-				new TestSuiteExecutor(projectJars));
 	}
 
 	private Set<CompilationUnit> getTestClasses(
@@ -126,8 +124,10 @@ public class DeltaDebugger {
 				resolveTypes);
 	}
 
-	public void minimizeTestSuite() throws IOException, URISyntaxException, InterruptedException {
+	public void minimizeTestSuite() throws CarvingException {
 
+		TestSuiteMinimizer testSuiteMinimizer = new TestSuiteMinimizer(testClasses, resetEnvironmentBy,
+				new TestSuiteExecutor(projectJars));
 		// This will change allTestClasses by running delta debugging
 		testSuiteMinimizer.minimizeTestSuite();
 	}
@@ -156,7 +156,8 @@ public class DeltaDebugger {
 	 * Minimize all the test in parallalel
 	 */
 	public void minimizeTestCases() throws IOException, URISyntaxException, InterruptedException {
-
+		TestSuiteMinimizer testSuiteMinimizer = new TestSuiteMinimizer(testClasses, resetEnvironmentBy,
+				new TestSuiteExecutor(projectJars));
 		testSuiteMinimizer.minimizeTestMethods();
 	}
 

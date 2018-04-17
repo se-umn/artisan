@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,8 +31,8 @@ import com.github.javaparser.ast.visitor.ModifierVisitor;
 import com.github.javaparser.ast.visitor.Visitable;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
+import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Pair;
-
 
 /// org.codedefenders.multiplayer.CoverageGenerator
 // Test suite minimizer uses DeltaDebugger and TestSuite reduction via Coverage analyss !
@@ -52,7 +51,7 @@ public class TestSuiteMinimizer {
 	public TestSuiteMinimizer(Set<CompilationUnit> allTestClasses, String resetEnvironmentBy,
 			TestSuiteExecutor testSuiteExecutor) {
 
-//		this.testClasses = new HashSet<>(allTestClasses);
+		// this.testClasses = new HashSet<>(allTestClasses);
 		this.testClasses = allTestClasses;
 		this.resetEnvironmentBy = resetEnvironmentBy;
 		this.testSuiteExecutor = testSuiteExecutor;
@@ -101,7 +100,6 @@ public class TestSuiteMinimizer {
 				logger.debug("Try to remove " + s + " from " + methodName + " at position " + newIndex);
 				boolean mandatory = isMandatory(s);
 				if (mandatory) {
-					System.out.println(s + " is mandatory ");
 					logger.debug(s + " is mandatory ");
 				}
 				// Move to next statmt
@@ -255,36 +253,84 @@ public class TestSuiteMinimizer {
 
 	/**
 	 * Greedly remove tests which do not increase coverage
+	 * @throws CarvingException 
 	 */
-	public void minimizeTestSuite() {
-		
-		Set<CompilationUnit> testsToRun;
-		
-		// Run tests and collect coverage
-		double totalCoverage = testSuiteExecutor.compileRunAndGetCoverageJUnitTests(testClasses);
-		System.out.println("TestSuiteMinimizer.minimizeTestSuite() Total coverage " + totalCoverage );
+	public void minimizeTestSuite() throws CarvingException {
+
+		for (CompilationUnit testClass : testClasses) {
+			// Include the reset environment call if needed
+			createAtBeforeResetMethod(resetEnvironmentBy, testClass);
+
+			// Refactor the class (name, constructor, etc)
+			renameClass(testClass, "_minimized");
+
+		}
+
+		double totalCoverage = Double.MAX_VALUE;
+		try {
+			// Run tests and collect coverage
+			totalCoverage = testSuiteExecutor.compileRunAndGetCoverageJUnitTests(testClasses);
+			logger.debug("TestSuiteMinimizer.minimizeTestSuite() Total coverage " + totalCoverage);
+		} catch (CarvingException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new CarvingException("Wrapping", e);
+		}
+
 		int removed = 0;
-		for(Iterator<CompilationUnit> testClassIterator = testClasses.iterator(); testClassIterator.hasNext();){
-			CompilationUnit testClass = testClassIterator.next();
-			System.out.println("TestSuiteMinimizer.minimizeTestSuite() Try without " + testClass.getType(0).getNameAsString() );
-			
-			testsToRun = new HashSet<>( testClasses );
-			testsToRun.remove( testClass );
-			
-			// Do the execution
-			double coverage = testSuiteExecutor.compileRunAndGetCoverageJUnitTests(testsToRun );
-			
-			System.out.println("TestSuiteMinimizer.minimizeTestSuite() Coverage " + coverage );
-			if( coverage == totalCoverage ){
-				System.out.println("Coverage unchanged. Remove " + testClass.getType(0).getNameAsString());
-				testClassIterator.remove();
-				removed = removed + 1;
+
+		// Let's use the index and an array !
+		CompilationUnit[] _testClasses = testClasses.toArray(new CompilationUnit[] {});
+
+		for (int i = 0; i < _testClasses.length; i++) {
+
+			logger.trace("TestSuiteMinimizer.minimizeTestSuite() Try to remove "
+					+ _testClasses[i].getType(0).getNameAsString());
+
+			Set<CompilationUnit> testsToRun = new HashSet<>();
+			for (int j = 0; j < _testClasses.length; j++) {
+				if (_testClasses[j] != null && j != i) { // Skip i
+					testsToRun.add(_testClasses[j]);
+				}
 			}
+
+			// Do the execution
+			double coverage = testSuiteExecutor.compileRunAndGetCoverageJUnitTests(testsToRun);
+
+			logger.trace("TestSuiteMinimizer.minimizeTestSuite() Coverage " + coverage);
+
+			if (coverage == totalCoverage) {
+				logger.debug("TestSuiteMinimizer.minimizeTestSuite() Coverage unchanged. Remove "
+						+ _testClasses[i].getType(0).getNameAsString());
+				removed = removed + 1;
+				_testClasses[i] = null;
+			} else {
+				logger.debug("TestSuiteMinimizer.minimizeTestSuite() Coverage changed. Keep "
+						+ _testClasses[i].getType(0).getNameAsString());
+			}
+
 		}
 		// At this point testToMinimize contains the minimial set.
-		System.out.println("TestSuiteMinimizer.minimizeTestSuite() Removed " + removed + ", remaining " + testClasses.size() +" test classes");
+		logger.info("TestSuiteMinimizer.minimizeTestSuite() Removed " + removed + ", remaining " + testClasses.size()
+				+ " test classes");
+
+		// Now replace testClasses with the non null elements of _testClasses
+		testClasses.clear();
+
+		for (int i = 0; i < _testClasses.length; i++) {
+			if (_testClasses[i] != null) {
+				testClasses.add(_testClasses[i]);
+			}
+		}
+
+		for (CompilationUnit testClass : testClasses) {
+			removeAtBeforeResetMethod(testClass);
+
+			removeXMLVerifierCalls(testClass);
+		}
+
 	}
-	
+
 	public void minimizeTestMethods() {
 
 		Map<Pair<CompilationUnit, Signature>, Integer> currentIndex = new HashMap<>();

@@ -436,7 +436,10 @@ public class TestGenerator {
 			units.add(invokeStmt);
 			break;
 		case "VirtualInvokeExpr":
+			// Some methods are only defined in super classes, so getting the
+			// method directly by name is not working !
 			method = Scene.v().getMethod(methodInvocation.getJimpleMethod());
+			
 			if (returnObjLocal != null) {
 				Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
 						jimple.newVirtualInvokeExpr(objLocal, method.makeRef(), parametersValues));
@@ -543,7 +546,8 @@ public class TestGenerator {
 			try {
 				Class clazz = (Class) XMLDumper.loadObject(methodInvocation.getXmlDumpForReturn());
 				//
-				units.add( Jimple.v().newAssignStmt(returnObjLocal, ClassConstant.v(clazz.getName().replaceAll("\\.", "/"))));
+				units.add(Jimple.v().newAssignStmt(returnObjLocal,
+						ClassConstant.v(clazz.getName().replaceAll("\\.", "/"))));
 			} catch (Throwable e) {
 				throw new CarvingException("Cannot find a dumped value for Class " + returnObjLocal + " in file "
 						+ methodInvocation.getXmlDumpForReturn(), e);

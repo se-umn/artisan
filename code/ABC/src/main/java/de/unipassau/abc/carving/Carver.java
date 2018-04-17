@@ -19,6 +19,7 @@ import com.lexicalscope.jewel.cli.Option;
 
 import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.carvers.Level_0_MethodCarver;
+import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.generation.DeltaDebugger;
@@ -121,8 +122,6 @@ public class Carver {
 		// System Settings Begin
 		Options.v().set_allow_phantom_refs(true);
 		Options.v().set_whole_program(true);
-		// This would set soot cp as the current running app cp
-		// Options.v().set_soot_classpath(System.getProperty("java.path"));
 
 		String junit4Jar = null;
 		String hamcrestCoreJar = null;
@@ -164,7 +163,6 @@ public class Carver {
 		String osName = System.getProperty("os.name");
 		System.setProperty("os.name", "Whatever");
 		Scene.v().loadNecessaryClasses();
-		//
 		System.setProperty("os.name", osName);
 		//
 		// p = Paths.get(file.getAbsolutePath());
@@ -382,9 +380,15 @@ public class Carver {
 		//
 		logger.info("Carver.main() Start Minimize Test Suite");
 
-		DeltaDebugger deltaDebugger = new DeltaDebugger(outputDir, carvedTestCases, resetEnvironmentBy, projectJars);
-		deltaDebugger.minimizeTestSuite();
-		
+		DeltaDebugger deltaDebugger = new DeltaDebugger(outputDir, carvedTestCases, resetEnvironmentBy,
+				projectJars);
+		try {
+			deltaDebugger.minimizeTestSuite();
+		} catch (CarvingException e) {
+			logger.error("Error while minimimize the test suite !", e);
+			System.exit( 1 );
+		}
+
 		logger.info("Carver.main() End Minimize Test Suite");
 		testSuiteMinimizationTime = System.currentTimeMillis() - testSuiteMinimizationTime;
 
@@ -405,7 +409,7 @@ public class Carver {
 
 		// Output the files
 		deltaDebugger.outputToFile();
-		
+
 		// At this point we can start the minimization via delta debugging
 
 		long endTime = System.nanoTime();
@@ -415,7 +419,7 @@ public class Carver {
 		System.out.println("parsingTime " + parsingTime);
 		System.out.println("carvingTime " + carvingTime);
 		System.out.println("testGenerationTime " + testGenerationTime);
-		System.out.println("testSuiteMinimizationTime " + testSuiteMinimizationTime); 
+		System.out.println("testSuiteMinimizationTime " + testSuiteMinimizationTime);
 		if (!skipMinimize) {
 			System.out.println("minimizationTime " + minimizationTime);
 		}
