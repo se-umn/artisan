@@ -1,19 +1,15 @@
 package de.unipassau.abc.utils;
 
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
 import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import soot.Body;
 import soot.Local;
-import soot.Printer;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.Type;
 import soot.Unit;
-import soot.options.Options;
 
 public class JimpleUtils {
 
@@ -146,5 +142,12 @@ public class JimpleUtils {
 			System.out.println("JimpleUtils.isNull() ERROR FOR " + string);
 			throw e;
 		}
+	}
+
+	public static String getSubSignature(String jimpleMethod) {
+		// 0    1    2
+//		<Type: void addCaretListener(javax.swing.event.CaretListener)>
+		StringBuffer sb = new StringBuffer();
+		return sb.append(jimpleMethod.split(" ")[1]+" "+jimpleMethod.split(" ")[2]).deleteCharAt(sb.length()-1).toString();
 	}
 }

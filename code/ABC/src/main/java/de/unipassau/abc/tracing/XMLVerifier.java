@@ -29,11 +29,23 @@ public class XMLVerifier {
 				expected, actual);
 	}
 
+	// org.junit.ComparisonFailure: Object true does not match its expected value 1 expected:<[true]> but was:<[1]>
+
 	// Primitive Values Are Different !
-	public static void verifyPrimitive(Object boxedPrimitive, String valueToString) throws IOException {
+	public static void verifyPrimitive(Object boxedPrimitive, String expecteValueToString) throws IOException {
+		
+		String actualValueToString = boxedPrimitive.toString();
+		
+		// org.junit.ComparisonFailure: Object true does not match its expected value 1 expected:<[true]> but was:<[1]>
+		if( "true".equalsIgnoreCase( actualValueToString) ){
+			actualValueToString = "1";
+		} else if ("false".equalsIgnoreCase( actualValueToString ) ){
+			actualValueToString = "0";
+		}
+		
 		// clear out existing permissions and set own ones
-		org.junit.Assert.assertEquals("Object " + boxedPrimitive + " does not match its expected value " + valueToString,
-				boxedPrimitive.toString(), valueToString);
+		org.junit.Assert.assertEquals("Object " + actualValueToString + " does not match its expected value " + expecteValueToString,
+				expecteValueToString, actualValueToString);
 	}
 
 }

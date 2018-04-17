@@ -195,54 +195,64 @@ public class StackImplementation implements TraceParser {
 		return peekIndex - 1;
 	}
 
-	private String findCorrectJimpleMethod(String jimpleMethod) {
+	// jimple -> real
+	private static HashMap<String, String> cachedMethods = new HashMap<>();
+
+	public static String findCorrectJimpleMethod(String jimpleMethod) {
+
+		// Shall we keep a cache here ?
 		try {
-			
-			if( JimpleUtils.getClassNameForMethod(jimpleMethod).startsWith("abc")){
+
+			if (JimpleUtils.getClassNameForMethod(jimpleMethod).startsWith("abc")) {
 				// This is an artificial method
 				return jimpleMethod;
 			}
-			
-			if( JimpleUtils.getClassNameForMethod(jimpleMethod).endsWith("[]")){
+
+			if (JimpleUtils.getClassNameForMethod(jimpleMethod).endsWith("[]")) {
 				// This is an artificial method
 				return jimpleMethod;
 			}
-			
-			if( JimpleUtils.getMethodName(jimpleMethod).equals("<init>")){
+
+			if (JimpleUtils.getMethodName(jimpleMethod).equals("<init>")) {
 				return jimpleMethod;
 			}
-			
+
 			// If the method exists, returns it otherwise lookup into the
 			// SuperClasses until we find one
 			return Scene.v().getMethod(jimpleMethod).getSignature();
 
 		} catch (Throwable e) {
-			// We handle this here because this is rare case
-			SootClass sClass = Scene.v().getSootClass(JimpleUtils.getClassNameForMethod(jimpleMethod));
-			//
-			try {
-				// This raise exception if there's no superclass !
-				SootClass superClass = sClass.getSuperclass();
-				while (superClass != null) {
-					for (SootMethod sMethod : superClass.getMethods()) {
-						if (JimpleUtils.getMethodName(sMethod.getSignature())
-								.equals(JimpleUtils.getMethodName(jimpleMethod))
-								&& Arrays.equals(JimpleUtils.getParameterList(sMethod.getSignature()),
-										JimpleUtils.getParameterList(jimpleMethod))) {
-							System.out.println(
-									"Found substitue method "+sMethod.getSignature() + " for " +jimpleMethod + "in super class " + superClass.getName());
-							return sMethod.getSignature();
+			if (!cachedMethods.containsKey(jimpleMethod)) {
+				// We handle this here because this is rare case
+				SootClass sClass = Scene.v().getSootClass(JimpleUtils.getClassNameForMethod(jimpleMethod));
+				//
+				try {
+					logger.debug("Cannot find " + jimpleMethod + " in " + sClass.getName());
+					// This raise exception if there's no superclass !
+					sClass = sClass.getSuperclass();
+					// logger.debug("StackImplementation.findCorrectJimpleMethod()
+					// Going to " + superClass.getName() );
+					while (sClass != null) {
+						try {
+							SootMethod sMethod = sClass.getMethod(JimpleUtils.getSubSignature(jimpleMethod));
+							cachedMethods.put(jimpleMethod, sMethod.getSignature());
+							return cachedMethods.get(jimpleMethod);
+						} catch (Exception e1) {
+							logger.debug("Cannot find " + jimpleMethod + " in " + sClass.getName());
+							// TODO: handle exception
+							sClass = sClass.getSuperclass();
 						}
 					}
-					// Try with next super class 
-					superClass = sClass.getSuperclass();
+				} catch (Exception e1) {
+					// TODO: handle exception
 				}
-			} catch (Exception e1) {
-				// TODO: handle exception
+				throw new RuntimeException("Cannot find Soot Method for " + jimpleMethod);
+			} else {
+				return cachedMethods.get(jimpleMethod);
 			}
+
 		}
 
-		throw new RuntimeException("Cannot find Soot Method for " + jimpleMethod );
 	}
 
 	// This is called at the end of the invocation, right before methodEnd
@@ -325,9 +335,7 @@ public class StackImplementation implements TraceParser {
 
 		MethodInvocation methodInvocation = callGraph.pop();
 
-		while (!methodInvocation.getJimpleMethod().equals(
-				findCorrectJimpleMethod(
-				jimpleMethod))) {
+		while (!methodInvocation.getJimpleMethod().equals(findCorrectJimpleMethod(jimpleMethod))) {
 			// This can be explained as the result of an exception being throw
 			// inside the method, which cause the method end NOT to be reached !
 			// throw new RuntimeException("Wrong call stack found " +

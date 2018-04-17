@@ -259,9 +259,9 @@ public class CallGraph {
 
 		subGraph.verify();
 
-		logger.debug("CallGraph.getSubGraph() Original GRAPH " + vertices.size() + " -- " + edges.size());
-		logger.debug("CallGraph.getSubGraph() SUB GRAPH " + subGraph.graph.getVertexCount() + " -- "
-				+ subGraph.graph.getEdgeCount());
+//		logger.trace("CallGraph.getSubGraph() Original GRAPH " + vertices.size() + " -- " + edges.size());
+//		logger.trace("CallGraph.getSubGraph() SUB GRAPH " + subGraph.graph.getVertexCount() + " -- "
+//				+ subGraph.graph.getEdgeCount());
 		return subGraph;
 	}
 

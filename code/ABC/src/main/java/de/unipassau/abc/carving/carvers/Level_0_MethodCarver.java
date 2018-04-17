@@ -369,13 +369,20 @@ public class Level_0_MethodCarver implements MethodCarver {
 						// problems carving preconditions with subsumed calls ?!
 						// In case there's more than one because of cartesian
 						// product, pick the first one.
-						Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition = carvedPreconditions
-								.iterator().next();
+						
+						Iterator<Pair<ExecutionFlowGraph, DataDependencyGraph>> iterator = carvedPreconditions
+						.iterator();
+						if( iterator.hasNext() ){
+						Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition = iterator.next();
 						preconditionCache.put(methodInvocationToExternalInterface,
 								carvedPrecondition.getFirst().getOrderedMethodInvocations());
 						logger.trace("Level_0_MethodCarver.includeTestSetupCalls() PRECONDITION for "
 								+ methodInvocationToExternalInterface + " STORE IN THE CACHE:\n"
 								+ carvedPrecondition.getFirst().getOrderedMethodInvocations() + "");
+						} else {
+							logger.info("Level_0_MethodCarver.includeTestSetupCalls() CANNOT FIND PRECONDITION for "
+									+ methodInvocationToExternalInterface );
+						}
 					}
 
 					Set<MethodInvocation> mergedSorted = new HashSet<MethodInvocation>(
@@ -775,7 +782,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 					 * location of methods which have potential impa
 					 */
 
-					logger.debug(
+					logger.trace(
 							"Level_0_MethodCarver.level0TestCarving() Dependencies on Methods " + backwardSlice.size());
 					logger.trace("" + backwardSlice);
 
@@ -793,7 +800,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 							Set<ObjectInstance> parameters = new HashSet<>(
 									_dataDependencyGraph.getParametersOf(methodInvocation));
 							//
-							logger.debug("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
+							logger.trace("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
 									+ methodInvocation + " are " + parameters.size());
 							logger.trace("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
 									+ methodInvocation + " are " + parameters);
@@ -914,7 +921,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 						Set<MethodInvocation> tempSet = new HashSet<>();
 						// Filter out the one that are after the depenendency
 						if ("java.lang.String".equals(data.getType())) {
-							logger.debug("\n\n\n  The following return String " + data + "\n"
+							logger.trace("\n\n\n  The following return String " + data + "\n"
 									+ dataDependencyGraph.getMethodInvocationsWhichReturn(data));
 						}
 						for (MethodInvocation returning : dataDependencyGraph.getMethodInvocationsWhichReturn(data)) {
@@ -1118,7 +1125,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 					Pair<Set<MethodInvocation>, Set<MethodInvocation>> newTask = new Pair<Set<MethodInvocation>, Set<MethodInvocation>>(
 							workDone, workToDo);
 					//
-					logger.debug("Level_0_MethodCarver.level0TestCarving() Enqueuing new task with "
+					logger.trace("Level_0_MethodCarver.level0TestCarving() Enqueuing new task with "
 							+ newTask.getSecond().size() + " method invocations");
 					logger.trace("" + newTask.getSecond());
 					workList.add(newTask);

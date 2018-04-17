@@ -23,7 +23,7 @@ public class TestCarverForJPass {
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
 	@Test
 	@Category(ManualTest.class)
@@ -38,7 +38,7 @@ public class TestCarverForJPass {
 
 			// This produces some tests
 //			String carveBy = "package=jpass.data";
-			String carveBy = "package=jpass.ui";
+			String carveBy = "package=jpass";
 			
 //			String carveBy = "class=jpass.data.DataModel";
 
@@ -65,6 +65,7 @@ public class TestCarverForJPass {
 					// To not create tests for those
 					"--exclude-by", "class=jpass.JPass", //
 					"--external", //
+//					"package=javax.swing",//
 					"package=java.nio.file", "class=java.util.Scanner", "package=java.sql", "class=java.io.File", //
 					"package=com.fasterxm", //
 					"--skip-minimize"

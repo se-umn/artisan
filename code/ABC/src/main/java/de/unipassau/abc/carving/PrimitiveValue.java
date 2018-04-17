@@ -55,9 +55,10 @@ public class PrimitiveValue implements ValueNode {
 	@Override
 	public Value getData() {
 		switch (type) {
-		case "int":
-		case "short":
 		case "char":
+			return IntConstant.v((int) stringValue.charAt(0));
+		case "int":
+		case "short":			
 		case "byte":
 			return IntConstant.v(Integer.parseInt(stringValue));
 		case "double":
