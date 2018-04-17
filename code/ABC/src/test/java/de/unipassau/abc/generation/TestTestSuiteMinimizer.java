@@ -18,6 +18,7 @@ import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.CallableDeclaration.Signature;
 
+import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Pair;
 
 public class TestTestSuiteMinimizer {
@@ -62,7 +63,7 @@ public class TestTestSuiteMinimizer {
 	}
 
 	@Test
-	public void testMinimizeTestSuite() throws IOException {
+	public void testMinimizeTestSuite() throws IOException, CarvingException {
 		List<File> projectJars = new ArrayList<>();
 		projectJars.add(new File("./src/test/resources/HotelReservationSystem.jar"));
 		projectJars.add(new File("./src/test/resources/HotelReservationSystem-tests.jar"));

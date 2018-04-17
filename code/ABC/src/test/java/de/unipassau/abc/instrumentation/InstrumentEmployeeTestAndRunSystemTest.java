@@ -26,6 +26,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
+import de.unipassau.abc.carving.Carver;
 import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.abc.utils.SystemTest;
@@ -62,7 +63,7 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 
 	}
 
-	@Ignore
+//	@Ignore
 	@Test
 	@Category(SystemTest.class)
 	public void instrumentAndTrace() throws URISyntaxException, IOException, InterruptedException {
@@ -90,7 +91,7 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 				return super.visitFile(file, attrs);
 			}
 		});
-		assertEquals(13, count.get());
+		assertEquals(11, count.get());
 
 		// System tests for this class needs supporting jars implementing
 		// mocking of input
@@ -103,29 +104,57 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 		jarFiles.add(new File("./src/test/resources/system-rules-1.17.0.jar"));
 		//
 
-		String[] systemTests = new String[] { //
+//		String[] systemTests = new String[] { //
 //				"org.employee.systemtest.TestAdminLoginWithEmptyDb", //
-				"org.employee.systemtest.TestAdminLoginWithNonEmptyDb", //
+//				"org.employee.systemtest.TestAdminLoginWithNonEmptyDb", //
 //				"org.employee.systemtest.TestEmployeeLogin", //
 //				"org.employee.systemtest.TestRegisterANewSeniorSoftwareEnginner", //
 //				"org.employee.systemtest.TestRegisterANewSoftwareEnginner", //
 //				"org.employee.systemtest.TestRegisterANewSoftwareTrainee", //
 //				"org.employee.systemtest.TestStartAndExit"//
 
-		};
+//		};
 		
+		String systemTest = "org.employee.systemtest.TestRegisterANewSoftwareTrainee";
 		
-		System.out.println("InstrumentEmployeeTestAndRunSystemTest.instrumentAndTrace()\n\n\n\n");
-		for (String systemTest : systemTests) {
-			runSystemTest( systemTest, outputDir, jarFiles);
-		}
+		File trace = runSystemTestAndGetTraceFile( systemTest, outputDir, jarFiles);
+		
+		// Now do the carving 
+		
+		File carvingOutputDirectory = Files.createTempDirectory("CARVING").toFile();
+		// Problem with FileWriter which gets the wrong (false, instead of true) input
+		String carveBy = "method=<org.employee.FileRead2: int fileIsRead(java.lang.String,java.lang.String)>";
+
+		String[] args = new String[] {
+				"--carve-by", carveBy,
+				// String traceFile =
+				"--trace-file", trace.getAbsolutePath(), 
+				// String projectJar =
+				"--project-jar", "./src/test/resources/Employee.jar", "./src/test/resources/Employee-tests.jar",
+				// String outputDir =
+				"--output-to", carvingOutputDirectory.getAbsolutePath(),
+				// List the external interfaces here
+				"--external", "java.io.Writer", "java.io.FileWriter", "java.io.BufferedWriter", "java.io.File", "java.nio.file.Path", "java.nio.file.Files",//
+				 "--test-setup-by", "class=org.employee.systemtest.SystemTestUtils",
+//				"abc.StaticField", // System.in, System.out, System.err
+//				"abc.Field"
+				"--exclude-by", "package=org.employee.systemtest", "class=org.employee.Employee", //
+				"--skip-minimize"
+				};
+		//
+		Carver.main(args);
+		//
+		//assertEquals(5, ABCTestUtils.countFiles(outputDirectory, ".java"));
+
+		ABCTestUtils.printJavaClasses(carvingOutputDirectory);
 
 	}
 
-	private void runSystemTest(String systemTestClassName, File outputDir, List<File> jarFiles)
+	// Return trace file
+	private File runSystemTestAndGetTraceFile(String systemTestClassName, File instrumentedClassesDir, List<File> jarFiles)
 			throws IOException, URISyntaxException, InterruptedException {
 
-		File tracingOutput = temporaryFolder.newFolder();
+		File tracingOutput = Files.createTempDirectory("CARVING").toFile();
 
 		///
 		StringBuilder cpBuilder = new StringBuilder();
@@ -135,7 +164,7 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 		cpBuilder.append(ABCTestUtils.buildJUnit4Classpath());
 		///
 
-		String classpath = outputDir + File.pathSeparator + cpBuilder.toString();
+		String classpath = instrumentedClassesDir + File.pathSeparator + cpBuilder.toString();
 
 		String javaPath = SystemUtils.JAVA_HOME + File.separator + "bin" + File.separator + "java";
 
@@ -166,6 +195,8 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 			System.out.println(line);
 		}
 		System.out.println("=====================================");
+		
+		return trace;
 
 	}
 

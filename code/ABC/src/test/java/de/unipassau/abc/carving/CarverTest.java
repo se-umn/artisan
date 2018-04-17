@@ -54,8 +54,8 @@ public class CarverTest {
 			 * This requires a setup of a file by means of Files.write, which is an external interface
 			 */
 //			String carveBy = "package=org.employee";
-			String carveBy = "class=org.employee.SeniorSoftwareEngineer";
-//			String carveBy = "method=<org.employee.FileRead2: int fileIsRead(java.lang.String,java.lang.String)>";
+//			String carveBy = "class=org.employee.FileRead2";
+			String carveBy = "method=<org.employee.FileRead2: int fileIsRead(java.lang.String,java.lang.String)>";
 //			String carveBy = "invocation=<org.employee.Validation: void <init>()>_54";
 
 			String[] args = new String[] {
@@ -67,10 +67,11 @@ public class CarverTest {
 					// String outputDir =
 					"--output-to", outputDirectory.getAbsolutePath(),
 					// List the external interfaces here
-					"--external", "java.io.File", "java.nio.file.Path", "java.nio.file.Files",//
-					"--test-setup-by", "class=org.employee.systemtest.SystemTestUtils",
+					"--external", "java.io.Writer", "java.io.FileWriter", "java.io.BufferedWriter", "java.io.File", "java.nio.file.Path", "java.nio.file.Files",//
+					 "--test-setup-by", "class=org.employee.systemtest.SystemTestUtils",
 //					"abc.StaticField", // System.in, System.out, System.err
 //					"abc.Field"
+					"--exclude-by", "package=org.employee.systemtest", "class=org.employee.Employee", //
 					"--skip-minimize"
 					};
 			//
