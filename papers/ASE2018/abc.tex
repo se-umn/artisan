@@ -2,10 +2,14 @@
 \usepackage{cite}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{algorithmic}
-\usepackage{graphicx}
-\usepackage{textcomp}
 
+\usepackage{graphicx}
+
+\usepackage{textcomp}
+\usepackage{xspace}
 \usepackage{booktabs}
+
+
 
 \usepackage[table]{xcolor}
 \usepackage{paralist}
@@ -44,7 +48,7 @@
 % \long\gdef\xxx@lab[#1]#2{}\long\gdef\xxx@nolab#1{}%
 }
 
-
+\newcommand{\abc}{\textsf{ABC}\xspace}
 \title{ABC: Action-Based Test Carving}
 
 \author{\IEEEauthorblockN{Alessio Gambi}
@@ -62,26 +66,101 @@ alessio.gambi@uni-passau.de}%
 \begin{abstract}
 \end{abstract}
 
-\section{ABC}
-\textbf{Overview}
+\section{Intro and motivation}
+Importance of tests, classes of tests and their pro/cons.
+In this paper we focus on system and unit tests, specifically in their use for regression.
 
-Instrumentation:
+System tests are wide scoped, but "real" (~\cite{exysts}).
+However, they take long time to complete because they need to setup/deploy the real system, and interact with it.
+A common setup is the one to start the SUT and one or more "clients" which interacts with it.
+System tests can be automatically generated, for example, via fuzzying and random exploration, assuming a proper driver/infrastructure is available.
+For example, this is commonly the case for GUI (Exysts),  Web Application (with crawlers and Selenium) and Apps (Monkey).
+%
+In general, however, system tests for regression are setup manually: a designer/testers creates them to implement 
+specific scenarios and test specific features (~\cite{TDD}-controlla nel libro).
+%
+For example, login into a system and buy a product, or rent a room. (Maybe better the latter so we keep around this for the test subject). 
+%
+This "ensures" to capture, during development, refactoring, etc. changes to the code which breaks funcitonalities. 
 
-We instrument application classes and test classes, but not system classes or supporting libraries. In particular we do not instrument JUnit libraries.
-For this reason we cannot track the full execution of test setup actions (@Before), but rely on the user to list them during carving to include them, and
-ensures that the state of the External environment is correctly setup before the execution of system tests (and later carved tests).
-For example, if the application requires a working directory to exists, or files ot be in places, or a predefined content of the database, we ensure that.
+At the opposite spectrum, there's unit tests. Unit tests are focused, can be easily generated automatically (Evosutie and Randoop), and can achieve high coverage. However, (automatically) generated unit tests they might be "detached" from the reality, that is, they might implement executions which cannot be observed in real life (cite out paper at AST). Units test might turn out to  "waste" precious testing time.
+Despite they might capture dangerous or problematic behavior of the SUT (e.g., an uncaught NPE), those problems might be only potential, and it might hard for developers to understand if the failing of a unit test is real or a false alarm.
 
-Instrumentation is done by logging for each invocation, the method signature, parameters, owner instance (unless a method is static), and return value.
-Informations about method signature and method owner are taken before method executions, return type after. This is to avoid losing informations when the application terminates by invoking system.exit (which prevents methods to return and us to collect return values and more importnatly ownership informations otherwise).
+In this work, we propose a novel approach for unit test generation based on the idea of carving unit tests out of system test executions. 
+Elbaum et al~\cite{}\cite{}, which firstly present the idea of test carving, identify three types of approaches for carving:
+state based carving, working on instances, aiming at recreating instances observed during system test execution based on heap state. 
+Carving takes place on the object structure and identifies the relevant elements that define the state of an instance before and after a MUT to generate a test case. \xxx{check the paper again}.
+Action based carving, which works by identifying and replaying only the method invocations that lead to a specific state of the CUT.
+and Hybrid.
+\xxx{Make sure it is clear they implemented and evaluated only 1}.
+Elbaum and coahutors implemented and investigated only the first of these three approaches, and show \xxx{summarize the conclusion from the papers}.
+In this work, instead we propose and to our knowledge implement, the first approach for test carving based on actions.
+We show that, in line with the finding of Elbaum et al., the generated test cases implement the same behavior of system tests, are focused, \xxx{and faster} to execute than system tests (\xxx{add numbers here from the evaluation}).
 
-Instrumentation insert tracing calls, and XML Dumping calls such that informations about state of objects before and after a method invocations and informations about state of (non-primitives) return values are stored and available to create regression assertions (for delta debugging).
+\xxx{Summarize qualitatively the differences}
+The two approaches, despite sharing the same underlying principle, requires different setup/infrastructures and produce different test cases.
+\xxx{ provide an example code here of both}
+%
+The approach from Elabuam et all, requires an infrastucture for capturing and replaying the execution, which is based on serializing object instances.
+\xxx{double check that the following is actually true !}
+During the execution of system tests, instances are serialized after each method invocation and stored away. After carving, the differential unit tests
+require the same infratructore for loading and restoring in the heap the object instances. This means that carved test cases cannot be execute outside the carving infrastructure. Additionally, carved test cases might be hard to read since the test cases hide the details of the objects being tests. 
+As shown in Figure~\ref{fig:state-based-carving-example}, differential unit tests have a specific pattern: load a complex object from an XML file, 
+invoke a method on this object, compare the resulting state to another XML file. Load and compare are opaque operations.
 
-We track basic assignments of fields, string and array initialization, and array accesses as "artificial" invocations, such that we will uniform their treatment during carving which does not distinghuish between real and artifical method invocations anymore, hence simplifying the process.
+Notably, since this approach is based on object instance serialization and restore, it might (or not entirely) applicable for SUT which involve, non serializable objects (like file descriptors, network connections, connections to databased, etc), and SUT which have a distributed state. For example, it might be impossilble by means of pure statebased carving to recreate the state of an application which relies on a database (or even files) for persisting data.
+Since de-serialization of the object instance, cannot recreate the inner state of the database (or file content).
 
-System test execution and tracing:
+At the contrary,  being based on action carving \abc does not suffer of those problems: once tests are carved, they do not require any specific infrastructure to be used. They in fact rely on the available testing infratructure (e.g. , JUnit and whatever test scaffolding the application used for system testing in the first place). This make carved tests ready to use. Second, carved tests are not opaque, but verbose (maybe they suffer of the opposite problem?).
+That is, they explicitly replay the method calls to restore the original (or similar) application state (either this is distributed or local), and can be read.
+%They follow the usual pattern, setup, execution \xxx{assertion}. 
 
-We run the system tests with the instrumented code and produce a trace file containing the execution trace for each of them, as well as a set of xlm files which contain the serialized state of the objects used during the execution.
+In this paper, we do not focus on generating regression assertions, but during the carving we verify (using the same approach of Elbaum et al.) that the generate test cases lead to the same tests of the CUT before and after the test execution. Similarly, we obejseve that the return value of MUT produce the same results. Automatically generate regression assertions is a different problem than carving, hence we leave that for future work.
+
+\paragraph{Contribution}
+A novel approach to unit test case generation based via action-based test carving
+An evalaution of this approach against test subjects which use Files and Databases to operate
+
+\begin{figure*}[h!]
+\centering
+\includegraphics[width=\textwidth]{overview}
+\caption{Overview of the \abc approach. \abc develops in four main stages: it \emph{instruments} the application under test to inject tracing code; next, it \emph{executes the system tests} using the instrumented version of the application to generate a trace file and to dump a copy of the objects processed during the execution; then, it \emph{carves} a set of unit tests that stress the application in the same way systems tests do out the trace execution; and finally, it \emph{reduces} the size of the carved test suite while preserving code coverage.}\label{fig:overview}
+\xxx{Move this to page 2}
+\end{figure*}
+
+\section{Test Carving with \abc}
+\xxx{A nicer intro better. Remark the meaning of action-based carving, which then clarify why we need data from dynamic executions of system tests to carve the tests.}
+
+\abc implements action-based carving in four steps: instrumentation, tracing of system test execution, test carving, and test suite minimization. \xxx{what about delta debugging?} 
+
+\paragraph{Instrumentation}
+We instrument the application under test to inject code which traces the execution.
+%
+In particular, for each method invocation we trace the method being invoked, the owner of that method invocation unless the method is static, and the return value of the method invocation unless the method is void.
+The method invocation owner is the object instance upon which the method is invoked.
+
+Informations about method signature and method owner are taken \emph{before} the method is executed, while information about its return type are taken \emph{after} the execution.
+%
+We do so to avoid losing method ownership informations in case the control flow of the application is abruptly interrupted during the execution of a method, either because an exception is  thrown  or because the application terminates by invoking \texttt{System.exit}.
+%, which prevents us to collect observereturn values and more importnatly ownership informations otherwise).
+
+Instrumenting \emph{only} method calls is not enough to build a sufficiently complete trace of execution, that is, a trace which allows to rebuild the original execution of the application before carving int. 
+Important informations, including assignments and access to fields, store and access to array elements, which are relevant to rebuild the data dependencies among method executions, would be missing from the trace of execution if we would track exclusively method calls.
+
+To consider those information during the execution, we trace them as \emph{artificial} method invocations. The benefits of adopting this approach are, one the one hand, keeping critical information for carving around, and on the other hand, treating  standard and artificial method invocations in a uniform way during carving.
+
+Additionally, \emph{after} each method invocation we serialize the state of the return value and the state of the method invocation owner to files.
+%
+We elaborate the information about method executions and objects involved in them for carving the test cases, while we use  the serialized state of the objects to cross-check the correctness of the carved test cases.
+
+In our prototypical implementation, we rely on Soot~\cite{} for instrumenting the application because the framework is rather intuitive, well supported, and we have previous experience with it; however, using Soot is by no means necessarily to implement action-based test carving. As long as it can generate a complete trace of execution, any instrumentation technology can be used for this purpose.
+
+\textbf{Alessio here}
+
+\paragraph{System test execution and tracing}
+We run the available system tests using the instrumented code of the application to produce the execution trace.
+
+for each of them, as well as a set of xlm files which contain the serialized state of the objects used during the execution.
 
 Carving:
 
@@ -235,47 +314,50 @@ We repeat the process for 20 times and for n from 1 to N (N is application class
 
 \begin{table*}
 \centering
-\caption{Summary of Test Carving}
-\begin{tabular}{l r r r r r r r r r r r}
+\caption{Summary of Test Carving.}
+\begin{tabular}{l l
+			r r r
+			r r r
+			r r r
+			r r r 
+			r}
 \toprule
-\multicolumn{1}{c}{Project} &
-	\multicolumn{3}{c}{Tests} &
-	\multicolumn{3}{c}{Stmt. Coverage} &
-	\multicolumn{3}{c}{Branch Coverage} &
-	\multicolumn{2}{c}{Time} \\
-&
-	\multicolumn{1}{c}{S} & \multicolumn{1}{c}{C} & \multicolumn{1}{c}{M} & 
-	\multicolumn{1}{c}{S} & \multicolumn{1}{c}{C} & \multicolumn{1}{c}{M} &
-	\multicolumn{1}{c}{S} & \multicolumn{1}{c}{C} & \multicolumn{1}{c}{M} &
-	\multicolumn{1}{c}{Carving} & \multicolumn{1}{c}{Minimiz.}
-	\\
-\midrule % Size of trace 1136 5809
-Employee & 7  & 89 & 89 & 34\% & 34\% & 30\% & 14\% & 14\% & 12\% & 11 & 1,011 \\
-Hotel Reservation & 5 & 145 & 145 & 41\% & 41\% & 40\% & 29\% & 29\% & 28\% & 19 & 4,839 \\
-\bottomrule
-\end{tabular}
-
-Size of carved test
-	min	max mean
-E	25 	98	56.57
-H	17	184	90.06
+\multicolumn{2}{c}{Project} & 
+	\multicolumn{3}{c}{Tests (\#)} &
+	\multicolumn{3}{c}{Execution Time (sec)} &
+	\multicolumn{3}{c}{Stmt. Coverage (\%)} &
+	\multicolumn{3}{c}{Branch Coverage (\%)} &
+	\multicolumn{1}{c}{Trace Size (\#)} \\
+	\cmidrule(rl){1-2}
+	\cmidrule(rl){3-5}
+	\cmidrule(rl){6-8}
+	\cmidrule(rl){9-11}
+	\cmidrule(rl){12-14}
 	
-Average Minimization for
-	Employee: 60.88583 \%, 9 out of 89 where NOT minimized
-	Hotel Me : 65.8468 \%, 8 out of 145 where NOT minimized
-
-
-%Time: 7.362
-%
-%OK (128 tests)
-%====================================
-%parsingTime 1031
-%carvingTime 6095
-%testGenerationTime 7265
-%minimizationTime 3609319
-%====================================
-
-\xxx{Repeat the analysis and that the average execution time}
+	
+	\multicolumn{1}{c}{name} & \multicolumn{1}{c}{feature} &
+	\multicolumn{1}{c}{\textbf{S}} & \multicolumn{1}{c}{\textbf{C}} & \multicolumn{1}{c}{\textbf{M}} & 
+	\multicolumn{1}{c}{\textbf{S}} & \multicolumn{1}{c}{\textbf{C}} & \multicolumn{1}{c}{\textbf{M}} & 
+	\multicolumn{1}{c}{\textbf{S}} & \multicolumn{1}{c}{\textbf{C}} & \multicolumn{1}{c}{\textbf{M}} &
+	\multicolumn{1}{c}{\textbf{S}} & \multicolumn{1}{c}{\textbf{C}} & \multicolumn{1}{c}{\textbf{M}} &
+	 \\
+\midrule
+Employee & File system &
+	11  & 464 & 15 & 
+	5.1 & 2.1 & 0.17 & 
+	86\% & 86\% & 86\% &
+	65\% & 65\% & 65\% &
+	5470 \\
+Hotel Reservation & SQL database & \\
+\bottomrule
+\end{tabular} \\
+\flushleft{The table reports an overview of the results achieved by \abc.
+The \textbf{S} label identifies results for system tests, while \textbf{C} and \textbf{M} identify respectively the results for the carved and minimized test suites.
+}
+%\xxx{20 repetitions for the execution time}s
+%	\multicolumn{1}{c}{Carving Overhead} & \multicolumn{1}{c}{Reduction} & \multicolumn{1}{c}{Delta Debugging}
+%& 4,106 
+%\xxx{Repeat the analysis and that the average execution time}
 \end{table*}
 
 \begin{figure*}[t]
@@ -283,6 +365,7 @@ Average Minimization for
 \begin{minipage}[b]{.45\textwidth}
 \includegraphics[width=\columnwidth]{figures/employee-rts-size}
 \caption{Test Regression Selection - Employee}
+\xxx{Make a Box Plot here instead. Lines connecting the average values, but boxes to show min/max ? Maybe consider splitting the plot in differen plots one for each approach, so it might be easy to compare?}
 \end{minipage}\hfill
 \begin{minipage}[b]{.45\textwidth}
 \includegraphics[width=\columnwidth]{figures/hotelme-rts-size}
