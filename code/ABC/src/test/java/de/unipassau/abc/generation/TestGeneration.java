@@ -171,6 +171,7 @@ public class TestGeneration {
 		}
 	}
 	
+	
 	@Test
 	public void testRenameToMinimized() throws IOException, ParserException, LexerException {
 		try {
@@ -184,7 +185,7 @@ public class TestGeneration {
 
 			CompilationUnit cu = JavaParser.parse(javaCode);
 
-			TestSuiteMinimizer.renameClass( cu, "_minimized");
+			Carver.renameClass( cu, "_minimized");
 			
 			// Assert class name is new, assert constructor returns the new name
 			//
@@ -210,12 +211,12 @@ public class TestGeneration {
 
 			String resetEnvironmentBy = "org.hotelme.utils.SystemTestUtils.dropAndRecreateTheDb()";
 			
-			TestSuiteMinimizer.createAtBeforeResetMethod(resetEnvironmentBy, cu);
+			Carver.createAtBeforeResetMethod(resetEnvironmentBy, cu);
 
 			System.out.println(cu);
 			
 			// Now clean it up
-			TestSuiteMinimizer.removeAtBeforeResetMethod(cu);
+			Carver.removeAtBeforeResetMethod(cu);
 			
 			System.out.println(cu);
 		} catch (Exception e) {

@@ -1,12 +1,9 @@
 package de.unipassau.abc.generation;
 
 import static com.github.javaparser.JavaParser.parseVariableDeclarationExpr;
-import static com.github.javaparser.JavaParser.parseName;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -73,7 +70,6 @@ import soot.SootField;
 import soot.SootMethod;
 import soot.Unit;
 import soot.Value;
-import soot.JastAddJ.ParseName;
 import soot.jimple.AbstractStmtSwitch;
 import soot.jimple.ArrayRef;
 import soot.jimple.AssignStmt;
@@ -227,16 +223,11 @@ public class TestCaseFactory {
 		}
 	}
 
-	public static Set<CompilationUnit> generateTestFiles(List<File> projectJars, File outputDir,
-			Collection<SootClass> testClasses, boolean resolveTypes) throws IOException {
+	public static Set<CompilationUnit> generateTestFiles(List<File> projectJars, //
+			Collection<SootClass> testClasses, //
+			boolean resolveTypes) throws IOException {
 
 		Set<CompilationUnit> generatedTestClasses = new HashSet<>();
-
-		logger.debug("Output directory is " + outputDir.getAbsolutePath());
-
-		if (!outputDir.exists() && !outputDir.mkdirs()) {
-			throw new RuntimeException("Output dir " + outputDir.getAbsolutePath() + " cannot be created ");
-		}
 
 		for (SootClass testClass : testClasses) {
 
@@ -264,13 +255,6 @@ public class TestCaseFactory {
 				// This updates the code
 				resolveMissingGenerics(javaCode, combinedTypeSolver);
 			}
-
-			// Store to file
-			File packageDir = new File(outputDir, testClass.getPackageName().replaceAll("\\.", File.separator));
-			packageDir.mkdirs();
-			File classFile = new File(packageDir, testClass.getShortName() + ".java");
-			//
-			Files.write(classFile.toPath(), javaCode.toString().getBytes(), StandardOpenOption.CREATE_NEW);
 
 			generatedTestClasses.add(javaCode);
 		}
@@ -348,64 +332,58 @@ public class TestCaseFactory {
 
 		// Cache repetitive assign expression to avoid calling type solver
 		// which is somehow broken..
-		final Map<String, AssignExpr> cache = new HashMap<>();
 
+		final Map<Expression, ResolvedType> typeCache = new HashMap<>();
+
+		// For some weird reason this keep failing...
 		cu.accept(new ModifierVisitor<JavaParserFacade>() {
 
 			public AssignExpr visit(final AssignExpr n, JavaParserFacade javaParserFacade) {
-				super.visit(n, javaParserFacade);
 
-				if (cache.containsKey(n.toString())) {
-					return cache.get(n.toString());
-				}
+				// Skip expensive computations for known elements, such as
+//				 Strings -> javalangstring*
+				 if( n.getTarget().toString().startsWith("javalangstring")){
+					 return n;
+				 }
 
 				// Left
 				ResolvedType targetType = null;
+				if (!typeCache.containsKey(n.getTarget())) {
+					try {
+						typeCache.put(n.getTarget(), javaParserFacade.getType(n.getTarget()));
+					} catch (Exception e) {
+						logger.debug("Cannot resolve targetType in " + n.toString() + " reason. " + e);
+						// e.printStackTrace();
+					}
+				}
+				targetType = typeCache.get(n.getTarget());
+
 				// Right
 				ResolvedType valueType = null;
 
-				try {
-					targetType = javaParserFacade.getType(n.getTarget());
-				} catch (Exception e) {
-					logger.debug("Cannot resolve targetType in " + n.toString() + " reason. " + e);
-					// e.printStackTrace();
+				if (!typeCache.containsKey(n.getValue())) {
+					try {
+						typeCache.put(n.getValue(), javaParserFacade.getType(n.getValue()));
+					} catch (Exception e) {
+						logger.debug("Cannot resolve valueType in " + n.toString() + " reason. " + e);
+						// e.printStackTrace();
+					}
 				}
-				try {
-					valueType = javaParserFacade.getType(n.getValue());
-				} catch (Exception e) {
-					logger.debug("Cannot resolve valueType in " + n.toString() + " reason. " + e);
-					// e.printStackTrace();
-				}
+				valueType = typeCache.get(n.getValue());
 
 				if (targetType == null || valueType == null) {
 					logger.trace("Type info is missing: " + targetType);
 					return n;
 				}
 
+				// This changes the ast and all the calls to symbol solver might be broken !
 				if (!targetType.isAssignableBy(valueType)) {
-					// System.out.println(n);
-					// System.out.println("Cast needed " + targetType.describe()
-					// + " --> " + valueType.describe());
-
-					String original = n.toString();
-
 					CastExpr c = new CastExpr();
 					c.setType(targetType.describe());
 					c.setExpression(n.getValue());
 					n.setValue(c);
-					// Here's the data race: the adapter somehow updates ONLY
-					// parts of the original AST
-					// so we need to keep both signatures to avoid exceptions
-					cache.put(original, n);
-					//
-					cache.put(n.toString(), n);
 				}
-				// else {
-				// System.out.println("No Cast needed " + targetType.describe()
-				// + " --> " + valueType.describe()
-				// + " in " + n.toString());
-				//
-				// }
+				
 				return n;
 			}
 		}, JavaParserFacade.get(typeSolver));

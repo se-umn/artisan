@@ -36,7 +36,7 @@ public class Trace {
 				}
 			}
 			traceFile = new File(traceDir, "trace.txt");
-			System.out.println("**** Trace() Output to " + traceFile);
+//			System.out.println("**** Trace() Output to " + traceFile);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

@@ -28,13 +28,13 @@ import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
  * @author gambi
  *
  */
-public class TestCarverForHotelReservationSystem {
+public class TestCarverForHotelReservationSystemWithScriptedClient {
 
 	@Rule
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
 
 	@Test
 	@Category(ManualTest.class)
@@ -48,17 +48,14 @@ public class TestCarverForHotelReservationSystem {
 			String traceFile = "/Users/gambi/action-based-test-carving/code/ABC/scripts/hotelme-tracingOut/trace.txt";
 
 			// String carveBy = "package=org.hotelme";
-
+			
 			// This requires SOME, not all the setup actions !
-			// String carveBy = "class=org.hotelme.User";
+//			String carveBy = "class=org.hotelme.User";
 
 			// String carveBy = "method=<org.hotelme.Room: java.lang.String
 			// getRoomType()>";
 			// String carveBy = "method=<org.hotelme.User: int getUserID()>";
-			// String carveBy = "invocation=<org.hotelme.User: java.lang.String
-			// getFname()>_1874";
-
-			String carveBy = "invocation=<org.hotelme.HotelView: int roomConfirmation(java.util.Scanner,int,java.lang.String)>_2037";
+			 String carveBy = "invocation=<org.hotelme.User: java.lang.String getFname()>_1874";
 
 			String[] args = new String[] { //
 					"--carve-by", carveBy,
@@ -79,10 +76,9 @@ public class TestCarverForHotelReservationSystem {
 					"--external", //
 					"package=java.nio.file", "class=java.util.Scanner", "package=java.sql", "class=java.io.File",
 					// This is for carving
-					// "--test-setup-by",
-					// "class=org.hotelme.utils.SystemTestUtils", //
+					 // "--test-setup-by", "class=org.hotelme.utils.SystemTestUtils", //
 					// This is for delta debugging
-					"--reset-environment-by", "org.hotelme.utils.SystemTestUtils.dropAndRecreateTheDb()" //
+					 "--reset-environment-by", "org.hotelme.utils.SystemTestUtils.dropAndRecreateTheDb()" //
 			};
 			//// "class=org.hotelme.utils.ScriptRunner", //
 			//

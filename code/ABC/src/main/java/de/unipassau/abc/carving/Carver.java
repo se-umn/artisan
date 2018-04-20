@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -11,10 +12,25 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang3.SystemUtils;
+import org.junit.Before;
+import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.Modifier;
+import com.github.javaparser.ast.body.ConstructorDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.TypeDeclaration;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.expr.SimpleName;
+import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.visitor.ModifierVisitor;
+import com.github.javaparser.ast.visitor.Visitable;
 import com.lexicalscope.jewel.cli.ArgumentValidationException;
 import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
@@ -24,10 +40,11 @@ import de.unipassau.abc.carving.carvers.Level_0_MethodCarver;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
-import de.unipassau.abc.generation.DeltaDebugger;
 import de.unipassau.abc.generation.MockingGenerator;
 import de.unipassau.abc.generation.TestCaseFactory;
 import de.unipassau.abc.generation.TestGenerator;
+import de.unipassau.abc.generation.TestSuiteExecutor;
+import de.unipassau.abc.generation.TestSuiteMinimizer;
 import de.unipassau.abc.generation.impl.EachTestAlone;
 import de.unipassau.abc.instrumentation.UtilInstrumenter;
 import de.unipassau.abc.utils.JimpleUtils;
@@ -381,26 +398,60 @@ public class Carver {
 		// CompilationUnit. Note that these classes have no problems with
 		// generics and casting.
 		boolean resolveTypes = true;
-		TestCaseFactory.generateTestFiles(projectJars, outputDir, testClasses, resolveTypes);
+
+		Set<CompilationUnit> generatedTestClasses = TestCaseFactory.generateTestFiles(projectJars, testClasses,
+				resolveTypes);
+
+		// Store original tests to file
+		storeToFile(generatedTestClasses, outputDir);
 
 		testGenerationTime = System.currentTimeMillis() - testGenerationTime;
 
-		logger.info("Carver.main() End Test generation");
+		logger.info("Carver.main() End Test generation. Files are available under " + outputDir.getAbsolutePath());
+
+		///////
+
+		logger.info("Validating the carved tests STARTS");
+
+		Set<CompilationUnit> augmentedTestClasses = null;
+		try {
+			// Augment the test cases with validation calls and reset
+			// environment. This regenerate the compilation units but DOES not
+			// rename it !
+			augmentedTestClasses = augmentTestSuite(carvedTestCases, projectJars, resetEnvironmentBy);
+
+			TestSuiteExecutor testSuiteExecutor = new TestSuiteExecutor(projectJars);
+			// This executes the test into a temp folder anyway, no need to
+			// rename them !
+			testSuiteExecutor.compileRunAndGetCoverageJUnitTests(generatedTestClasses);
+		} catch (CarvingException e1) {
+			// This happens if
+			logger.warn("Validation of the carved tests failed. ", e1);
+		}
+		logger.info("Validating the carved tests END");
 
 		long testSuiteMinimizationTime = System.currentTimeMillis();
 
 		logger.info("Carver.main() Start Minimize Test Suite");
-		// Generate Java Code from JimpleCode and add the validation units
-		Set<CompilationUnit> _testClasses = getTestClasses(carvedTestCases, projectJars);
-
-		// Minimized Carved Tests - We work at the level of JAVA files instead
-		// of SootMethods since soot methods do not carry
-		// Information about "generics", it's JVM fault BTW since bytecode does
-		// not have that.
-		//
-		DeltaDebugger deltaDebugger = new DeltaDebugger(outputDir, _testClasses, resetEnvironmentBy, projectJars);
+		// At this point augmentedTestClasses contains all the necessary code
+		// for validation and minimization
 		try {
-			deltaDebugger.minimizeTestSuite();
+			TestSuiteMinimizer testSuiteMinimizer = new TestSuiteMinimizer(augmentedTestClasses, resetEnvironmentBy,
+					new TestSuiteExecutor(projectJars));
+
+			// We use clone, so this should return new classes...
+			Set<CompilationUnit> reducedTestSuite = testSuiteMinimizer.minimizeTestSuite();
+
+			cleanUpTestSuite(reducedTestSuite);
+
+			// REFACTOR
+			for (CompilationUnit reducedTestClass : reducedTestSuite) {
+				renameClass(reducedTestClass, "_reduced");
+			}
+
+			// STORE IN THE SAME OUTPUT FOLDER
+			storeToFile(reducedTestSuite, outputDir);
+
 		} catch (CarvingException e) {
 			logger.error("Error while minimimize the test suite !", e);
 			System.exit(1);
@@ -410,22 +461,34 @@ public class Carver {
 		testSuiteMinimizationTime = System.currentTimeMillis() - testSuiteMinimizationTime;
 
 		long minimizationTime = System.currentTimeMillis();
-		if (!skipMinimize) {
-			// Minimized Carved Tests - We work at the level of JAVA files
-			// instead of SootMethods since soot methods do not carry
-			// Information about "generics", it's JVM fault BTW since bytecode
-			// does not have that.
-			//
-			logger.info("Carver.main() Start Minimize Test Cases via Delta Debugging");
 
-			deltaDebugger.minimizeTestCases();
-
-			logger.info("Carver.main() End Minimize Test Cases via Delta Debugging");
-		}
+		// if (!skipMinimize) {
+		// DeltaDebugger deltaDebugger = new DeltaDebugger(outputDir,
+		// augmentedTestClasses, resetEnvironmentBy,
+		// projectJars);
+		//
+		// // Minimized Carved Tests - We work at the level of JAVA files
+		// // instead of SootMethods since soot methods do not carry
+		// // Information about "generics", it's JVM fault BTW since bytecode
+		// // does not have that.
+		// //
+		// logger.info("Carver.main() Start Minimize Test Cases via Delta
+		// Debugging");
+		//
+		// deltaDebugger.minimizeTestCases();
+		//
+		// // REFACTOR
+		// for( CompilationUnit reducedTestClass : reducedTestSuite )
+		// {
+		// renameClass(reducedTestClass, "_reduced");
+		// }
+		//
+		// // Output the files
+		// deltaDebugger.outputToFile();
+		// }
+		logger.info("Carver.main() End Minimize Test Cases via Delta Debugging");
+		//
 		minimizationTime = System.currentTimeMillis() - minimizationTime;
-
-		// Output the files
-		deltaDebugger.outputToFile();
 
 		// At this point we can start the minimization via delta debugging
 
@@ -447,46 +510,32 @@ public class Carver {
 		// System.exit(0);
 	}
 
-	public static Set<CompilationUnit> getTestClasses(
-			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases,
-			List<File> projectJars) throws IOException {
+	private static void cleanUpTestSuite(Set<CompilationUnit> reducedTestSuite) {
+		for (CompilationUnit testClass : reducedTestSuite) {
+			Carver.removeAtBeforeResetMethod(testClass);
 
-		// Include in the tests the XML Assertions
-		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
-
-			MethodInvocation mut = carvedTestCase.getFirst().getLastMethodInvocation();
-			SootMethod testMethod = carvedTestCase.getThird();
-
-			// If the return value is a primitive it cannot be found in the xml
-			// file !
-			List<Unit> validation = generateValidationUnit(testMethod, mut.getXmlDumpForOwner(),
-					mut.getXmlDumpForReturn(), carvedTestCase.getSecond().getReturnObjectLocalFor(mut));
-
-			logger.info("DeltaDebugger.minimize() Validation code: " + validation);
-			final Body body = testMethod.getActiveBody();
-			// The very last unit is the "return" we need the one before it...
-			final PatchingChain<Unit> units = body.getUnits();
-			// Insert the validation code - if any ?!
-			if (validation.isEmpty()) {
-				logger.warn("DeltaDebugger.minimize() VALIDAITON IS EMPTY FOR " + testMethod);
-			} else {
-				units.insertBefore(validation, units.getLast());
-			}
-
+			Carver.removeXMLVerifierCalls(testClass);
 		}
 
-		Set<SootClass> _testClasses = new HashSet<>();
-		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
-			SootClass sClass = carvedTestCase.getThird().getDeclaringClass();
-			if (!_testClasses.contains(sClass)) {
-				_testClasses.add(sClass);
-			}
+	}
+
+	private static void storeToFile(Set<CompilationUnit> generatedTestClasses, File outputDir) throws IOException {
+		logger.debug("Output directory is " + outputDir.getAbsolutePath());
+
+		if (!outputDir.exists() && !outputDir.mkdirs()) {
+			throw new RuntimeException("Output dir " + outputDir.getAbsolutePath() + " cannot be created ");
 		}
-		//
-		boolean resolveTypes = true;
-		File tempFolder = Files.createTempDirectory("DeltaDebug").toFile();
-		//
-		return TestCaseFactory.generateTestFiles(projectJars, tempFolder, _testClasses, resolveTypes);
+
+		for (CompilationUnit testClass : generatedTestClasses) {
+			// Store to file
+			File packageDir = new File(outputDir,
+					testClass.getPackageDeclaration().get().getNameAsString().replaceAll("\\.", File.separator));
+			packageDir.mkdirs();
+			File classFile = new File(packageDir, testClass.getType(0).getNameAsString() + ".java");
+			//
+			Files.write(classFile.toPath(), testClass.toString().getBytes(), StandardOpenOption.CREATE_NEW);
+		}
+
 	}
 
 	public static List<Unit> generateValidationUnit(final SootMethod testMethod, final String xmlOwner,
@@ -560,11 +609,11 @@ public class Carver {
 
 			private void generateValidationForValue(Value value, String xmlFile, List<Unit> validationUnits) {
 
-				if( xmlFile == null ){
-					System.out.println("Null XML File for " + value +" cannot do not create validation call");
+				if (xmlFile == null || xmlFile.trim().length() == 0) {
+					System.out.println("Null XML File for " + value + " cannot do not create validation call");
 					return;
 				}
-				
+
 				if (!new File(xmlFile).exists()) {
 					System.out.println("Cannot find XML File" + xmlFile + ", do not create validation call");
 					return;
@@ -586,5 +635,182 @@ public class Carver {
 		// other -> validate both CUT and ReturnValue
 
 		return validationUnits;
+	}
+
+	/**
+	 * This returns an augmented test suite+ resetMethod @ before +XMLVerify
+	 * calls
+	 * 
+	 * @param carvedTestCases
+	 * @param projectJars
+	 * @param resetEnvironmentBy
+	 * @return
+	 * @throws IOException
+	 */
+	public static Set<CompilationUnit> augmentTestSuite(
+			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases, //
+			List<File> projectJars, //
+			String resetEnvironmentBy) throws IOException {
+
+		// Include in the tests the XML Assertions
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
+
+			MethodInvocation mut = carvedTestCase.getFirst().getLastMethodInvocation();
+			SootMethod testMethod = carvedTestCase.getThird();
+
+			// If the return value is a primitive it cannot be found in the xml
+			// file !
+			List<Unit> validation = generateValidationUnit(testMethod, mut.getXmlDumpForOwner(),
+					mut.getXmlDumpForReturn(), carvedTestCase.getSecond().getReturnObjectLocalFor(mut));
+
+			logger.info("DeltaDebugger.minimize() Validation code: " + validation);
+			final Body body = testMethod.getActiveBody();
+			// The very last unit is the "return" we need the one before it...
+			final PatchingChain<Unit> units = body.getUnits();
+			// Insert the validation code - if any ?!
+			if (validation.isEmpty()) {
+				logger.warn("DeltaDebugger.minimize() VALIDAITON IS EMPTY FOR " + testMethod);
+			} else {
+				units.insertBefore(validation, units.getLast());
+			}
+
+		}
+
+		Set<SootClass> _testClasses = new HashSet<>();
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
+			SootClass sClass = carvedTestCase.getThird().getDeclaringClass();
+			if (!_testClasses.contains(sClass)) {
+				_testClasses.add(sClass);
+			}
+		}
+		//
+		boolean resolveTypes = true;
+		//
+		Set<CompilationUnit> testClasses = TestCaseFactory.generateTestFiles(projectJars, _testClasses, resolveTypes);
+
+		for (CompilationUnit testClass : testClasses) {
+			// Include the reset environment call if needed
+			createAtBeforeResetMethod(resetEnvironmentBy, testClass);
+		}
+
+		return testClasses;
+	}
+
+	// create a @Before method which invokes resetEnvironment by unless there's
+	// already one
+	public static void createAtBeforeResetMethod(String resetEnvironmentBy, CompilationUnit testClass) {
+		if (resetEnvironmentBy == null) {
+			return;
+		}
+		//
+		TypeDeclaration<?> testType = testClass.getTypes().get(0);
+		for (MethodDeclaration md : testType.getMethods()) {
+			if (md.isAnnotationPresent(Before.class)) {
+				return;
+			}
+		}
+		//
+		MethodDeclaration setupMethod = testType.addMethod("setup", Modifier.PUBLIC);
+		setupMethod.addAnnotation(Before.class);
+		BlockStmt body = new BlockStmt();
+		body.addStatement(new NameExpr(resetEnvironmentBy));
+		setupMethod.setBody(body);
+
+	}
+
+	public static void renameClass(CompilationUnit testClass, String postFix) {
+		// Change the class name - Avoid working with strings
+		final SimpleName originalTestClassName = testClass.getType(0).getName();
+		// New name
+		testClass.getType(0).setName(originalTestClassName.asString().concat(postFix));
+		final SimpleName newName = testClass.getType(0).getName();
+		//
+		testClass.accept(new ModifierVisitor<Void>() {
+			@Override
+			public Visitable visit(ConstructorDeclaration n, Void arg) {
+				if (originalTestClassName.equals(n.getName())) {
+					n.setName(newName);
+				}
+				return super.visit(n, arg);
+			}
+		}, null);
+
+	}
+
+	public static void removePureMethods(CompilationUnit testClass) {
+		testClass.accept(new ModifierVisitor<Void>() {
+
+			@Override
+			public Visitable visit(MethodCallExpr n, Void arg) {
+				if (isPure(n)) {
+					logger.debug(" Remove pure method call " + n);
+					return null;
+				}
+				return super.visit(n, arg);
+			}
+
+		}, null);
+
+	}
+
+	// TODO Assume tMethodCall are not Assign Expt !
+	public static boolean isMandatory(Statement statement) {
+		// return m.equals("close") || false;
+		if (statement instanceof ExpressionStmt) {
+			ExpressionStmt es = (ExpressionStmt) statement;
+			Expression e = es.getExpression();
+			// Naive
+			String exp = e.toString();
+			// System.out.println("TestSuiteMinimizer.isMandatory() Processing "
+			// + statement );
+			// Thos are all hardcoded
+			return exp.contains(".close()") || exp.contains("= null");
+		}
+		return false;
+
+	}
+
+	public static void removeXMLVerifierCalls(CompilationUnit testClass) {
+		// Remove the calls to verify from each test method !
+		for (MethodDeclaration testMethod : testClass.getType(0).getMethods()) {
+			if (testMethod.isAnnotationPresent(Test.class)) {
+				testMethod.getBody().get().accept(new ModifierVisitor<Void>() {
+					public Visitable visit(MethodCallExpr n, Void arg) {
+
+						if (n.getScope().isPresent()) {
+							if (n.getScope().get().toString().equals("de.unipassau.abc.tracing.XMLVerifier")) {
+								return null;
+							}
+						}
+						return super.visit(n, arg);
+					}
+
+				}, null);
+			}
+		}
+
+	}
+
+	public static void removeAtBeforeResetMethod(CompilationUnit cu) {
+		cu.accept(new ModifierVisitor<Void>() {
+			@Override
+			public Visitable visit(MethodDeclaration n, Void arg) {
+				if (n.isAnnotationPresent(Before.class)) {
+					return null;
+				}
+				return super.visit(n, arg);
+			}
+		}, null);
+
+	}
+
+	// TODO Hardcoded values for the moment. Make strong assumption. We should
+	// have the symbol solver instead, but that's unrealiable !
+	// TODO We should check that the instance type is String tho !
+	public static boolean isPure(MethodCallExpr methodCall) {
+		// TODO Assume tMethodCall are not Assign Expt !
+		String m = methodCall.getNameAsString();
+		return m.equals("length") || m.equals("startsWith") || m.equals("endsWith") || m.equals("lastIndexOf") || false;
+
 	}
 }

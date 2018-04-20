@@ -18,6 +18,7 @@ import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.CallableDeclaration.Signature;
 
+import de.unipassau.abc.carving.Carver;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Pair;
 
@@ -36,7 +37,7 @@ public class TestTestSuiteMinimizer {
 
 		CompilationUnit testClass = JavaParser.parse(javaCode);
 
-		minimizer.removePureMethods(testClass);
+		Carver.removePureMethods(testClass);
 
 		System.out.println(testClass);
 	}

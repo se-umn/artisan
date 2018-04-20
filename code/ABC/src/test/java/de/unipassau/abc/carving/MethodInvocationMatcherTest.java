@@ -34,7 +34,24 @@ public class MethodInvocationMatcherTest {
 				.byMethod("<java.util.Scanner: .* next.*()>");
 		assertTrue(scannerMethodMatcher.matches(scannerReadString));
 		assertTrue(scannerMethodMatcher.matches(scannerReadInt));
+		
+		MethodInvocation junit3StyleWithParameters = new MethodInvocation("<siena.TestFilter: void main(java.lang.String[])>", 10);
+		MethodInvocation junit3StyleWithoutParameters = new MethodInvocation("<siena.TestFilter: void foo()>", 10);
+		MethodInvocation junit3StyleWithReturnType = new MethodInvocation("<siena.foo.bar.TestFilter: siena.Bar foo()>", 10);
+		
+		MethodInvocationMatcher junit3StyleMatcherWithoutParameters = MethodInvocationMatcher.byMethod("<siena..*Test.*: .* .*()>");
+		MethodInvocationMatcher junit3StyleMatcher = MethodInvocationMatcher.byMethod("<siena..*Test.*: .* .*(.*)>");
+	
+		assertTrue(junit3StyleMatcher.matches( junit3StyleWithParameters ) );
+		assertFalse(junit3StyleMatcher.matches( junit3StyleWithoutParameters ) );
+		assertFalse(junit3StyleMatcher.matches( junit3StyleWithReturnType ) );
+		
+		assertFalse(junit3StyleMatcherWithoutParameters.matches( junit3StyleWithParameters ) );
+		assertTrue(junit3StyleMatcherWithoutParameters.matches( junit3StyleWithoutParameters ) );
+		assertTrue(junit3StyleMatcherWithoutParameters.matches( junit3StyleWithReturnType ) );
 	}
+	
+	
 
 	@Test
 	public void testExactMatch() {

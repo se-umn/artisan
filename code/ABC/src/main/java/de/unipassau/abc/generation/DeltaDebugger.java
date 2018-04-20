@@ -10,7 +10,6 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -21,6 +20,7 @@ import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
 
 import org.apache.commons.lang3.SystemUtils;
+import org.jboss.util.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,16 +31,11 @@ import de.unipassau.abc.carving.Carver;
 import de.unipassau.abc.carving.DataDependencyGraph;
 import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
-import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Triplette;
-import de.unipassau.abc.instrumentation.UtilInstrumenter;
-import de.unipassau.abc.utils.JimpleUtils;
 import soot.Body;
 import soot.Local;
 import soot.PatchingChain;
 import soot.RefType;
-import soot.Scene;
-import soot.SootClass;
 import soot.SootMethod;
 import soot.Unit;
 import soot.Value;
@@ -50,9 +45,6 @@ import soot.jimple.AssignStmt;
 import soot.jimple.InstanceInvokeExpr;
 import soot.jimple.InvokeExpr;
 import soot.jimple.InvokeStmt;
-import soot.jimple.Jimple;
-import soot.jimple.StaticInvokeExpr;
-import soot.jimple.StringConstant;
 
 /**
  * TODO Do we need to remove elements in the inputs if we remove calls to
@@ -65,34 +57,26 @@ public class DeltaDebugger {
 
 	private final static Logger logger = LoggerFactory.getLogger(DeltaDebugger.class);
 
-	private Set<CompilationUnit> testClasses;
+	private Set<CompilationUnit> augmentedTestClasses;
 	private File outputDir;
 	private String resetEnvironmentBy;
 	private List<File> projectJars;
 
 
 	public DeltaDebugger(File outputDir,
-			Set<CompilationUnit> testClasses, //
+			Set<CompilationUnit> augmentedTestClasses, //
 			String resetEnvironmentBy, //
 			List<File> projectJars) throws IOException {
 
-		this.testClasses = testClasses;
+		this.augmentedTestClasses = augmentedTestClasses;
 		this.outputDir = outputDir;
 		this.resetEnvironmentBy = resetEnvironmentBy;
 		this.projectJars = projectJars;
 	}
 
-	public void minimizeTestSuite() throws CarvingException {
-
-		TestSuiteMinimizer testSuiteMinimizer = new TestSuiteMinimizer(testClasses, resetEnvironmentBy,
-				new TestSuiteExecutor(projectJars));
-		// This will change allTestClasses by running delta debugging
-		testSuiteMinimizer.minimizeTestSuite();
-	}
-
 	public void outputToFile() throws IOException {
 		// Eventually output the files
-		for (CompilationUnit testClass : testClasses) {
+		for (CompilationUnit testClass : augmentedTestClasses) {
 
 			// Create the structure as javac expects
 			String packageDeclaration = testClass.getPackageDeclaration().get().getNameAsString();
@@ -114,7 +98,7 @@ public class DeltaDebugger {
 	 * Minimize all the test in parallalel
 	 */
 	public void minimizeTestCases() throws IOException, URISyntaxException, InterruptedException {
-		TestSuiteMinimizer testSuiteMinimizer = new TestSuiteMinimizer(testClasses, resetEnvironmentBy,
+		TestSuiteMinimizer testSuiteMinimizer = new TestSuiteMinimizer(augmentedTestClasses, resetEnvironmentBy,
 				new TestSuiteExecutor(projectJars));
 		testSuiteMinimizer.minimizeTestMethods();
 	}
@@ -248,33 +232,37 @@ public class DeltaDebugger {
 		return (used.intValue() > 0);
 	}
 
+	@Deprecated
 	public static boolean verifyExecution(SootMethod testMethod, List<File> projectJars) {
-		long time = System.currentTimeMillis();
-		try {
-			boolean resolveTypes = false;
-			//
-			File tempOutputDir = Files.createTempDirectory("ABC-Delta-Debug").toFile();
-			tempOutputDir.deleteOnExit();
-			//
-			SootClass testClass = testMethod.getDeclaringClass();
-			TestCaseFactory.generateTestFiles(projectJars, tempOutputDir, Collections.singleton(testClass),
-					resolveTypes);
-
-			// Execute tests in tempOutputDir
-			return compileAndRunJUnitTest(testClass.getName(), tempOutputDir, projectJars);
-
-		} catch (IOException | URISyntaxException | InterruptedException e) {
-			// e.printStackTrace();
-			logger.debug("Failed verification of " + testMethod);
-			return false;
-		} catch (Exception e) {
-			e.printStackTrace();
-			logger.debug("Failed verification of " + testMethod);
-			return false;
-		} finally {
-			time = System.currentTimeMillis() - time;
-			logger.info("Verification done in " + time + " ms");
-		}
+			throw new NotImplementedException();
+//		long time = System.currentTimeMillis();
+//		try {
+//			boolean resolveTypes = false;
+//			//
+//			File tempOutputDir = Files.createTempDirectory("ABC-Delta-Debug").toFile();
+//			tempOutputDir.deleteOnExit();
+//			//
+//			SootClass testClass = testMethod.getDeclaringClass();
+//			
+//			//TestCaseFactory.generateTestFiles(projectJars, tempOutputDir, Collections.singleton(testClass),
+//				//	resolveTypes);
+		//
+		// return compileAndRunJUnitTest(testClass.getName(), tempOutputDir,
+		// projectJars);
+		// // Execute tests in tempOutputDir
+		//
+		// } catch (IOException | URISyntaxException | InterruptedException e) {
+		// // e.printStackTrace();
+		// logger.debug("Failed verification of " + testMethod);
+		// return false;
+		// } catch (Exception e) {
+		// e.printStackTrace();
+		// logger.debug("Failed verification of " + testMethod);
+		// return false;
+		// } finally {
+		// time = System.currentTimeMillis() - time;
+		// logger.info("Verification done in " + time + " ms");
+		// }
 	}
 
 	@Deprecated

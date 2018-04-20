@@ -537,7 +537,7 @@ public class TestGenerator {
 			 * 
 			 */
 
-			logger.info("Processing method invocation " + methodInvocation.getJimpleMethod() + " -- "
+			logger.trace("Processing method invocation " + methodInvocation.getJimpleMethod() + " -- "
 					+ methodInvocation.getInvocationType() + " on local " + objLocal + " with params "
 					+ parametersValues + " to return " + returnObjLocal);
 			// Generate the call to <class>.class which returns a class to

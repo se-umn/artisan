@@ -7,7 +7,6 @@ import java.nio.file.Files;
 import java.util.UUID;
 
 import com.thoughtworks.xstream.XStream;
-import com.thoughtworks.xstream.security.AnyTypePermission;
 import com.thoughtworks.xstream.security.NoTypePermission;
 import com.thoughtworks.xstream.security.NullPermission;
 import com.thoughtworks.xstream.security.PrimitiveTypePermission;
@@ -41,7 +40,8 @@ public class XMLDumper {
 			} else {
 				dumpDirectory = Files.createTempDirectory("tmp-dump").toFile();
 			}
-			System.out.println("**** Dump and Load XML Values directory " + dumpDirectory);
+			// System.out.println("**** Dump and Load XML Values directory " +
+			// dumpDirectory);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -69,13 +69,15 @@ public class XMLDumper {
 		XStream xstream = new XStream();
 
 		// clear out existing permissions and set own ones
-//		xstream.addPermission(NoTypePermission.NONE);
-		xstream.addPermission(AnyTypePermission.ANY);
+		xstream.addPermission(NoTypePermission.NONE);
+		// xstream.addPermission(AnyTypePermission.ANY);
+		xstream.allowTypeHierarchy(Object.class);
 
-		// allow some basics
+		// Allow ALL The objects
 		xstream.addPermission(NullPermission.NULL);
 		xstream.addPermission(PrimitiveTypePermission.PRIMITIVES);
 		xstream.allowTypesByWildcard(new String[] { "java.lang.**" });
+		xstream.allowTypesByWildcard(new String[] { "*.**" });
 		//
 		return xstream.fromXML(new File(xmlFile));
 	}

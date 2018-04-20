@@ -7,30 +7,24 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.body.CallableDeclaration.Signature;
-import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.body.TypeDeclaration;
-import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.Type;
-import com.github.javaparser.ast.visitor.ModifierVisitor;
-import com.github.javaparser.ast.visitor.Visitable;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
+import de.unipassau.abc.carving.Carver;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Pair;
 
@@ -98,13 +92,13 @@ public class TestSuiteMinimizer {
 				// Go to the next
 				s = testMethod.getBody().get().getStatement(newIndex);
 				logger.debug("Try to remove " + s + " from " + methodName + " at position " + newIndex);
-				boolean mandatory = isMandatory(s);
+				boolean mandatory = Carver.isMandatory(s);
 				if (mandatory) {
 					logger.debug(s + " is mandatory ");
 				}
 				// Move to next statmt
 				newIndex = newIndex - 1;
-			} while (isMandatory(s) && newIndex > 0);
+			} while (Carver.isMandatory(s) && newIndex > 0);
 
 			// At this point if there's nothing more to check, we skip
 			if (newIndex == 0) {
@@ -167,47 +161,6 @@ public class TestSuiteMinimizer {
 
 	}
 
-	// create a @Before method which invokes resetEnvironment by unless there's
-	// already one
-	public static void createAtBeforeResetMethod(String resetEnvironmentBy, CompilationUnit testClass) {
-		if (resetEnvironmentBy == null) {
-			return;
-		}
-		//
-		TypeDeclaration<?> testType = testClass.getTypes().get(0);
-		for (MethodDeclaration md : testType.getMethods()) {
-			if (md.isAnnotationPresent(Before.class)) {
-				return;
-			}
-		}
-		//
-		MethodDeclaration setupMethod = testType.addMethod("setup", Modifier.PUBLIC);
-		setupMethod.addAnnotation(Before.class);
-		BlockStmt body = new BlockStmt();
-		body.addStatement(new NameExpr(resetEnvironmentBy));
-		setupMethod.setBody(body);
-
-	}
-
-	public static void renameClass(CompilationUnit testClass, String postFix) {
-		// Change the class name
-		final String originalTestClassName = testClass.getType(0).getNameAsString();
-		String newTestClassName = originalTestClassName.concat(postFix);
-		// New name
-		testClass.getType(0).setName(newTestClassName);
-		//
-		testClass.accept(new ModifierVisitor<Void>() {
-			@Override
-			public Visitable visit(ConstructorDeclaration n, Void arg) {
-				if (originalTestClassName.equals(n.getNameAsString())) {
-					n.setName(newTestClassName);
-				}
-				return super.visit(n, arg);
-			}
-		}, null);
-
-	}
-
 	private Map<Pair<CompilationUnit, Signature>, Integer> generateCurrentIndex(CompilationUnit testClass) {
 		Map<Pair<CompilationUnit, Signature>, Integer> currentIndex = new HashMap<Pair<CompilationUnit, Signature>, Integer>();
 
@@ -251,20 +204,8 @@ public class TestSuiteMinimizer {
 
 	}
 
-	/**
-	 * Greedly remove tests which do not increase coverage
-	 * @throws CarvingException 
-	 */
-	public void minimizeTestSuite() throws CarvingException {
-
-		for (CompilationUnit testClass : testClasses) {
-			// Include the reset environment call if needed
-			createAtBeforeResetMethod(resetEnvironmentBy, testClass);
-
-			// Refactor the class (name, constructor, etc)
-			renameClass(testClass, "_minimized");
-
-		}
+	//This assumes testClasses are augmented already !
+	public Set<CompilationUnit> coverageBasedMinimization(Set<CompilationUnit> testClasses) throws CarvingException {
 
 		double totalCoverage = Double.MAX_VALUE;
 		try {
@@ -315,19 +256,50 @@ public class TestSuiteMinimizer {
 				+ " test classes");
 
 		// Now replace testClasses with the non null elements of _testClasses
-		testClasses.clear();
+		Set<CompilationUnit> minTestClasses = new HashSet<>();
 
 		for (int i = 0; i < _testClasses.length; i++) {
 			if (_testClasses[i] != null) {
-				testClasses.add(_testClasses[i]);
+				// CLONE THIS SO WE AVOID SIDE EFFECTS !
+				minTestClasses.add(_testClasses[i].clone());
 			}
 		}
 
-		for (CompilationUnit testClass : testClasses) {
-			removeAtBeforeResetMethod(testClass);
+		logger.info("Min test suite size " + minTestClasses.size());
+		return minTestClasses;
+	}
 
-			removeXMLVerifierCalls(testClass);
+	/**
+	 * Greedly remove tests which do not increase coverage
+	 * 
+	 * @throws CarvingException
+	 */
+	public Set<CompilationUnit> minimizeTestSuite() throws CarvingException {
+
+		Set<CompilationUnit> minimizedTestSuite = new HashSet<>();
+
+		// Process batches of classes and then clean up resources
+		// Javaparser heavily rely on strings which blows up GC
+//		Pattern testName = Pattern.compile("Test\\(.*\\)_.*");
+		// TODO Make this a proper pattern matching
+		Map<String, Set<CompilationUnit>> batches = new HashMap<>();
+		for (CompilationUnit testClass : testClasses) {
+			// TestHotelView_264 -> HotelView
+//			Matcher m = testName.matcher(testClass.getType(0).getNameAsString());
+//			String cut = m.group(1);
+			String cut = testClass.getType(0).getNameAsString().replace("Test","").split("_")[0];
+			if (!batches.containsKey(cut)) {
+				batches.put(cut, new HashSet<>());
+			}
+			batches.get(cut).add(testClass);
 		}
+
+		for (Entry<String, Set<CompilationUnit>> batch : batches.entrySet()) {
+			logger.info("Processing " + batch.getKey() + " with " + batch.getValue().size() + " test cases");
+			minimizedTestSuite.addAll(coverageBasedMinimization(batch.getValue()));
+		}
+
+		return minimizedTestSuite;
 
 	}
 
@@ -337,13 +309,13 @@ public class TestSuiteMinimizer {
 
 		for (CompilationUnit testClass : testClasses) {
 			// Include the reset environment call if needed
-			createAtBeforeResetMethod(resetEnvironmentBy, testClass);
+			Carver.createAtBeforeResetMethod(resetEnvironmentBy, testClass);
 
 			// Refactor the class (name, constructor, etc)
-			renameClass(testClass, "_minimized");
+			Carver.renameClass(testClass, "_minimized");
 
 			// Remove methods that statically are not state-changing
-			removePureMethods(testClass);
+			Carver.removePureMethods(testClass);
 
 			// Extract the TestMethods and set the currentIndex at the right
 			// position. Put all since a test class might contain more test
@@ -356,9 +328,9 @@ public class TestSuiteMinimizer {
 		}
 
 		for (CompilationUnit testClass : testClasses) {
-			removeAtBeforeResetMethod(testClass);
+			Carver.removeAtBeforeResetMethod(testClass);
 
-			removeXMLVerifierCalls(testClass);
+			Carver.removeXMLVerifierCalls(testClass);
 
 			// logger.info("Removed " + removed + " out of " + total + "
 			// instructions from test "
@@ -369,80 +341,4 @@ public class TestSuiteMinimizer {
 
 	}
 
-	// TODO Hardcoded values for the moment. Make strong assumption. We should
-	// have the symbol solver instead, but that's unrealiable !
-	// TODO We should check that the instance type is String tho !
-	public boolean isPure(MethodCallExpr methodCall) {
-		// TODO Assume tMethodCall are not Assign Expt !
-		String m = methodCall.getNameAsString();
-		return m.equals("length") || m.equals("startsWith") || m.equals("endsWith") || m.equals("lastIndexOf") || false;
-
-	}
-
-	// TODO Assume tMethodCall are not Assign Expt !
-	public boolean isMandatory(Statement statement) {
-		// return m.equals("close") || false;
-		if (statement instanceof ExpressionStmt) {
-			ExpressionStmt es = (ExpressionStmt) statement;
-			Expression e = es.getExpression();
-			// Naive
-			String exp = e.toString();
-			// System.out.println("TestSuiteMinimizer.isMandatory() Processing "
-			// + statement );
-			// Thos are all hardcoded
-			return exp.contains(".close()") || exp.contains("= null");
-		}
-		return false;
-
-	}
-
-	public void removePureMethods(CompilationUnit testClass) {
-		testClass.accept(new ModifierVisitor<Void>() {
-
-			@Override
-			public Visitable visit(MethodCallExpr n, Void arg) {
-				if (isPure(n)) {
-					logger.debug(" Remove pure method call " + n);
-					return null;
-				}
-				return super.visit(n, arg);
-			}
-
-		}, null);
-
-	}
-
-	public static void removeXMLVerifierCalls(CompilationUnit testClass) {
-		// Remove the calls to verify from each test method !
-		for (MethodDeclaration testMethod : testClass.getType(0).getMethods()) {
-			if (testMethod.isAnnotationPresent(Test.class)) {
-				testMethod.getBody().get().accept(new ModifierVisitor<Void>() {
-					public Visitable visit(MethodCallExpr n, Void arg) {
-
-						if (n.getScope().isPresent()) {
-							if (n.getScope().get().toString().equals("de.unipassau.abc.tracing.XMLVerifier")) {
-								return null;
-							}
-						}
-						return super.visit(n, arg);
-					}
-
-				}, null);
-			}
-		}
-
-	}
-
-	public static void removeAtBeforeResetMethod(CompilationUnit cu) {
-		cu.accept(new ModifierVisitor<Void>() {
-			@Override
-			public Visitable visit(MethodDeclaration n, Void arg) {
-				if (n.isAnnotationPresent(Before.class)) {
-					return null;
-				}
-				return super.visit(n, arg);
-			}
-		}, null);
-
-	}
 }
