@@ -124,11 +124,10 @@ An evalaution of this approach against test subjects which use Files and Databas
 \begin{figure*}[h!]
 \centering
 \includegraphics[width=\textwidth]{overview}
-\caption{Overview of the \abc approach. \abc develops in four main stages: it \emph{instruments} the application under test to inject tracing code; next, it \emph{executes the system tests} using the instrumented version of the application to generate a trace file and to dump a copy of the objects processed during the execution; then, it \emph{carves} a set of unit tests that stress the application in the same way systems tests do out the trace execution; and finally, it \emph{reduces} the size of the carved test suite while preserving code coverage.}\label{fig:overview}
-\xxx{Move this to page 2}
+\caption{Overview of the \abc approach: \abc \emph{instruments} the application under test to inject tracing code; next, it \emph{executes the system tests} using the instrumented version of the application to generate a trace file and a copy of the instances processed during the execution; then, it \emph{carves} a set of unit tests that stress the application in the same way systems tests do out the trace execution, \emph{validate} that the unit tests to check they implement the same behavior of the system tests, and finally, it \emph{reduces} the size of the carved test suite using delta debugging.}\label{fig:overview}
 \end{figure*}
 
-\section{Test Carving with \abc}
+\section{\abc Overview}
 \xxx{A nicer intro better. Remark the meaning of action-based carving, which then clarify why we need data from dynamic executions of system tests to carve the tests.}
 
 \abc implements action-based carving in four steps: instrumentation, tracing of system test execution, test carving, and test suite minimization. \xxx{what about delta debugging?} 
@@ -147,23 +146,66 @@ We do so to avoid losing method ownership informations in case the control flow 
 Instrumenting \emph{only} method calls is not enough to build a sufficiently complete trace of execution, that is, a trace which allows to rebuild the original execution of the application before carving int. 
 Important informations, including assignments and access to fields, store and access to array elements, which are relevant to rebuild the data dependencies among method executions, would be missing from the trace of execution if we would track exclusively method calls.
 
-To consider those information during the execution, we trace them as \emph{artificial} method invocations. The benefits of adopting this approach are, one the one hand, keeping critical information for carving around, and on the other hand, treating  standard and artificial method invocations in a uniform way during carving.
-
-Additionally, \emph{after} each method invocation we serialize the state of the return value and the state of the method invocation owner to files.
+To consider those information during the execution, we trace them as \emph{artificial} method invocations. 
+For example, a statement like \texttt{A.f = v} is interpreted as an artificial method call to a static method 
+\texttt{setField(String fieldName, Object fieldValue)} of an \xxx{ephemeral/fake} class \texttt{abc.Class}.
+Similarly, a statement like \texttt{v = a[0]} is interpreted as an artificial method call \texttt{elementAt(int position)} of the array \texttt{a}.
 %
-We elaborate the information about method executions and objects involved in them for carving the test cases, while we use  the serialized state of the objects to cross-check the correctness of the carved test cases.
+Adopting this approach enables us to keep all the required information for test carving around and treat all \xxx{operations/statement} in the application in a standard and uniform way during carving.
 
-In our prototypical implementation, we rely on Soot~\cite{} for instrumenting the application because the framework is rather intuitive, well supported, and we have previous experience with it; however, using Soot is by no means necessarily to implement action-based test carving. As long as it can generate a complete trace of execution, any instrumentation technology can be used for this purpose.
+Additionally, \emph{after} each method invocation we serialize the state of the return value and the state of the method invocation owner to files. Differently than the informations about method calls, which are mandatory for carving the test cases, such serialized state of the objects are optional and we use them to cross-check the correctness of our carved test cases.
 
-\textbf{Alessio here}
+In our prototypical implementation, we rely on Soot~\cite{} for instrumenting the application because the framework is rather intuitive, well supported, and we have previous experience with it; however, using Soot is by no means necessary to implement action-based test carving. As long as it can generate a complete trace of execution, any instrumentation technology can be used for this purpose. We rely on XStream~\cite{} to serialize object states into XML Files and persist the on disk because XStream is the de-facto library for object serialization in Java and the same library was used in the original work by Elbaum and co-authors to implement state-based carving.
 
 \paragraph{System test execution and tracing}
-We run the available system tests using the instrumented code of the application to produce the execution trace.
+We run the system tests using the instrumented code of the application under test to produce the execution trace and the dump of all the object instances processed during the execution. As common practice, before each system test we ensure the environment is not polluted and then we execute each system test in an isolate JVM, an execution mode supported by state of practice test execution frameworks~\cite{surefire-fork-isolate}. Additionally, we reduce this way the possibility of causing manifest test dependencies, flaky tests, and other problems related to polluted states which invalidated our analyses~\cite{Glicoric-or-Giory, Gambi,Bell,Ernt-DTD}.
 
-for each of them, as well as a set of xlm files which contain the serialized state of the objects used during the execution.
+\paragraph{Test Carving} 
+Action-based test carving develops by identifying the method to carve and building a backward
+slice which transitively includes all the method calls which potentially have an effect on the owner
+of the method to carve and its parameters.
+\abc does so by elaborating on three data structures that we derive from the trace of system test executions:
+an execution flow graph, which captures the time-dependencies between method calls;
+a data-dependency graph, which captures dependencies on data such as parameters, method owner, and return values;
+and, a call-graph, which captures the structural dependencies of method calls and their nesting.
 
-Carving:
+Action-based test carving not only carves the preconditions of the method under tests, but it also considers interactions with the external environment which might have an effect on the behavior of system under tests. Example of such interactions are accesses to the file system, databases, or remote services. Accessing the environment is typical done by means of specific interfaces, libraries and APIS. For instance, \texttt{java.util.Scanner} receives user inputs from the command line, classes inside the \texttt{java.io} and \texttt{java.nio} packages wrap calls to the underlying file system, and classes under the \texttt{java.sql} package enable database interactions. Since the list of the external interfaces is largely application specific, \abc enables developers to configure which external interface to consider and to specify additional external interfaces.
+\abc includes interactions which potentially affect the behavior of the system under test by conservatively carving the calls to those  external interfaces which precede the call to the method to carve, thus ensuring that any precondition that tests have on the environment are met. Notably, this is impossible to achieve via standard state-based test carving, which controls only
+the internal state of the application.
 
+\paragraph{Test Validation}
+\abc implements an additional validation step to check the validity of the carved tests. 
+%
+Some of the carved tests do not \emph{directly} invoke the method under carving; in this case,
+despite the execution of those tests ``at some point'' produces the expected results, that is, the state of the class under test is the same observed during the execution of system tests, \abc report them as invalid and discard them.
+%
+The reason behind this choice is the observability of the results: Since the invocations 
+ of the methods under test are not directly visible in the code of carve tests, there's no straightforward way
+for developers to assert the behavior of the unit.
+
+Other carved tests, because of improper definition of external interfaces or corner cases in the implementations of the application under test which \abc prototype does not handle, simply do not produce the expected result. 
+We identify those tests by relying on the serialized object values that we collected during system test execution. From the XML dump of the serialized objects, \abc creates a set of test of basic assertions on the state of the unit under test after the methods to carve are invoked as well as on the return values they produce.
+Those assertions, used in conjunction with typical implicit test assertions~\cite{randoop}, like uncaught exceptions, let us identify
+ tests which produce an unexpected result and report them to the developers. We remove the failing tests from the carved test suite.
+Since the assertions based on XML serialized object have the same drawback of the assertions generated by Elbaum and co-authors,
+we remove the from the code of the carved tests before generating the final carved test suite. This way we ensure the creation of realistic executions, but give developers the freedom to create and use their own assertions. The generation of effective regression test assertions is an central topic in the domain of automatic test case generation, and we leave it for future work.
+
+\paragraph{Test Minimization}
+Since \abc adopts a conservative approach to include method calls which might affect the state and the behavior of the application under test, the resulting carved tests might be longer than necessary. 
+For this reason, \abc performs a last step that aim to minimize the size of the test methods by identifying and removing method calls which do not change the state of the application or alter its behavior.
+To do so, \abc implements a technique based on delta debugging~\cite{delta-debugging}: it starts from the method call right before the method under test, and moving backwards to the beginning of the test case, removes a statement from the test and executes it.
+If the modified test does not fail despite one statement was removed, we conclude that that statement was not required in the scope of the carved test. To decide if the test passes or fails, we rely on the same assertions we used in the validation step.
+By removing unnecessary methods calls from the carved tests we reduce their size to a minimum, which makes them possibly easier to read and faster to execute. 
+%
+Once again, we remove from the carved test suite those test  which after minimization implement exactly the same behavior.
+
+\bigskip
+
+At the end of this process, the generated test suite implements the same behavior of the system tests used to create the traces; however, instead of doing so by means of few long running system tests, it uses a multitude of shorter unit tests. This, in turns,
+enables developers to implement traditional regression selection and test suite minimization activities, which are hardly possible for system tests, and let them focus to precise points in case of regression bugs.
+
+\section{Action-based Test Carving with \abc}
+\xxx{Focus here on the algorithms here}
 Trace Parsing:
 
 We parse the trace to create the following three main data structures for each system test (Figure + Example):
@@ -194,8 +236,77 @@ Including test setup methods (conservative): We do not instrument nor carve test
 The motivation here is that those methods configure the test environment for the system tests, i.e., they do not belong to the application logic,
 but rather to system tests logic. Nevertheless, carving tests (might) require those methods to be in place. For example, a typical setup method drop and recreate the mysql database. This ensures that system tests start from a known state of the database. Since tests carved from the system tests rely on the same assumptions, we need to include and replicate the same setup before executing them. Again we adopt the conservative approach of including all the required setup calls to generate carving tests. This has the benefit to ensure that the right preconditions are in place, but has the drawback to increase the execution overhead of the carved test. Imagine the case a carved test performs a basic check on an input, i.e., the input shall be greater than 0. If this test was carve out of a system test which requires a databased filled with test data, our conservative approach will recreate the databased also for the carved test, unnecessarily. Because of this, we will proceed by minimizing the test cases and removing all the unnecessary method invocations from the carved test.
 
-
 The last step is the actual test generation where we take carved and minimized tests are produce executable java (JUnit) tests. We use open source library to generate the java code from our internal representation based on jimple/soot.
+
+
+Non carvable methods
+
+\xxx{If it turns out that the coverage is the same, we describe this into the limitations: non=carvable methods}
+Corner cases ?  Multiple return methods, access via fields/getters, etc.
+The basic approach to carve by following data deps and including all the calls, for then subsming them, has the problem
+that for some objects we partially subsume their calls, this create unsafe operations such that some calls on objects are made
+directly from the test code, while the object initialization is done elsewhere (inside the subsumer call). Leaving the non-subsumed calls in the test code dangling (this raise NPE during test execution).
+There are different strategies to deal with this: one can recreate the object initialization and break the dependecies on the subsumer object. That is, we call once again the constructor of the "dangling" instace and repeat its initialization. 
+This strategy is simple to implement because we have already all the information to perform the carving, however, 
+it has the downside of repeating the execution of some code, which might or might not problematic dependending on the application, but definitively consists in executing more code than necessarily. Another alternative, that we implement in \abc, consists in recovering this situation by substituting the "dangling" calls with calls of the subsuming owners. This for example, is the case of an object which has a field that cause the unsafe access. For those, we look in the method invocations performe don the owner, if we can find replacement calls for the unsafe ones. This way by invoking the replacement calls we set the state of the object in a safe way.
+In fact the object, will be accessed later by means of the getter.
+
+
+
+Test methods minimization via Delta debugging, i.e.,  data-aware delta debuggin ? optimized
+
+\section{Limitations and possible improvements}
+
+\subsection{Non-carvable unit tests}
+There are situations in which \abc cannot carve unit tests "at level-0/object interface". For example, \abc cannot carve methods which have "inner/outer" dependencies. That is, methods mX, which are called by outer methods mY, but at the same time requires inputs from the owner of mY. In this case, carving mX requires to include mY and all the methods called on mY owner, which eventually subsumes mX and therefor invalidate the basic property of (our) unit tests, which requires the CUT and the MUT to be directly visible/called in the test code. 
+
+There might be different strategies to deal with this, but none necessarily general and applicable to all cases.
+For example, we can break method dependencies: \abc might rely on developer provided information to break the dependency between mX and the owner of mY, such that it is not included in the carved test. This is for example the case of having a constant to be provided via a method by mY owner. In this case, "any" instance of that object would work the same. We might break the dependency by using an hybrid approach to provide a copy of the required value, under the assumption of not having side effects on the owner of mX. This for example is the case where the value is a primitive value or a string. 
+
+A completely different strategy to test that specific method invocation consists in violating the basic property of level-0 test cases, and generate test cases which invoke the method subsuming mX but capturing and exposing the CUT and the result of the MUT, for example by smart checkpointing or mocking, or by directly injecting into the application code assertions to be invoked right after the target MUT. This, however, requires a smart infrastructure, similar to a debugger, to be in place during test execution to capture the precise moment the target MUT is invoked (simply imagine that MUT is invoked inside a for loop, and we are interested in generating a test case which check the 2 invocation of that method !). The development of such a smart testing infrastructure is part of our ongoing effort for carving test cases out system tests executions. 
+
+Remarkably, the fact \abc cannot carve unit tests, might be also used to investigate the testability of an application. Infact, in many cases, failing to carve "inner/outer" test cases, is not always a problem with \abc but with the application itself, which simply has an hard-to test/bad design. Studying how \abc can identify \xxx{code smells} to assess the testability of an application is part of our on-going research effort.
+
+\subsection{Missing observations}
+
+\paragraph{Missing observations due to Exceptional behaviors}
+
+When an exception is thrown and not caught methods do not complete regularly, as a consequence, we do not trace their returns and the trace might be incomplete. The trace cannot be correctly parsed since we expect to observe a return from each method invocation.  Therefore, we might not correctly carve some tests.
+
+\paragraph{Missing observations due to partial instrumentation}
+Difficulty to reconstruct objects which cannot be observed. Trace might not include the calls which generate an object instance, therefore a test which uses that cannot be carve. For example, tomcat provides httprequest object, we are interesting to carve the calls to our JSP/Servlets, plus we do not instrument (atm) Tomcat itself. So there's the need to get to the httpRequest object in the first place. This can be addressed by instrumenting tomcat (huge traces, huge overhead) or by extending \abc to implement an hybrid approach to test carving: the idea would be to use serialized versions of the objects for which we cannot observe setup and configuration (state-base carving), and then rely on action based carving to carve out the other tests. Carved objects might be then reconstructed using a search approach similar to the one proposed by Denaro et al~\cite{} or by Gligoric et al.~\cite{}. Integration with those approaches and extension of \abc are left for future work.
+
+Implementation does not cover all the cases? Can be addressed by extending the instrumentation to cover them.
+For example, we can trap exceptions and invoke artificial method calls. We might extend the scope of the instrumentation to capture object initialization. Those can be done without extending the approach but just the implementation. Alternatively, we can extend the approach to become hybrid.
+
+\paragraph{Scalability}
+If we face long execution of system tests which generate huge traces traces of sheer size, \abc requires to consider many invocations inside its carved  tests. This is a consequence of conservatively include ALL the method calls to interested objects observed BEFORE the invocation of MUT.
+This might raise scalability concerns, because the carving time becomes larger as the trace becomes larger.
+
+To address scalability we employ several mechanisms:
+we separately carve test cases for each system test, and we heavily rely on caching.
+For example, in the context of the same system test, many objects share the same preconditions either because they depend on
+the same input objects or because they require the same invocations to external interfaces. In those cases, instead of 
+re-carving the same over and over, we provide the preconditions using the cache.
+
+This however, has little effect for situations in which the preconditions do not exactly match. For example, if the same method is invoked in different
+times, the later invocation of the same method include the same preconditions of the previous method calls, but also inculde all the method calls on the objects and external interfaces that happened between them. One strategy that can be employed in this case, which is similar to what Randoop does to build randomized sequences, is to carve preconditions incrementally. So instead of rebuilding the preconditions from scratch, we can rely on 
+%
+That is, by forcing the carving of methods according to the order of appearance of MUT, we can rely on caching partial setups.
+\xxx{Maybe we can try this out if we have time before the submission?}
+
+\paragraph{Scalability - Too many test cases}
+Another aspect related to scalability is the generation of many (too many) carve tests. On one side, this give developers the freedom to chose which carved test to select and expose the diversity of the behaviors stressed by the application, on the other side, many of the carved test cases are similar to one another.
+
+We partially address this by filtering out test cases that are similar (at JIMPLE level) at the end of test carving, and to some extend during test case generation. However, we perform only basic checks, mostly syntactical, and those might not be as effective as smarter similarity metrics.
+We also perform a test suite minimization based on coverage (and delta debugging?) This is effective to remove tests which do not contribute to coverage, but completely disergards test case diversity/richness
+
+Minimization of the test suite, but also identification of similar test cases, that is test cases which stress the CUT in the same way, despite they setup/configure the environment and the preconditions in different ways. 
+\xxx{Maybe some static analysis can help here, maybe we can rely on the heuristic that if the input values to MUT, its state of the CUT before and after invoking MUT are the same, we might assume the tests are similar and pick only one?}
+
+
+\subsection{Instrumentation overhead}
+Instrumentation dumps everything, huge overhead. Filter the instrumentation to dump only application objects or objects returned from invocations from MUTs.
 
 \section{Evaluation}
 
@@ -207,6 +318,7 @@ That is we do not lose testing power/miss behaviors by using carved tests.
 %
 We illustrate this by showing how code coverage achieved by system and carved tests is the same.
 
+\paragraph{Test case selection reduction}
 Carve tests are more focused than system tests, hence, in a regression setting we do not necessarily need 
 to execute all of them. This is not true in general for system tests which, by involving the entire system, end up in using (hence depending on)
 all the system classes (or at least a great deal of it).
@@ -214,15 +326,23 @@ all the system classes (or at least a great deal of it).
 We illustrate this by modifying the system under test (using bogus, non-logic-modifing modificaitons) and counting how many system and carved
 tests are executed after each modification. In particular, we show that modification of few classes already caused all system tests to be triggered,
 while only a relevant subset of carved tests are re-executed.
-%
-\xxx{For the sake of completeness we show how execution time varies during regression, compared to fully re-executing all the carved tests?}
 
+\paragraph{Test suite reduction}
+Carved tests are much more than system test, many of the carved test stress the same code of the application, although under different execution conditions. Therefore, they achieve the same coverage, and can be easily eliminated if one is interested in achiving a regression test suite optimized towards coverage.
+%
+We illustrate this by performing a test suite reductions on carved tests and showing that we can remove many (up to 80\%) of the carved tests, compared to removing barely 10\% of system tests.
+
+Additionally, even reduced test suite, show benefits for RTS.
+
+\paragraph{Overhead of Delta Debugging}.
 Delta debugging -> this one becomes part of the evaluation. Since we adopt a conservative approach to include all the calls which might be state chaging,
 we are interesting to investigate if this is "a bad thing". How many of those actions are superfluous and can be safely removed?
 This also gives us a hint on if/how it would be beneficial to use delta debugging to minimize the carved tests cases.
 
 For doing so, we implemente a delta debugging appraoch to remove and test each action, and compare the results on execution time, coverage and regression test selection of original and minimized test to see.
 	generate validation instruction based on XML serialized state. We do not literally compare the serialized state, because some objects cannot be serialized in a meaningful way (i.e., open data base connections, file descriptors, streams) and some objects are parameters of the tests and are injected as dependencies during testing. For example, temporary working dir, date objects relative to current date, and other data that are generated randomly at the beginning of each test (and never changed during the execution?). 
+	
+Note: our apporach to delta debugging is naive, we simply try out all the instructions, however, we can also optimize the process by considering which method calls we included inside the tests because their were deemed necessary versus calls that we included because we'have been conservative. Additionally, we do not have to necessarily try out all the statement that we included for being conservative. Imagine we include method X, to call it, we needed to include all its preconditions. At this point, the moment we remove X, we can automatically remove all its preconditions - unless those are shared among other methods. This saves time, since we do not need to delta debug also the instructions needed to setup a given (and already proven useless) method X.
 	
 	\xxx{Give examples here on Employee and HotelReservation ? this means we need to introduce them as motivating scenarios?}
 	
@@ -245,9 +365,22 @@ Note that in this cases the evaluation is biased by the choice of the test subje
 \xxx{Maybe seel this thing of delta debugging as part of the evaluation to show that, because delta debugging does not remove many instructions, 
 then the carved tests are already good, cannot be improved in that sense. Note that this accounts for the instructions not the method invocations executed !}
 
-Overhead of carving.
+Overhead of carving, scalability of the approach. Longer execution of system tests generate larger traces, which requires to consider more and more invocations (since we conservatively include ALL the method calls to interested objects)
+
 We are also interested in assessing the overhead of the overall approach to derive conclusions on its practical applicability.
 For this, we measure and report execution and slow down factors of instrumentation, tracing, carving, test generation, and delta debugging.
+
+\xxx{Carving time per method? per class?}
+\xxx{Carving time vs Place in the trace/size of the trace/amount of system tests}
+\xxx{Carving time vs type}
+\xxx{Carving time vs number of arguments}
+\xxx{Carving time vs Object to be carved}
+\xxx{Carving time vs Type/System tests}
+
+Overhead of Minimization ?
+\xxx{size of test suites}
+\xxx{size of test suites}
+
 
 I suspect that delta debugging might shows benefits for those classes which do not involve or depend on external interfaces,
 and are used frequently.
@@ -345,14 +478,21 @@ We repeat the process for 20 times and for n from 1 to N (N is application class
 Employee & File system &
 	11  & 464 & 15 & 
 	5.1 & 2.1 & 0.17 & 
-	86\% & 86\% & 86\% &
-	65\% & 65\% & 65\% &
-	5470 \\
-Hotel Reservation & SQL database & \\
+	73 & 73 & 73 &
+	44 & 44 & 44 &
+	5,470 \\
+Hotel Reservation & SQL database & 
+	17  & 503 & -- & 
+	12.5 & -- & -- & 
+	82 & -- & -- &
+	64 & -- & -- &
+	35,820 \\
+
 \bottomrule
 \end{tabular} \\
 \flushleft{The table reports an overview of the results achieved by \abc.
 The \textbf{S} label identifies results for system tests, while \textbf{C} and \textbf{M} identify respectively the results for the carved and minimized test suites.
+\xxx{Check if the achieved coverage is close to the maximum coverage that can be using only system tests!}
 }
 %\xxx{20 repetitions for the execution time}s
 %	\multicolumn{1}{c}{Carving Overhead} & \multicolumn{1}{c}{Reduction} & \multicolumn{1}{c}{Delta Debugging}
