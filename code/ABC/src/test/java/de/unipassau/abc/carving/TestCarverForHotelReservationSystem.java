@@ -58,8 +58,10 @@ public class TestCarverForHotelReservationSystem {
 			// String carveBy = "invocation=<org.hotelme.User: java.lang.String
 			// getFname()>_1874";
 
-			String carveBy = "invocation=<org.hotelme.HotelView: int roomConfirmation(java.util.Scanner,int,java.lang.String)>_2037";
-
+//			String carveBy = "invocation=<org.hotelme.HotelView: int roomConfirmation(java.util.Scanner,int,java.lang.String)>_2037";
+			String carveBy = "method=<org.hotelme.HotelView: int roomConfirmation(java.util.Scanner,int,java.lang.String)>";
+			
+//			orghotelmehotelView00.totalPrice(276.0F);
 			String[] args = new String[] { //
 					"--carve-by", carveBy,
 					// String traceFile =
@@ -82,7 +84,9 @@ public class TestCarverForHotelReservationSystem {
 					// "--test-setup-by",
 					// "class=org.hotelme.utils.SystemTestUtils", //
 					// This is for delta debugging
-					"--reset-environment-by", "org.hotelme.utils.SystemTestUtils.dropAndRecreateTheDb()" //
+					"--reset-environment-by", "org.hotelme.utils.SystemTestUtils.dropAndRecreateTheDb()",//
+					"--skip-minimize"
+					
 			};
 			//// "class=org.hotelme.utils.ScriptRunner", //
 			//

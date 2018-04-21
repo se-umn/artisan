@@ -130,10 +130,10 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// THIS ONE IS THE ONE WHICH ACTUALLYS COMPUTE THE CARVE using recursion
 		// and FULL CARTESIAN
 
-		
-		// We cannot simply skip cartesian, because there's private methods which are invoked otherwise !
+		// We cannot simply skip cartesian, because there's private methods
+		// which are invoked otherwise !
 		// For example, private constructors instead of factory methods !
-//		boolean skipCartesian = false;
+		// boolean skipCartesian = false;
 		boolean skipCartesian = true;
 		level0TestCarving(workList, carvedTests, context, skipCartesian);
 
@@ -373,19 +373,19 @@ public class Level_0_MethodCarver implements MethodCarver {
 						// problems carving preconditions with subsumed calls ?!
 						// In case there's more than one because of cartesian
 						// product, pick the first one.
-						
+
 						Iterator<Pair<ExecutionFlowGraph, DataDependencyGraph>> iterator = carvedPreconditions
-						.iterator();
-						if( iterator.hasNext() ){
-						Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition = iterator.next();
-						preconditionCache.put(methodInvocationToExternalInterface,
-								carvedPrecondition.getFirst().getOrderedMethodInvocations());
-						logger.trace("Level_0_MethodCarver.includeTestSetupCalls() PRECONDITION for "
-								+ methodInvocationToExternalInterface + " STORE IN THE CACHE:\n"
-								+ carvedPrecondition.getFirst().getOrderedMethodInvocations() + "");
+								.iterator();
+						if (iterator.hasNext()) {
+							Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition = iterator.next();
+							preconditionCache.put(methodInvocationToExternalInterface,
+									carvedPrecondition.getFirst().getOrderedMethodInvocations());
+							logger.trace("Level_0_MethodCarver.includeTestSetupCalls() PRECONDITION for "
+									+ methodInvocationToExternalInterface + " STORE IN THE CACHE:\n"
+									+ carvedPrecondition.getFirst().getOrderedMethodInvocations() + "");
 						} else {
 							logger.info("Level_0_MethodCarver.includeTestSetupCalls() CANNOT FIND PRECONDITION for "
-									+ methodInvocationToExternalInterface );
+									+ methodInvocationToExternalInterface);
 						}
 					}
 
@@ -637,8 +637,18 @@ public class Level_0_MethodCarver implements MethodCarver {
 		return partialCarvedExternalInterfaces;
 	}
 
+	/**
+	 * Check that we are not removing calls that are indeed needed. ATM, we can
+	 * rely only on heuristics. For example, if we subsume an <init> we need to
+	 * be sure the test does not call directly that particular object !
+	 * 
+	 * @param slice
+	 * @param _callGraph
+	 * @return
+	 * @throws CarvingException
+	 */
 	private Pair<ExecutionFlowGraph, DataDependencyGraph> generateCarvedTestFromSlice(Set<MethodInvocation> slice,
-			CallGraph _callGraph) throws NotALevel0TestCaseException {
+			CallGraph _callGraph) throws CarvingException {
 		// Order the slice.
 		List<MethodInvocation> orderedSlice = new ArrayList<>(slice);
 
@@ -686,6 +696,164 @@ public class Level_0_MethodCarver implements MethodCarver {
 					+ orderedSlice + " Not a LEVEL 0 TEST CASE");
 			throw new NotALevel0TestCaseException(methodInvocationToCarve, subsumingMethodInvocation, subsumingPath);
 
+		} else {
+
+			// Check we do not subsumedCalls an <init> that also belongs to
+			// slice
+			subsumedCalls.retainAll(slice);
+
+			for (MethodInvocation mi : subsumedCalls) {
+				if (JimpleUtils.getMethodName(mi.getJimpleMethod()).equals("<init>")) {
+					System.out.println(
+							"Level_0_MethodCarver.generateCarvedTestFromSlice() We are subsuming method " + mi);
+
+					// Find if there's any other method in the slice which
+					// returns the same object
+					// These do not include INIT !
+					List<MethodInvocation> callsWhichReturnTheObject = new ArrayList<>(
+							dataDependencyGraph.getMethodInvocationsWhichReturn(mi.getOwner()));
+					// Consider only the one in the slice
+					callsWhichReturnTheObject.retainAll(slice);
+					// But remove ALL the methods which will be subsumed
+					callsWhichReturnTheObject.removeAll(subsumedCalls);
+					// Sort the remaining
+					Collections.sort(callsWhichReturnTheObject);
+					// Take the first if any.
+					MethodInvocation firstCallInTheSliceWhichReturnTheObject = (callsWhichReturnTheObject.isEmpty())
+							? null : callsWhichReturnTheObject.get(0);
+
+					// Ensure that there's no access to the owner of that
+					// method, but only write
+					// Get the method calls for those object that are also in
+					// the slice
+					List<MethodInvocation> callsOnTheObject = new ArrayList<>(
+							dataDependencyGraph.getMethodInvocationsForOwner(mi.getOwner()));
+					// Sort by execution time
+					Collections.sort(callsOnTheObject);
+					// Remove the constructor - this is gonna be subsumed and it
+					// should be the FIRST METHOD
+					callsOnTheObject.remove(mi);
+					// Take only the calls which appear in the slice
+					callsOnTheObject.retainAll(slice);
+					// But remove ALL the methods which will be subsumed
+					callsOnTheObject.removeAll(subsumedCalls);
+
+					// Consider only the calls, if any that are BEFORE
+					// firstCallInTheSliceWhichReturnTheObject
+					List<MethodInvocation> unsafeCalls = new ArrayList<>(callsOnTheObject);
+					if (firstCallInTheSliceWhichReturnTheObject != null) {
+						for (Iterator<MethodInvocation> iterator = unsafeCalls.iterator(); iterator.hasNext();) {
+							if (firstCallInTheSliceWhichReturnTheObject.isBefore(iterator.next())) {
+								iterator.remove();
+							}
+						}
+					}
+
+					if (!unsafeCalls.isEmpty()) {
+						// At this point, whatever call in inside unsafeCalls
+						// is an access to an object which is not initialized in
+						// the test code.
+
+						// We try to recover this by looking for methods of the
+						// "subsumer" object which can
+						// replace one or more of those calls. Since we need to
+						// ensure those calls are made, but
+						// not necessarily directly by the test code
+
+						// Computing the calls which subsumed <init>
+						List<MethodInvocation> subsumingCalls = _callGraph
+								.getOrderedSubsumingMethodInvocationsFor(methodInvocationToCarve);
+						// Keep only the ones that belong to the slice
+						subsumingCalls.retainAll(slice);
+
+						// Check if among the subsuming methods one fits our
+						// goal
+						Set<MethodInvocation> replacementCalls = new HashSet<>();
+						//
+						for (MethodInvocation subsumingMethodInvocation : subsumingCalls) {
+							if (subsumingMethodInvocation.isStatic()) {
+								System.out.println(
+										"Level_0_MethodCarver.generateCarvedTestFromSlice() Static methods are not yet covered: "
+												+ subsumingCalls);
+								continue;
+							}
+							// TODO Static methods are not covered !
+							ObjectInstance subsumingOwner = dataDependencyGraph.getOwnerFor(subsumingMethodInvocation);
+							System.out.println("Inspecting subsuming call " + subsumingMethodInvocation + " with owner "
+									+ subsumingOwner);
+							// Does this object have a method which subsumes the
+							// unsafe calls ?
+							// Get all the objects of this owner BEFORE unsafe
+							// calls.
+
+							for (MethodInvocation methodsOfSubsumingOwner : dataDependencyGraph
+									.getMethodInvocationsForOwner(subsumingOwner)) {
+								System.out.println("Owner has potential call " + methodsOfSubsumingOwner);
+
+								for (Iterator<MethodInvocation> unsafeIterator = unsafeCalls.iterator(); unsafeIterator
+										.hasNext();) {
+									MethodInvocation unsafe = unsafeIterator.next();
+
+									if (methodsOfSubsumingOwner.isAfter(unsafe)) {
+										// Skip calls later than usafe calls
+										continue;
+									} else if (callGraph.getMethodInvocationsSubsumedBy(methodsOfSubsumingOwner)
+											.contains(unsafe)) {
+										System.out.println(
+												" Method " + methodsOfSubsumingOwner + " subsumes unsafe " + unsafe);
+										replacementCalls.add(methodsOfSubsumingOwner);
+										unsafeIterator.remove();
+									}
+								}
+							}
+						}
+
+						System.out.println(
+								"Level_0_MethodCarver.generateCarvedTestFromSlice() Found the following REPLACEMENT calls: \n"
+										+ replacementCalls);
+
+						if (!unsafeCalls.isEmpty()) {
+							// If at this point there's still unsafe calls we
+							// cannot do more than that
+
+							throw new CarvingException(
+									"GenerateCarvedTestFromSlice() Cannot generate for " + methodInvocationToCarve
+											+ " from " + orderedSlice + "\n"
+													+ "There are unsafe operations: " + unsafeCalls);
+						} else {
+							// Include the replacement calls and hope the tests are fine ! :D
+							slice.addAll( replacementCalls );
+							// TODO We shall definitively repeat this check ...
+							// Check that we did not have subsumed the MUT !
+							
+							// Refactor this
+							// Order the slice.
+							orderedSlice = new ArrayList<>(slice);
+							methodInvocationToCarve = Collections.max(orderedSlice);
+							Collections.sort(orderedSlice);
+							// Eventually remove the subsumed Calls
+							subsumedCalls = new HashSet<>();
+							for (MethodInvocation mi2 : orderedSlice) {
+								// Filter out the calls that are subsumed by the call graph
+								Set<MethodInvocation> subsumedBy = _callGraph.getMethodInvocationsSubsumedBy(mi2);
+								subsumedCalls.addAll(subsumedBy);
+							}
+							if (subsumedCalls.contains(methodInvocationToCarve)) {
+								throw new NotALevel0TestCaseException(methodInvocationToCarve, "We accidentally subsumed MUT after adding replacement calls !");	
+							}
+							
+							
+							
+						}
+
+					}
+
+					// If not, try to recover this by checking if in the
+					// subsuming calls there's an object whose call can
+					// replace some calls in the slice via subsumption
+
+				}
+			}
 		}
 
 		// Delete from the slice all those calls that will be done nevertheless
@@ -732,7 +900,11 @@ public class Level_0_MethodCarver implements MethodCarver {
 				// We need to ensure not only that we use the right data, but
 				// also that these data are in the right state.
 				// We recreate the state for each data by including in the slice
-				// the calls on it that we observed before its use
+				// the calls on it that we observed before its use. In case we
+				// subsume some method calls, we ensure that the remaining calls
+				// are valid. In particular, we must ensure NOT to access
+				// objects that are not initialized in the trace/test but inside
+				// subsumed calls.
 
 				// For any method invocation in getSecond() we need to collect
 				// their preconditions.
@@ -951,46 +1123,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 							if (tempSet.size() == 1) {
 								closest = tempSet.iterator().next();
 							} else {
-								// if
-								// ("java.lang.String".equals(data.getType())) {
-								// This is necessary because the same string
-								// (value) might be used
-								// multiples times in the same carved test.
-								// And
-								// we need to ensure that this string is
-								// DEFINED
-								// before the first use.
-								// Since it's referenced by value, it will
-								// be
-								// used in all the places.
-								// closest = Collections.min(tempSet);
-								//
-								// TODO: Let's take the one which has less
-								// risk to be subsumed later ?
-								// Closest from the ABOVE ?
-								// DISTANCE IN TIME ? FROM THE USE ?
-								// For the same distance from root, we take the
-								// smaller one / MIN
-								//
-								// int target =
-								// entry.getKey().getInvocationCount();
-								// int distance = Integer.MAX_VALUE;
-								// for (MethodInvocation mi : tempSet) {
-								// int current = callGraph.distanceToRoot(mi);
-								// if (current < distance) {
-								// distance = current;
-								// closest = mi;
-								// logger.trace(
-								// "Level_0_MethodCarver.level0TestCarving()
-								// STRING Distance from root "
-								// + distance + " for " + mi);
-								// }
-								// }
-								//
-								// } else {
-								// int target =
-								// callGraph.distanceToRoot(entry.getKey());
-								// Temporal distance
+
 								int target = entry.getKey().getInvocationCount();
 
 								Set<MethodInvocation> ranked = null;
@@ -1022,19 +1155,6 @@ public class Level_0_MethodCarver implements MethodCarver {
 										+ " \n choosing the closest " + closest + " to " + entry.getKey());
 							}
 							methodsWhichReturnTheObject.add(closest);
-
-							// if ("java.lang.String".equals(data.getType())) {
-							// // For string keep all of them... Explosion !
-							// // plus we definitively face the alias/by-value
-							// // problem of strings..
-							// // Try to keep first and last ?
-							// // Still explosion ?!
-							//// methodsWhichReturnTheObject.add(Collections.min(tempSet));
-							// methodsWhichReturnTheObject.add(Collections.max(tempSet));
-							//// methodsWhichReturnTheObject.addAll(tempSet);
-							// } else {
-							// methodsWhichReturnTheObject.add(Collections.max(tempSet));
-							// }
 						}
 
 						/*
@@ -1082,15 +1202,16 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 				if (skipCartesian) {
 					// Reduce to only one option for each. Constructors are
-					// preferred
+					// preferred unless they are private
 					logger.trace("Reducing the size to skip Cartesian Product ! \n\n");
 					for (Entry<ObjectInstance, Set<MethodInvocation>> methodsWhichReturnTheObject : methodsWhichReturnTheObjects
 							.entrySet()) {
 						if (methodsWhichReturnTheObject.getValue().size() > 1) {
+
 							// Keep only the constructor, unless it is private !
 							Set<MethodInvocation> methods = methodsWhichReturnTheObject.getValue();
 							for (MethodInvocation method : methods) {
-								if (method.getJimpleMethod().contains("<init>") && ! method.isPrivate() ) {
+								if (method.getJimpleMethod().contains("<init>") && !method.isPrivate()) {
 									logger.trace("Reduce the combination for " + methodsWhichReturnTheObject.getKey());
 									methodsWhichReturnTheObject.setValue(Collections.singleton(method));
 									break;
@@ -1098,13 +1219,14 @@ public class Level_0_MethodCarver implements MethodCarver {
 							}
 							// At this point what do we pick ? One at random ?
 							for (MethodInvocation method : methods) {
-								if ( ! method.getJimpleMethod().contains("<init>") && ! method.isPrivate() ) {
-									logger.trace("RANDOMLY SELECT " + method + "To reduce the combination for " + methodsWhichReturnTheObject.getKey());
+								if (!method.getJimpleMethod().contains("<init>") && !method.isPrivate()) {
+									logger.trace("RANDOMLY SELECT " + method + "To reduce the combination for "
+											+ methodsWhichReturnTheObject.getKey());
 									methodsWhichReturnTheObject.setValue(Collections.singleton(method));
 									break;
 								}
 							}
-							
+
 						}
 
 					}
@@ -1889,12 +2011,14 @@ public class Level_0_MethodCarver implements MethodCarver {
 				logger.info("We do not carve private methods " + methodInvocationUnderTest);
 			}
 
-			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestsPetMethodInvocation = new ArrayList<>();
+			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestsPerMethodInvocation = new ArrayList<>();
 
 			try {
+
 				logger.info("\n\n====================================================\n" + "Starting the carve of "
 						+ methodInvocationUnderTest + "\n" + "====================================================");
-				carvedTestsPetMethodInvocation.addAll(level0TestCarving(methodInvocationUnderTest));
+				long carvingTime = System.currentTimeMillis();
+				carvedTestsPerMethodInvocation.addAll(level0TestCarving(methodInvocationUnderTest));
 
 				// Simplify the carved tests: Following the data dependencies we
 				// might take into tests, invocations that are included but
@@ -1907,10 +2031,14 @@ public class Level_0_MethodCarver implements MethodCarver {
 				// libraries.
 				// FIXME Handle external libraries
 
-				simplify(methodInvocationUnderTest, carvedTestsPetMethodInvocation);
+				simplify(methodInvocationUnderTest, carvedTestsPerMethodInvocation);
+				carvingTime = System.currentTimeMillis() - carvingTime;
+				logger.info("\n\n====================================================\n" + "Carved  "
+						+ carvedTestsPerMethodInvocation.size() + " in " + +carvingTime + " msec \n"
+						+ "====================================================");
 
 				// Add to big list
-				carvedTests.addAll(carvedTestsPetMethodInvocation);
+				carvedTests.addAll(carvedTestsPerMethodInvocation);
 			} catch (CarvingException e) {
 				logger.error("Cannot carve test for " + methodInvocationUnderTest, e);
 			}

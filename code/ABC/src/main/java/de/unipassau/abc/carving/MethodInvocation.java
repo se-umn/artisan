@@ -161,4 +161,12 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	public boolean isTestSetupCall() {
 		return isTestSetupCall;
 	}
+
+	public boolean isAfter(MethodInvocation next) {
+		return compareTo( next ) > 0;
+	}
+	
+	public boolean isBefore(MethodInvocation next) {
+		return compareTo( next ) < 0;
+	}
 }

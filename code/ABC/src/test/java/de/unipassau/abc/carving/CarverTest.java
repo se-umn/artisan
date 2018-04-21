@@ -33,7 +33,7 @@ public class CarverTest {
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
 
 	@Test
 	@Category(ManualTest.class)
@@ -72,7 +72,7 @@ public class CarverTest {
 //					"abc.StaticField", // System.in, System.out, System.err
 //					"abc.Field"
 					"--exclude-by", "package=org.employee.systemtest", "class=org.employee.Employee", //
-					"--skip-minimize"
+//					"--skip-minimize"
 					};
 			//
 			carver.main(args);

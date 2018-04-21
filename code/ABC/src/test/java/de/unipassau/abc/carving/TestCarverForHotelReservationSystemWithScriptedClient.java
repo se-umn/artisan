@@ -55,7 +55,8 @@ public class TestCarverForHotelReservationSystemWithScriptedClient {
 			// String carveBy = "method=<org.hotelme.Room: java.lang.String
 			// getRoomType()>";
 			// String carveBy = "method=<org.hotelme.User: int getUserID()>";
-			 String carveBy = "invocation=<org.hotelme.User: java.lang.String getFname()>_1874";
+//			 String carveBy = "invocation=<org.hotelme.User: java.lang.String getFname()>_1874";
+			 String carveBy = "invocation=<org.hotelme.HotelView: int roomConfirmation(java.util.Scanner,int,java.lang.String)>_2037";
 
 			String[] args = new String[] { //
 					"--carve-by", carveBy,
@@ -78,7 +79,8 @@ public class TestCarverForHotelReservationSystemWithScriptedClient {
 					// This is for carving
 					 // "--test-setup-by", "class=org.hotelme.utils.SystemTestUtils", //
 					// This is for delta debugging
-					 "--reset-environment-by", "org.hotelme.utils.SystemTestUtils.dropAndRecreateTheDb()" //
+					 "--reset-environment-by", "org.hotelme.utils.SystemTestUtils.dropAndRecreateTheDb()", //
+					 "--skip-minimize"
 			};
 			//// "class=org.hotelme.utils.ScriptRunner", //
 			//

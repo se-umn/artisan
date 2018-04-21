@@ -40,7 +40,9 @@ import de.unipassau.abc.carving.carvers.Level_0_MethodCarver;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
+import de.unipassau.abc.generation.DeltaDebugger;
 import de.unipassau.abc.generation.MockingGenerator;
+import de.unipassau.abc.generation.SootTestCaseFactory;
 import de.unipassau.abc.generation.TestCaseFactory;
 import de.unipassau.abc.generation.TestGenerator;
 import de.unipassau.abc.generation.TestSuiteExecutor;
@@ -397,6 +399,7 @@ public class Carver {
 		// Output Regular Carved Tests to files and returns them as
 		// CompilationUnit. Note that these classes have no problems with
 		// generics and casting.
+
 		boolean resolveTypes = true;
 
 		Set<CompilationUnit> generatedTestClasses = TestCaseFactory.generateTestFiles(projectJars, testClasses,
@@ -404,6 +407,13 @@ public class Carver {
 
 		// Store original tests to file
 		storeToFile(generatedTestClasses, outputDir);
+
+		/// Store those to another folder for debugging
+		Set<CompilationUnit> sootGeneratedTestClasses = SootTestCaseFactory.generateTestFiles(projectJars, testClasses);
+		storeToFile(sootGeneratedTestClasses, new File(outputDir.getName() + "_Soot"));
+
+		// Soot generated files are optimized, there's less variables and test
+		// cases have less instructions
 
 		testGenerationTime = System.currentTimeMillis() - testGenerationTime;
 
@@ -444,9 +454,13 @@ public class Carver {
 
 			cleanUpTestSuite(reducedTestSuite);
 
-			// REFACTOR
+			// REFACTOR and Clean up.
 			for (CompilationUnit reducedTestClass : reducedTestSuite) {
 				renameClass(reducedTestClass, "_reduced");
+
+				Carver.removeAtBeforeResetMethod(reducedTestClass);
+
+				Carver.removeXMLVerifierCalls(reducedTestClass);
 			}
 
 			// STORE IN THE SAME OUTPUT FOLDER
@@ -462,30 +476,40 @@ public class Carver {
 
 		long minimizationTime = System.currentTimeMillis();
 
-		// if (!skipMinimize) {
-		// DeltaDebugger deltaDebugger = new DeltaDebugger(outputDir,
-		// augmentedTestClasses, resetEnvironmentBy,
-		// projectJars);
-		//
-		// // Minimized Carved Tests - We work at the level of JAVA files
-		// // instead of SootMethods since soot methods do not carry
-		// // Information about "generics", it's JVM fault BTW since bytecode
-		// // does not have that.
-		// //
-		// logger.info("Carver.main() Start Minimize Test Cases via Delta
-		// Debugging");
-		//
-		// deltaDebugger.minimizeTestCases();
-		//
-		// // REFACTOR
-		// for( CompilationUnit reducedTestClass : reducedTestSuite )
-		// {
-		// renameClass(reducedTestClass, "_reduced");
-		// }
-		//
-		// // Output the files
-		// deltaDebugger.outputToFile();
-		// }
+		// Delta Debugging - We apply this to OUR test cases, not the REDUCED
+		// ones !
+		// This might take some time to complete... Note that we are modifying
+		// augmentedTestClasses
+		if (!skipMinimize) {
+			DeltaDebugger deltaDebugger = new DeltaDebugger(outputDir, augmentedTestClasses, resetEnvironmentBy,
+					projectJars);
+
+			// Minimized Carved Tests - We work at the level of JAVA files
+			// instead of SootMethods since soot methods do not carry
+			// Information about "generics", it's JVM fault BTW since bytecode
+			// does not have that.
+			//
+			logger.info("Carver.main() Start Minimize Test Cases via Delta Debugging");
+
+			// This changes augmentedTestClasses
+			deltaDebugger.minimizeTestCases();
+
+			// TODO At this point we might compress and remove duplicate test
+			// cases !
+
+			// REFACTOR and clean up
+			for (CompilationUnit reducedTestClass : augmentedTestClasses) {
+				renameClass(reducedTestClass, "_minimized");
+
+				Carver.removeAtBeforeResetMethod(reducedTestClass);
+
+				Carver.removeXMLVerifierCalls(reducedTestClass);
+			}
+
+			// Output the files
+			deltaDebugger.outputToFile();
+
+		}
 		logger.info("Carver.main() End Minimize Test Cases via Delta Debugging");
 		//
 		minimizationTime = System.currentTimeMillis() - minimizationTime;
@@ -520,7 +544,7 @@ public class Carver {
 	}
 
 	private static void storeToFile(Set<CompilationUnit> generatedTestClasses, File outputDir) throws IOException {
-		logger.debug("Output directory is " + outputDir.getAbsolutePath());
+		logger.info("Storing tests to " + outputDir.getAbsolutePath());
 
 		if (!outputDir.exists() && !outputDir.mkdirs()) {
 			throw new RuntimeException("Output dir " + outputDir.getAbsolutePath() + " cannot be created ");
@@ -740,10 +764,12 @@ public class Carver {
 	public static void removePureMethods(CompilationUnit testClass) {
 		testClass.accept(new ModifierVisitor<Void>() {
 
+			// This is a void or a method call whose return value is not
+			// assigned to anyone
 			@Override
 			public Visitable visit(MethodCallExpr n, Void arg) {
 				if (isPure(n)) {
-					logger.debug(" Remove pure method call " + n);
+					logger.info(" Remove pure method call " + n);
 					return null;
 				}
 				return super.visit(n, arg);
@@ -804,13 +830,20 @@ public class Carver {
 
 	}
 
-	// TODO Hardcoded values for the moment. Make strong assumption. We should
-	// have the symbol solver instead, but that's unrealiable !
-	// TODO We should check that the instance type is String tho !
+	// Purity methods are checked for Method Calls, that is calls to methods
+	// whose value is not assigned !
 	public static boolean isPure(MethodCallExpr methodCall) {
 		// TODO Assume tMethodCall are not Assign Expt !
 		String m = methodCall.getNameAsString();
-		return m.equals("length") || m.equals("startsWith") || m.equals("endsWith") || m.equals("lastIndexOf") || false;
+		return m.equals("length") || m.equals("startsWith") || m.equals("endsWith") || m.equals("lastIndexOf") || // String
+				m.equals("getAutoCommit") || // Sql Connection
+				m.equals("getResultSet") || // Sql statement
+				m.equals("size") || // List/Collections
+				// TODO Check the pure method is not also the MUT !
+//				m.equals("getPrice") || m.equals("getTotalPrice") || m.equals("getAdults") || m.equals("getChildren")
+//				|| m.equals("getMaxOccupancy") || m.equals("getRoomID") || m.equals("getTotalPrice") || // HotelMe
+				// "getCheckOut", getCheckIn
+				false;
 
 	}
 }

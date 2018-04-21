@@ -43,6 +43,7 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Pair;
+import soot.SootClass;
 
 // Execute the give test classes, parse the results and returns a data structor for pass/fail tests
 // XXXX THIS WORKS UNDER THE ASSUMPTION THAT THERE"S ONLY ONE TEST METHOD FOR EACH TEST CLASS !!
@@ -574,5 +575,11 @@ public class TestSuiteExecutor {
 			logger.info("Verification done in " + time + " ms");
 		}
 
+	}
+
+
+	public static void compileAndRunJUnitSootTests(Collection<SootClass> testClasses) {
+		// TODO Auto-generated method stub
+		
 	}
 }

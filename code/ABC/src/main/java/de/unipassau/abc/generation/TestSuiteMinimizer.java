@@ -55,7 +55,8 @@ public class TestSuiteMinimizer {
 		return testClasses.isEmpty();
 	}
 
-	public void performAMinimizationStep(Map<Pair<CompilationUnit, Signature>, Integer> currentIndex) {
+	// Return the count of removed methods
+	public int performAMinimizationStep(Map<Pair<CompilationUnit, Signature>, Integer> currentIndex) {
 
 		// NOTE THAT CompilationUnit IS changed as we go !!
 
@@ -64,6 +65,9 @@ public class TestSuiteMinimizer {
 		Map<String, BlockStmt> originalBodies = new HashMap<String, BlockStmt>();
 
 		List<Pair<CompilationUnit, Signature>> toRemove = new ArrayList<>();
+
+		Map<String, Statement> statementsUnderAnalysis = new HashMap<>();
+
 		// Modify each test by tentatively removing a statement.
 		for (Pair<CompilationUnit, Signature> testMethodData : currentIndex.keySet()) {
 
@@ -111,6 +115,8 @@ public class TestSuiteMinimizer {
 
 			BlockStmt modifiedBody = testMethod.getBody().get().clone();
 			modifiedBody.remove(s);
+			// Stats
+			statementsUnderAnalysis.put(testMethod.getSignature().asString(), s);
 
 			testMethod.setBody(modifiedBody);
 
@@ -119,45 +125,49 @@ public class TestSuiteMinimizer {
 		}
 
 		for (Pair<CompilationUnit, Signature> p : toRemove) {
-			System.out.println("TestSuiteMinimizer.performAMinimizationStep() Completed "
+			logger.info("TestSuiteMinimizer.performAMinimizationStep() Completed "
 					+ p.getFirst().getType(0).getNameAsString() + "." + p.getSecond().asString());
 			currentIndex.remove(p);
 		}
 
-		// TODO Execute only the
-		// This one takes care of compilation and execution errors !
 		Collection<Pair<CompilationUnit, Signature>> failedTests = testSuiteExecutor
 				.executeAndReportFailedTests(currentIndex);
 
+		System.out.println("TestSuiteMinimizer.performAMinimizationStep() " + failedTests.size() + "FAILED TESTS");
+
 		// Restore the body for the failedTests
-		for (Pair<CompilationUnit, Signature> testMethodData : failedTests) {
+		for (Pair<CompilationUnit, Signature> testMethodData : currentIndex.keySet()) {
 
-			String methodName = testMethodData.getSecond().getName();
-			Type[] _parameterTypes = testMethodData.getSecond().getParameterTypes().toArray(new Type[] {});
-			String[] parameterTypes = new String[_parameterTypes.length];
-			for (int i = 0; i < _parameterTypes.length; i++) {
-				parameterTypes[i] = _parameterTypes[i].asString();
+			if (failedTests.contains(testMethodData)) {
+
+				String methodName = testMethodData.getSecond().getName();
+				Type[] _parameterTypes = testMethodData.getSecond().getParameterTypes().toArray(new Type[] {});
+				String[] parameterTypes = new String[_parameterTypes.length];
+				for (int i = 0; i < _parameterTypes.length; i++) {
+					parameterTypes[i] = _parameterTypes[i].asString();
+				}
+
+				// There must be exactly one method with the same parameters and
+				// name !
+				MethodDeclaration testMethod = testMethodData.getFirst().getType(0)
+						.getMethodsBySignature(methodName, parameterTypes).get(0);
+
+				logger.debug(
+						"DeltaDebugger.minimize() Verification Failed, for " + testMethod.getDeclarationAsString());
+
+				BlockStmt originalBody = originalBodies.get(testMethodData.getSecond().asString());
+				//
+				testMethod.setBody(originalBody);
+			} else {
+				logger.info("   - Removed " + statementsUnderAnalysis.get(testMethodData.getSecond().asString())
+						+ " from " + testMethodData.getSecond().asString());
 			}
-
-			// There must be exactly one method with the same parameters and
-			// name !
-			MethodDeclaration testMethod = testMethodData.getFirst().getType(0)
-					.getMethodsBySignature(methodName, parameterTypes).get(0);
-
-			logger.info("DeltaDebugger.minimize() Verification Failed, for " + testMethod.getDeclarationAsString());
-
-			BlockStmt originalBody = originalBodies.get(testMethodData.getSecond().asString());
-			//
-			testMethod.setBody(originalBody);
 		}
 
-		// Stats we compute them later
-		// logger.info("Removed " + removed + " out of " + total + "
-		// instructions from test "
-		// + testMethod.getNameAsString() + " " + (((double) removed / (double)
-		// total) * 100));
-
-		// }
+		// Stats how many instruction removed?
+		int removed = currentIndex.size() - failedTests.size();
+		//
+		return removed;
 
 	}
 
@@ -204,7 +214,7 @@ public class TestSuiteMinimizer {
 
 	}
 
-	//This assumes testClasses are augmented already !
+	// This assumes testClasses are augmented already !
 	public Set<CompilationUnit> coverageBasedMinimization(Set<CompilationUnit> testClasses) throws CarvingException {
 
 		double totalCoverage = Double.MAX_VALUE;
@@ -280,14 +290,15 @@ public class TestSuiteMinimizer {
 
 		// Process batches of classes and then clean up resources
 		// Javaparser heavily rely on strings which blows up GC
-//		Pattern testName = Pattern.compile("Test\\(.*\\)_.*");
+		// Pattern testName = Pattern.compile("Test\\(.*\\)_.*");
 		// TODO Make this a proper pattern matching
 		Map<String, Set<CompilationUnit>> batches = new HashMap<>();
 		for (CompilationUnit testClass : testClasses) {
 			// TestHotelView_264 -> HotelView
-//			Matcher m = testName.matcher(testClass.getType(0).getNameAsString());
-//			String cut = m.group(1);
-			String cut = testClass.getType(0).getNameAsString().replace("Test","").split("_")[0];
+			// Matcher m =
+			// testName.matcher(testClass.getType(0).getNameAsString());
+			// String cut = m.group(1);
+			String cut = testClass.getType(0).getNameAsString().replace("Test", "").split("_")[0];
 			if (!batches.containsKey(cut)) {
 				batches.put(cut, new HashSet<>());
 			}
@@ -308,35 +319,19 @@ public class TestSuiteMinimizer {
 		Map<Pair<CompilationUnit, Signature>, Integer> currentIndex = new HashMap<>();
 
 		for (CompilationUnit testClass : testClasses) {
-			// Include the reset environment call if needed
-			Carver.createAtBeforeResetMethod(resetEnvironmentBy, testClass);
-
-			// Refactor the class (name, constructor, etc)
-			Carver.renameClass(testClass, "_minimized");
-
 			// Remove methods that statically are not state-changing
 			Carver.removePureMethods(testClass);
-
 			// Extract the TestMethods and set the currentIndex at the right
 			// position. Put all since a test class might contain more test
 			// methods !
 			currentIndex.putAll(generateCurrentIndex(testClass));
 		}
 
+		int totalInstructionsRemoved = 0;
 		while (!currentIndex.isEmpty()) {
-			performAMinimizationStep(currentIndex);
-		}
-
-		for (CompilationUnit testClass : testClasses) {
-			Carver.removeAtBeforeResetMethod(testClass);
-
-			Carver.removeXMLVerifierCalls(testClass);
-
-			// logger.info("Removed " + removed + " out of " + total + "
-			// instructions from test "
-			// + testMethod.getNameAsString() + " " + (((double) removed /
-			// (double) total) * 100));
-
+			int removed = performAMinimizationStep(currentIndex);
+			totalInstructionsRemoved = totalInstructionsRemoved + removed;
+			logger.info("Removed " + removed + " stmt. Cumulative " + totalInstructionsRemoved);
 		}
 
 	}

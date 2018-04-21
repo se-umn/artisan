@@ -237,6 +237,9 @@ public class TestCaseFactory {
 				JimpleUtils.prettyPrint(testClass);
 			}
 
+			
+			
+			//
 			CompilationUnit javaCode = converSootClassToJavaClass(testClass);
 
 			// Resolve the missing generics
@@ -256,6 +259,7 @@ public class TestCaseFactory {
 				resolveMissingGenerics(javaCode, combinedTypeSolver);
 			}
 
+			
 			generatedTestClasses.add(javaCode);
 		}
 
@@ -396,6 +400,7 @@ public class TestCaseFactory {
 		// https://github.com/javaparser/javaparser/wiki/Manual
 		logger.debug("TestCaseFactory.generateTestFiles() " + sootClass.getName());
 
+		
 		CompilationUnit cu = new CompilationUnit();
 		cu.setPackageDeclaration(sootClass.getPackageName());
 

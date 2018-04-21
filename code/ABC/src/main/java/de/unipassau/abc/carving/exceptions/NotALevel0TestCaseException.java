@@ -19,6 +19,11 @@ public class NotALevel0TestCaseException extends CarvingException {
 		this.subsumingPath = subsumingPath;
 	}
 
+	public NotALevel0TestCaseException(MethodInvocation subsumedMethodInvocation, String message) {
+		super(message);
+		this.subsumedMethodInvocation = subsumedMethodInvocation;
+	}
+
 	public MethodInvocation getSubsumedMethodInvocation() {
 		return subsumedMethodInvocation;
 	}
