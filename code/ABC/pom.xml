@@ -86,8 +86,11 @@
 		</dependency>
 		<!-- Utility for Decompiling Class files into Java -->
 		<!-- THis is nice but becomes superflous if we generate java code directly -->
-		<!-- <dependency> <groupId>org.bitbucket.mstrobel</groupId> <artifactId>procyon-compilertools</artifactId> 
-			<version>0.5.32</version> </dependency> -->
+		<dependency>
+			<groupId>org.bitbucket.mstrobel</groupId>
+			<artifactId>procyon-compilertools</artifactId>
+			<version>0.5.32</version>
+		</dependency>
 		<!-- Sets operators. TODO I am afraid that guava would be overkilling -->
 		<dependency>
 			<groupId>com.google.guava</groupId>
@@ -104,7 +107,7 @@
 
 
 		<!-- Test suite reduction -->
-		<!--  Using the release jar, e.g., core-0.8.1 breaks -->
+		<!-- Using the release jar, e.g., core-0.8.1 breaks -->
 		<dependency>
 			<groupId>org.jacoco</groupId>
 			<artifactId>jacoco-maven-plugin</artifactId>
