@@ -33,7 +33,7 @@ public class CarverTest {
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
 	@Test
 	@Category(ManualTest.class)
@@ -55,9 +55,14 @@ public class CarverTest {
 			 */
 //			String carveBy = "package=org.employee";
 //			String carveBy = "class=org.employee.FileRead2";
-			String carveBy = "method=<org.employee.FileRead2: int fileIsRead(java.lang.String,java.lang.String)>";
+//			String carveBy = "method=<org.employee.FileRead2: int fileIsRead(java.lang.String,java.lang.String)>";
+//			String carveBy = "invocation=<org.employee.FileRead2: int fileIsRead(java.lang.String,java.lang.String)>_6108";
 //			String carveBy = "invocation=<org.employee.Validation: void <init>()>_54";
-
+			
+//			String carveBy = "method=<org.employee.SeniorSoftwareEngineer: void calcCal()>";
+			
+			String carveBy = "invocation=<org.employee.SeniorSoftwareEngineer: void calcCal()>_1035";
+			
 			String[] args = new String[] {
 					"--carve-by", carveBy,
 					// String traceFile =

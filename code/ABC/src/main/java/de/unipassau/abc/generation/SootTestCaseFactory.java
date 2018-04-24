@@ -435,8 +435,11 @@ public class SootTestCaseFactory {
 				if (m.equals(testMethod)) {
 					final List<Unit> validation = Carver.generateValidationUnit(testMethod, mut.getXmlDumpForOwner(),
 							mut.getXmlDumpForReturn(), carvedTestCase.getSecond().getReturnObjectLocalFor(mut));
-					Unit returnStmt = m.getActiveBody().getUnits().getLast();
-					m.getActiveBody().getUnits().insertBefore(validation, returnStmt);
+
+					if (!validation.isEmpty()) {
+						Unit returnStmt = m.getActiveBody().getUnits().getLast();
+						m.getActiveBody().getUnits().insertBefore(validation, returnStmt);
+					}
 				}
 			}
 
