@@ -100,7 +100,7 @@ public class TestSuiteExecutor {
 		while (iterator.hasNext()) {
 			CompilationUnit testClass = iterator.next();
 			if (!compileJUnitTest(testClass)) {
-				System.out.println(" Cannot compile " + testClass.getType(0).getNameAsString());
+				logger.warn(" Cannot compile " + testClass.getType(0).getNameAsString());
 				// Accumulate the test methods in this call
 				failedTests.addAll(getTestMethods(testClass));
 				//

@@ -47,6 +47,7 @@ import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.VoidType;
@@ -62,6 +63,7 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 
 import de.unipassau.abc.utils.JimpleUtils;
+import java_cup.assoc;
 import soot.Body;
 import soot.BooleanType;
 import soot.Local;
@@ -245,33 +247,32 @@ public class TestCaseFactory {
 		for (File jar : projectJars) {
 			combinedTypeSolver.add(new JarTypeSolver(jar.getAbsolutePath()));
 		}
-		
+
 		for (SootClass testClass : testClasses) {
-			
-			logger.info("Generate source code for " + testClass.getName() );
+
+			logger.info("Generate source code for " + testClass.getName());
 
 			long start = System.currentTimeMillis();
 			CompilationUnit javaCode = converSootClassToJavaClass(testClass);
-			long end =  System.currentTimeMillis();
-			logger.info("Conversion from soot took " + (end-start) + " mses ");
-			
+			long end = System.currentTimeMillis();
+			logger.info("Conversion from soot took " + (end - start) + " mses ");
+
 			// Forcefully initialize all the Objects to null if they are not
 			// initialized !
 			start = System.currentTimeMillis();
 			forceObjectInitialization(javaCode, combinedTypeSolver);
-			end =  System.currentTimeMillis();
-			logger.info("Forcing variable initialization took " + (end-start) + " mses ");
-			
+			end = System.currentTimeMillis();
+			logger.info("Forcing variable initialization took " + (end - start) + " mses ");
+
 			// During delta debugging there's no need to resolve types
 			if (resolveTypes) {
 				// This updates the code
 				start = System.currentTimeMillis();
 				resolveMissingGenerics(javaCode, combinedTypeSolver);
-				end =  System.currentTimeMillis();
-				logger.info("Resolving types  took " + (end-start) + " mses ");
+				end = System.currentTimeMillis();
+				logger.info("Resolving types  took " + (end - start) + " mses ");
 			}
 
-			
 			generatedTestClasses.add(javaCode);
 		}
 
@@ -280,29 +281,31 @@ public class TestCaseFactory {
 	}
 
 	public static void forceObjectInitialization(CompilationUnit cu, TypeSolver typeSolver) {
-//		cu.accept(new ModifierVisitor<JavaParserFacade>() {
-//			
-//			public VariableDeclarator visit(final VariableDeclarator n, JavaParserFacade javaParserFacade) {
-//				super.visit(n, javaParserFacade);
-//				
-//				try {
-//
-//					if (!javaParserFacade.getType(n).isPrimitive() && n.getInitializer().equals(Optional.empty())) {
-//						// System.out.println("Focing null init for " + n);
-//						n.setInitializer(new NullLiteralExpr());
-//					}
-//				} catch (Exception e) {
-//					// TODO: handle exception
-//				}
-//				return n;
-//			}
-//		}, JavaParserFacade.get(typeSolver));
-		cu.accept( new ModifierVisitor<Void>(){
+		// cu.accept(new ModifierVisitor<JavaParserFacade>() {
+		//
+		// public VariableDeclarator visit(final VariableDeclarator n,
+		// JavaParserFacade javaParserFacade) {
+		// super.visit(n, javaParserFacade);
+		//
+		// try {
+		//
+		// if (!javaParserFacade.getType(n).isPrimitive() &&
+		// n.getInitializer().equals(Optional.empty())) {
+		// // System.out.println("Focing null init for " + n);
+		// n.setInitializer(new NullLiteralExpr());
+		// }
+		// } catch (Exception e) {
+		// // TODO: handle exception
+		// }
+		// return n;
+		// }
+		// }, JavaParserFacade.get(typeSolver));
+		cu.accept(new ModifierVisitor<Void>() {
 			public Visitable visit(VariableDeclarator n, Void arg) {
-				if(n.getInitializer().equals(Optional.empty())){
-					if( ! JimpleUtils.isPrimitiveDeclaration( n.getNameAsString() )){
+				if (n.getInitializer().equals(Optional.empty())) {
+					if (!JimpleUtils.isPrimitiveDeclaration(n.getNameAsString())) {
 						n.setInitializer(new NullLiteralExpr());
-					} 
+					}
 				}
 				// Rerutn the original
 				return super.visit(n, arg);
@@ -371,10 +374,10 @@ public class TestCaseFactory {
 			public AssignExpr visit(final AssignExpr n, JavaParserFacade javaParserFacade) {
 
 				// Skip expensive computations for known elements, such as
-//				 Strings -> javalangstring*
-//				 if( n.getTarget().toString().startsWith("javalangstring")){
-//					 return n;
-//				 }
+				// Strings -> javalangstring*
+				// if( n.getTarget().toString().startsWith("javalangstring")){
+				// return n;
+				// }
 
 				// Left
 				ResolvedType targetType = null;
@@ -406,14 +409,15 @@ public class TestCaseFactory {
 					return n;
 				}
 
-				// This changes the ast and all the calls to symbol solver might be broken !
+				// This changes the ast and all the calls to symbol solver might
+				// be broken !
 				if (!targetType.isAssignableBy(valueType)) {
 					CastExpr c = new CastExpr();
 					c.setType(targetType.describe());
 					c.setExpression(n.getValue());
 					n.setValue(c);
 				}
-				
+
 				return n;
 			}
 		}, JavaParserFacade.get(typeSolver));
@@ -426,7 +430,6 @@ public class TestCaseFactory {
 		// https://github.com/javaparser/javaparser/wiki/Manual
 		logger.debug("TestCaseFactory.generateTestFiles() " + sootClass.getName());
 
-		
 		CompilationUnit cu = new CompilationUnit();
 		cu.setPackageDeclaration(sootClass.getPackageName());
 
@@ -668,5 +671,25 @@ public class TestCaseFactory {
 		}
 		//
 		return cu;
+	}
+
+	public static void checkAndSetRetunValue(CompilationUnit javaCode, final String nameOfTheReturnType) {
+		javaCode.accept(new ModifierVisitor<Void>() {
+			@Override
+			public Visitable visit(MethodDeclaration n, Void arg) {
+				if (n.isAnnotationPresent(Test.class)) {
+					Statement mut = n.getBody().get().getStatements().removeLast();
+					if (!mut.toString().contains("returnValue")) {
+						String assignStatement = nameOfTheReturnType + " returnValue = " + mut.toString();
+						n.getBody().get().addStatement(assignStatement);
+					} else {
+						n.getBody().get().addStatement(mut);
+					}
+				}
+				//
+				return super.visit(n, arg);
+			}
+		}, null);
+
 	}
 }

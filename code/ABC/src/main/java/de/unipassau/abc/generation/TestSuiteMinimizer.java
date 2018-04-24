@@ -67,8 +67,6 @@ public class TestSuiteMinimizer {
 	// Return the count of removed methods
 	public int performAMinimizationStep(Map<Pair<CompilationUnit, Signature>, Integer> currentIndex) {
 
-		// NOTE THAT CompilationUnit IS changed as we go !!
-
 		// Temporary store the original bodies of the test methods
 		// Under the assumption that tests have unique method name !
 		Map<String, BlockStmt> originalBodies = new HashMap<String, BlockStmt>();
@@ -85,6 +83,7 @@ public class TestSuiteMinimizer {
 				toRemove.add(testMethodData);
 				continue;
 			}
+
 			// Copy and store the original body
 			String methodName = testMethodData.getSecond().getName();
 			Type[] _parameterTypes = testMethodData.getSecond().getParameterTypes().toArray(new Type[] {});
@@ -102,16 +101,25 @@ public class TestSuiteMinimizer {
 			Statement s = null;
 			newIndex = currentIndex.get(testMethodData);
 			do {
-				// Go to the next
+				// Go to the next interesting statement
 				s = testMethod.getBody().get().getStatement(newIndex);
-				logger.debug("Try to remove " + s + " from " + methodName + " at position " + newIndex);
-				boolean mandatory = Carver.isMandatory(s);
-				if (mandatory) {
-					logger.debug(s + " is mandatory ");
+
+				if (Carver.isMandatory(s)) {
+					logger.debug("Skip mandatory call " + s);
+					newIndex = newIndex - 1;
+					continue;
 				}
-				// Move to next statmt
+
+				if (Carver.isExternalInterface(s)) {
+					logger.debug("Get External Interface call " + s);
+					newIndex = newIndex - 1;
+					break;
+				}
+				logger.debug("Skip non external call " + s);
 				newIndex = newIndex - 1;
-			} while (Carver.isMandatory(s) && newIndex > 0);
+			} while (newIndex > 0);
+
+			logger.info("Try to remove " + s + " from " + methodName + " at position " + (newIndex + 1));
 
 			// At this point if there's nothing more to check, we skip
 			if (newIndex == 0) {
@@ -122,11 +130,18 @@ public class TestSuiteMinimizer {
 			BlockStmt originalBody = testMethod.getBody().get().clone();
 			originalBodies.put(testMethod.getSignature().asString(), originalBody);
 
-			BlockStmt modifiedBody = testMethod.getBody().get().clone();
-			modifiedBody.remove(s);
+			// Use the real body
+			BlockStmt modifiedBody = testMethod.getBody().get();
+			boolean removed = modifiedBody.remove(s);
+
+			if (!removed) {
+				System.out.println("TestSuiteMinimizer.performAMinimizationStep() ERROR " + s + " not removed !");
+			}
+
 			// Stats
 			statementsUnderAnalysis.put(testMethod.getSignature().asString(), s);
 
+			// Force the new body
 			testMethod.setBody(modifiedBody);
 
 			// Store the index for the next round
@@ -134,7 +149,7 @@ public class TestSuiteMinimizer {
 		}
 
 		for (Pair<CompilationUnit, Signature> p : toRemove) {
-			logger.info("TestSuiteMinimizer.performAMinimizationStep() Completed "
+			logger.info(">>> TestSuiteMinimizer.performAMinimizationStep() Completed "
 					+ p.getFirst().getType(0).getNameAsString() + "." + p.getSecond().asString());
 			currentIndex.remove(p);
 		}
@@ -142,34 +157,43 @@ public class TestSuiteMinimizer {
 		Collection<Pair<CompilationUnit, Signature>> failedTests = testSuiteExecutor
 				.executeAndReportFailedTests(currentIndex);
 
-		System.out.println("TestSuiteMinimizer.performAMinimizationStep() " + failedTests.size() + "FAILED TESTS");
+		// System.out.println("FAILED TEST: " + failedTests.size());
 
 		// Restore the body for the failedTests
 		for (Pair<CompilationUnit, Signature> testMethodData : currentIndex.keySet()) {
 
-			if (failedTests.contains(testMethodData)) {
+			// System.out
+			// .println("TestSuiteMinimizer.performAMinimizationStep() " +
+			// testMethodData.getSecond().asString());
+			//
+			// // Since we changed the test Compilation Unit is changed as well
+			// !
 
-				String methodName = testMethodData.getSecond().getName();
-				Type[] _parameterTypes = testMethodData.getSecond().getParameterTypes().toArray(new Type[] {});
-				String[] parameterTypes = new String[_parameterTypes.length];
-				for (int i = 0; i < _parameterTypes.length; i++) {
-					parameterTypes[i] = _parameterTypes[i].asString();
-				}
+			for (Pair<CompilationUnit, Signature> failedTestMethodData : failedTests) {
 
-				// There must be exactly one method with the same parameters and
-				// name !
-				MethodDeclaration testMethod = testMethodData.getFirst().getType(0)
-						.getMethodsBySignature(methodName, parameterTypes).get(0);
+				if (testMethodData.getSecond().asString().equals(failedTestMethodData.getSecond().asString())) {
 
-				logger.debug(
-						"DeltaDebugger.minimize() Verification Failed, for " + testMethod.getDeclarationAsString());
+					String methodName = testMethodData.getSecond().getName();
+					Type[] _parameterTypes = testMethodData.getSecond().getParameterTypes().toArray(new Type[] {});
+					String[] parameterTypes = new String[_parameterTypes.length];
+					for (int i = 0; i < _parameterTypes.length; i++) {
+						parameterTypes[i] = _parameterTypes[i].asString();
+					}
+					//
+					MethodDeclaration testMethod = testMethodData.getFirst().getType(0)
+							.getMethodsBySignature(methodName, parameterTypes).get(0);
 
-				BlockStmt originalBody = originalBodies.get(testMethodData.getSecond().asString());
-				//
-				testMethod.setBody(originalBody);
-			} else {
-				logger.info("   - Removed " + statementsUnderAnalysis.get(testMethodData.getSecond().asString())
-						+ " from " + testMethodData.getSecond().asString());
+					logger.info(
+							"DeltaDebugger.minimize() Verification Failed, for " + testMethod.getDeclarationAsString());
+
+					BlockStmt originalBody = originalBodies.get(testMethodData.getSecond().asString());
+					//
+					testMethod.setBody(originalBody);
+				} 
+//				else {
+//					logger.info("   - Removed " + statementsUnderAnalysis.get(testMethodData.getSecond().asString())
+//							+ " from " + testMethodData.getSecond().asString());
+//				}
 			}
 		}
 
@@ -205,15 +229,15 @@ public class TestSuiteMinimizer {
 					}
 					if (mutIndex == Integer.MAX_VALUE) {
 						// This might happen for static void calls... but then,
-						// what do we assert about them !?
-						logger.error("Cannot generate current index for " + testClass.getType(0).getNameAsString() + "."
-								+ n.getDeclarationAsString());
-					} else {
-						// mutIndex is the position of the MUT which we need to
-						// skip during minimization
-						currentIndex.put(new Pair<CompilationUnit, Signature>(testClass, n.getSignature()),
-								mutIndex - 1);
+						// what do we assert about them !? Nothing
+						// Pick the last as MUT
+						mutIndex = total - 1;
+						logger.info("Cannot generate current index for " + testClass.getType(0).getNameAsString() + "."
+								+ n.getDeclarationAsString() + " use " + mutIndex);
 					}
+					// mutIndex is the position of the MUT which we need to
+					// skip during minimization
+					currentIndex.put(new Pair<CompilationUnit, Signature>(testClass, n.getSignature()), mutIndex - 1);
 
 				}
 			}
@@ -295,17 +319,19 @@ public class TestSuiteMinimizer {
 		Set<CompilationUnit> minTestClasses = new HashSet<>();
 
 		for (int i = 0; i < testClassFQNames.length; i++) {
-//			logger.info("TestSuiteMinimizer.coverageBasedMinimization() " + testClassFQNames[i] );
+			// logger.info("TestSuiteMinimizer.coverageBasedMinimization() " +
+			// testClassFQNames[i] );
 			if (testClassFQNames[i] == null) {
 				continue;
 			} else {
-//				logger.info("TestSuiteMinimizer.coverageBasedMinimization() Processing " + testClassFQNames[i]);
-				
+				// logger.info("TestSuiteMinimizer.coverageBasedMinimization()
+				// Processing " + testClassFQNames[i]);
+
 				for (CompilationUnit cu : testClasses) {
-					
+
 					String className = cu.getPackageDeclaration().get().getNameAsString() + "."
 							+ cu.getType(0).getNameAsString();
-					
+
 					if (className.equals(testClassFQNames[i])) {
 						minTestClasses.add(cu.clone());
 					}
@@ -358,13 +384,14 @@ public class TestSuiteMinimizer {
 
 		for (CompilationUnit testClass : testClasses) {
 			// Remove methods that statically are not state-changing
-			Carver.removePureMethods(testClass);
+			// REALLY Needed?
+			// Carver.removePureMethods(testClass);
 			// Extract the TestMethods and set the currentIndex at the right
 			// position. Put all since a test class might contain more test
 			// methods !
 			currentIndex.putAll(generateCurrentIndex(testClass));
 		}
-
+		// Current Index at this point points on MUT
 		int totalInstructionsRemoved = 0;
 		while (!currentIndex.isEmpty()) {
 			int removed = performAMinimizationStep(currentIndex);

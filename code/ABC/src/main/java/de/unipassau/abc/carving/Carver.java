@@ -6,6 +6,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,7 @@ import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
+import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
@@ -31,6 +33,12 @@ import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
 import com.github.javaparser.ast.visitor.Visitable;
+import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import com.github.javaparser.symbolsolver.javaparsermodel.JavaParserFacade;
+import com.github.javaparser.symbolsolver.model.resolution.TypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.CombinedTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
+import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 import com.lexicalscope.jewel.cli.ArgumentValidationException;
 import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
@@ -46,12 +54,12 @@ import de.unipassau.abc.generation.SootTestCaseFactory;
 import de.unipassau.abc.generation.TestCaseFactory;
 import de.unipassau.abc.generation.TestGenerator;
 import de.unipassau.abc.generation.TestSuiteExecutor;
-import de.unipassau.abc.generation.TestSuiteMinimizer;
 import de.unipassau.abc.generation.impl.EachTestAlone;
 import de.unipassau.abc.instrumentation.UtilInstrumenter;
 import de.unipassau.abc.utils.JimpleUtils;
+import edu.emory.mathcs.backport.java.util.Arrays;
+import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicBoolean;
 import soot.Body;
-import soot.FloatType;
 import soot.G;
 import soot.PatchingChain;
 import soot.Scene;
@@ -232,6 +240,8 @@ public class Carver {
 			traceFile = cli.getTraceFile();
 			outputDir = cli.getOutputDir();
 			projectJars.addAll(cli.getProjectJar());
+
+			setupTypeSolver(projectJars);
 
 			resetEnvironmentBy = cli.getResetEnvironmentBy();
 
@@ -452,43 +462,46 @@ public class Carver {
 		}
 		logger.info("Validating the carved tests END");
 
-		long testSuiteMinimizationTime = System.currentTimeMillis();
-		
-//		// TODO Use test minimizer in post processing 
-//		if (!skipMinimize) {
-//			logger.info("Carver.main() Start Minimize Test Suite");
-//			// At this point augmentedTestClasses contains all the necessary
-//			// code
-//			// for validation and minimization
-//			try {
-//				TestSuiteMinimizer testSuiteMinimizer = new TestSuiteMinimizer(augmentedTestClasses, resetEnvironmentBy,
-//						new TestSuiteExecutor(projectJars));
-//
-//				// We use clone, so this should return new classes...
-//				Set<CompilationUnit> reducedTestSuite = testSuiteMinimizer.minimizeTestSuite();
-//
-//				cleanUpTestSuite(reducedTestSuite);
-//
-//				// REFACTOR and Clean up.
-//				for (CompilationUnit reducedTestClass : reducedTestSuite) {
-//					renameClass(reducedTestClass, "_reduced");
-//
-//					Carver.removeAtBeforeResetMethod(reducedTestClass);
-//
-//					Carver.removeXMLVerifierCalls(reducedTestClass);
-//				}
-//
-//				// STORE IN THE SAME OUTPUT FOLDER
-//				storeToFile(reducedTestSuite, outputDir);
-//
-//			} catch (CarvingException e) {
-//				logger.error("Error while minimimize the test suite !", e);
-//				System.exit(1);
-//			}
-//
-//			logger.info("Carver.main() End Minimize Test Suite");
-//		}
-		testSuiteMinimizationTime = System.currentTimeMillis() - testSuiteMinimizationTime;
+		// long testSuiteMinimizationTime = System.currentTimeMillis();
+
+		// // TODO Use test minimizer in post processing
+		// if (!skipMinimize) {
+		// logger.info("Carver.main() Start Minimize Test Suite");
+		// // At this point augmentedTestClasses contains all the necessary
+		// // code
+		// // for validation and minimization
+		// try {
+		// TestSuiteMinimizer testSuiteMinimizer = new
+		// TestSuiteMinimizer(augmentedTestClasses, resetEnvironmentBy,
+		// new TestSuiteExecutor(projectJars));
+		//
+		// // We use clone, so this should return new classes...
+		// Set<CompilationUnit> reducedTestSuite =
+		// testSuiteMinimizer.minimizeTestSuite();
+		//
+		// cleanUpTestSuite(reducedTestSuite);
+		//
+		// // REFACTOR and Clean up.
+		// for (CompilationUnit reducedTestClass : reducedTestSuite) {
+		// renameClass(reducedTestClass, "_reduced");
+		//
+		// Carver.removeAtBeforeResetMethod(reducedTestClass);
+		//
+		// Carver.removeXMLVerifierCalls(reducedTestClass);
+		// }
+		//
+		// // STORE IN THE SAME OUTPUT FOLDER
+		// storeToFile(reducedTestSuite, outputDir);
+		//
+		// } catch (CarvingException e) {
+		// logger.error("Error while minimimize the test suite !", e);
+		// System.exit(1);
+		// }
+		//
+		// logger.info("Carver.main() End Minimize Test Suite");
+		// }
+		// testSuiteMinimizationTime = System.currentTimeMillis() -
+		// testSuiteMinimizationTime;
 
 		long minimizationTime = System.currentTimeMillis();
 
@@ -540,7 +553,8 @@ public class Carver {
 		System.out.println("carvingTime " + carvingTime);
 		System.out.println("testGenerationTime " + testGenerationTime);
 		if (!skipMinimize) {
-			System.out.println("testSuiteMinimizationTime " + testSuiteMinimizationTime);
+			// System.out.println("testSuiteMinimizationTime " +
+			// testSuiteMinimizationTime);
 			System.out.println("minimizationTime " + minimizationTime);
 		}
 		System.out.println("====================================");
@@ -639,10 +653,11 @@ public class Carver {
 
 				List<Value> methodStartParameters = new ArrayList<Value>();
 				methodStartParameters.add(actualValue);
-				
-				// Wrap everythign into a String ! Why ? Can't I simply box the expected Value as well, because this will be invoked on java and fail ! 
+
+				// Wrap everythign into a String ! Why ? Can't I simply box the
+				// expected Value as well, because this will be invoked on java
+				// and fail !
 				methodStartParameters.add(StringConstant.v(expectedValue.toString()));
-				
 
 				// Create the invocation object
 				validationUnits.add(Jimple.v().newInvokeStmt(
@@ -718,11 +733,45 @@ public class Carver {
 			// Find the class and test method
 			for (CompilationUnit cu : generatedClasses) {
 				String sootClassName = testMethod.getDeclaringClass().getName();
-				String javaClassName = cu.getType(0).getNameAsString();
+				String javaClassName = cu.getPackageDeclaration().get().getNameAsString() + "."
+						+ cu.getType(0).getNameAsString();
 				if (javaClassName.equals(sootClassName)) {
-					cu.accept(new ModifierVisitor<Void>() {
-						public Visitable visit(MethodDeclaration n, Void arg) {
-							if (n.getNameAsString().equals(testMethod.getName())) {
+
+					cu.accept(new ModifierVisitor<JavaParserFacade>() {
+						public Visitable visit(MethodDeclaration n, JavaParserFacade arg) {
+
+							System.out.println(" Visiting " + n.getDeclarationAsString());
+							// There's only 1 test method
+							// if
+							// (n.getNameAsString().equals(testMethod.getName()))
+							// {
+							if (n.isAnnotationPresent(Test.class)) {
+								BlockStmt methodBody = n.getBody().get();
+
+								// TODO FIND A WAY TO GET THE LATEST INVOCATION, FIND IT'S RETURN TYPE, AND CREATE AN ASSIGN STATMENT TO REPLACE IT
+//								// Check if the last statment has the
+//								// returnValue variabls
+//								Statement mut = methodBody.getStatements().removeLast();
+//
+//								if (!mut.toString().contains("returnValue")) {
+//									// TODO We need to update this statement
+//									mut.accept(new VoidVisitorAdapter<JavaParserFacade>() {
+//										public void visit(MethodCallExpr n, JavaParserFacade arg) {
+//											System.out.println(" Finding return type for " + n + " --> "
+//													+ n.getNameAsExpression());
+//											try {
+//												arg.getType(n.getNameAsExpression());
+//											} catch (Exception e) {
+//												System.out.println("Cannot find type for " + n);
+//											}
+//										}
+//
+//									}, arg);
+//
+//								}
+//
+//								methodBody.addStatement(mut);
+
 								// Include the statements into the body
 								for (Unit validationUnit : validation) {
 
@@ -731,7 +780,11 @@ public class Carver {
 
 										Expression validationStmt = TestCaseFactory
 												.convertSootInvocationExpr(validationExpr, testMethod.getActiveBody());
-										n.getBody().get().addStatement(validationStmt);
+
+										// TODO Introduce the returnValue
+										// varaible agin ! wee most likely need
+										// symbolSovler
+										methodBody.addStatement(validationStmt);
 										// Create the statements here and
 										// include
 										// them in the right test method body !
@@ -745,7 +798,7 @@ public class Carver {
 							}
 
 						}
-					}, null);
+					}, JavaParserFacade.get(TYPE_SOLVER));
 				}
 			}
 
@@ -918,5 +971,84 @@ public class Carver {
 				// "getCheckOut", getCheckIn
 				false;
 
+	}
+
+	// VERY BAD !
+
+	private static TypeSolver TYPE_SOLVER;
+
+	private static void setupTypeSolver(List<File> projectJars) throws IOException {
+		// Resolve the missing generics
+		CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
+		combinedTypeSolver.add(new ReflectionTypeSolver());
+
+		for (File jar : projectJars) {
+			combinedTypeSolver.add(new JarTypeSolver(jar.getAbsolutePath()));
+		}
+		TYPE_SOLVER = combinedTypeSolver;
+	}
+
+	private static final Set<String> externalInterfaces = new HashSet<>(Arrays.asList(new String[] { //
+			// "java.util.Scanner", // Leave the calls to Scanner for the moment
+			"java.io.FileWriter", //
+			"java.nio.Path", //
+			"java.io.BufferedWriter", //
+			"java.io.Writer", //
+			"java.io.File", //
+			"java.nio.Files", //
+			"java.sql.Connection", //
+			"java.sql.Statement", //
+			"java.sql.PreparedStatement" }));
+
+	// this requires the SymbolSover to get the type of S
+	// A statement might include several calls !
+	@SuppressWarnings("unchecked")
+	public static boolean isExternalInterface(Statement s) {
+		final AtomicBoolean isExternalInterface = new AtomicBoolean(false);
+		// System.out.println("Carver.isExternalInterface() " + s);
+		s.accept(new VoidVisitorAdapter<JavaParserFacade>() {
+			@Override
+			public void visit(ExpressionStmt n, JavaParserFacade arg) {
+				// TODO Auto-generated method stub
+				// System.out.println("visit() ExpressionStmt " + n);
+				super.visit(n, arg);
+			}
+
+			@Override
+			public void visit(AssignExpr n, JavaParserFacade arg) {
+				// TODO Auto-generated method stub
+				System.out.println("visit() AssignExpr " + n);
+				// ResolvedType targetType =
+				// javaParserFacade.getType(n.getTarget());
+				// ResolvedType valueType =
+				// javaParserFacade.getType(n.getValue());
+				super.visit(n, arg);
+			}
+
+			@Override
+			public void visit(MethodCallExpr n, JavaParserFacade arg) {
+				// TODO Auto-generated method stub
+				// Unless its a static ?
+				try {
+					// System.out.println("visit() MethodCallExpr " + n + " " +
+					// n.getScope().get());
+					String typeName = arg.getType(n.getScope().get()).describe();
+					// System.out.println("Resolved type: " + typeName);
+
+					if (externalInterfaces.contains(typeName)) {
+						// System.out.println("External interface : " +
+						// typeName);
+						isExternalInterface.set(true);
+					}
+
+				} catch (Exception e) {
+					System.out.println("Cannot resolve type " + e);
+				}
+				super.visit(n, arg);
+
+			}
+		}, JavaParserFacade.get(TYPE_SOLVER));
+
+		return isExternalInterface.get();
 	}
 }

@@ -341,22 +341,26 @@ public class TestGenerator {
 			// When we process the methodInvocationToCarve, we also generate a
 			// final assignment that enable regression testing
 			// Stmt returnStmt = null;
+			// FIXME For some reason, Soot removes this while generating
+			// bytecode. Most likely is some weird optimization which stripes
+			// off unused variables... but that's annoying !
 			if (methodInvocation.equals(methodInvocationToCarve)
 					&& !JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()))) {
 				String type = JimpleUtils.getReturnType(methodInvocation.getJimpleMethod());
 				// This shall be null at this point, since we do not use the
 				// return value ?
 				actualReturnValue = Jimple.v().newLocal("returnValue", RefType.v(type));
+				
 				body.getLocals().add(actualReturnValue);
-				// returnObjLocal = UtilInstrumenter.generateFreshLocal(body,
-				// RefType.v(type));
+				
+//				returnObjLocal = UtilInstrumenter.generateFreshLocal(body, RefType.v(type));
 
 				// Debug
-				logger.trace("  >>>> Create a new local variable " + actualReturnValue + " of type " + type
+				logger.info("  >>>> Create a new local variable " + actualReturnValue + " of type " + type
 						+ " to store the output of " + methodInvocationToCarve);
 				// FIXME: I have no idea of what a RetStmt is, but it does the
 				// trick, which is it results in an actual java assignment
-				// returnStmt = Jimple.v().newRetStmt(returnObjLocal);
+//				units.add( Jimple.v().newRetStmt( actualReturnValue ) );
 			}
 
 			// We need to use add because some method invocations are actually

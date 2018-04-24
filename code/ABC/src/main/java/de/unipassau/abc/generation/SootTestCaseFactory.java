@@ -27,8 +27,11 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeS
 import com.strobel.decompiler.DecompilerSettings;
 
 import de.unipassau.abc.utils.JimpleUtils;
+import soot.Local;
 import soot.SootClass;
+import soot.SootMethod;
 import soot.SourceLocator;
+import soot.Type;
 import soot.jimple.JasminClass;
 import soot.options.Options;
 import soot.util.JasminOutputStream;
@@ -37,12 +40,13 @@ public class SootTestCaseFactory {
 
 	private final static Logger logger = LoggerFactory.getLogger(SootTestCaseFactory.class);
 
-	public static Set<CompilationUnit> generateTestFiles(List<File> projectJars, Collection<SootClass> testClasses) throws IOException {
+	public static Set<CompilationUnit> generateTestFiles(List<File> projectJars, Collection<SootClass> testClasses)
+			throws IOException {
 
 		// Use a temp folder
 		File outputDir = Files.createTempDirectory("SootDecompile").toFile();
 		outputDir.deleteOnExit();
-		
+
 		Options.v().set_output_dir(outputDir.getAbsolutePath());
 
 		logger.debug("Output directory is " + outputDir.getAbsolutePath());
@@ -51,6 +55,7 @@ public class SootTestCaseFactory {
 			throw new RuntimeException("Output dir " + outputDir.getAbsolutePath() + " cannot be created ");
 		}
 
+		// Externalize this to a dependency !
 		Set<CompilationUnit> generatedClasses = new HashSet<>();
 		// Resolve the missing generics
 		CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
@@ -107,6 +112,26 @@ public class SootTestCaseFactory {
 				// This updates the code
 				TestCaseFactory.resolveMissingGenerics(javaCode, combinedTypeSolver);
 				// }
+
+				// extract the type of retunValue if any
+				Type returnValueType = null;
+				for (SootMethod m : testClass.getMethods()) {
+					if (m.getName().startsWith("test")) {
+						for (Local l : m.getActiveBody().getLocals()) {
+							if (l.getName().equals("returnValue")) {
+								returnValueType = l.getType();
+//								System.out.println("SootTestCaseFactory.generateTestFiles() Found return value "
+//										+ returnValueType);
+								break;
+							}
+
+						}
+					}
+				}
+
+				if (returnValueType != null) {
+					 TestCaseFactory.checkAndSetRetunValue(javaCode, returnValueType.toString() );
+				}
 
 				generatedClasses.add(javaCode);
 
