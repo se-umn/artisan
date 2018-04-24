@@ -9,10 +9,10 @@ import org.apache.commons.lang3.SystemUtils;
 public class ABCUtils {
 
 	public static String getTraceJar() {
-		String traceJar = "./libs/trace.jar"; // Eclipse testing
+		String traceJar = new File("./libs/trace.jar").getAbsolutePath(); // Eclipse testing
 
 		if (!new File(traceJar).exists()) {
-			traceJar = "../libs/trace.jar"; // Actual usage ...
+			traceJar = new File("../libs/trace.jar").getAbsolutePath(); // Actual usage ...
 			if (!new File(traceJar).exists()) {
 				throw new RuntimeException(new File(traceJar).getAbsolutePath() + " file is missing");
 			}
@@ -23,11 +23,10 @@ public class ABCUtils {
 
 	// I do not like this...
 	public static String getSystemRulesJar() {
-		String jar = "./src/main/resources/system-rules-1.17.0.jar";
-		; // Eclipse testing
+		String jar = new File("./src/main/resources/system-rules-1.17.0.jar").getAbsolutePath();
 
 		if (!new File(jar).exists()) {
-			jar = "../src/main/resources/system-rules-1.17.0.jar"; // Actual
+			jar = new File("../src/main/resources/system-rules-1.17.0.jar").getAbsolutePath(); // Actual
 																	// usage ...
 			if (!new File(jar).exists()) {
 				throw new RuntimeException(new File(jar).getAbsolutePath() + " file is missing");
@@ -61,10 +60,10 @@ public class ABCUtils {
 	public static List<File> getXStreamJars() {
 		List<File> jars = new ArrayList<>();
 		for (String jarName : new String[] { "xmlpull-1.1.3.1.jar", "xpp3_min-1.1.4c.jar", "xstream-1.4.10.jar" }) {
-			String jar = "./src/test/resources/" + jarName; // Eclipse testing
+			String jar = new File("./src/test/resources/" + jarName).getAbsolutePath(); // Eclipse testing
 
 			if (!new File(jar).exists()) {
-				jar = "../src/test/resources/" + jarName; // Actual usage ...
+				jar = new File("../src/test/resources/" + jarName).getAbsolutePath(); // Actual usage ...
 				if (!new File(jar).exists()) {
 					throw new RuntimeException(new File(jar).getAbsolutePath() + " file is missing");
 				}
@@ -93,10 +92,10 @@ public class ABCUtils {
 
 	public static String getJacocoAget() {
 //		
-		String agentJar = "./libs/jacocoagent.jar"; // Eclipse testing
+		String agentJar = new File("./libs/jacocoagent.jar").getAbsolutePath(); // Eclipse testing
 
 		if (!new File(agentJar).exists()) {
-			agentJar = "../libs/jacocoagent.jar"; // Actual usage ...
+			agentJar = new File("../libs/jacocoagent.jar").getAbsolutePath(); // Actual usage ...
 			if (!new File(agentJar).exists()) {
 				throw new RuntimeException(new File(agentJar).getAbsolutePath() + " file is missing");
 			}

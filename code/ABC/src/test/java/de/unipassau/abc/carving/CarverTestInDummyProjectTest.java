@@ -32,8 +32,9 @@ public class CarverTestInDummyProjectTest {
 
 		try {
 			
+			File tempFolder = temporaryFolderRule.newFile();
 			// REMEBER THE XML DIRECTORY TO READ FROM !
-			System.setProperty(XMLDumper.DUMP_DIR_PROPERTY_NAME, "/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut");
+			System.setProperty(XMLDumper.DUMP_DIR_PROPERTY_NAME, tempFolder.getAbsolutePath()  );
 			
 			
 			Carver carver = new Carver();
@@ -67,6 +68,8 @@ public class CarverTestInDummyProjectTest {
 //			assertEquals(1, ABCTestUtils.countFiles(outputDirectory, ".java"));
 
 			ABCTestUtils.printJavaClasses(outputDirectory);
+			
+			
 		} catch (Throwable e) {
 			e.printStackTrace();
 			fail("Exception raised");

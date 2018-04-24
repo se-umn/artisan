@@ -51,6 +51,7 @@ import de.unipassau.abc.generation.impl.EachTestAlone;
 import de.unipassau.abc.instrumentation.UtilInstrumenter;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.Body;
+import soot.FloatType;
 import soot.G;
 import soot.PatchingChain;
 import soot.Scene;
@@ -61,6 +62,7 @@ import soot.Value;
 import soot.jimple.AbstractStmtSwitch;
 import soot.jimple.InstanceInvokeExpr;
 import soot.jimple.InvokeExpr;
+import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
 import soot.jimple.StaticInvokeExpr;
 import soot.jimple.StringConstant;
@@ -308,11 +310,13 @@ public class Carver {
 		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTest : parsedTrace.values()) {
 			Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTest.getFirst(), parsedTest.getSecond(),
 					parsedTest.getThird());
-
 			carvedTests.addAll(testCarver.carve(carveBy, excludeBy));
 		}
 
+		// FIXME Remove duplicates here !
+
 		logger.info("Carver.main() End carving");
+
 		logger.debug(">> Carved tests : " + carvedTests.size());
 		carvingTime = System.currentTimeMillis() - carvingTime;
 
@@ -400,17 +404,24 @@ public class Carver {
 		// CompilationUnit. Note that these classes have no problems with
 		// generics and casting.
 
-		boolean resolveTypes = true;
+		// boolean resolveTypes = true;
+		// This checks and addresses problems like missing initialization,
+		// casting, etc.
+		Set<CompilationUnit> generatedTestClasses = null;
 
-		Set<CompilationUnit> generatedTestClasses = TestCaseFactory.generateTestFiles(projectJars, testClasses,
-				resolveTypes);
+		// Set<CompilationUnit> generatedTestClasses =
+		// TestCaseFactory.generateTestFiles(projectJars, testClasses,
+		// resolveTypes);
 
 		// Store original tests to file
-		storeToFile(generatedTestClasses, outputDir);
+		// storeToFile(generatedTestClasses, outputDir);
 
 		/// Store those to another folder for debugging
 		Set<CompilationUnit> sootGeneratedTestClasses = SootTestCaseFactory.generateTestFiles(projectJars, testClasses);
-		storeToFile(sootGeneratedTestClasses, new File(outputDir.getName() + "_Soot"));
+		storeToFile(sootGeneratedTestClasses, outputDir);
+
+		// Try out generation using soot to see if it faster/better
+		generatedTestClasses = sootGeneratedTestClasses;
 
 		// Soot generated files are optimized, there's less variables and test
 		// cases have less instructions
@@ -423,17 +434,18 @@ public class Carver {
 
 		logger.info("Validating the carved tests STARTS");
 
-		Set<CompilationUnit> augmentedTestClasses = null;
+		// This is only to improve readability of the code
+		Set<CompilationUnit> augmentedTestClasses = generatedTestClasses;
 		try {
 			// Augment the test cases with validation calls and reset
 			// environment. This regenerate the compilation units but DOES not
 			// rename it !
-			augmentedTestClasses = augmentTestSuite(carvedTestCases, projectJars, resetEnvironmentBy);
+			augmentTestSuite(augmentedTestClasses, carvedTestCases, projectJars, resetEnvironmentBy);
 
 			TestSuiteExecutor testSuiteExecutor = new TestSuiteExecutor(projectJars);
 			// This executes the test into a temp folder anyway, no need to
 			// rename them !
-			testSuiteExecutor.compileRunAndGetCoverageJUnitTests(generatedTestClasses);
+			testSuiteExecutor.compileRunAndGetCoverageJUnitTests(augmentedTestClasses);
 		} catch (CarvingException e1) {
 			// This happens if
 			logger.warn("Validation of the carved tests failed. ", e1);
@@ -441,37 +453,41 @@ public class Carver {
 		logger.info("Validating the carved tests END");
 
 		long testSuiteMinimizationTime = System.currentTimeMillis();
-
-		logger.info("Carver.main() Start Minimize Test Suite");
-		// At this point augmentedTestClasses contains all the necessary code
-		// for validation and minimization
-		try {
-			TestSuiteMinimizer testSuiteMinimizer = new TestSuiteMinimizer(augmentedTestClasses, resetEnvironmentBy,
-					new TestSuiteExecutor(projectJars));
-
-			// We use clone, so this should return new classes...
-			Set<CompilationUnit> reducedTestSuite = testSuiteMinimizer.minimizeTestSuite();
-
-			cleanUpTestSuite(reducedTestSuite);
-
-			// REFACTOR and Clean up.
-			for (CompilationUnit reducedTestClass : reducedTestSuite) {
-				renameClass(reducedTestClass, "_reduced");
-
-				Carver.removeAtBeforeResetMethod(reducedTestClass);
-
-				Carver.removeXMLVerifierCalls(reducedTestClass);
-			}
-
-			// STORE IN THE SAME OUTPUT FOLDER
-			storeToFile(reducedTestSuite, outputDir);
-
-		} catch (CarvingException e) {
-			logger.error("Error while minimimize the test suite !", e);
-			System.exit(1);
-		}
-
-		logger.info("Carver.main() End Minimize Test Suite");
+		
+//		// TODO Use test minimizer in post processing 
+//		if (!skipMinimize) {
+//			logger.info("Carver.main() Start Minimize Test Suite");
+//			// At this point augmentedTestClasses contains all the necessary
+//			// code
+//			// for validation and minimization
+//			try {
+//				TestSuiteMinimizer testSuiteMinimizer = new TestSuiteMinimizer(augmentedTestClasses, resetEnvironmentBy,
+//						new TestSuiteExecutor(projectJars));
+//
+//				// We use clone, so this should return new classes...
+//				Set<CompilationUnit> reducedTestSuite = testSuiteMinimizer.minimizeTestSuite();
+//
+//				cleanUpTestSuite(reducedTestSuite);
+//
+//				// REFACTOR and Clean up.
+//				for (CompilationUnit reducedTestClass : reducedTestSuite) {
+//					renameClass(reducedTestClass, "_reduced");
+//
+//					Carver.removeAtBeforeResetMethod(reducedTestClass);
+//
+//					Carver.removeXMLVerifierCalls(reducedTestClass);
+//				}
+//
+//				// STORE IN THE SAME OUTPUT FOLDER
+//				storeToFile(reducedTestSuite, outputDir);
+//
+//			} catch (CarvingException e) {
+//				logger.error("Error while minimimize the test suite !", e);
+//				System.exit(1);
+//			}
+//
+//			logger.info("Carver.main() End Minimize Test Suite");
+//		}
 		testSuiteMinimizationTime = System.currentTimeMillis() - testSuiteMinimizationTime;
 
 		long minimizationTime = System.currentTimeMillis();
@@ -523,8 +539,8 @@ public class Carver {
 		System.out.println("parsingTime " + parsingTime);
 		System.out.println("carvingTime " + carvingTime);
 		System.out.println("testGenerationTime " + testGenerationTime);
-		System.out.println("testSuiteMinimizationTime " + testSuiteMinimizationTime);
 		if (!skipMinimize) {
+			System.out.println("testSuiteMinimizationTime " + testSuiteMinimizationTime);
 			System.out.println("minimizationTime " + minimizationTime);
 		}
 		System.out.println("====================================");
@@ -543,7 +559,7 @@ public class Carver {
 
 	}
 
-	private static void storeToFile(Set<CompilationUnit> generatedTestClasses, File outputDir) throws IOException {
+	public static void storeToFile(Set<CompilationUnit> generatedTestClasses, File outputDir) throws IOException {
 		logger.info("Storing tests to " + outputDir.getAbsolutePath());
 
 		if (!outputDir.exists() && !outputDir.mkdirs()) {
@@ -623,8 +639,10 @@ public class Carver {
 
 				List<Value> methodStartParameters = new ArrayList<Value>();
 				methodStartParameters.add(actualValue);
-				// Wrap everythign into a String !
+				
+				// Wrap everythign into a String ! Why ? Can't I simply box the expected Value as well, because this will be invoked on java and fail ! 
 				methodStartParameters.add(StringConstant.v(expectedValue.toString()));
+				
 
 				// Create the invocation object
 				validationUnits.add(Jimple.v().newInvokeStmt(
@@ -634,12 +652,13 @@ public class Carver {
 			private void generateValidationForValue(Value value, String xmlFile, List<Unit> validationUnits) {
 
 				if (xmlFile == null || xmlFile.trim().length() == 0) {
-					System.out.println("Null XML File for " + value + " cannot do not create validation call");
+					// it can be a void call
+					logger.debug("Null XML File for " + value + " cannot do not create validation call");
 					return;
 				}
 
 				if (!new File(xmlFile).exists()) {
-					System.out.println("Cannot find XML File" + xmlFile + ", do not create validation call");
+					logger.warn("Cannot find XML File" + xmlFile + ", do not create validation call");
 					return;
 				}
 
@@ -665,16 +684,24 @@ public class Carver {
 	 * This returns an augmented test suite+ resetMethod @ before +XMLVerify
 	 * calls
 	 * 
+	 * FIXME: instead of regenerating the entire class from soot, generate ONLY
+	 * the XML verify statements, in the end those, if any are simply two calls
+	 * to static methods with given parameteres (objectName and returnValue) !
+	 * 
 	 * @param carvedTestCases
 	 * @param projectJars
 	 * @param resetEnvironmentBy
 	 * @return
 	 * @throws IOException
 	 */
-	public static Set<CompilationUnit> augmentTestSuite(
+	public static void augmentTestSuite(Set<CompilationUnit> generatedClasses,
 			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases, //
 			List<File> projectJars, //
 			String resetEnvironmentBy) throws IOException {
+
+		// Deep copy, no we keep using the augmented one
+		// Set<CompilationUnit> augmentedTestClasses = new
+		// HashSet<>(generatedClasses);
 
 		// Include in the tests the XML Assertions
 		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
@@ -683,41 +710,85 @@ public class Carver {
 			SootMethod testMethod = carvedTestCase.getThird();
 
 			// If the return value is a primitive it cannot be found in the xml
-			// file !
-			List<Unit> validation = generateValidationUnit(testMethod, mut.getXmlDumpForOwner(),
+			// file ! This includes also wrapping types !!! :(
+
+			final List<Unit> validation = generateValidationUnit(testMethod, mut.getXmlDumpForOwner(),
 					mut.getXmlDumpForReturn(), carvedTestCase.getSecond().getReturnObjectLocalFor(mut));
 
-			logger.info("DeltaDebugger.minimize() Validation code: " + validation);
-			final Body body = testMethod.getActiveBody();
-			// The very last unit is the "return" we need the one before it...
-			final PatchingChain<Unit> units = body.getUnits();
-			// Insert the validation code - if any ?!
-			if (validation.isEmpty()) {
-				logger.warn("DeltaDebugger.minimize() VALIDAITON IS EMPTY FOR " + testMethod);
-			} else {
-				units.insertBefore(validation, units.getLast());
+			// Find the class and test method
+			for (CompilationUnit cu : generatedClasses) {
+				String sootClassName = testMethod.getDeclaringClass().getName();
+				String javaClassName = cu.getType(0).getNameAsString();
+				if (javaClassName.equals(sootClassName)) {
+					cu.accept(new ModifierVisitor<Void>() {
+						public Visitable visit(MethodDeclaration n, Void arg) {
+							if (n.getNameAsString().equals(testMethod.getName())) {
+								// Include the statements into the body
+								for (Unit validationUnit : validation) {
+
+									if (validationUnit instanceof InvokeStmt) {
+										InvokeExpr validationExpr = ((InvokeStmt) validationUnit).getInvokeExpr();
+
+										Expression validationStmt = TestCaseFactory
+												.convertSootInvocationExpr(validationExpr, testMethod.getActiveBody());
+										n.getBody().get().addStatement(validationStmt);
+										// Create the statements here and
+										// include
+										// them in the right test method body !
+										logger.info("DeltaDebugger.minimize() Add Validation code: " + validationStmt
+												+ " to " + testMethod.getName());
+									}
+								}
+								return n;
+							} else {
+								return super.visit(n, arg);
+							}
+
+						}
+					}, null);
+				}
 			}
+
+			// Generate "literally" the calls
+
+			// Add the calls to the method bofy
+
+			// final Body body = testMethod.getActiveBody();
+			// // The very last unit is the "return" we need the one before
+			// it...
+			// final PatchingChain<Unit> units = body.getUnits();
+			// // Insert the validation code - if any ?!
+			// if (validation.isEmpty()) {
+			// logger.debug("DeltaDebugger.minimize() VALIDAITON IS EMPTY FOR "
+			// + testMethod);
+			// } else {
+			// units.insertBefore(validation, units.getLast());
+			// }
 
 		}
 
-		Set<SootClass> _testClasses = new HashSet<>();
-		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
-			SootClass sClass = carvedTestCase.getThird().getDeclaringClass();
-			if (!_testClasses.contains(sClass)) {
-				_testClasses.add(sClass);
-			}
-		}
-		//
-		boolean resolveTypes = true;
-		//
-		Set<CompilationUnit> testClasses = TestCaseFactory.generateTestFiles(projectJars, _testClasses, resolveTypes);
+		// //
+		// Set<SootClass> _testClasses = new HashSet<>();
+		// for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>
+		// carvedTestCase : carvedTestCases) {
+		// SootClass sClass = carvedTestCase.getThird().getDeclaringClass();
+		// if (!_testClasses.contains(sClass)) {
+		// _testClasses.add(sClass);
+		// }
+		// }
+		// //
+		// // HERE WE DO NOT NEED TO Check for missing initialization and
+		// casting and such anymore !!
+		// boolean resolveTypes = true;
+		// Set<CompilationUnit> testClasses =
+		// TestCaseFactory.generateTestFiles(projectJars, _testClasses,
+		// resolveTypes);
 
-		for (CompilationUnit testClass : testClasses) {
+		for (CompilationUnit testClass : generatedClasses) {
 			// Include the reset environment call if needed
 			createAtBeforeResetMethod(resetEnvironmentBy, testClass);
 		}
 
-		return testClasses;
 	}
 
 	// create a @Before method which invokes resetEnvironment by unless there's
@@ -840,8 +911,10 @@ public class Carver {
 				m.equals("getResultSet") || // Sql statement
 				m.equals("size") || // List/Collections
 				// TODO Check the pure method is not also the MUT !
-//				m.equals("getPrice") || m.equals("getTotalPrice") || m.equals("getAdults") || m.equals("getChildren")
-//				|| m.equals("getMaxOccupancy") || m.equals("getRoomID") || m.equals("getTotalPrice") || // HotelMe
+				// m.equals("getPrice") || m.equals("getTotalPrice") ||
+				// m.equals("getAdults") || m.equals("getChildren")
+				// || m.equals("getMaxOccupancy") || m.equals("getRoomID") ||
+				// m.equals("getTotalPrice") || // HotelMe
 				// "getCheckOut", getCheckIn
 				false;
 

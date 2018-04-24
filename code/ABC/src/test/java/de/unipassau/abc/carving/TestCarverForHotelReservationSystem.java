@@ -34,7 +34,7 @@ public class TestCarverForHotelReservationSystem {
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
 
 	@Test
 	@Category(ManualTest.class)
@@ -58,8 +58,17 @@ public class TestCarverForHotelReservationSystem {
 			// String carveBy = "invocation=<org.hotelme.User: java.lang.String
 			// getFname()>_1874";
 
-//			String carveBy = "invocation=<org.hotelme.HotelView: int roomConfirmation(java.util.Scanner,int,java.lang.String)>_2037";
-			String carveBy = "method=<org.hotelme.HotelView: int roomConfirmation(java.util.Scanner,int,java.lang.String)>";
+//			String carveBy = "invocation=<org.hotelme.HotelView: void exitMessage()>_11744";
+			
+//			String carveBy = "method=<org.hotelme.HotelView: void exitMessage()>";
+//			String carveBy = "invocation=<org.hotelme.HotelView: void exitMessage()>_21421";
+//			String carveBy = "invocation=<org.hotelme.HotelView: void exitMessage()>_27707";
+//			String carveBy = "invocation=<org.hotelme.HotelView: void exitMessage()>_40738";
+//			String carveBy = "invocation=<org.hotelme.HotelView: void exitMessage()>_40738";
+//			String carveBy = "method=<org.hotelme.HotelView: int roomConfirmation(java.util.Scanner,int,java.lang.String)>";
+			String carveBy = "method=<org.hotelme.Room: float getTotalPrice()>";
+					
+//			String carveBy = "invocation=<org.hotelme.HotelView: int roomConfirmation(java.util.Scanner,int,java.lang.String)>_3302";
 			
 //			orghotelmehotelView00.totalPrice(276.0F);
 			String[] args = new String[] { //

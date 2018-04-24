@@ -73,7 +73,7 @@ public class MockingGenerator {
 		} else {
 			systemInJunit4RuleField = new SootField(SYSTEM_IN_RULE_NAME,
 					RefType.v("org.junit.contrib.java.lang.system.TextFromStandardInputStream"),
-					Modifier.PUBLIC | Modifier.FINAL);
+					Modifier.PUBLIC );
 			//
 			// Add annotation
 			AnnotationGenerator.v().annotate(systemInJunit4RuleField, Rule.class);
@@ -159,7 +159,7 @@ public class MockingGenerator {
 		} else {
 			systemExitJunit4RuleField = new SootField(SYSTEM_EXIT_RULE_NAME,
 					RefType.v("org.junit.contrib.java.lang.system.ExpectedSystemExit"),
-					Modifier.PUBLIC | Modifier.FINAL);
+					Modifier.PUBLIC );
 			// Add annotation
 			AnnotationGenerator.v().annotate(systemExitJunit4RuleField, Rule.class);
 			Scene.v().loadClassAndSupport("org.junit.contrib.java.lang.system.ExpectedSystemExit");

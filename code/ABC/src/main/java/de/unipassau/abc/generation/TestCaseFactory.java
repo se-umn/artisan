@@ -51,6 +51,7 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.VoidType;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
+import com.github.javaparser.ast.visitor.Visitable;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.resolution.types.ResolvedReferenceType;
 import com.github.javaparser.resolution.types.ResolvedType;
@@ -223,40 +224,51 @@ public class TestCaseFactory {
 		}
 	}
 
+	/**
+	 * This might take ages because of type solver ?
+	 * 
+	 * @param projectJars
+	 * @param testClasses
+	 * @param resolveTypes
+	 * @return
+	 * @throws IOException
+	 */
 	public static Set<CompilationUnit> generateTestFiles(List<File> projectJars, //
 			Collection<SootClass> testClasses, //
 			boolean resolveTypes) throws IOException {
 
 		Set<CompilationUnit> generatedTestClasses = new HashSet<>();
 
+		// Resolve the missing generics
+		final CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
+		combinedTypeSolver.add(new ReflectionTypeSolver());
+		for (File jar : projectJars) {
+			combinedTypeSolver.add(new JarTypeSolver(jar.getAbsolutePath()));
+		}
+		
 		for (SootClass testClass : testClasses) {
-
-			// FOR VISUAL DEBUG
-			if (logger.isDebugEnabled() || logger.isTraceEnabled()) {
-				System.out.println("Carver.main() JIMPLE FILE " + testClass);
-				JimpleUtils.prettyPrint(testClass);
-			}
-
 			
-			
-			//
+			logger.info("Generate source code for " + testClass.getName() );
+
+			long start = System.currentTimeMillis();
 			CompilationUnit javaCode = converSootClassToJavaClass(testClass);
-
-			// Resolve the missing generics
-			CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
-			combinedTypeSolver.add(new ReflectionTypeSolver());
-			for (File jar : projectJars) {
-				combinedTypeSolver.add(new JarTypeSolver(jar.getAbsolutePath()));
-			}
-
+			long end =  System.currentTimeMillis();
+			logger.info("Conversion from soot took " + (end-start) + " mses ");
+			
 			// Forcefully initialize all the Objects to null if they are not
 			// initialized !
+			start = System.currentTimeMillis();
 			forceObjectInitialization(javaCode, combinedTypeSolver);
-
+			end =  System.currentTimeMillis();
+			logger.info("Forcing variable initialization took " + (end-start) + " mses ");
+			
 			// During delta debugging there's no need to resolve types
 			if (resolveTypes) {
 				// This updates the code
+				start = System.currentTimeMillis();
 				resolveMissingGenerics(javaCode, combinedTypeSolver);
+				end =  System.currentTimeMillis();
+				logger.info("Resolving types  took " + (end-start) + " mses ");
 			}
 
 			
@@ -268,21 +280,34 @@ public class TestCaseFactory {
 	}
 
 	public static void forceObjectInitialization(CompilationUnit cu, TypeSolver typeSolver) {
-		cu.accept(new ModifierVisitor<JavaParserFacade>() {
-			public VariableDeclarator visit(final VariableDeclarator n, JavaParserFacade javaParserFacade) {
-				super.visit(n, javaParserFacade);
-				try {
-
-					if (!javaParserFacade.getType(n).isPrimitive() && n.getInitializer().equals(Optional.empty())) {
-						// System.out.println("Focing null init for " + n);
+//		cu.accept(new ModifierVisitor<JavaParserFacade>() {
+//			
+//			public VariableDeclarator visit(final VariableDeclarator n, JavaParserFacade javaParserFacade) {
+//				super.visit(n, javaParserFacade);
+//				
+//				try {
+//
+//					if (!javaParserFacade.getType(n).isPrimitive() && n.getInitializer().equals(Optional.empty())) {
+//						// System.out.println("Focing null init for " + n);
+//						n.setInitializer(new NullLiteralExpr());
+//					}
+//				} catch (Exception e) {
+//					// TODO: handle exception
+//				}
+//				return n;
+//			}
+//		}, JavaParserFacade.get(typeSolver));
+		cu.accept( new ModifierVisitor<Void>(){
+			public Visitable visit(VariableDeclarator n, Void arg) {
+				if(n.getInitializer().equals(Optional.empty())){
+					if( ! JimpleUtils.isPrimitiveDeclaration( n.getNameAsString() )){
 						n.setInitializer(new NullLiteralExpr());
-					}
-				} catch (Exception e) {
-					// TODO: handle exception
+					} 
 				}
-				return n;
+				// Rerutn the original
+				return super.visit(n, arg);
 			}
-		}, JavaParserFacade.get(typeSolver));
+		}, null);
 
 	}
 
@@ -290,6 +315,7 @@ public class TestCaseFactory {
 		// Collect the Collections that are missing a generic type
 		final Map<String, ResolvedType> missingTypes = new HashMap<>();
 
+		//
 		cu.accept(new VoidVisitorAdapter<JavaParserFacade>() {
 			public void visit(final AssignExpr n, final JavaParserFacade javaParserFacade) {
 				super.visit(n, javaParserFacade);
@@ -306,7 +332,7 @@ public class TestCaseFactory {
 						//
 						if (((ResolvedReferenceType) targetType).typeParametersMap().isEmpty()
 								&& !((ResolvedReferenceType) valueType).typeParametersMap().isEmpty()) {
-							logger.debug(n.getTarget() + " misses type. Update to: " + valueType.describe());
+							logger.info(n.getTarget() + " misses type. Update to: " + valueType.describe());
 							missingTypes.put(n.getTarget().toString(), valueType);
 
 						}
@@ -323,7 +349,7 @@ public class TestCaseFactory {
 			public VariableDeclarator visit(final VariableDeclarator n, Void arg) {
 				super.visit(n, arg);
 				if (missingTypes.containsKey(n.getName().asString())) {
-					logger.trace("Updating Type Def for " + n.getName());
+					logger.info("Updating Type Def for " + n.getName());
 					n.setType(missingTypes.get(n.getName().asString()).describe());
 				}
 				return n;
@@ -346,9 +372,9 @@ public class TestCaseFactory {
 
 				// Skip expensive computations for known elements, such as
 //				 Strings -> javalangstring*
-				 if( n.getTarget().toString().startsWith("javalangstring")){
-					 return n;
-				 }
+//				 if( n.getTarget().toString().startsWith("javalangstring")){
+//					 return n;
+//				 }
 
 				// Left
 				ResolvedType targetType = null;
@@ -356,7 +382,7 @@ public class TestCaseFactory {
 					try {
 						typeCache.put(n.getTarget(), javaParserFacade.getType(n.getTarget()));
 					} catch (Exception e) {
-						logger.debug("Cannot resolve targetType in " + n.toString() + " reason. " + e);
+						logger.info("Cannot resolve targetType in " + n.toString() + " reason. " + e);
 						// e.printStackTrace();
 					}
 				}
@@ -369,14 +395,14 @@ public class TestCaseFactory {
 					try {
 						typeCache.put(n.getValue(), javaParserFacade.getType(n.getValue()));
 					} catch (Exception e) {
-						logger.debug("Cannot resolve valueType in " + n.toString() + " reason. " + e);
+						logger.info("Cannot resolve valueType in " + n.toString() + " reason. " + e);
 						// e.printStackTrace();
 					}
 				}
 				valueType = typeCache.get(n.getValue());
 
 				if (targetType == null || valueType == null) {
-					logger.trace("Type info is missing: " + targetType);
+					logger.info("Type info is missing: " + targetType);
 					return n;
 				}
 
@@ -434,7 +460,7 @@ public class TestCaseFactory {
 				myClass.addMember(genericMethodDeclaration);
 
 				NormalAnnotationExpr annotation = genericMethodDeclaration.addAndGetAnnotation(Test.class);
-				MemberValuePair timeout = new MemberValuePair("timeout", new NameExpr("10000"));
+				MemberValuePair timeout = new MemberValuePair("timeout", new NameExpr("4000"));
 				NodeList<MemberValuePair> attrs = new NodeList<>();
 				annotation.getPairs().add(timeout);
 				//

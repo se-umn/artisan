@@ -90,6 +90,8 @@ public class TestGenerator {
 		// To probably there's also something else to include here
 		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
 
+			long start = System.currentTimeMillis();
+
 			// Check basic properties, variables initialized before used
 			try {
 				validate(carvedTest);
@@ -106,7 +108,7 @@ public class TestGenerator {
 			MethodInvocation mut = carvedTest.getFirst().getLastMethodInvocation();
 
 			// Somehow this does include the executions we removed ?!
-			logger.info("Generate Test: " + mut);
+			// logger.info("Generate Test: " + mut);
 
 			SootClass testClass = testClassGenerator.getTestClassFor(mut);
 			try {
@@ -120,6 +122,8 @@ public class TestGenerator {
 				}
 			} catch (CarvingException e) {
 				logger.warn("Cannot generate test ", e);
+			} finally {
+				logger.info("Generate Test : " + mut + " took " + (System.currentTimeMillis() - start) + " msec");
 			}
 		}
 		return testCases;
@@ -439,7 +443,7 @@ public class TestGenerator {
 			// Some methods are only defined in super classes, so getting the
 			// method directly by name is not working !
 			method = Scene.v().getMethod(methodInvocation.getJimpleMethod());
-			
+
 			if (returnObjLocal != null) {
 				Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
 						jimple.newVirtualInvokeExpr(objLocal, method.makeRef(), parametersValues));

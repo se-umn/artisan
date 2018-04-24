@@ -225,15 +225,136 @@ public class TestSuiteExecutor {
 	 * @param testClasses
 	 * @return
 	 */
-	public double compileRunAndGetCoverageJUnitTests(Collection<CompilationUnit> testClasses) throws CarvingException {
+
+	public double runAndGetCoverageJUnitTests(List<String> testClassNames, File sourceDir) throws CarvingException {
 		long time = System.currentTimeMillis();
+		long prepareExecution = -1;
+		long prepareProcess = -1;
+		long actualExecution = -1;
+		long coverageAnalysis = -1;
 
 		double coverage = 0;
+
+		if (testClassNames.isEmpty()) {
+			// No test no coverage
+			return coverage;
+		}
+
+		try {
+			// Now execute all of classes under tempOutputDir
+			// Refactor
+			List<String> commands = new ArrayList<>();
+			String javaPath = SystemUtils.JAVA_HOME + File.separator + "bin" + File.separator + "java";
+			commands.add(javaPath);
+
+			// Add JaCoCo agent
+			File jacocoExec = new File(sourceDir, "jacoco.exec");
+			// TODO FIXME
+			String jacocoAgent = ABCUtils.getJacocoAget();
+
+			// TODO FIXME
+			String excludeList = "org.hotelme.Main,org.hotelme.systemtests.*,org.hotelme.utils.*";
+
+			commands.add("-javaagent:" + jacocoAgent + "=destfile=" + jacocoExec.getAbsolutePath() + ",excludes="
+					+ excludeList);
+
+			String classpath = buildClassPath(sourceDir);
+			commands.add("-cp");
+			commands.add(classpath);
+
+			commands.add("org.junit.runner.JUnitCore");
+
+			// Include test names
+			commands.addAll(testClassNames);
+
+			ProcessBuilder processBuilder = new ProcessBuilder(commands);
+
+			logger.trace("Execute for coverage: " + processBuilder.command());
+
+			// Disabling this creates some sort of data race and execution does
+			// not complete
+			processBuilder.inheritIO();
+
+			prepareProcess = System.currentTimeMillis() - prepareExecution;
+
+			Process process = processBuilder.start();
+
+			// Something breaks at this point ...
+
+			// Tests include TIMEOUT already
+			int result = process.waitFor();
+
+			if (result != 0) {
+				throw new CarvingException(
+						"Test execution cannot fail at this point ! Check " + processBuilder.command());
+			}
+
+			actualExecution = System.currentTimeMillis() - prepareProcess;
+
+			// Compute coverage
+			ExecFileLoader execFileLoader = new ExecFileLoader();
+			execFileLoader.load(jacocoExec);
+
+			CoverageBuilder coverageBuilder = new CoverageBuilder();
+			Analyzer analyzer = new Analyzer(execFileLoader.getExecutionDataStore(), coverageBuilder);
+
+			// The source not the tests ! Do we need this everytime ?!
+			for (File projectJar : projectJars) {
+				analyzer.analyzeAll(projectJar);
+			}
+
+			// TODO NOt sure about the title
+			IBundleCoverage bundle = coverageBuilder.getBundle("ABC");
+			coverage = bundle.getLineCounter().getCoveredRatio();
+			// bundle.getBranchCounter().getCoveredRatio();
+
+			coverageAnalysis = System.currentTimeMillis() - actualExecution;
+
+		} catch (CarvingException e) {
+			logger.error("Exception (Re)Thrown " + e.getMessage());
+			// Re-throw this one
+			throw e;
+		} catch (Exception e) {
+			logger.error("Exception Thrown " + e.getMessage());
+			e.printStackTrace();
+		} finally {
+			logger.info("Execution of " + testClassNames.size() + " tests took " + (System.currentTimeMillis() - time)
+					+ "\n" + " prepareExecution " + prepareExecution + " prepareProcess " + prepareProcess
+					+ " actualExecution " + actualExecution + " coverageAnalysis " + coverageAnalysis);
+		}
+
+		return coverage;
+	}
+
+	// FIXME THIS DOES NOT REALLY NeEd TO COMPILE AND RECOMPILE THE STUFF...
+	// OUTPUTTING THE STRINGS OF COMPILATION UNIT BECOMES A BURDER FOR THE CG !
+	public double compileRunAndGetCoverageJUnitTests(Collection<CompilationUnit> testClasses)
+			throws CarvingException, IOException {
+		// https://javabeat.net/the-java-6-0-compiler-api/
+		File tempOutputDir = Files.createTempDirectory("DeltaDebug").toFile();
+		tempOutputDir.deleteOnExit();
+		//
+		return compileRunAndGetCoverageJUnitTests(testClasses, tempOutputDir);
+
+	}
+
+	public double compileRunAndGetCoverageJUnitTests(Collection<CompilationUnit> testClasses, File workingDir)
+			throws CarvingException {
+		long time = System.currentTimeMillis();
+		long prepareExecution = -1;
+		long prepareProcess = -1;
+		long actualExecution = -1;
+		long coverageAnalysis = -1;
+
+		double coverage = 0;
+
 		List<String> testClassesAsArg = new ArrayList<>();
 		for (CompilationUnit testClass : testClasses) {
 			testClassesAsArg.add(testClass.getPackageDeclaration().get().getNameAsString() + "."
 					+ testClass.getTypes().get(0).getNameAsString());
 		}
+
+		prepareExecution = System.currentTimeMillis() - time;
 
 		if (testClasses.isEmpty()) {
 			// No test no coverage
@@ -241,10 +362,8 @@ public class TestSuiteExecutor {
 		}
 
 		try {
-			// https://javabeat.net/the-java-6-0-compiler-api/
-			File tempOutputDir = Files.createTempDirectory("DeltaDebug").toFile();
 
-			if (!compileJUnitTests(testClasses, tempOutputDir)) {
+			if (!compileJUnitTests(testClasses, workingDir)) {
 				throw new CarvingException("Compilation should not fail at this point !!!");
 			}
 
@@ -255,7 +374,7 @@ public class TestSuiteExecutor {
 			commands.add(javaPath);
 
 			// Add JaCoCo agent
-			File jacocoExec = new File(tempOutputDir, "jacoco.exec");
+			File jacocoExec = new File(workingDir, "jacoco.exec");
 			// TODO FIXME
 			String jacocoAgent = ABCUtils.getJacocoAget();
 
@@ -265,7 +384,7 @@ public class TestSuiteExecutor {
 			commands.add("-javaagent:" + jacocoAgent + "=destfile=" + jacocoExec.getAbsolutePath() + ",excludes="
 					+ excludeList);
 
-			String classpath = buildClassPath(tempOutputDir);
+			String classpath = buildClassPath(workingDir);
 			commands.add("-cp");
 			commands.add(classpath);
 
@@ -278,10 +397,16 @@ public class TestSuiteExecutor {
 
 			logger.trace("Execute for coverage: " + processBuilder.command());
 
-			// This is only for debugging
+			// Disabling this creates some sort of data race and execution does
+			// not complete
 			processBuilder.inheritIO();
 
+			prepareProcess = System.currentTimeMillis() - prepareExecution;
+
 			Process process = processBuilder.start();
+
+			// Something breaks at this point ...
+
 			// Tests include TIMEOUT already
 			int result = process.waitFor();
 
@@ -289,19 +414,17 @@ public class TestSuiteExecutor {
 				throw new CarvingException(
 						"Test execution cannot fail at this point ! Check " + processBuilder.command());
 			}
-			// Delete the folder ONLY if the tests pass, otherwise keep this
-			// around for post mortem debug
-			tempOutputDir.deleteOnExit();
+
+			actualExecution = System.currentTimeMillis() - prepareProcess;
 
 			// Compute coverage
 			ExecFileLoader execFileLoader = new ExecFileLoader();
 			execFileLoader.load(jacocoExec);
 
-			//
 			CoverageBuilder coverageBuilder = new CoverageBuilder();
 			Analyzer analyzer = new Analyzer(execFileLoader.getExecutionDataStore(), coverageBuilder);
 
-			// The source not the tests !
+			// The source not the tests ! Do we need this everytime ?!
 			for (File projectJar : projectJars) {
 				analyzer.analyzeAll(projectJar);
 			}
@@ -311,15 +434,19 @@ public class TestSuiteExecutor {
 			coverage = bundle.getLineCounter().getCoveredRatio();
 			// bundle.getBranchCounter().getCoveredRatio();
 
+			coverageAnalysis = System.currentTimeMillis() - actualExecution;
+
 		} catch (CarvingException e) {
+			logger.error("Exception (Re)Thrown " + e.getMessage());
 			// Re-throw this one
 			throw e;
 		} catch (Exception e) {
-			// TODO: handle exception
+			logger.error("Exception Thrown " + e.getMessage());
 			e.printStackTrace();
 		} finally {
-			logger.info(
-					"Execution of " + testClassesAsArg.size() + " tests took " + (System.currentTimeMillis() - time));
+			logger.info("Execution of " + testClassesAsArg.size() + " tests took " + (System.currentTimeMillis() - time)
+					+ "\n" + " prepareExecution " + prepareExecution + " prepareProcess " + prepareProcess
+					+ " actualExecution " + actualExecution + " coverageAnalysis " + coverageAnalysis);
 		}
 
 		return coverage;
@@ -577,9 +704,8 @@ public class TestSuiteExecutor {
 
 	}
 
-
 	public static void compileAndRunJUnitSootTests(Collection<SootClass> testClasses) {
 		// TODO Auto-generated method stub
-		
+
 	}
 }

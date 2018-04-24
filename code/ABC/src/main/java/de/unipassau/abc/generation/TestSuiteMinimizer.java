@@ -1,21 +1,28 @@
 package de.unipassau.abc.generation;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.CallableDeclaration.Signature;
 import com.github.javaparser.ast.body.MethodDeclaration;
@@ -23,6 +30,8 @@ import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import com.lexicalscope.jewel.cli.CliFactory;
+import com.lexicalscope.jewel.cli.Option;
 
 import de.unipassau.abc.carving.Carver;
 import de.unipassau.abc.carving.exceptions.CarvingException;
@@ -215,12 +224,26 @@ public class TestSuiteMinimizer {
 	}
 
 	// This assumes testClasses are augmented already !
+	// This does not need to recreate and recompile tests over and over !
 	public Set<CompilationUnit> coverageBasedMinimization(Set<CompilationUnit> testClasses) throws CarvingException {
+		try {
+			// https://javabeat.net/the-java-6-0-compiler-api/
+			File tempOutputDir = Files.createTempDirectory("Reduction").toFile();
+			tempOutputDir.deleteOnExit();
+			//
+			return coverageBasedMinimization(testClasses, tempOutputDir);
+		} catch (Exception e) {
+			throw new CarvingException("Error while doing coverageBasedMinimization", e);
+		}
+	}
+
+	public Set<CompilationUnit> coverageBasedMinimization(Set<CompilationUnit> testClasses, File workingDir)
+			throws CarvingException {
 
 		double totalCoverage = Double.MAX_VALUE;
 		try {
-			// Run tests and collect coverage
-			totalCoverage = testSuiteExecutor.compileRunAndGetCoverageJUnitTests(testClasses);
+			// Compile and run tests. Collect total coverage
+			totalCoverage = testSuiteExecutor.compileRunAndGetCoverageJUnitTests(testClasses, workingDir);
 			logger.debug("TestSuiteMinimizer.minimizeTestSuite() Total coverage " + totalCoverage);
 		} catch (CarvingException e) {
 			throw e;
@@ -230,48 +253,63 @@ public class TestSuiteMinimizer {
 
 		int removed = 0;
 
-		// Let's use the index and an array !
-		CompilationUnit[] _testClasses = testClasses.toArray(new CompilationUnit[] {});
+		String[] testClassFQNames = new String[testClasses.size()];
+		Iterator<CompilationUnit> iterator = testClasses.iterator();
 
-		for (int i = 0; i < _testClasses.length; i++) {
+		for (int i = 0; i < testClassFQNames.length; i++) {
+			CompilationUnit cu = iterator.next();
+			testClassFQNames[i] = cu.getPackageDeclaration().get().getNameAsString() + "."
+					+ cu.getType(0).getNameAsString();
+		}
 
-			logger.trace("TestSuiteMinimizer.minimizeTestSuite() Try to remove "
-					+ _testClasses[i].getType(0).getNameAsString());
+		for (int i = 0; i < testClassFQNames.length; i++) {
 
-			Set<CompilationUnit> testsToRun = new HashSet<>();
-			for (int j = 0; j < _testClasses.length; j++) {
-				if (_testClasses[j] != null && j != i) { // Skip i
-					testsToRun.add(_testClasses[j]);
+			logger.trace("TestSuiteMinimizer.minimizeTestSuite() Try to remove " + testClassFQNames[i]);
+
+			List<String> testsToRun = new ArrayList<>();
+			for (int j = 0; j < testClassFQNames.length; j++) {
+				if (testClassFQNames[j] != null && j != i) { // Skip i
+					testsToRun.add(testClassFQNames[j]);
 				}
 			}
 
 			// Do the execution
-			double coverage = testSuiteExecutor.compileRunAndGetCoverageJUnitTests(testsToRun);
+			double coverage = testSuiteExecutor.runAndGetCoverageJUnitTests(testsToRun, workingDir);
 
-			logger.trace("TestSuiteMinimizer.minimizeTestSuite() Coverage " + coverage);
+			logger.info("TestSuiteMinimizer.minimizeTestSuite() Coverage " + coverage);
 
 			if (coverage == totalCoverage) {
-				logger.debug("TestSuiteMinimizer.minimizeTestSuite() Coverage unchanged. Remove "
-						+ _testClasses[i].getType(0).getNameAsString());
+				logger.info("TestSuiteMinimizer.minimizeTestSuite() Coverage unchanged. Remove " + testClassFQNames[i]);
 				removed = removed + 1;
-				_testClasses[i] = null;
+				testClassFQNames[i] = null;
 			} else {
-				logger.debug("TestSuiteMinimizer.minimizeTestSuite() Coverage changed. Keep "
-						+ _testClasses[i].getType(0).getNameAsString());
+				logger.info("TestSuiteMinimizer.minimizeTestSuite() Coverage changed. Keep " + testClassFQNames[i]);
 			}
 
 		}
 		// At this point testToMinimize contains the minimial set.
-		logger.info("TestSuiteMinimizer.minimizeTestSuite() Removed " + removed + ", remaining " + testClasses.size()
+		logger.info("TestSuiteMinimizer.minimizeTestSuite() Removed " + removed + " out of " + testClasses.size()
 				+ " test classes");
 
 		// Now replace testClasses with the non null elements of _testClasses
 		Set<CompilationUnit> minTestClasses = new HashSet<>();
 
-		for (int i = 0; i < _testClasses.length; i++) {
-			if (_testClasses[i] != null) {
-				// CLONE THIS SO WE AVOID SIDE EFFECTS !
-				minTestClasses.add(_testClasses[i].clone());
+		for (int i = 0; i < testClassFQNames.length; i++) {
+//			logger.info("TestSuiteMinimizer.coverageBasedMinimization() " + testClassFQNames[i] );
+			if (testClassFQNames[i] == null) {
+				continue;
+			} else {
+//				logger.info("TestSuiteMinimizer.coverageBasedMinimization() Processing " + testClassFQNames[i]);
+				
+				for (CompilationUnit cu : testClasses) {
+					
+					String className = cu.getPackageDeclaration().get().getNameAsString() + "."
+							+ cu.getType(0).getNameAsString();
+					
+					if (className.equals(testClassFQNames[i])) {
+						minTestClasses.add(cu.clone());
+					}
+				}
 			}
 		}
 
@@ -336,4 +374,74 @@ public class TestSuiteMinimizer {
 
 	}
 
+	private static Set<CompilationUnit> getCompilationUnitFromSourceDirectory(File outputDir) throws IOException {
+		Set<CompilationUnit> compilationUnits = new HashSet<>();
+		Files.walkFileTree(outputDir.toPath(), new SimpleFileVisitor<Path>() {
+			@Override
+			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+				if (file.toString().endsWith(".java")) {
+					compilationUnits.add(JavaParser.parse(file));
+				}
+				return super.visitFile(file, attrs);
+			}
+		});
+
+		return compilationUnits;
+
+	}
+
+	public interface CommandLineInterface {
+
+		@Option(longName = "tests")
+		List<File> getTestFiles();
+
+		@Option(longName = "output-to")
+		File getOutputFolder();
+
+		@Option(longName = "project-jar")
+		List<File> getProjectJar();
+
+		@Option(longName = "reset-environment-by", defaultToNull = true)
+		String getResetEnvironmentBy();
+
+	}
+
+	public static void main(String[] args) throws CarvingException, IOException {
+
+		String resetEnvironmentBy = null;
+		Set<CompilationUnit> testSuite = new HashSet<>();
+		List<File> projectJars = new ArrayList<>();
+		File outputDir = null;
+		// Parse input
+		try {
+			CommandLineInterface cli = CliFactory.parseArguments(CommandLineInterface.class, args);
+			for (File f : cli.getTestFiles()) {
+				testSuite.add(JavaParser.parse(f));
+			}
+			resetEnvironmentBy = cli.getResetEnvironmentBy();
+			projectJars.addAll(cli.getProjectJar());
+			outputDir = cli.getOutputFolder();
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.exit(1);
+		}
+
+		//
+		TestSuiteMinimizer minimizer = new TestSuiteMinimizer(testSuite, resetEnvironmentBy,
+				new TestSuiteExecutor(projectJars));
+
+		logger.info("Coverage Based Minimization Start");
+
+		long time = System.currentTimeMillis();
+		// This will store the files and compiled files to outputDir
+		File tempWorkingDir = Files.createTempDirectory("Minimizer").toFile();
+		tempWorkingDir.deleteOnExit();
+
+		Set<CompilationUnit> reducedTestSuite = minimizer.coverageBasedMinimization(testSuite, tempWorkingDir);
+
+		Carver.storeToFile(reducedTestSuite, outputDir);
+
+		logger.info("Coverage Based Minimization End. It took " + (System.currentTimeMillis() - time) + "msec");
+
+	}
 }

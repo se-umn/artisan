@@ -135,94 +135,26 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// For example, private constructors instead of factory methods !
 		// boolean skipCartesian = false;
 		boolean skipCartesian = true;
+		long start = System.currentTimeMillis();
 		level0TestCarving(workList, carvedTests, context, skipCartesian);
-
+		long end = System.currentTimeMillis();
+		logger.info("\t Core Carving took " + (end - start));
 		// Ensure that any required testSetupCall, which is not yet included in
 		// the carved test, is taken into account,
 		// including its own carved preconditions
-		includeTestSetupCalls(carvedTests, context);
-
+		start = System.currentTimeMillis();
 		// Include the user defined test setup calls. Those are by definition
 		// disjointed from the actual test execution !
 		// Roughly, they correspond to @Before calls
-
+		includeTestSetupCalls(carvedTests, context);
+		end = System.currentTimeMillis();
+		logger.info("\t Core Test Setup Calls took " + (end - start));
+		
+		start = System.currentTimeMillis();
 		includeCallsToExternalInterfaces(carvedTests, context);
-
-		// if (!skipExternalInterfaces) {
-		//
-		// // Handle preconditions
-		// for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest :
-		// carvedTests) {
-		//
-		// // Merge the two
-		// Set<MethodInvocation> merge = new
-		// HashSet<>(carvedTest.getFirst().getOrderedMethodInvocations());
-		//
-		// List<Pair<ExecutionFlowGraph, DataDependencyGraph>>
-		// carvedPreconditions = processExternalInterfaces(
-		// carvedTest, //
-		// methodInvocationToCarve);
-		//
-		// // Some of those might not be applicable, e.g., when the
-		// // precondition also subsumes the MUT !
-		// for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition
-		// : carvedPreconditions) {
-		// boolean discard = false;
-		//
-		// // TODO If the precondition subsumes the call we discard it
-		// // ! Or subsume ANY of the methods in the test case ?
-		// // for (MethodInvocation mi :
-		// // carvedPrecondition.getFirst().getOrderedMethodInvocations())
-		// // {
-		// // if
-		// //
-		// (callGraph.getMethodInvocationsSubsumedBy(mi).contains(methodInvocationToCarve))
-		// // {
-		// // logger.info("Level_0_MethodCarver.level0TestCarving()
-		// // Method " + methodInvocationToCarve
-		// // + " is subsumed by " + mi + " discard precondition");
-		// // discard = true;
-		// // break;
-		// // }
-		// // }
-		// if
-		// (Collections.disjoint(carvedPrecondition.getFirst().getOrderedMethodInvocations(),
-		// carvedTest.getFirst().getOrderedMethodInvocations())) {
-		// merge.addAll(carvedPrecondition.getFirst().getOrderedMethodInvocations());
-		// logger.debug("Level_0_MethodCarver.level0TestCarving() Merging
-		// preconditions. ");
-		// } else {
-		// logger.info(
-		// "Level_0_MethodCarver.level0TestCarving() Preconditions are not
-		// disjoing from carved test");
-		// }
-		// }
-		// // At this point, since we carved the E.I. independently from
-		// // the carved test there might be duplicate calls...
-		// // TODO Why so? Maybe the same or interrelated preconditions on
-		// // E.I. ? All the problems seem to be related not to the core
-		// // carved tests
-		//
-		// // Finalize
-		// // Set<MethodInvocation> slice = new HashSet(merge);
-		// // Pair<ExecutionFlowGraph, DataDependencyGraph> finalTest =
-		// // generateCarvedTestFromSlice(slice, callGraph );
-		// // carvedTest.setFirst(finalTest.getFirst());
-		// // carvedTest.setSecond(finalTest.getSecond());
-		//
-		// List<MethodInvocation> orderedSlice = new ArrayList<>(merge);
-		// Collections.sort(orderedSlice);
-		// //
-		// ExecutionFlowGraph finalExecutionFlowGraph =
-		// executionFlowGraph.getSubGraph(orderedSlice);
-		// DataDependencyGraph finalDataDependencyGraph =
-		// dataDependencyGraph.getSubGraph(orderedSlice);
-		// //
-		// carvedTest.setFirst(finalExecutionFlowGraph);
-		// carvedTest.setSecond(finalDataDependencyGraph);
-		// }
-		// }
-
+		end = System.currentTimeMillis();
+		logger.info("\t Carving External Interface took " + (end - start));
+		
 		return carvedTests;
 	}
 
@@ -702,16 +634,16 @@ public class Level_0_MethodCarver implements MethodCarver {
 			// slice
 			subsumedCalls.retainAll(slice);
 
-			for (MethodInvocation mi : subsumedCalls) {
-				if (JimpleUtils.getMethodName(mi.getJimpleMethod()).equals("<init>")) {
-					System.out.println(
-							"Level_0_MethodCarver.generateCarvedTestFromSlice() We are subsuming method " + mi);
+			for (MethodInvocation subsumedConstructor : subsumedCalls) {
+				if (JimpleUtils.getMethodName(subsumedConstructor.getJimpleMethod()).equals("<init>")) {
+					logger.debug(
+							"Level_0_MethodCarver.generateCarvedTestFromSlice() We are subsuming method " + subsumedConstructor);
 
 					// Find if there's any other method in the slice which
 					// returns the same object
 					// These do not include INIT !
 					List<MethodInvocation> callsWhichReturnTheObject = new ArrayList<>(
-							dataDependencyGraph.getMethodInvocationsWhichReturn(mi.getOwner()));
+							dataDependencyGraph.getMethodInvocationsWhichReturn(subsumedConstructor.getOwner()));
 					// Consider only the one in the slice
 					callsWhichReturnTheObject.retainAll(slice);
 					// But remove ALL the methods which will be subsumed
@@ -727,12 +659,12 @@ public class Level_0_MethodCarver implements MethodCarver {
 					// Get the method calls for those object that are also in
 					// the slice
 					List<MethodInvocation> callsOnTheObject = new ArrayList<>(
-							dataDependencyGraph.getMethodInvocationsForOwner(mi.getOwner()));
+							dataDependencyGraph.getMethodInvocationsForOwner(subsumedConstructor.getOwner()));
 					// Sort by execution time
 					Collections.sort(callsOnTheObject);
 					// Remove the constructor - this is gonna be subsumed and it
 					// should be the FIRST METHOD
-					callsOnTheObject.remove(mi);
+					callsOnTheObject.remove(subsumedConstructor);
 					// Take only the calls which appear in the slice
 					callsOnTheObject.retainAll(slice);
 					// But remove ALL the methods which will be subsumed
@@ -762,7 +694,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 						// Computing the calls which subsumed <init>
 						List<MethodInvocation> subsumingCalls = _callGraph
-								.getOrderedSubsumingMethodInvocationsFor(methodInvocationToCarve);
+								.getOrderedSubsumingMethodInvocationsFor(subsumedConstructor);
 						// Keep only the ones that belong to the slice
 						subsumingCalls.retainAll(slice);
 
@@ -772,14 +704,14 @@ public class Level_0_MethodCarver implements MethodCarver {
 						//
 						for (MethodInvocation subsumingMethodInvocation : subsumingCalls) {
 							if (subsumingMethodInvocation.isStatic()) {
-								System.out.println(
+								logger.warn(
 										"Level_0_MethodCarver.generateCarvedTestFromSlice() Static methods are not yet covered: "
 												+ subsumingCalls);
 								continue;
 							}
 							// TODO Static methods are not covered !
 							ObjectInstance subsumingOwner = dataDependencyGraph.getOwnerFor(subsumingMethodInvocation);
-							System.out.println("Inspecting subsuming call " + subsumingMethodInvocation + " with owner "
+							logger.trace("Inspecting subsuming call " + subsumingMethodInvocation + " with owner "
 									+ subsumingOwner);
 							// Does this object have a method which subsumes the
 							// unsafe calls ?
@@ -788,7 +720,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 							for (MethodInvocation methodsOfSubsumingOwner : dataDependencyGraph
 									.getMethodInvocationsForOwner(subsumingOwner)) {
-								System.out.println("Owner has potential call " + methodsOfSubsumingOwner);
+								logger.trace("Owner has potential call " + methodsOfSubsumingOwner);
 
 								for (Iterator<MethodInvocation> unsafeIterator = unsafeCalls.iterator(); unsafeIterator
 										.hasNext();) {
@@ -799,7 +731,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 										continue;
 									} else if (callGraph.getMethodInvocationsSubsumedBy(methodsOfSubsumingOwner)
 											.contains(unsafe)) {
-										System.out.println(
+										logger.debug(
 												" Method " + methodsOfSubsumingOwner + " subsumes unsafe " + unsafe);
 										replacementCalls.add(methodsOfSubsumingOwner);
 										unsafeIterator.remove();
@@ -808,7 +740,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 							}
 						}
 
-						System.out.println(
+						logger.debug(
 								"Level_0_MethodCarver.generateCarvedTestFromSlice() Found the following REPLACEMENT calls: \n"
 										+ replacementCalls);
 
@@ -915,7 +847,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 				// this goes always to the past so we reduce the size of the
 				// trace
 
-				MethodInvocation lastestMethodInvocation = Collections.max(task.getSecond());
+//				MethodInvocation lastestMethodInvocation = Collections.max(task.getSecond());
 
 				for (MethodInvocation methodInvocation : task.getSecond()) {
 
@@ -1037,8 +969,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 				Map<ObjectInstance, Set<MethodInvocation>> methodsWhichReturnTheObjects = new HashMap<>();
 
-				List<MethodInvocation> executioneBeforeLast = _executionFlowGraph
-						.getOrderedMethodInvocationsBefore(lastestMethodInvocation);
+//				List<MethodInvocation> executioneBeforeLast = _executionFlowGraph
+//						.getOrderedMethodInvocationsBefore(lastestMethodInvocation);
 				// DataDependencyGraph dataDependencyGraphBefore =
 				// _dataDependencyGraph.getSubGraph(executioneBeforeLast);
 
@@ -2001,11 +1933,16 @@ public class Level_0_MethodCarver implements MethodCarver {
 			List<MethodInvocationMatcher> excludeBy) {
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
 
+		List<MethodInvocation> orderedMethodsInvocationsToCarve = new ArrayList<>(executionFlowGraph.getMethodInvocationsFor(carveBy,
+				/* excludeMain, excludeJavaLang, */
+				excludeBy.toArray(new MethodInvocationMatcher[] {})));
+		// By ordering them we should be able to exploit the precondition cache
+		Collections.sort( orderedMethodsInvocationsToCarve );
+		
 		// It seems that this cannot deal with Prefix. E.G., ClassFile,
 		// ClassFile1, ClassFile2 are all matched by "ClassFile"
-		for (MethodInvocation methodInvocationUnderTest : executionFlowGraph.getMethodInvocationsFor(carveBy,
-				/* excludeMain, excludeJavaLang, */
-				excludeBy.toArray(new MethodInvocationMatcher[] {}))) {
+		
+		for (MethodInvocation methodInvocationUnderTest : orderedMethodsInvocationsToCarve) {
 
 			if (methodInvocationUnderTest.isPrivate()) {
 				logger.info("We do not carve private methods " + methodInvocationUnderTest);

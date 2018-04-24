@@ -38,6 +38,11 @@ public class JimpleUtils {
 		return type.equals("boolean") || type.equals("byte") || type.equals("char") || type.equals("short")
 				|| type.equals("int") || type.equals("long") || type.equals("float") || type.equals("double");
 	}
+	
+	public static boolean isPrimitiveDeclaration(String type) {
+		return type.startsWith("boolean") || type.startsWith("byte") || type.startsWith("char") || type.startsWith("short")
+				|| type.startsWith("int") || type.startsWith("long") || type.startsWith("float") || type.startsWith("double");
+	}
 
 	public static boolean isString(Type type) {
 		return isString(type.toString());
