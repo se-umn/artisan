@@ -561,7 +561,7 @@ public class Carver {
 		System.out.println("Total " + (endTime - startTime) / 1000000000.0 + " s");
 
 		// Why is this required? Will the application hang otherwise
-		// System.exit(0);
+		 System.exit(0);
 	}
 
 	private static void cleanUpTestSuite(Set<CompilationUnit> reducedTestSuite) {
