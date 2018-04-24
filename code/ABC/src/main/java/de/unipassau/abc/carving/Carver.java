@@ -417,7 +417,6 @@ public class Carver {
 		// boolean resolveTypes = true;
 		// This checks and addresses problems like missing initialization,
 		// casting, etc.
-		Set<CompilationUnit> generatedTestClasses = null;
 
 		// Set<CompilationUnit> generatedTestClasses =
 		// TestCaseFactory.generateTestFiles(projectJars, testClasses,
@@ -426,16 +425,13 @@ public class Carver {
 		// Store original tests to file
 		// storeToFile(generatedTestClasses, outputDir);
 
-		/// Store those to another folder for debugging
-		Set<CompilationUnit> sootGeneratedTestClasses = SootTestCaseFactory.generateTestFiles(projectJars, testClasses);
-		storeToFile(sootGeneratedTestClasses, outputDir);
-
-		// Try out generation using soot to see if it faster/better
-		generatedTestClasses = sootGeneratedTestClasses;
+		// Generate directly the augmented classes, we do not really care about XMLValidation to be there at this point 
+		Set<CompilationUnit> augmentedTestClasses = SootTestCaseFactory.generateAugmenetedTestFiles(projectJars, testClasses, carvedTestCases);
+		//
+		storeToFile(augmentedTestClasses, outputDir);
 
 		// Soot generated files are optimized, there's less variables and test
 		// cases have less instructions
-
 		testGenerationTime = System.currentTimeMillis() - testGenerationTime;
 
 		logger.info("Carver.main() End Test generation. Files are available under " + outputDir.getAbsolutePath());
@@ -445,12 +441,15 @@ public class Carver {
 		logger.info("Validating the carved tests STARTS");
 
 		// This is only to improve readability of the code
-		Set<CompilationUnit> augmentedTestClasses = generatedTestClasses;
 		try {
-			// Augment the test cases with validation calls and reset
-			// environment. This regenerate the compilation units but DOES not
+			// Augment the test cases with reset environment. 
+			// This regenerate the compilation units but DOES not
 			// rename it !
-			augmentTestSuite(augmentedTestClasses, carvedTestCases, projectJars, resetEnvironmentBy);
+			// This is necessary to implement delta debugging since we remove E.I. !
+			for (CompilationUnit testClass : augmentedTestClasses) {
+				// Include the reset environment call if needed
+				createAtBeforeResetMethod(resetEnvironmentBy, testClass);
+			}
 
 			TestSuiteExecutor testSuiteExecutor = new TestSuiteExecutor(projectJars);
 			// This executes the test into a temp folder anyway, no need to
@@ -462,6 +461,7 @@ public class Carver {
 		}
 		logger.info("Validating the carved tests END");
 
+		
 		// long testSuiteMinimizationTime = System.currentTimeMillis();
 
 		// // TODO Use test minimizer in post processing
@@ -695,154 +695,53 @@ public class Carver {
 		return validationUnits;
 	}
 
-	/**
-	 * This returns an augmented test suite+ resetMethod @ before +XMLVerify
-	 * calls
-	 * 
-	 * FIXME: instead of regenerating the entire class from soot, generate ONLY
-	 * the XML verify statements, in the end those, if any are simply two calls
-	 * to static methods with given parameteres (objectName and returnValue) !
-	 * 
-	 * @param carvedTestCases
-	 * @param projectJars
-	 * @param resetEnvironmentBy
-	 * @return
-	 * @throws IOException
-	 */
-	public static void augmentTestSuite(Set<CompilationUnit> generatedClasses,
-			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases, //
-			List<File> projectJars, //
-			String resetEnvironmentBy) throws IOException {
-
-		// Deep copy, no we keep using the augmented one
-		// Set<CompilationUnit> augmentedTestClasses = new
-		// HashSet<>(generatedClasses);
-
-		// Include in the tests the XML Assertions
-		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
-
-			MethodInvocation mut = carvedTestCase.getFirst().getLastMethodInvocation();
-			SootMethod testMethod = carvedTestCase.getThird();
-
-			// If the return value is a primitive it cannot be found in the xml
-			// file ! This includes also wrapping types !!! :(
-
-			final List<Unit> validation = generateValidationUnit(testMethod, mut.getXmlDumpForOwner(),
-					mut.getXmlDumpForReturn(), carvedTestCase.getSecond().getReturnObjectLocalFor(mut));
-
-			// Find the class and test method
-			for (CompilationUnit cu : generatedClasses) {
-				String sootClassName = testMethod.getDeclaringClass().getName();
-				String javaClassName = cu.getPackageDeclaration().get().getNameAsString() + "."
-						+ cu.getType(0).getNameAsString();
-				if (javaClassName.equals(sootClassName)) {
-
-					cu.accept(new ModifierVisitor<JavaParserFacade>() {
-						public Visitable visit(MethodDeclaration n, JavaParserFacade arg) {
-
-							System.out.println(" Visiting " + n.getDeclarationAsString());
-							// There's only 1 test method
-							// if
-							// (n.getNameAsString().equals(testMethod.getName()))
-							// {
-							if (n.isAnnotationPresent(Test.class)) {
-								BlockStmt methodBody = n.getBody().get();
-
-								// TODO FIND A WAY TO GET THE LATEST INVOCATION, FIND IT'S RETURN TYPE, AND CREATE AN ASSIGN STATMENT TO REPLACE IT
-//								// Check if the last statment has the
-//								// returnValue variabls
-//								Statement mut = methodBody.getStatements().removeLast();
+//	/**
+//	 * This returns an augmented test suite+ resetMethod @ before +XMLVerify
+//	 * calls
+//	 * 
+//	 * FIXME: instead of regenerating the entire class from soot, generate ONLY
+//	 * the XML verify statements, in the end those, if any are simply two calls
+//	 * to static methods with given parameteres (objectName and returnValue) !
+//	 * 
+//	 * @param carvedTestCases
+//	 * @param projectJars
+//	 * @param resetEnvironmentBy
+//	 * @return
+//	 * @throws IOException
+//	 */
+//	public static void augmentTestSuite(Set<CompilationUnit> generatedClasses,
+//			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases, //
+//			List<File> projectJars, //
+//			String resetEnvironmentBy) throws IOException {
 //
-//								if (!mut.toString().contains("returnValue")) {
-//									// TODO We need to update this statement
-//									mut.accept(new VoidVisitorAdapter<JavaParserFacade>() {
-//										public void visit(MethodCallExpr n, JavaParserFacade arg) {
-//											System.out.println(" Finding return type for " + n + " --> "
-//													+ n.getNameAsExpression());
-//											try {
-//												arg.getType(n.getNameAsExpression());
-//											} catch (Exception e) {
-//												System.out.println("Cannot find type for " + n);
-//											}
-//										}
+//		// Deep copy, no we keep using the augmented one
+//		// Set<CompilationUnit> augmentedTestClasses = new
+//		// HashSet<>(generatedClasses);
 //
-//									}, arg);
 //
-//								}
+//		// //
+//		// Set<SootClass> _testClasses = new HashSet<>();
+//		// for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>
+//		// carvedTestCase : carvedTestCases) {
+//		// SootClass sClass = carvedTestCase.getThird().getDeclaringClass();
+//		// if (!_testClasses.contains(sClass)) {
+//		// _testClasses.add(sClass);
+//		// }
+//		// }
+//		// //
+//		// // HERE WE DO NOT NEED TO Check for missing initialization and
+//		// casting and such anymore !!
+//		// boolean resolveTypes = true;
+//		// Set<CompilationUnit> testClasses =
+//		// TestCaseFactory.generateTestFiles(projectJars, _testClasses,
+//		// resolveTypes);
 //
-//								methodBody.addStatement(mut);
-
-								// Include the statements into the body
-								for (Unit validationUnit : validation) {
-
-									if (validationUnit instanceof InvokeStmt) {
-										InvokeExpr validationExpr = ((InvokeStmt) validationUnit).getInvokeExpr();
-
-										Expression validationStmt = TestCaseFactory
-												.convertSootInvocationExpr(validationExpr, testMethod.getActiveBody());
-
-										// TODO Introduce the returnValue
-										// varaible agin ! wee most likely need
-										// symbolSovler
-										methodBody.addStatement(validationStmt);
-										// Create the statements here and
-										// include
-										// them in the right test method body !
-										logger.info("DeltaDebugger.minimize() Add Validation code: " + validationStmt
-												+ " to " + testMethod.getName());
-									}
-								}
-								return n;
-							} else {
-								return super.visit(n, arg);
-							}
-
-						}
-					}, JavaParserFacade.get(TYPE_SOLVER));
-				}
-			}
-
-			// Generate "literally" the calls
-
-			// Add the calls to the method bofy
-
-			// final Body body = testMethod.getActiveBody();
-			// // The very last unit is the "return" we need the one before
-			// it...
-			// final PatchingChain<Unit> units = body.getUnits();
-			// // Insert the validation code - if any ?!
-			// if (validation.isEmpty()) {
-			// logger.debug("DeltaDebugger.minimize() VALIDAITON IS EMPTY FOR "
-			// + testMethod);
-			// } else {
-			// units.insertBefore(validation, units.getLast());
-			// }
-
-		}
-
-		// //
-		// Set<SootClass> _testClasses = new HashSet<>();
-		// for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>
-		// carvedTestCase : carvedTestCases) {
-		// SootClass sClass = carvedTestCase.getThird().getDeclaringClass();
-		// if (!_testClasses.contains(sClass)) {
-		// _testClasses.add(sClass);
-		// }
-		// }
-		// //
-		// // HERE WE DO NOT NEED TO Check for missing initialization and
-		// casting and such anymore !!
-		// boolean resolveTypes = true;
-		// Set<CompilationUnit> testClasses =
-		// TestCaseFactory.generateTestFiles(projectJars, _testClasses,
-		// resolveTypes);
-
-		for (CompilationUnit testClass : generatedClasses) {
-			// Include the reset environment call if needed
-			createAtBeforeResetMethod(resetEnvironmentBy, testClass);
-		}
-
-	}
+//		for (CompilationUnit testClass : generatedClasses) {
+//			// Include the reset environment call if needed
+//			createAtBeforeResetMethod(resetEnvironmentBy, testClass);
+//		}
+//
+//	}
 
 	// create a @Before method which invokes resetEnvironment by unless there's
 	// already one

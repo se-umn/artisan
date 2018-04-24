@@ -149,12 +149,12 @@ public class Level_0_MethodCarver implements MethodCarver {
 		includeTestSetupCalls(carvedTests, context);
 		end = System.currentTimeMillis();
 		logger.info("\t Core Test Setup Calls took " + (end - start));
-		
+
 		start = System.currentTimeMillis();
 		includeCallsToExternalInterfaces(carvedTests, context);
 		end = System.currentTimeMillis();
 		logger.info("\t Carving External Interface took " + (end - start));
-		
+
 		return carvedTests;
 	}
 
@@ -635,9 +635,18 @@ public class Level_0_MethodCarver implements MethodCarver {
 			subsumedCalls.retainAll(slice);
 
 			for (MethodInvocation subsumedConstructor : subsumedCalls) {
+
 				if (JimpleUtils.getMethodName(subsumedConstructor.getJimpleMethod()).equals("<init>")) {
-					logger.debug(
-							"Level_0_MethodCarver.generateCarvedTestFromSlice() We are subsuming method " + subsumedConstructor);
+					logger.debug("Level_0_MethodCarver.generateCarvedTestFromSlice() We are subsuming method "
+							+ subsumedConstructor);
+
+					// Given than soot reports calls to all the super types, if
+					// the owner of the subsumed method is the same of the
+					// subsuming
+					// we mark those as safe. Basically, it will be always the
+					// case the a subtype.init subsumes the supertype.init (via
+					// implicit super())
+					//
 
 					// Find if there's any other method in the slice which
 					// returns the same object
@@ -720,13 +729,17 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 							for (MethodInvocation methodsOfSubsumingOwner : dataDependencyGraph
 									.getMethodInvocationsForOwner(subsumingOwner)) {
+
 								logger.trace("Owner has potential call " + methodsOfSubsumingOwner);
 
 								for (Iterator<MethodInvocation> unsafeIterator = unsafeCalls.iterator(); unsafeIterator
 										.hasNext();) {
 									MethodInvocation unsafe = unsafeIterator.next();
 
-									if (methodsOfSubsumingOwner.isAfter(unsafe)) {
+									if (subsumingOwner.equals(unsafe.getOwner())) {
+										// Calls that belong to the same owner are safe.
+										unsafeIterator.remove();
+									} else if (methodsOfSubsumingOwner.isAfter(unsafe)) {
 										// Skip calls later than usafe calls
 										continue;
 									} else if (callGraph.getMethodInvocationsSubsumedBy(methodsOfSubsumingOwner)
@@ -748,16 +761,16 @@ public class Level_0_MethodCarver implements MethodCarver {
 							// If at this point there's still unsafe calls we
 							// cannot do more than that
 
-							throw new CarvingException(
-									"GenerateCarvedTestFromSlice() Cannot generate for " + methodInvocationToCarve
-											+ " from " + orderedSlice + "\n"
-													+ "There are unsafe operations: " + unsafeCalls);
+							throw new CarvingException("GenerateCarvedTestFromSlice() Cannot generate for "
+									+ methodInvocationToCarve + " from " + orderedSlice + "\n"
+									+ "There are unsafe operations: " + unsafeCalls);
 						} else {
-							// Include the replacement calls and hope the tests are fine ! :D
-							slice.addAll( replacementCalls );
+							// Include the replacement calls and hope the tests
+							// are fine ! :D
+							slice.addAll(replacementCalls);
 							// TODO We shall definitively repeat this check ...
 							// Check that we did not have subsumed the MUT !
-							
+
 							// Refactor this
 							// Order the slice.
 							orderedSlice = new ArrayList<>(slice);
@@ -766,16 +779,16 @@ public class Level_0_MethodCarver implements MethodCarver {
 							// Eventually remove the subsumed Calls
 							subsumedCalls = new HashSet<>();
 							for (MethodInvocation mi2 : orderedSlice) {
-								// Filter out the calls that are subsumed by the call graph
+								// Filter out the calls that are subsumed by the
+								// call graph
 								Set<MethodInvocation> subsumedBy = _callGraph.getMethodInvocationsSubsumedBy(mi2);
 								subsumedCalls.addAll(subsumedBy);
 							}
 							if (subsumedCalls.contains(methodInvocationToCarve)) {
-								throw new NotALevel0TestCaseException(methodInvocationToCarve, "We accidentally subsumed MUT after adding replacement calls !");	
+								throw new NotALevel0TestCaseException(methodInvocationToCarve,
+										"We accidentally subsumed MUT after adding replacement calls !");
 							}
-							
-							
-							
+
 						}
 
 					}
@@ -847,7 +860,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 				// this goes always to the past so we reduce the size of the
 				// trace
 
-//				MethodInvocation lastestMethodInvocation = Collections.max(task.getSecond());
+				// MethodInvocation lastestMethodInvocation =
+				// Collections.max(task.getSecond());
 
 				for (MethodInvocation methodInvocation : task.getSecond()) {
 
@@ -969,8 +983,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 				Map<ObjectInstance, Set<MethodInvocation>> methodsWhichReturnTheObjects = new HashMap<>();
 
-//				List<MethodInvocation> executioneBeforeLast = _executionFlowGraph
-//						.getOrderedMethodInvocationsBefore(lastestMethodInvocation);
+				// List<MethodInvocation> executioneBeforeLast =
+				// _executionFlowGraph
+				// .getOrderedMethodInvocationsBefore(lastestMethodInvocation);
 				// DataDependencyGraph dataDependencyGraphBefore =
 				// _dataDependencyGraph.getSubGraph(executioneBeforeLast);
 
@@ -1933,15 +1948,16 @@ public class Level_0_MethodCarver implements MethodCarver {
 			List<MethodInvocationMatcher> excludeBy) {
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
 
-		List<MethodInvocation> orderedMethodsInvocationsToCarve = new ArrayList<>(executionFlowGraph.getMethodInvocationsFor(carveBy,
-				/* excludeMain, excludeJavaLang, */
-				excludeBy.toArray(new MethodInvocationMatcher[] {})));
+		List<MethodInvocation> orderedMethodsInvocationsToCarve = new ArrayList<>(
+				executionFlowGraph.getMethodInvocationsFor(carveBy,
+						/* excludeMain, excludeJavaLang, */
+						excludeBy.toArray(new MethodInvocationMatcher[] {})));
 		// By ordering them we should be able to exploit the precondition cache
-		Collections.sort( orderedMethodsInvocationsToCarve );
-		
+		Collections.sort(orderedMethodsInvocationsToCarve);
+
 		// It seems that this cannot deal with Prefix. E.G., ClassFile,
 		// ClassFile1, ClassFile2 are all matched by "ClassFile"
-		
+
 		for (MethodInvocation methodInvocationUnderTest : orderedMethodsInvocationsToCarve) {
 
 			if (methodInvocationUnderTest.isPrivate()) {
