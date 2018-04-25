@@ -519,18 +519,16 @@ to system execution and useful carved test cases are.
 \begin{RQ}
 \textbf{Are the carved unit tests representative of real usages of the application?}
 \emph{We are interested to understand if the unit tests carved by \abc
-implement the same behavior observed while running the system tests.
+implement the behavior observed while running the system tests.
+%
 Precisely carving real executions is important to generate tests which 
 do not generate false alarms, i.e., if they fail, they expose a real problem
 This is important to reduce the manual effort that developers have to put in checking
 failed regression tests, which is usually high~\cite{arcuri-icst-2017?}.}
 \end{RQ}
-
-\xxx{Alessio HERE}
-
 %%%
 \begin{RQ}
-\textbf{How many and which usages of the application \abc misses?}
+\textbf{How many and which real usages of the application \abc misses?}
 \emph{Checking how many of such real executions are covered by the carved tests is also
 important to assess the completeness of \abc and the testability of the application under test.
 Failing to carve a unit test might be a problem in \abc but it might be also a shortcoming in the
@@ -565,27 +563,93 @@ carved tests those unit tests which do not contribute to code coverage.
 We are interested to quantify how many of those carved tests can be removed
 while still achieving the same code coverage of the system tests.}
 \end{RQ}
-%%%
-%\begin{RQ}
-%\textbf{Carving overhead and scalability ?}
-% We are not really interested in the practical application of the approach, are we?
 
-% Coverage
+\subsection{Test Subjects}
 
-% Execution time might or might not be large if we execute ALL the unit tests
+\begin{table}[tp]
+\centering
+\caption{Experimental Setup.}
+\begin{tabular}{l l r r r r r }
+\toprule
+\multicolumn{3}{c}{Test Subject} & \multicolumn{2}{c}{System Tests}  & \multicolumn{2}{c}{Coverage} \\
+\cmidrule(rl){1-3}
+\cmidrule(rl){4-5}
+\cmidrule(rl){6-7}
 
-% Regression activity
+\multicolumn{1}{c}{name} &
+\multicolumn{1}{c}{feature} & 
+\multicolumn{1}{c}{size} & % (\#)} &	
 
-So we are interested to 
+	\multicolumn{1}{c}{n} &
+	\multicolumn{1}{c}{time} &
+	
+	\multicolumn{1}{c}{stmt.} &
+	\multicolumn{1}{c}{branch} \\
+\midrule
+\footnotesize Employee & Files & 11 & 11 & 5.6 s& 73\%& 44\% \\
+\footnotesize HotelReservation & Database & 6 & 17  & 12.5 s & 82\% & 64\%\\
+\bottomrule
+\end{tabular} \\
+\flushleft{The table summarizes the main elements of the experimental setup. 
+We averaged the system test execution time across 20 executions.}
+\end{table}
 
-
-Show the usefulness of test carving by means of showing that 
-carved tests stress the SUT in the same way systems test do, but at the unit level. 
-That is we do not lose testing power/miss behaviors by using carved tests.
+We conducted our evaluation over two test subjects, Employee and HotelReservation. 
 %
-We illustrate this by showing how code coverage achieved by system and carved tests is the same.
+Both applications are implemented in Java, % are relatively simple,  
+interact with the users by means of interactive shells which prompt
+menus on the console and receives commands through standard input. 
+Notably, both Employee and HotelReservation heavily depends on their environment:
+Employee elaborate files and requires to interact with the underlying File System, while
+ HotelReservation is build on top of a SQL database.
 
-\paragraph{Test case selection reduction}
+Employee manages employees and implements features like registering new employees,
+querying and updating their biographical informations as well as setting and displaying
+their salaries. It works by elaborating data inside a main file which acts as index, and creating,
+reading, and updating files for each registered employee. The implementation of Employee
+does not follow a particular design pattern.
+
+HotelReservation instead implements a CRUD hotel reservation system, which allows users to
+create, read, update, and delete room reservations. Those operations are enabled only to registered
+users, so HotelReservation implements also sign-up, login, and logout functionalities.
+The implementation of HotelReservation follows the Model-View-Controller design pattern.
+
+None of the test subjects come with a predefined set of system tests, therefore we manually create them
+following the principles of black-box model based testing.
+First, we modeled the state space of each application. We use the menus prompted by the test subjects 
+as proxy for states. Next, we code a set of system tests to cover the states of each application.
+
+All the system tests are implemented in the same way:
+they start by setting up a clean environment for the application to avoid state pollution~\cite{pollution},
+configure input commands via mocking, and capture calls to \texttt{System.exit} to avoid abrupt terminations of the tests.
+Next, they call the main method of the application and await its termination.
+
+For Employee, we guarantee a clean environment by using temporary folders as working directory for the application,
+while for HotelMe we drop and recreate the MySQL database.
+If a test requires a specific environmental state to be in place, we set up at the beginning of the tests.
+For example, some system tests for Employee require to prepackage specific files in the working directory, likewise
+HotelMe requires to fill up the database with testing data.
+%
+Input commands are sequences of strings which emulate predefined user interactions and define repeatable ``navigations''
+across the different menus of the applications.
+Finally, to limit the occurrence of test dependencies~\cite{}, we isolate the execution of system tests by spinning a new JVM
+for each of them. In the context of system and integration testing, this is a common practice and many test execution
+frameworks already supports it~\cite{surefire:fork}.
+
+\subsection{Are Carved Tests Realistic?}
+\xxx{RQ1 and RQ2}
+Experiment description:
+	carve test
+	execute the carved tests and system test to measure coverage
+	remark we validate carved tests using XML Dumps
+
+Results obtained Table~
+	we report stmt and branch coverage
+	
+Observations and Conclusion
+	carved tests achieve same coverage across all the executions
+
+\subsection{Test case selection reduction}
 Carve tests are more focused than system tests, hence, in a regression setting we do not necessarily need 
 to execute all of them. This is not true in general for system tests which, by involving the entire system, end up in using (hence depending on)
 all the system classes (or at least a great deal of it).
@@ -594,12 +658,24 @@ We illustrate this by modifying the system under test (using bogus, non-logic-mo
 tests are executed after each modification. In particular, we show that modification of few classes already caused all system tests to be triggered,
 while only a relevant subset of carved tests are re-executed.
 
-\paragraph{Test suite reduction}
+\subsection{Test suite reduction}
 Carved tests are much more than system test, many of the carved test stress the same code of the application, although under different execution conditions. Therefore, they achieve the same coverage, and can be easily eliminated if one is interested in achiving a regression test suite optimized towards coverage.
 %
 We illustrate this by performing a test suite reductions on carved tests and showing that we can remove many (up to 80\%) of the carved tests, compared to removing barely 10\% of system tests.
 
 Additionally, even reduced test suite, show benefits for RTS.
+
+
+\subsection{Summary}
+Here we can discuss things like overhead, costs, time-to-carve, etc..
+
+
+Show the usefulness of test carving by means of showing that 
+carved tests stress the SUT in the same way systems test do, but at the unit level. 
+That is we do not lose testing power/miss behaviors by using carved tests.
+%
+We illustrate this by showing how code coverage achieved by system and carved tests is the same.
+
 
 \paragraph{Overhead of Delta Debugging}.
 Delta debugging -> this one becomes part of the evaluation. Since we adopt a conservative approach to include all the calls which might be state chaging,
@@ -659,30 +735,6 @@ Really relevant?
 \xxx{Maybe we can show this per class under test: we need to execute only a subset of tests}
 \xxx{With our test subjects, we cannot really shows this, since the time}
 
-\subsection{Test Subjects}
-
-Employee project.
-Interactive command line utility to manage employee and salaries. It works by creating, reading, and deleting files.
-\xxx{check if the same (or similar) to original carving work}
-\xxx{Add stats?}
-
-HotelReservation System project.
-Interactive command line utility to handle an hotel reservation system. It uses mysql backend to manage the state of the applications.
-\xxx{Add stats?}
-
-\subsection{Experimental Settings}
-System tests. The test subjects do not come with system tests, so I created them manually.
-System tests work by resetting the state of the system before each test, mocking input commands, and cleaning up the state of the system
-to avoid pollution~\cite{pollution}.
-Additionally, system tests set up expectations on System.exit to avoid system and carved tests to abruptly halting the execution.
-
-For the  Employee projects, I rely on temporary folders and predefined file contents.
-For the HotelReservation, I rely on truncating the database and recreate it as expected (either empty, or with predefined content).
-
-\xxx{How system tests are defined? Ideally I would like to create them by following a standard technique, in practice, I will motivate my choice
-by saying I creating them to cover as much application state as possible, in a black box style.
-That is, I consider "each" page of the application as state and navigate the application states by means of different input sequences.
-The name should be coverage-transition? Check on the software testing class}
 
 % Maybe a bit to verbose
 To answer RQ1 and RQ2, I execute the system tests and measure the achieved coverage;
@@ -701,6 +753,7 @@ The modification is bogus, we do not modify for simplicity interfaces, but only 
 We repeat the process for 20 times and for n from 1 to N (N is application classes)
 
 \subsection{Results}
+
 
 %\begin{table*}
 %\centering
