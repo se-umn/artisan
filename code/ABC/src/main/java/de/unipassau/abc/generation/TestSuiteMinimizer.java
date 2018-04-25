@@ -105,17 +105,18 @@ public class TestSuiteMinimizer {
 				s = testMethod.getBody().get().getStatement(newIndex);
 
 				if (Carver.isMandatory(s)) {
-					logger.debug("Skip mandatory call " + s);
+					logger.info("-- Skip mandatory call " + s);
 					newIndex = newIndex - 1;
 					continue;
 				}
 
 				if (Carver.isExternalInterface(s)) {
-					logger.debug("Get External Interface call " + s);
+					logger.info("-- Get External Interface call " + s);
 					newIndex = newIndex - 1;
 					break;
 				}
-				logger.debug("Skip non external call " + s);
+				//
+				logger.info("-- Skip non external call " + s); // We need to remove it !
 				newIndex = newIndex - 1;
 			} while (newIndex > 0);
 
@@ -207,37 +208,38 @@ public class TestSuiteMinimizer {
 	private Map<Pair<CompilationUnit, Signature>, Integer> generateCurrentIndex(CompilationUnit testClass) {
 		Map<Pair<CompilationUnit, Signature>, Integer> currentIndex = new HashMap<Pair<CompilationUnit, Signature>, Integer>();
 
+		// Before we needed to skip some calls but now it's getting ugly, so we start from the bottom and will skip later calls to XMLVerifier
 		testClass.accept(new VoidVisitorAdapter<Void>() {
 			public void visit(MethodDeclaration n, Void arg) {
 				if (n.isAnnotationPresent(Test.class)) {
-					// Process only test methods, by findind the
-
-					BlockStmt body = n.getBody().get();
-					List<Statement> statements = new ArrayList<>(body.getStatements());
-					Collections.reverse(statements);
-
-					int total = statements.size();
-
-					// Skip the XML Verifier calls
-					int mutIndex = Integer.MAX_VALUE;
-					for (int index = total - 1; index > 0; index--) {
-						Statement s = body.getStatement(index);
-						if (s.toString().contains("XMLVerifier")) {
-							mutIndex = index - 1;
-							continue;
-						}
-					}
-					if (mutIndex == Integer.MAX_VALUE) {
-						// This might happen for static void calls... but then,
-						// what do we assert about them !? Nothing
-						// Pick the last as MUT
-						mutIndex = total - 1;
-						logger.info("Cannot generate current index for " + testClass.getType(0).getNameAsString() + "."
-								+ n.getDeclarationAsString() + " use " + mutIndex);
-					}
-					// mutIndex is the position of the MUT which we need to
-					// skip during minimization
-					currentIndex.put(new Pair<CompilationUnit, Signature>(testClass, n.getSignature()), mutIndex - 1);
+//					// Process only test methods, by findind the
+//
+//					BlockStmt body = n.getBody().get();
+//					List<Statement> statements = new ArrayList<>(body.getStatements());
+//					Collections.reverse(statements);
+//
+					int total = n.getBody().get().getStatements().size() -1;
+//
+//					// Skip the XML Verifier calls
+//					int mutIndex = Integer.MAX_VALUE;
+//					for (int index = total - 1; index > 0; index--) {
+//						Statement s = body.getStatement(index);
+//						if (s.toString().contains("XMLVerifier")) {
+//							mutIndex = index - 1;
+//							continue;
+//						}
+//					}
+//					if (mutIndex == Integer.MAX_VALUE) {
+//						// This might happen for static void calls... but then,
+//						// what do we assert about them !? Nothing
+//						// Pick the last as MUT
+//						mutIndex = total - 1;
+//						logger.info("Cannot generate current index for " + testClass.getType(0).getNameAsString() + "."
+//								+ n.getDeclarationAsString() + " use " + mutIndex);
+//					}
+//					// mutIndex is the position of the MUT which we need to
+//					// skip during minimization
+					currentIndex.put(new Pair<CompilationUnit, Signature>(testClass, n.getSignature()), total - 1);
 
 				}
 			}
@@ -384,8 +386,7 @@ public class TestSuiteMinimizer {
 
 		for (CompilationUnit testClass : testClasses) {
 			// Remove methods that statically are not state-changing
-			// REALLY Needed?
-			// Carver.removePureMethods(testClass);
+			 Carver.removePureMethods(testClass);
 			// Extract the TestMethods and set the currentIndex at the right
 			// position. Put all since a test class might contain more test
 			// methods !

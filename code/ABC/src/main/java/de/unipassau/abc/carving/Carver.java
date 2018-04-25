@@ -819,7 +819,10 @@ public class Carver {
 			// System.out.println("TestSuiteMinimizer.isMandatory() Processing "
 			// + statement );
 			// Thos are all hardcoded
-			return exp.contains(".close()") || exp.contains("= null");
+			return exp.contains(".close") || //
+					exp.contains(".setAutoCommit") || //
+					exp.contains("XMLVerifier.verify") || // Include also verifyPrimitives
+					exp.contains("= null");
 		}
 		return false;
 
@@ -862,16 +865,19 @@ public class Carver {
 	// Purity methods are checked for Method Calls, that is calls to methods
 	// whose value is not assigned !
 	public static boolean isPure(MethodCallExpr methodCall) {
-		// TODO Assume tMethodCall are not Assign Expt !
+		// Those are removed ONLY if the value they return is NOT used !
 		String m = methodCall.getNameAsString();
-		return m.equals("length") || m.equals("startsWith") || m.equals("endsWith") || m.equals("lastIndexOf") || // String
+		return m.equals("length") || m.equals("startsWith") || m.equals("endsWith") || m.equals("lastIndexOf") || 
+				m.equals("equals") || m.equals("trim") || // String
 				m.equals("getAutoCommit") || // Sql Connection
 				m.equals("getResultSet") || // Sql statement
+				m.equals("getInt") || // Sql result set
 				m.equals("size") || // List/Collections
 				// TODO Check the pure method is not also the MUT !
 				// m.equals("getPrice") || m.equals("getTotalPrice") ||
 				// m.equals("getAdults") || m.equals("getChildren")
 				// || m.equals("getMaxOccupancy") || m.equals("getRoomID") ||
+				m.equals("getFname") || //
 				// m.equals("getTotalPrice") || // HotelMe
 				// "getCheckOut", getCheckIn
 				false;
@@ -903,10 +909,15 @@ public class Carver {
 			"java.nio.Files", //
 			"java.sql.Connection", //
 			"java.sql.Statement", //
-			"java.sql.PreparedStatement" }));
+			"java.sql.PreparedStatement", //
+			"java.sql.ResultSet", //
+			}));
 
 	// this requires the SymbolSover to get the type of S
 	// A statement might include several calls !
+	
+	
+	
 	@SuppressWarnings("unchecked")
 	public static boolean isExternalInterface(Statement s) {
 		final AtomicBoolean isExternalInterface = new AtomicBoolean(false);
@@ -947,7 +958,7 @@ public class Carver {
 					}
 
 				} catch (Exception e) {
-					System.out.println("Cannot resolve type " + e);
+					logger.warn("Cannot resolve type for " + n, e);
 				}
 				super.visit(n, arg);
 
