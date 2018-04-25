@@ -28,6 +28,7 @@ import de.unipassau.abc.instrumentation.CarvingTag;
 import de.unipassau.abc.tracing.XMLDumper;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.ArrayType;
+import soot.Body;
 import soot.Local;
 import soot.Modifier;
 import soot.RefType;
@@ -350,22 +351,23 @@ public class TestGenerator {
 				// This shall be null at this point, since we do not use the
 				// return value ?
 				actualReturnValue = Jimple.v().newLocal("returnValue", RefType.v(type));
-				
+
 				body.getLocals().add(actualReturnValue);
-				
-//				returnObjLocal = UtilInstrumenter.generateFreshLocal(body, RefType.v(type));
+
+				// returnObjLocal = UtilInstrumenter.generateFreshLocal(body,
+				// RefType.v(type));
 
 				// Debug
 				logger.info("  >>>> Create a new local variable " + actualReturnValue + " of type " + type
 						+ " to store the output of " + methodInvocationToCarve);
 				// FIXME: I have no idea of what a RetStmt is, but it does the
 				// trick, which is it results in an actual java assignment
-//				units.add( Jimple.v().newRetStmt( actualReturnValue ) );
+				// units.add( Jimple.v().newRetStmt( actualReturnValue ) );
 			}
 
 			// We need to use add because some method invocations are actually
 			// more than 1 unit !
-			addUnitFor(units, methodInvocation, objLocal, parametersValues, actualReturnValue);
+			addUnitFor(body, methodInvocation, objLocal, parametersValues, actualReturnValue);
 
 		}
 
@@ -412,9 +414,14 @@ public class TestGenerator {
 	 * The carved test will be: int x = A.get(); A.set(X); where X is the actual
 	 * value we observed at runtime.
 	 * 
+	 * TODO Explicitly CAST every operation !
+	 * 
 	 */
-	private void addUnitFor(Chain<Unit> units, MethodInvocation methodInvocation, Local objLocal,
-			List<Value> parametersValues, Local returnObjLocal) throws CarvingException {
+	private void addUnitFor( /* Chain<Unit> units */
+			Body body, MethodInvocation methodInvocation, Local objLocal, List<Value> parametersValues,
+			Local returnObjLocal) throws CarvingException {
+
+		Chain<Unit> units = body.getUnits();
 
 		logger.trace("Processing method invocation " + methodInvocation.getJimpleMethod() + " -- "
 				+ methodInvocation.getInvocationType() + " on local " + objLocal + " with params " + parametersValues
@@ -449,9 +456,36 @@ public class TestGenerator {
 			method = Scene.v().getMethod(methodInvocation.getJimpleMethod());
 
 			if (returnObjLocal != null) {
-				Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
-						jimple.newVirtualInvokeExpr(objLocal, method.makeRef(), parametersValues));
-				units.add(assignStmt);
+
+				// If the types are different then cast the assignment
+
+				if (!method.getReturnType().toString().equals(returnObjLocal.getType().toString())) {
+					System.out.println("TestGenerator.addUnitFor() CAST " + method.getReturnType() + " into "
+							+ returnObjLocal.getType() + " for " + method);
+					// Create a local of type defined by the method
+					Local uncasted = jimple.newLocal(returnObjLocal.getName() + "Uncasted", method.getReturnType());
+					body.getLocals().add(uncasted);
+
+					// Make the call to the uncasted type
+					Stmt assignStmtUncasted = jimple.newAssignStmt(uncasted,
+							jimple.newVirtualInvokeExpr(objLocal, method.makeRef(), parametersValues));
+					units.add(assignStmtUncasted);
+
+					// Now make the case the cast and assign to the correct
+					// object
+					final Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
+							jimple.newCastExpr(uncasted, returnObjLocal.getType()));
+
+					units.add(assignStmt);
+				} else {
+					// Now make the case the cast and assign to the correct
+					// object
+					final Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
+							jimple.newVirtualInvokeExpr(objLocal, method.makeRef(), parametersValues));
+
+					units.add(assignStmt);
+				}
+
 			} else {
 				Stmt callStmt = jimple
 						.newInvokeStmt(jimple.newVirtualInvokeExpr(objLocal, method.makeRef(), parametersValues));
@@ -462,9 +496,32 @@ public class TestGenerator {
 		case "StaticInvokeExpr":
 			method = Scene.v().getMethod(methodInvocation.getJimpleMethod());
 			if (returnObjLocal != null) {
-				final Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
-						jimple.newStaticInvokeExpr(method.makeRef(), parametersValues));
-				units.add(assignStmt);
+
+				if (!method.getReturnType().toString().equals(returnObjLocal.getType().toString())) {
+					System.out.println("TestGenerator.addUnitFor() CAST " + method.getReturnType() + " into "
+							+ returnObjLocal.getType() + " for " + method);
+
+					// Create a local of type defined by the method
+					Local uncasted = jimple.newLocal(returnObjLocal.getName() + "Uncasted", method.getReturnType());
+					body.getLocals().add(uncasted);
+
+					// Make the call to the uncasted type
+					final Stmt uncastedAssignStmt = jimple.newAssignStmt(uncasted,
+							jimple.newStaticInvokeExpr(method.makeRef(), parametersValues));
+					units.add(uncastedAssignStmt);
+
+					// Now make the case the cast and assign to the correct
+					// object
+					final Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
+							jimple.newCastExpr(uncasted, returnObjLocal.getType()));
+
+					units.add(assignStmt);
+				} else {
+					final Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
+							jimple.newStaticInvokeExpr(method.makeRef(), parametersValues));
+
+					units.add(assignStmt);
+				}
 			} else {
 				final Stmt callStmt = jimple
 						.newInvokeStmt(jimple.newStaticInvokeExpr(method.makeRef(), parametersValues));
@@ -474,9 +531,31 @@ public class TestGenerator {
 		case "InterfaceInvokeExpr":
 			method = Scene.v().getMethod(methodInvocation.getJimpleMethod());
 			if (returnObjLocal != null) {
-				Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
-						jimple.newInterfaceInvokeExpr(objLocal, method.makeRef(), parametersValues));
-				units.add(assignStmt);
+
+				if (!method.getReturnType().toString().equals(returnObjLocal.getType().toString())) {
+					System.out.println("TestGenerator.addUnitFor() CAST " + method.getReturnType() + " into "
+							+ returnObjLocal.getType() + " for " + method);
+					// Create a local of type defined by the method
+					Local uncasted = jimple.newLocal(returnObjLocal.getName() + "Uncasted", method.getReturnType());
+					body.getLocals().add(uncasted);
+
+					// Make the call to the uncasted type
+					Stmt assignStmtUncasted = jimple.newAssignStmt(uncasted,
+							jimple.newInterfaceInvokeExpr(objLocal, method.makeRef(), parametersValues));
+					units.add(assignStmtUncasted);
+
+					// Now make the case the cast and assign to the correct
+					// object
+					final Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
+							jimple.newCastExpr(uncasted, returnObjLocal.getType()));
+
+					units.add(assignStmt);
+				} else {
+					final Stmt assignStmt = jimple.newAssignStmt(returnObjLocal,
+							jimple.newInterfaceInvokeExpr(objLocal, method.makeRef(), parametersValues));
+
+					units.add(assignStmt);
+				}
 			} else {
 				Stmt callStmt = jimple
 						.newInvokeStmt(jimple.newInterfaceInvokeExpr(objLocal, method.makeRef(), parametersValues));

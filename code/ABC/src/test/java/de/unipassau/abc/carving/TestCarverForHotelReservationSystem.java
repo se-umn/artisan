@@ -5,6 +5,7 @@ import static org.junit.Assert.fail;
 import java.io.File;
 import java.io.IOException;
 
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -33,6 +34,11 @@ public class TestCarverForHotelReservationSystem {
 	@Rule
 	public TemporaryFolder temporaryFolderRule = new TemporaryFolder();
 
+	// For some reason if carver invokes System.exit this see the call but fails
+	// to accept it...
+	// @Rule
+	// public ExpectedSystemExit expectedSystemExit = ExpectedSystemExit.none();
+
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
 
@@ -58,19 +64,30 @@ public class TestCarverForHotelReservationSystem {
 			// String carveBy = "invocation=<org.hotelme.User: java.lang.String
 			// getFname()>_1874";
 
-//			String carveBy = "invocation=<org.hotelme.HotelView: void exitMessage()>_11744";
-			
-//			String carveBy = "method=<org.hotelme.HotelView: void exitMessage()>";
-//			String carveBy = "invocation=<org.hotelme.HotelView: void exitMessage()>_21421";
-//			String carveBy = "invocation=<org.hotelme.HotelView: void exitMessage()>_27707";
-//			String carveBy = "invocation=<org.hotelme.HotelView: void exitMessage()>_40738";
-//			String carveBy = "invocation=<org.hotelme.HotelView: void exitMessage()>_40738";
-//			String carveBy = "method=<org.hotelme.HotelView: int roomConfirmation(java.util.Scanner,int,java.lang.String)>";
-			String carveBy = "method=<org.hotelme.Room: float getTotalPrice()>";
-					
-//			String carveBy = "invocation=<org.hotelme.HotelView: int roomConfirmation(java.util.Scanner,int,java.lang.String)>_3302";
-			
-//			orghotelmehotelView00.totalPrice(276.0F);
+			// String carveBy = "invocation=<org.hotelme.HotelView: void
+			// exitMessage()>_11744";
+
+			// String carveBy = "method=<org.hotelme.HotelView: void
+			// exitMessage()>";
+			// String carveBy = "invocation=<org.hotelme.HotelView: void
+			// exitMessage()";
+			// String carveBy = "invocation=<org.hotelme.HotelView: void
+			// exitMessage()>_27707";
+			// String carveBy = "invocation=<org.hotelme.HotelView: void
+			// exitMessage()>_40738";
+			// String carveBy = "invocation=<org.hotelme.HotelView: void
+			// exitMessage()>_40738";
+			// String carveBy = "method=<org.hotelme.HotelView: int
+			// roomConfirmation(java.util.Scanner,int,java.lang.String)>";
+			// String carveBy = "method=<org.hotelme.Room: float
+			// getTotalPrice()>";
+			// String carveBy = "class=org.hotelme.Room";
+			String carveBy = "method=<org.hotelme.HotelView: int deleteConfirmation(java.util.Scanner)>";
+//			String carveBy = "invocation=<org.hotelme.Room: java.lang.String getRoomType()>_6746";
+
+			// String carveBy = "invocation=<org.hotelme.HotelView: int
+			// roomConfirmation(java.util.Scanner,int,java.lang.String)>_3302";
+
 			String[] args = new String[] { //
 					"--carve-by", carveBy,
 					// String traceFile =
@@ -93,19 +110,27 @@ public class TestCarverForHotelReservationSystem {
 					// "--test-setup-by",
 					// "class=org.hotelme.utils.SystemTestUtils", //
 					// This is for delta debugging
-					"--reset-environment-by", "org.hotelme.utils.SystemTestUtils.dropAndRecreateTheDb()",//
-					"--skip-minimize"
-					
+					"--reset-environment-by", "org.hotelme.utils.SystemTestUtils.dropAndRecreateTheDb()", //
+//					"--skip-minimize",//
+
 			};
 			//// "class=org.hotelme.utils.ScriptRunner", //
 			//
-			carver.main(args);
+
+			// expectedSystemExit.expectSystemExitWithStatus(0);
+			// expectedSystemExit.expectSystemExit();
+			// expectedSystemExit.checkAssertionAfterwards( new Assertion() {
 			//
-			int count = ABCTestUtils.countFiles(outputDirectory, ".class");
+			// @Override
+			// public void checkAssertion() throws Exception {
+			// }
+			// });
+			carver.main(args);
 
-			// assertEquals(1, count);
-
+			int count = ABCTestUtils.countFiles(outputDirectory, ".java");
+			Assert.assertTrue(count > 0);
 			ABCTestUtils.printJavaClasses(outputDirectory);
+
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail("Exception raised " + e);

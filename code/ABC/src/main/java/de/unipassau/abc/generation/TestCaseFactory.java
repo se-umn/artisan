@@ -405,7 +405,7 @@ public class TestCaseFactory {
 				valueType = typeCache.get(n.getValue());
 
 				if (targetType == null || valueType == null) {
-					logger.info("Type info is missing: " + targetType);
+					logger.info("Type info is missing for assignment n " + targetType);
 					return n;
 				}
 

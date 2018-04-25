@@ -12,6 +12,8 @@ import com.thoughtworks.xstream.XStream;
  */
 public class XMLVerifier {
 
+	public static boolean skip = Boolean.parseBoolean(System.getProperty("skip.xmlverifier", "false"));
+	
 	/**
 	 * 
 	 * @param object
@@ -19,12 +21,17 @@ public class XMLVerifier {
 	 * @throws IOException
 	 */
 	public static void verify(Object object, String xmlExpected) throws IOException {
+		if (skip ){
+			return;
+		}
+		
 		// clear out existing permissions and set own ones
 		XStream xstream = new XStream();
 
 		String expected = new String(Files.readAllBytes(Paths.get(xmlExpected)));
 		String actual = xstream.toXML(object);
 		//
+		
 		org.junit.Assert.assertEquals("Object " + object + " does not match its serialized form "
 				+ XMLDumper.loadObject(xmlExpected) + " inside file " + xmlExpected, expected, actual);
 	}
@@ -38,7 +45,10 @@ public class XMLVerifier {
 	// value 69.0F expected:<69.0[F]> but was:<69.0[]>
 	// Called by Carver
 	public static void verifyPrimitive(Object boxedPrimitive, String expecteValueToString) throws IOException {
-
+		if (skip ){
+			return;
+		}
+		
 		Object boxedExpectedValue = null;
 		
 		if (boxedPrimitive instanceof Boolean) {

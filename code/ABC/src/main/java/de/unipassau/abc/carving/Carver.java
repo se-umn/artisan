@@ -6,7 +6,6 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +50,6 @@ import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.generation.DeltaDebugger;
 import de.unipassau.abc.generation.MockingGenerator;
 import de.unipassau.abc.generation.SootTestCaseFactory;
-import de.unipassau.abc.generation.TestCaseFactory;
 import de.unipassau.abc.generation.TestGenerator;
 import de.unipassau.abc.generation.TestSuiteExecutor;
 import de.unipassau.abc.generation.impl.EachTestAlone;
@@ -70,7 +68,6 @@ import soot.Value;
 import soot.jimple.AbstractStmtSwitch;
 import soot.jimple.InstanceInvokeExpr;
 import soot.jimple.InvokeExpr;
-import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
 import soot.jimple.StaticInvokeExpr;
 import soot.jimple.StringConstant;
@@ -425,9 +422,12 @@ public class Carver {
 		// Store original tests to file
 		// storeToFile(generatedTestClasses, outputDir);
 
-		// Generate directly the augmented classes, we do not really care about XMLValidation to be there at this point 
-		Set<CompilationUnit> augmentedTestClasses = SootTestCaseFactory.generateAugmenetedTestFiles(projectJars, testClasses, carvedTestCases);
-		//
+		// Generate directly the augmented classes, we do not really care about
+		// XMLValidation to be there at this point. We also include any user
+		// provided call to avoid state pollution as @Before method
+		Set<CompilationUnit> augmentedTestClasses = SootTestCaseFactory.generateAugmenetedTestFiles(projectJars,
+				testClasses, carvedTestCases, resetEnvironmentBy);
+		// --> This breaks regression selection ...
 		storeToFile(augmentedTestClasses, outputDir);
 
 		// Soot generated files are optimized, there's less variables and test
@@ -442,15 +442,11 @@ public class Carver {
 
 		// This is only to improve readability of the code
 		try {
-			// Augment the test cases with reset environment. 
+			// Augment the test cases with reset environment.
 			// This regenerate the compilation units but DOES not
 			// rename it !
-			// This is necessary to implement delta debugging since we remove E.I. !
-			for (CompilationUnit testClass : augmentedTestClasses) {
-				// Include the reset environment call if needed
-				createAtBeforeResetMethod(resetEnvironmentBy, testClass);
-			}
-
+			// This is necessary to implement delta debugging since we remove
+			// E.I. !
 			TestSuiteExecutor testSuiteExecutor = new TestSuiteExecutor(projectJars);
 			// This executes the test into a temp folder anyway, no need to
 			// rename them !
@@ -461,7 +457,6 @@ public class Carver {
 		}
 		logger.info("Validating the carved tests END");
 
-		
 		// long testSuiteMinimizationTime = System.currentTimeMillis();
 
 		// // TODO Use test minimizer in post processing
@@ -526,13 +521,16 @@ public class Carver {
 			// TODO At this point we might compress and remove duplicate test
 			// cases !
 
-			// REFACTOR and clean up
 			for (CompilationUnit reducedTestClass : augmentedTestClasses) {
 				renameClass(reducedTestClass, "_minimized");
 
 				Carver.removeAtBeforeResetMethod(reducedTestClass);
 
-				Carver.removeXMLVerifierCalls(reducedTestClass);
+				// REFACTOR and clean up
+				// THIS IS NOT GOOD ! XML Verifier calls nows might be like:
+				// XMLVerifier.verify( new CUT(), ...);
+				// XMLVerifier.verify( new CUT().foo(), ...);
+				// Carver.removeXMLVerifierCalls(reducedTestClass);
 			}
 
 			// Output the files
@@ -561,7 +559,7 @@ public class Carver {
 		System.out.println("Total " + (endTime - startTime) / 1000000000.0 + " s");
 
 		// Why is this required? Will the application hang otherwise
-		 System.exit(0);
+		// System.exit(0);
 	}
 
 	private static void cleanUpTestSuite(Set<CompilationUnit> reducedTestSuite) {
@@ -601,6 +599,7 @@ public class Carver {
 		final Body body = testMethod.getActiveBody();
 		// The very last unit is the "return" we need the one before it...
 		PatchingChain<Unit> units = body.getUnits();
+
 		final Unit methodUnderTest = units.getPredOf(units.getLast());
 
 		// System.out.println("DeltaDebugger.generateValidationUnit() for " +
@@ -615,6 +614,9 @@ public class Carver {
 
 			// return value
 			public void caseAssignStmt(soot.jimple.AssignStmt stmt) {
+
+				System.out.println("Validation for " + stmt);
+
 				InvokeExpr invokeExpr = stmt.getInvokeExpr();
 
 				if (!(invokeExpr instanceof StaticInvokeExpr)) {
@@ -695,53 +697,57 @@ public class Carver {
 		return validationUnits;
 	}
 
-//	/**
-//	 * This returns an augmented test suite+ resetMethod @ before +XMLVerify
-//	 * calls
-//	 * 
-//	 * FIXME: instead of regenerating the entire class from soot, generate ONLY
-//	 * the XML verify statements, in the end those, if any are simply two calls
-//	 * to static methods with given parameteres (objectName and returnValue) !
-//	 * 
-//	 * @param carvedTestCases
-//	 * @param projectJars
-//	 * @param resetEnvironmentBy
-//	 * @return
-//	 * @throws IOException
-//	 */
-//	public static void augmentTestSuite(Set<CompilationUnit> generatedClasses,
-//			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases, //
-//			List<File> projectJars, //
-//			String resetEnvironmentBy) throws IOException {
-//
-//		// Deep copy, no we keep using the augmented one
-//		// Set<CompilationUnit> augmentedTestClasses = new
-//		// HashSet<>(generatedClasses);
-//
-//
-//		// //
-//		// Set<SootClass> _testClasses = new HashSet<>();
-//		// for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>
-//		// carvedTestCase : carvedTestCases) {
-//		// SootClass sClass = carvedTestCase.getThird().getDeclaringClass();
-//		// if (!_testClasses.contains(sClass)) {
-//		// _testClasses.add(sClass);
-//		// }
-//		// }
-//		// //
-//		// // HERE WE DO NOT NEED TO Check for missing initialization and
-//		// casting and such anymore !!
-//		// boolean resolveTypes = true;
-//		// Set<CompilationUnit> testClasses =
-//		// TestCaseFactory.generateTestFiles(projectJars, _testClasses,
-//		// resolveTypes);
-//
-//		for (CompilationUnit testClass : generatedClasses) {
-//			// Include the reset environment call if needed
-//			createAtBeforeResetMethod(resetEnvironmentBy, testClass);
-//		}
-//
-//	}
+	// /**
+	// * This returns an augmented test suite+ resetMethod @ before +XMLVerify
+	// * calls
+	// *
+	// * FIXME: instead of regenerating the entire class from soot, generate
+	// ONLY
+	// * the XML verify statements, in the end those, if any are simply two
+	// calls
+	// * to static methods with given parameteres (objectName and returnValue) !
+	// *
+	// * @param carvedTestCases
+	// * @param projectJars
+	// * @param resetEnvironmentBy
+	// * @return
+	// * @throws IOException
+	// */
+	// public static void augmentTestSuite(Set<CompilationUnit>
+	// generatedClasses,
+	// List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>>
+	// carvedTestCases, //
+	// List<File> projectJars, //
+	// String resetEnvironmentBy) throws IOException {
+	//
+	// // Deep copy, no we keep using the augmented one
+	// // Set<CompilationUnit> augmentedTestClasses = new
+	// // HashSet<>(generatedClasses);
+	//
+	//
+	// // //
+	// // Set<SootClass> _testClasses = new HashSet<>();
+	// // for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>
+	// // carvedTestCase : carvedTestCases) {
+	// // SootClass sClass = carvedTestCase.getThird().getDeclaringClass();
+	// // if (!_testClasses.contains(sClass)) {
+	// // _testClasses.add(sClass);
+	// // }
+	// // }
+	// // //
+	// // // HERE WE DO NOT NEED TO Check for missing initialization and
+	// // casting and such anymore !!
+	// // boolean resolveTypes = true;
+	// // Set<CompilationUnit> testClasses =
+	// // TestCaseFactory.generateTestFiles(projectJars, _testClasses,
+	// // resolveTypes);
+	//
+	// for (CompilationUnit testClass : generatedClasses) {
+	// // Include the reset environment call if needed
+	// createAtBeforeResetMethod(resetEnvironmentBy, testClass);
+	// }
+	//
+	// }
 
 	// create a @Before method which invokes resetEnvironment by unless there's
 	// already one

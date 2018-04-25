@@ -128,6 +128,7 @@ public class SootTestCaseFactory {
 				//
 				decompilerSettings.setForceExplicitImports(true);
 				decompilerSettings.setForceExplicitTypeArguments(true);
+				decompilerSettings.setRetainRedundantCasts( true );
 				//
 				final Writer writer = new StringWriter();
 				com.strobel.decompiler.Decompiler.decompile(testClassFile.getAbsolutePath(),
@@ -234,7 +235,7 @@ public class SootTestCaseFactory {
 	}
 
 	public static Set<CompilationUnit> generateAugmenetedTestFiles(List<File> projectJars, Set<SootClass> testClasses,
-			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases) throws IOException {
+			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases, String resetEnvironmentBy) throws IOException {
 
 		// Use a temp folder
 		File outputDir = Files.createTempDirectory("SootDecompile").toFile();
@@ -305,12 +306,14 @@ public class SootTestCaseFactory {
 				// Forcefully initialize all the Objects to null if they are
 				// not
 				// initialized !
-				TestCaseFactory.forceObjectInitialization(javaCode, combinedTypeSolver);
+				System.out.println("SootTestCaseFactory.generateAugmenetedTestFiles() SKIP Object INITIALIZATION");
+				// TestCaseFactory.forceObjectInitialization(javaCode, combinedTypeSolver);
 
+				// Now we force the cast while generating Soot Units !
 				// During delta debugging there's no need to resolve types
 				// if (resolveTypes) {
 				// This updates the code
-				TestCaseFactory.resolveMissingGenerics(javaCode, combinedTypeSolver);
+//				TestCaseFactory.resolveMissingGenerics(javaCode, combinedTypeSolver);
 				// }
 
 				// extract the type of retunValue if any
@@ -346,6 +349,12 @@ public class SootTestCaseFactory {
 			}
 		}
 
+		
+		for (CompilationUnit testClass : generatedClasses) {
+//			// Include the reset environment call if needed
+			Carver.createAtBeforeResetMethod(resetEnvironmentBy, testClass);
+		}
+			
 		return generatedClasses;
 
 		// // Find the class and test method
