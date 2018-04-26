@@ -866,18 +866,19 @@ public class Carver {
 	// whose value is not assigned !
 	public static boolean isPure(MethodCallExpr methodCall) {
 		// Those are removed ONLY if the value they return is NOT used !
+		// This includes ALSO the name of the variable
 		String m = methodCall.getNameAsString();
-		return m.equals("length") || m.equals("startsWith") || m.equals("endsWith") || m.equals("lastIndexOf") || 
-				m.equals("equals") || m.equals("trim") || // String
-				m.equals("getAutoCommit") || // Sql Connection
-				m.equals("getResultSet") || // Sql statement
-				m.equals("getInt") || // Sql result set
-				m.equals("size") || // List/Collections
+		return m.equals("length(") || m.equals("startsWith(") || m.equals("endsWith(") || m.equals("lastIndexOf(") || 
+				m.equals("equals(") || m.equals("trim(") || // String
+				m.equals("getAutoCommit(") || // Sql Connection
+				m.equals("getResultSet(") || // Sql statement
+				m.equals("getInt(") || // Sql result set
+				m.equals("size(") || // List/Collections
 				// TODO Check the pure method is not also the MUT !
 				// m.equals("getPrice") || m.equals("getTotalPrice") ||
 				// m.equals("getAdults") || m.equals("getChildren")
 				// || m.equals("getMaxOccupancy") || m.equals("getRoomID") ||
-				m.equals("getFname") || //
+//				m.equals("getFname") || // --> This leads to breaking the tests? I suspect that this is removed ALSO in the assignmStmt
 				// m.equals("getTotalPrice") || // HotelMe
 				// "getCheckOut", getCheckIn
 				false;
