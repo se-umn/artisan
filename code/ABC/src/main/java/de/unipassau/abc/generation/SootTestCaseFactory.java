@@ -129,6 +129,10 @@ public class SootTestCaseFactory {
 				decompilerSettings.setForceExplicitImports(true);
 				decompilerSettings.setForceExplicitTypeArguments(true);
 				decompilerSettings.setRetainRedundantCasts( true );
+				// Not sure ?
+//				decompilerSettings.setExcludeNestedTypes( true );
+				decompilerSettings.setMergeVariables( false );
+				decompilerSettings.setSimplifyMemberReferences( true );
 				//
 				final Writer writer = new StringWriter();
 				com.strobel.decompiler.Decompiler.decompile(testClassFile.getAbsolutePath(),
@@ -306,14 +310,14 @@ public class SootTestCaseFactory {
 				// Forcefully initialize all the Objects to null if they are
 				// not
 				// initialized !
-				System.out.println("SootTestCaseFactory.generateAugmenetedTestFiles() SKIP Object INITIALIZATION");
+//				System.out.println("SootTestCaseFactory.generateAugmenetedTestFiles() SKIP Object INITIALIZATION");
 				// TestCaseFactory.forceObjectInitialization(javaCode, combinedTypeSolver);
 
 				// Now we force the cast while generating Soot Units !
 				// During delta debugging there's no need to resolve types
 				// if (resolveTypes) {
 				// This updates the code
-//				TestCaseFactory.resolveMissingGenerics(javaCode, combinedTypeSolver);
+				TestCaseFactory.resolveMissingGenerics(javaCode, combinedTypeSolver);
 				// }
 
 				// extract the type of retunValue if any

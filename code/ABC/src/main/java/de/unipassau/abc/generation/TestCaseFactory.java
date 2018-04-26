@@ -18,6 +18,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.ArrayCreationLevel;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
@@ -63,7 +64,6 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 
 import de.unipassau.abc.utils.JimpleUtils;
-import java_cup.assoc;
 import soot.Body;
 import soot.BooleanType;
 import soot.Local;
@@ -314,41 +314,106 @@ public class TestCaseFactory {
 
 	}
 
+	// Look for "collection" types and resolve missing generics ...
 	public static void resolveMissingGenerics(CompilationUnit cu, TypeSolver typeSolver) {
-		// Collect the Collections that are missing a generic type
+
 		final Map<String, ResolvedType> missingTypes = new HashMap<>();
 
-		//
-		cu.accept(new VoidVisitorAdapter<JavaParserFacade>() {
-			public void visit(final AssignExpr n, final JavaParserFacade javaParserFacade) {
-				super.visit(n, javaParserFacade);
-				try {
-					if (missingTypes.containsKey(n.getTarget().toString())) {
-						return;
-					}
-					// if (n.getTarget().equals(new
-					// NameExpr("javautilarrayList00"))) {
-					ResolvedType targetType = javaParserFacade.getType(n.getTarget());
-					ResolvedType valueType = javaParserFacade.getType(n.getValue());
+		/**
+		 * Check for known collection types if the Actual type is specified or
+		 * not.
+		 */
+		// This is wrong ! it parses the class-level initializations only !!
+		cu.getType(0).accept(new VoidVisitorAdapter<JavaParserFacade>() {
+			@Override
+			public void visit(MethodDeclaration md, JavaParserFacade arg) {
 
-					if (targetType.isReferenceType() && valueType.isReferenceType()) {
-						//
-						if (((ResolvedReferenceType) targetType).typeParametersMap().isEmpty()
-								&& !((ResolvedReferenceType) valueType).typeParametersMap().isEmpty()) {
-							logger.info(n.getTarget() + " misses type. Update to: " + valueType.describe());
-							missingTypes.put(n.getTarget().toString(), valueType);
+				// Check if this type implements collections
+
+				if (md.isAnnotationPresent(Test.class)) {
+					// System.out.println("Visiting test method " + md);
+					//
+					md.accept(new ModifierVisitor<JavaParserFacade>() {
+
+						@Override
+						public Visitable visit(VariableDeclarationExpr n, JavaParserFacade javaParserFacade) {
+							VariableDeclarator vd = n.getVariables().get(0);
+							// Resolve the type of the first variable. This
+							// might take some time...
+							ResolvedType valueType = javaParserFacade.getType(vd);
+
+							// FIXME Cannot match
+							// ResolvedReferenceTypeDeclaration and
+							// ResolvedReferenceType !
+							// ResolvedReferenceTypeDeclaration objectType =
+							// typeSolver.solveType(Collection.class.getCanonicalName());
+							// if(
+							// valueType.asReferenceType().getAllInterfacesAncestors().contains(
+							// collectionType ) ){
+							// System.out.println("Found collection " +
+							// valueType );
+							// }
+
+							if (!valueType.isReferenceType()) {
+								return super.visit(n, javaParserFacade);
+							}
+							// Probably there's a faster way using contains, but
+							// I cannot get a ResolvedRefernceType !
+							for (ResolvedReferenceType rrt : valueType.asReferenceType().getAllAncestors()) {
+								if (rrt.getQualifiedName().equals(Collection.class.getCanonicalName())) {
+									if (((ResolvedReferenceType) valueType).typeParametersMap().isEmpty()) {
+										resolveMissingGeneric(vd, javaParserFacade);
+									}
+								}
+							}
+							return super.visit(n, arg);
 
 						}
-					}
-				} catch (Exception e) {
-					// TODO: handle exception
+
+						private void resolveMissingGeneric(final VariableDeclarator vd,
+								JavaParserFacade javaParserFacade) {
+							// look for the actual type on the value part
+							final Set<ResolvedType> missingGeneric = new HashSet<>();
+							vd.getInitializer().get().accept(new VoidVisitorAdapter<JavaParserFacade>() {
+
+								@Override
+								public void visit(MethodCallExpr n, JavaParserFacade arg1) {
+									try {
+										missingGeneric.add(arg1.getType(n));
+									} catch (Exception e) {
+										System.out.println(">>> ERROR " + n);
+									}
+									super.visit(n, arg);
+
+								}
+							}, javaParserFacade);
+
+							if (!missingGeneric.isEmpty()) {
+								// Update the existing one or replace it?
+								//
+								ResolvedType rt = missingGeneric.iterator().next();
+								// System.out.println("Found missing generic " +
+								// rt.describe());
+								// Update the definition of the variable !
+								// JavaParser.parseClassOrInterfaceType(n.getElementType().asString()+"<"+rt+">");
+								// n.getElementType().asTypeParameter()
+								ClassOrInterfaceType c = JavaParser.parseClassOrInterfaceType(rt.describe());
+								// System.out.println(" ClassOrInterfaceType c "
+								// + c);
+								// n.setVariable(i, variableDeclarator)
+								vd.setType(c.getElementType());
+							}
+						}
+					}, arg);
+
+				} else {
+					super.visit(md, arg);
 				}
-
 			}
-
 		}, JavaParserFacade.get(typeSolver));
 
 		cu.accept(new ModifierVisitor<Void>() {
+
 			public VariableDeclarator visit(final VariableDeclarator n, Void arg) {
 				super.visit(n, arg);
 				if (missingTypes.containsKey(n.getName().asString())) {

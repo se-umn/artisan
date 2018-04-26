@@ -427,7 +427,7 @@ public class Carver {
 		// provided call to avoid state pollution as @Before method
 		Set<CompilationUnit> augmentedTestClasses = SootTestCaseFactory.generateAugmenetedTestFiles(projectJars,
 				testClasses, carvedTestCases, resetEnvironmentBy);
-		// --> This breaks regression selection ...
+		// --> This breaks regression selection because contains the XMLValidation calls...
 		storeToFile(augmentedTestClasses, outputDir);
 
 		// Soot generated files are optimized, there's less variables and test
@@ -454,6 +454,7 @@ public class Carver {
 		} catch (CarvingException e1) {
 			// This happens if
 			logger.warn("Validation of the carved tests failed. ", e1);
+			System.exit(1);
 		}
 		logger.info("Validating the carved tests END");
 
@@ -868,6 +869,7 @@ public class Carver {
 		// Those are removed ONLY if the value they return is NOT used !
 		// This includes ALSO the name of the variable
 		String m = methodCall.getNameAsString();
+		
 		return m.equals("length(") || m.equals("startsWith(") || m.equals("endsWith(") || m.equals("lastIndexOf(") || 
 				m.equals("equals(") || m.equals("trim(") || // String
 				m.equals("getAutoCommit(") || // Sql Connection
@@ -919,6 +921,7 @@ public class Carver {
 	
 	
 	
+	// Processing a file to extract which external calls are made shall be done only once...
 	@SuppressWarnings("unchecked")
 	public static boolean isExternalInterface(Statement s) {
 		final AtomicBoolean isExternalInterface = new AtomicBoolean(false);
@@ -959,7 +962,7 @@ public class Carver {
 					}
 
 				} catch (Exception e) {
-					logger.warn("Cannot resolve type for " + n, e);
+					logger.warn("Cannot resolve type for " + n + ". " + e.getMessage());
 				}
 				super.visit(n, arg);
 

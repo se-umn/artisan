@@ -328,7 +328,7 @@ public class TestGenerator {
 			// Store the return value to build the data dependencies
 			Value returnValue = dataDependencyGraph.getReturnObjectLocalFor(methodInvocation);
 
-			logger.debug("Generating  " + methodInvocation + " owner " + objLocal + " parameters " + parametersValues
+			logger.info("Generating  " + methodInvocation + " owner " + objLocal + " parameters " + parametersValues
 					+ " with return value " + returnValue);
 			//
 			Local actualReturnValue = null;
@@ -423,7 +423,7 @@ public class TestGenerator {
 
 		Chain<Unit> units = body.getUnits();
 
-		logger.trace("Processing method invocation " + methodInvocation.getJimpleMethod() + " -- "
+		logger.info("Processing method invocation " + methodInvocation.getJimpleMethod() + " -- "
 				+ methodInvocation.getInvocationType() + " on local " + objLocal + " with params " + parametersValues
 				+ " to return " + returnObjLocal);
 
