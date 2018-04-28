@@ -4,12 +4,17 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Random;
 import java.util.UUID;
 
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.security.NoTypePermission;
 import com.thoughtworks.xstream.security.NullPermission;
 import com.thoughtworks.xstream.security.PrimitiveTypePermission;
+
+import de.unipassau.abc.carving.MethodInvocation;
+import de.unipassau.abc.carving.MethodInvocationMatcher;
+import de.unipassau.abc.carving.ObjectInstance;
 
 /**
  * Methods to dump values and objects to files.
@@ -28,9 +33,16 @@ import com.thoughtworks.xstream.security.PrimitiveTypePermission;
 public class XMLDumper {
 
 	public static final String DUMP_DIR_PROPERTY_NAME = "dump.output";
+	// Filter objects to dump
+	public static final String DUMP_BY_PROPERTY_NAME = "dump.by";
+	
 	private static File dumpDirectory;
+	private static MethodInvocationMatcher methodInvocationMatcher ;
+	
 	static {
 		try {
+			java.util.Random r = new Random();
+			r.nextInt();
 
 			// USE A CONSTANT FOR THIS !
 			if (System.getProperty(DUMP_DIR_PROPERTY_NAME) != null) {
@@ -42,8 +54,43 @@ public class XMLDumper {
 			}
 			// System.out.println("**** Dump and Load XML Values directory " +
 			// dumpDirectory);
+			
+			methodInvocationMatcher = getMatcherFor(System.getProperty(DUMP_BY_PROPERTY_NAME));
+			
+			
 		} catch (IOException e) {
 			e.printStackTrace();
+		}
+	}
+	
+	private static MethodInvocationMatcher getMatcherFor(String dumpBy) {
+		if( dumpBy == null ){
+			return MethodInvocationMatcher.alwaysMatch();
+		}
+		
+		final String type = dumpBy.split("=")[0];
+		final String regEx = dumpBy.split("=")[1];
+		
+		switch (type) {
+		case "package":
+			return MethodInvocationMatcher.byPackage(regEx);
+		case "class":
+			// return MethodInvocationMatcher.byClass(regEx);
+			return MethodInvocationMatcher.byClassLiteral(regEx);
+		case "method":
+			// PAY ATTENTION TO THIS
+			return MethodInvocationMatcher.byMethodLiteral(regEx);
+		case "regex":
+			return MethodInvocationMatcher.byMethod(regEx);
+		case "invocation":
+			return MethodInvocationMatcher.byMethodInvocation(regEx);
+		case "return":
+			return MethodInvocationMatcher.byReturnType(regEx);
+		case "instance":
+			// TODO how to rule out primitive, null, and possibly Strings ?
+			return MethodInvocationMatcher.byInstance(new ObjectInstance(regEx));
+		default:
+			throw new RuntimeException("Unknown matcher specification " + type + "=" + regEx);
 		}
 	}
 
@@ -54,9 +101,15 @@ public class XMLDumper {
 	public static String dumpObject(String jimpleMethod, Object object) throws IOException {
 
 		if (object == null) {
-			System.out.println("XMLDumper.dumpObject() Null object for " + jimpleMethod);
+//			System.out.println("XMLDumper.dumpObject() Null object for " + jimpleMethod);
 			return null;
 		}
+		
+		if( ! methodInvocationMatcher.matches( new MethodInvocation(jimpleMethod, -1) ) && ! (object instanceof String) ){
+//			System.out.println("DEBUG: will not dump " + jimpleMethod );
+			return null;
+		}
+		
 		// Here there might be different strategies, but since we link this back
 		// also a random ID is ok.
 		File xmlFile = new File(dumpDirectory, UUID.randomUUID().toString() + ".xml");

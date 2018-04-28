@@ -46,6 +46,7 @@ $(find ${HOME}/.m2/repository -iname "system-rules-1.17.0.jar")
 
 # ABC Tracing requires Xstream, XPull, and Xpp3 to dump object instances to XML files
 SUPPORTING_JARS="../libs/trace.jar:"\
+$(find ${HOME}/.m2/repository -iname "slf4j-api-1.7.20.jar")":"\
 $(find ${HOME}/.m2/repository -iname "xmlpull-1.1.3.1.jar")":"\
 $(find ${HOME}/.m2/repository -iname "xstream-1.4.10.jar")":"\
 $(find ${HOME}/.m2/repository -iname "xpp3_min-1.1.4c.jar")
@@ -57,6 +58,10 @@ SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestEmployeeLogin"
 SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSeniorSoftwareEnginner"
 SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSoftwareEnginner"
 SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSoftwareTrainee"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterANewSoftwareTraineeWithWrongInputs"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterMoreThanThreeUsers"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterMoreThanThreeUsers2"
+SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestRegisterThreeUsers"
 SYSTEM_TESTS="${SYSTEM_TESTS} org.employee.systemtest.TestStartAndExit"
 
 # Code coverage libraries
@@ -81,7 +86,7 @@ java -jar ${JACOCO_CLI} report ${JACOCO_EXEC} \
     --xml ${JACOCO_XML_REPORT}
 
 ### Run the instrumented files to generate the trace. Those are default folder
-JAVA_OPTS="-Dtrace.output=./employee-tracingOut -Ddump.output=./employee-tracingOut"
+JAVA_OPTS="-Dtrace.output=./employee-tracingOut -Ddump.output=./employee-tracingOut -Ddump.by=package=org.employee"
 
 java \
 	-cp ${INSTR_CP}:${PROJECT_CP}:${TEST_CP}:${JUNIT_CP}:${SUPPORTING_JARS} \

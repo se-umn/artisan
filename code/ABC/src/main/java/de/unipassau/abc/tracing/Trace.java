@@ -21,6 +21,8 @@ public class Trace {
 		try {
 
 			File traceDir;
+			
+			
 			// USE A CONSTANT FOR THIS !
 			if (System.getProperty("trace.output") != null) {
 				traceDir = new File(System.getProperty("trace.output"));
@@ -36,7 +38,7 @@ public class Trace {
 				}
 			}
 			traceFile = new File(traceDir, "trace.txt");
-//			System.out.println("**** Trace() Output to " + traceFile);
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -144,13 +146,6 @@ public class Trace {
 		appendToTraceFile(content + "\n");
 	}
 
-	// This is the same above but without parameters
-	// public static void methodStart(String typeOfMethod, String method) {
-	// System.out.println("Trace.methodStart() " + method);
-	// appendToTraceFile(METHOD_START_TOKEN + typeOfMethod + ";" + method +
-	// "\n");
-	// }
-
 	private static boolean isArray(String formalParameterType) {
 		return formalParameterType.endsWith("[]");
 	}
@@ -161,8 +156,6 @@ public class Trace {
 		if (matchPattern.find()) {
 			return matchPattern.group(1).split(",");
 		}
-		// System.out.println("Trace.extractParameterTypes() WARNING NO
-		// PARAMETERS ?!!");
 		return new String[] {};
 	}
 
@@ -244,6 +237,8 @@ public class Trace {
 	private static void methodStopForObject(String methodName, Object owner, Object returnValue) {
 		String ownerXmlFile = null;
 		String returnXmlFile = null;
+		
+		
 		try {
 			if (owner != null) {
 				ownerXmlFile = XMLDumper.dumpObject(methodName, owner);

@@ -225,8 +225,26 @@ public class TestGeneration {
 		}
 	}
 
+	private CompilationUnit setupCompilationUnit(String testClassName, List<File> projectJars) throws IOException {
 
-	private File setupCompilationUnit(String testClassName, List<File> projectJars) throws IOException {
+		String javaCode = new String(
+				Files.readAllBytes(Paths.get("./src/test/resources/javas/org.hotelme." + testClassName + ".javaz")));
+
+		CompilationUnit cu = JavaParser.parse(javaCode);
+		//
+		CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
+		combinedTypeSolver.add(new ReflectionTypeSolver());
+		for (File jar : projectJars) {
+			combinedTypeSolver.add(new JarTypeSolver(jar.getAbsolutePath()));
+		}
+
+		TestCaseFactory.resolveMissingGenerics(cu, combinedTypeSolver);
+
+		return cu;
+	}
+
+
+	private File compileFile(String testClassName, List<File> projectJars) throws IOException {
 
 		String javaCode = new String(
 				Files.readAllBytes(Paths.get("./src/test/resources/javas/org.hotelme." + testClassName + ".javaz")));
@@ -278,7 +296,7 @@ public class TestGeneration {
 
 			List<File> projectJars = getHotelMeProjectsJars();
 
-			File tempDir = setupCompilationUnit(testClassName, projectJars);
+			File tempDir = compileFile(testClassName, projectJars);
 
 			// Assert by compiling the code !
 			boolean compiled = DeltaDebugger.compileAndRunJUnitTest("org.hotelme." + testClassName, tempDir,
@@ -299,13 +317,34 @@ public class TestGeneration {
 
 			List<File> projectJars = getHotelMeProjectsJars();
 
-			File tempDir = setupCompilationUnit(testClassName, projectJars);
+			File tempDir = compileFile(testClassName, projectJars);
 
 			// Assert by compiling the code !
 			boolean compiled = DeltaDebugger.compileAndRunJUnitTest("org.hotelme." + testClassName, tempDir,
 					projectJars);
 
 			assertTrue(compiled);
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail();
+		}
+
+	}
+	
+	@Test
+	public void testHotelGenericsUsage_TestHotelView_1() throws IOException, ParserException, LexerException {
+		try {
+			String testClassName = "TestHotelView_1";
+
+			List<File> projectJars = getHotelMeProjectsJars();
+
+			CompilationUnit testClass  = setupCompilationUnit(testClassName, projectJars);
+
+			TestSuiteExecutor testSuiteExecutor = new TestSuiteExecutor(projectJars);
+			// This executes the test into a temp folder anyway, no need to
+			// rename them !
+			testSuiteExecutor.compileRunAndGetCoverageJUnitTests(Collections.singletonList(testClass));
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail();
@@ -320,7 +359,7 @@ public class TestGeneration {
 
 			List<File> projectJars = getHotelMeProjectsJars();
 
-			File tempDir = setupCompilationUnit(testClassName, projectJars);
+			File tempDir = compileFile(testClassName, projectJars);
 
 			// Assert by compiling the code !
 			boolean compiled = DeltaDebugger.compileAndRunJUnitTest("org.hotelme." + testClassName, tempDir,
@@ -341,7 +380,7 @@ public class TestGeneration {
 
 			List<File> projectJars = getHotelMeProjectsJars();
 
-			File tempDir = setupCompilationUnit(testClassName, projectJars);
+			File tempDir = compileFile(testClassName, projectJars);
 
 			// Assert by compiling the code !
 			boolean compiled = DeltaDebugger.compileAndRunJUnitTest("org.hotelme." + testClassName, tempDir,

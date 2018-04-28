@@ -546,21 +546,24 @@ public class Carver {
 
 		long endTime = System.nanoTime();
 		// Add statistics here ? number of tests etc ?
-		System.out.println("====================================");
+		StringBuilder sb = new StringBuilder();
+		sb.append("====================================").append("\n");
 		//
-		System.out.println("parsingTime " + parsingTime);
-		System.out.println("carvingTime " + carvingTime);
-		System.out.println("testGenerationTime " + testGenerationTime);
+		sb.append("parsingTime " + parsingTime).append("\n");
+		sb.append("carvingTime " + carvingTime).append("\n");
+		sb.append("testGenerationTime " + testGenerationTime).append("\n");
 		if (!skipMinimize) {
 			// System.out.println("testSuiteMinimizationTime " +
 			// testSuiteMinimizationTime);
-			System.out.println("minimizationTime " + minimizationTime);
+			sb.append("minimizationTime " + minimizationTime).append("\n");
 		}
-		System.out.println("====================================");
-		System.out.println("Total " + (endTime - startTime) / 1000000000.0 + " s");
+		sb.append("====================================").append("\n");
+		sb.append("Total " + (endTime - startTime) / 1000000000.0 + " s").append("\n");
 
+		logger.info("Stats:\n" + sb.toString());
 		// Why is this required? Will the application hang otherwise
 		// System.exit(0);
+		return;
 	}
 
 	private static void cleanUpTestSuite(Set<CompilationUnit> reducedTestSuite) {

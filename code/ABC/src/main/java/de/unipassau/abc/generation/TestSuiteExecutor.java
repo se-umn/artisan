@@ -72,7 +72,7 @@ public class TestSuiteExecutor {
 		cpBuilder.append(ABCUtils.getSystemRulesJar()).append(File.pathSeparator);
 		// Include XMLDumper
 		cpBuilder.append(ABCUtils.getTraceJar()).append(File.pathSeparator);
-		// Include XMLDumper
+		// Include XMLDumper Deps
 		for (File jarFile : ABCUtils.getXStreamJars()) {
 			cpBuilder.append(jarFile.getAbsolutePath()).append(File.pathSeparator);
 		}

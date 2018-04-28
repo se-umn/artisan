@@ -54,40 +54,14 @@ public class TestCarverForHotelReservationSystem {
 			String traceFile = "/Users/gambi/action-based-test-carving/code/ABC/scripts/hotelme-tracingOut/trace.txt";
 
 			// String carveBy = "package=org.hotelme";
-
-			// This requires SOME, not all the setup actions !
 			// String carveBy = "class=org.hotelme.User";
-
-			// String carveBy = "method=<org.hotelme.Room: java.lang.String
-			// getRoomType()>";
-			// String carveBy = "method=<org.hotelme.User: int getUserID()>";
-			// String carveBy = "invocation=<org.hotelme.User: java.lang.String
-			// getFname()>_1874";
-
-			// String carveBy = "invocation=<org.hotelme.HotelView: void
-			// exitMessage()>_11744";
-
-			// String carveBy = "method=<org.hotelme.HotelView: void
-			// exitMessage()>";
-			// String carveBy = "invocation=<org.hotelme.HotelView: void
-			// exitMessage()";
-			// String carveBy = "invocation=<org.hotelme.HotelView: void
-			// exitMessage()>_27707";
-			// String carveBy = "invocation=<org.hotelme.HotelView: void
-			// exitMessage()>_40738";
-			// String carveBy = "invocation=<org.hotelme.HotelView: void
-			// exitMessage()>_40738";
-			// String carveBy = "method=<org.hotelme.HotelView: int
-			// roomConfirmation(java.util.Scanner,int,java.lang.String)>";
-			// String carveBy = "method=<org.hotelme.Room: float
-			// getTotalPrice()>";
-			// String carveBy = "class=org.hotelme.Room";
-			String carveBy = "method=<org.hotelme.HotelView: int deleteConfirmation(java.util.Scanner)>";
-//			String carveBy = "invocation=<org.hotelme.Room: java.lang.String getRoomType()>_6746";
-
-			// String carveBy = "invocation=<org.hotelme.HotelView: int
-			// roomConfirmation(java.util.Scanner,int,java.lang.String)>_3302";
-
+//			String carveBy = "method=<org.hotelme.HotelView: void printReservedRooms(java.lang.String,int,int,int,int,java.util.Date,java.util.Date,float)>";
+			// String carveBy = "invocation=<org.hotelme.User: int
+			// getUserID()>_2006";
+//			String carveBy = "invocation=<org.hotelme.HotelView: void printReservedRooms(java.lang.String,int,int,int,int,java.util.Date,java.util.Date,float)>_2136";
+//			String carveBy = "invocation=<org.hotelme.HotelView: void printReservedRooms(java.lang.String,int,int,int,int,java.util.Date,java.util.Date,float)>_2238";
+			String carveBy = "invocation=<org.hotelme.HotelView: void printReservedRooms(java.lang.String,int,int,int,int,java.util.Date,java.util.Date,float)>_2340";
+//			String carveBy = "invocation=<org.hotelme.HotelView: void printReservedRooms(java.lang.String,int,int,int,int,java.util.Date,java.util.Date,float)>_2442";
 			String[] args = new String[] { //
 					"--carve-by", carveBy,
 					// String traceFile =
@@ -111,7 +85,7 @@ public class TestCarverForHotelReservationSystem {
 					// "class=org.hotelme.utils.SystemTestUtils", //
 					// This is for delta debugging
 					"--reset-environment-by", "org.hotelme.utils.SystemTestUtils.dropAndRecreateTheDb()", //
-//					"--skip-minimize",//
+					// "--skip-minimize",//
 
 			};
 			//// "class=org.hotelme.utils.ScriptRunner", //
