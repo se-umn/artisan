@@ -342,17 +342,10 @@ public class TestCaseFactory {
 							// might take some time...
 							ResolvedType valueType = javaParserFacade.getType(vd);
 
-							// FIXME Cannot match
-							// ResolvedReferenceTypeDeclaration and
-							// ResolvedReferenceType !
+							// FIXME: this resolve the type declaration,
 							// ResolvedReferenceTypeDeclaration objectType =
 							// typeSolver.solveType(Collection.class.getCanonicalName());
-							// if(
-							// valueType.asReferenceType().getAllInterfacesAncestors().contains(
-							// collectionType ) ){
-							// System.out.println("Found collection " +
-							// valueType );
-							// }
+							// But cannot match it to: valueType.asReferenceType().getAllAncestors()
 
 							if (!valueType.isReferenceType()) {
 								return super.visit(n, javaParserFacade);

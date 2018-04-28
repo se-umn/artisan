@@ -47,6 +47,10 @@
 							<mainClass>de.unipassau.abc.carving.Carver</mainClass>
 							<id>carve</id>
 						</program>
+						<program>
+							<mainClass>de.unipassau.abc.generation.TestSuiteMinimizer</mainClass>
+							<id>reduce</id>
+						</program>
 					</programs>
 					<configurationDirectory>libs</configurationDirectory>
 					<configurationSourceDirectory>libs</configurationSourceDirectory>
@@ -220,13 +224,14 @@
 						<configuration>
 							<includes>
 								<include>**/de/unipassau/abc/tracing/*</include>
+								<include>**/de/unipassau/abc/carving/*</include>
+								<include>**/de/unipassau/abc/utils/*</include>
 							</includes>
 							<outputDirectory>./libs</outputDirectory>
 						</configuration>
 					</plugin>
 				</plugins>
 			</build>
-
 		</profile>
 		<!-- Create the test subject jars for integration testing -->
 		<profile>

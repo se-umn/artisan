@@ -59,7 +59,7 @@ public class ABCUtils {
 	// I do not like this...
 	public static List<File> getXStreamJars() {
 		List<File> jars = new ArrayList<>();
-		for (String jarName : new String[] { "xmlpull-1.1.3.1.jar", "xpp3_min-1.1.4c.jar", "xstream-1.4.10.jar" }) {
+		for (String jarName : new String[] { "xmlpull-1.1.3.1.jar", "xpp3_min-1.1.4c.jar", "xstream-1.4.10.jar", "slf4j-api-1.7.20.jar" }) {
 			String jar = new File("./src/test/resources/" + jarName).getAbsolutePath(); // Eclipse testing
 
 			if (!new File(jar).exists()) {

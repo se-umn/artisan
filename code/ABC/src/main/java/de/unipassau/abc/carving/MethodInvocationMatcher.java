@@ -23,6 +23,18 @@ public class MethodInvocationMatcher {
 			return false;
 		}
 	}
+	
+	static class AlwaysMatchMethodInvocationMatcher extends MethodInvocationMatcher {
+
+		protected AlwaysMatchMethodInvocationMatcher() {
+			super();
+		}
+
+		@Override
+		public boolean matches(MethodInvocation methodInvocation) {
+			return true;
+		}
+	}
 
 	private final static Logger logger = LoggerFactory.getLogger(MethodInvocationMatcher.class);
 	// Jimple methods: <org.employee.Validation: int
@@ -266,6 +278,10 @@ public class MethodInvocationMatcher {
 		MethodInvocationMatcher literalClass = new MethodInvocationMatcher();
 		literalClass.classPattern = Pattern.compile( Pattern.quote(regEx) + "$");
 		return literalClass;
+	}
+
+	public static MethodInvocationMatcher alwaysMatch() {
+		return new AlwaysMatchMethodInvocationMatcher();
 	}
 
 }
