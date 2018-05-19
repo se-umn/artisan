@@ -21,8 +21,6 @@ public class Trace {
 		try {
 
 			File traceDir;
-			
-			
 			// USE A CONSTANT FOR THIS !
 			if (System.getProperty("trace.output") != null) {
 				traceDir = new File(System.getProperty("trace.output"));
@@ -38,6 +36,9 @@ public class Trace {
 				}
 			}
 			traceFile = new File(traceDir, "trace.txt");
+			
+			// Do not output anything here
+			// System.out.println("Tracing to " + traceFile.getAbsolutePath() );
 			
 		} catch (IOException e) {
 			e.printStackTrace();

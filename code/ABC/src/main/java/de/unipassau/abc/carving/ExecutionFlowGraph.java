@@ -229,19 +229,31 @@ public class ExecutionFlowGraph {
 
 	public List<MethodInvocation> getOrderedMethodInvocationsBefore(MethodInvocation methodInvocation) {
 
-		if (!graph.containsVertex(methodInvocation)) {
-			logger.info("Method invocation " + methodInvocation + " not in the execution graph");
-			return Collections.<MethodInvocation>emptyList();
-		}
-
-		List<MethodInvocation> predecessorsOf = new ArrayList<>();
-		for (MethodInvocation mi : getPredecessors(methodInvocation)) {
-			predecessorsOf.addAll(getOrderedMethodInvocationsBefore(mi));
-		}
-		// As last add the mi passed as parameter
-		predecessorsOf.add(methodInvocation);
-
-		return predecessorsOf;
+		List<MethodInvocation> orderedMethodInvocationsBefore = new ArrayList<>( graph.getVertices());
+		// Sort them. Method invocation implements comparable
+		Collections.sort( orderedMethodInvocationsBefore );
+		// Find the position of the given mi
+		int position = orderedMethodInvocationsBefore.indexOf( methodInvocation );
+		// now remove all the elements that are before that position. The resulting list should include the given mi
+		
+		orderedMethodInvocationsBefore.removeAll( orderedMethodInvocationsBefore.subList(position, orderedMethodInvocationsBefore.size()-1));
+		// We need to ensure the given mi is there
+		orderedMethodInvocationsBefore.add(0, methodInvocation);
+		return orderedMethodInvocationsBefore;
+		
+//		if (!graph.containsVertex(methodInvocation)) {
+//			logger.info("Method invocation " + methodInvocation + " not in the execution graph");
+//			return Collections.<MethodInvocation>emptyList();
+//		}
+//
+//		List<MethodInvocation> predecessorsOf = new ArrayList<>();
+//		for (MethodInvocation mi : getPredecessors(methodInvocation)) {
+//			predecessorsOf.addAll(getOrderedMethodInvocationsBefore(mi));
+//		}
+//		// As last add the mi passed as parameter
+//		predecessorsOf.add(methodInvocation);
+//
+//		return predecessorsOf;
 	}
 
 	/**
@@ -256,21 +268,41 @@ public class ExecutionFlowGraph {
 		return new HashSet<>(getOrderedMethodInvocationsAfter(methodInvocation));
 	}
 
+	// TODO: Double check that this actually produces the same results as before.
+	// Plus check why we needed the methodInvocation to be in this list...
 	public List<MethodInvocation> getOrderedMethodInvocationsAfter(MethodInvocation methodInvocation) {
-		try {
-			List<MethodInvocation> successorsOf = new ArrayList<>();
-			// Add the actual one
-			successorsOf.add(methodInvocation);
-			// getSuccessors(methodInvocation) can return null !? !
-			for (MethodInvocation mi : getSuccessors(methodInvocation)) {
-				// Add the one reach from this one
-				successorsOf.addAll(getOrderedMethodInvocationsAfter(mi));
-			}
-			return successorsOf;
-		} catch (Throwable e) {
-			e.printStackTrace();
-			throw e;
-		}
+
+		List<MethodInvocation> orderedMethodInvocationsAfter = new ArrayList<>( graph.getVertices());
+		// Sort them. Method invocation implements comparable
+		Collections.sort( orderedMethodInvocationsAfter );
+		// Find the position of the given mi
+		int position = orderedMethodInvocationsAfter.indexOf( methodInvocation );
+		// now remove all the elements that are before that position. The resulting list should include the given mi
+		orderedMethodInvocationsAfter.removeAll( orderedMethodInvocationsAfter.subList(0, position));
+		
+		return orderedMethodInvocationsAfter;
+		
+//		try {
+//			List<MethodInvocation> successorsOf = new ArrayList<>();
+//			logger.debug("getOrderedMethodInvocationsAfter " + methodInvocation);
+//			// Add the actual one ?! Why is this here ?!
+//			successorsOf.add(methodInvocation);
+//
+//			// getSuccessors(methodInvocation) can return null !? !
+//			for (MethodInvocation mi : getSuccessors(methodInvocation)) {
+//
+//				if (successorsOf.contains(mi)) {
+//					logger.error(mi + " is already in the successors list ?!");
+//				} else {
+//					// Add the one reach from this one
+//					successorsOf.addAll(getOrderedMethodInvocationsAfter(mi));
+//				}
+//			}
+//			return successorsOf;
+//		} catch (Throwable e) {
+//			e.printStackTrace();
+//			throw e;
+//		}
 	}
 
 	public Collection<MethodInvocation> getSuccessors(MethodInvocation methodInvocation) {

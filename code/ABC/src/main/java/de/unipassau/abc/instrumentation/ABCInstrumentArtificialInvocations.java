@@ -38,9 +38,11 @@ import soot.jimple.StringConstant;
  * Trace fields assignment, array assignments, string initialization, and the
  * other "corner case" operations into trace actions like:
  * 
- * 
  * Array.SET(Position, Value); <b>We assume that parameters are Locals, that is,
  * we assume that the other runners have already executed.</b>
+ * 
+ * We need to include artificial invocations also to access the "String[] args" parameter
+ * in the main file. 
  * 
  * @author gambi
  *
@@ -51,13 +53,13 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 
 	@Override
 	protected void internalTransform(final Body body, String phaseName, @SuppressWarnings("rawtypes") Map options) {
-		
+
 		final SootMethod containerMethod = body.getMethod();
 
 		System.out.println("ABCInstrumentArtificialInvocations.internalTransform() STARTING " + containerMethod);
 
-		logger.debug("STRATING " + containerMethod );
-		
+		logger.debug("STRATING " + containerMethod);
+
 		if (InstrumentTracer.filterMethod(containerMethod)) {
 			logger.debug("Skip instrumentation of: " + containerMethod);
 			return;
@@ -68,7 +70,9 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 			return;
 		}
 
+		
 		final PatchingChain<Unit> units = body.getUnits();
+		
 		for (final Iterator<Unit> iter = units.snapshotIterator(); iter.hasNext();) {
 
 			final Unit currentUnit = iter.next();
@@ -76,13 +80,12 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 			if (currentUnit.hasTag(ABCTag.TAG_NAME)) {
 				logger.info("DO NOT TRACE OUR OWN CODE " + currentUnit);
 			}
-			
+
 			currentUnit.apply(new AbstractStmtSwitch() {
 
 				public void caseAssignStmt(AssignStmt stmt) {
-					
-					
-					if( stmt.containsInvokeExpr() ){
+
+					if (stmt.containsInvokeExpr()) {
 						InvokeExpr invokeExpr = stmt.getInvokeExpr();
 						if (InstrumentTracer.doNotTraceCallsTo(invokeExpr.getMethod())) {
 							logger.debug("Do not trace calls to " + currentUnit);
@@ -131,33 +134,76 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 					} else if (stmt.getRightOp() instanceof ArrayRef) {
 						instrumentArrayAccessExpression(body, currentUnit,
 								//
-								stmt.getLeftOp(), 
-								((ArrayRef) stmt.getRightOp()).getBase(),
+								stmt.getLeftOp(), ((ArrayRef) stmt.getRightOp()).getBase(),
 								((ArrayRef) stmt.getRightOp()).getIndex());
-					} else if ( stmt.getRightOp() instanceof ClassConstant ){
-						instrumentAccessToClassConstant(body, currentUnit, 
+					} else if (stmt.getRightOp() instanceof ClassConstant) {
+						instrumentAccessToClassConstant(body, currentUnit,
 								//
-								stmt.getLeftOp(), 
-								((ClassConstant) stmt.getRightOp()));
+								stmt.getLeftOp(), ((ClassConstant) stmt.getRightOp()));
 					} else {
 						// ClassConstant left and right ...
-						logger.debug("Uknown combination. Operation not supported " + stmt.getLeftOp() + " " + stmt.getRightOp());
+						logger.debug("Uknown combination. Operation not supported " + stmt.getLeftOp() + " "
+								+ stmt.getRightOp());
 					}
 				}
 
 			});
 		}
+		
+		// At this point we instrumented this method, however, if the method is main, we add artificial instructions to get its args
+		
+		// Check if this is the main method, in that case create artificial calls to access its input parameters
+				if (containerMethod.isMain() ){
+					System.out.println("ABCInstrumentArtificialInvocations.internalTransform() THIS IS THE MAIN METHOD");
+					for( Local p : body.getParameterLocals() ){
+						System.out.println("PARAMETER LOCAL: " + p + " " + p.getType());
+						instrumentMainArgs(body, p);
+						// Add a special call that accesses it?
+						// This should be a String[] arg or a void...
+					}
+				}
+		
 	}
-	
+
+	private void instrumentMainArgs(Body body, Local p) {
+		String invokeType = "MainArgsOperation";
+		
+		String fakeMethodSignature = "<abc.MainArgs: "+p.getType() + " getMainArgs()>";
+		//
+		List<Value> parameterList = new ArrayList<>();
+		// parameterList.add(StringConstant.v(classConstant.value));
+		//
+		List<Unit> generatedBefore = new ArrayList<>();
+		List<Unit> generatedAfter = new ArrayList<>();
+		//
+		generatedBefore.addAll(addTraceStart(invokeType, fakeMethodSignature, parameterList, body));
+		/*
+		 * This avoid duplicating the access to the static field
+		 */
+		// Static method have null owner
+		
+		// I suspect we need to wrap p into something else ?!
+		generatedAfter.addAll(addTraceStop(fakeMethodSignature, NullConstant.v(), p, body));
+		
+		//
+		PatchingChain<Unit> units = body.getUnits();
+		
+		// Not those are "reversed"
+		units.insertAfter(generatedAfter, units.getFirst());
+		units.insertAfter(generatedBefore, units.getFirst());
+		
+	}
+
 	private void instrumentAccessToClassConstant(Body body, Unit currentUnit, Value leftOp,
 			ClassConstant classConstant) {
 
 		String invokeType = "ClassOperation";
-		// "Static" - This corresponds to <Instance>.class - Maybe embed the actual class in the Action?
+		// "Static" - This corresponds to <Instance>.class - Maybe embed the
+		// actual class in the Action?
 		String fakeMethodSignature = "<abc.Class: java.lang.Class get()>";
 		//
 		List<Value> parameterList = new ArrayList<>();
-//		parameterList.add(StringConstant.v(classConstant.value));
+		// parameterList.add(StringConstant.v(classConstant.value));
 		//
 		List<Unit> generatedBefore = new ArrayList<>();
 		List<Unit> generatedAfter = new ArrayList<>();
@@ -173,8 +219,9 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 		PatchingChain<Unit> units = body.getUnits();
 		units.insertBefore(generatedBefore, currentUnit);
 		units.insertAfter(generatedAfter, currentUnit);
-		
+
 	}
+
 	// TODO How DO I KNOW THIS IS SYSTEM.OUT, SYSTEM.ERR, or SYSTEM.IN ?! ?
 	private void instrumentAccessToStaticFieldExpression(Body body, Unit currentUnit, Local staticFieldLocal,
 			StaticFieldRef staticField) {
@@ -205,14 +252,14 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 			SootField field, Value value) {
 		// TODO Note that we do not even need to know which field is...
 		String invokeType = "FieldOperation";
-		
+
 		Type fieldType = null;
-		if( value == null || value instanceof NullConstant || value.getType() instanceof NullType){
+		if (value == null || value instanceof NullConstant || value.getType() instanceof NullType) {
 			fieldType = field.getType();
 		} else {
 			fieldType = value.getType();
 		}
-		
+
 		// "Static"
 		String fakeMethodSignature = "<abc.Field: void set(" + fieldType + ")>";
 
@@ -317,7 +364,8 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 			Value array, Value arrayIndex) {
 
 		String invokeType = "ArrayOperation";
-		String fakeMethodSignature = "<" +  array.getType() + ": "+ array.getType().toString().replace("[]", "") + " get(int)>";
+		String fakeMethodSignature = "<" + array.getType() + ": " + array.getType().toString().replace("[]", "")
+				+ " get(int)>";
 
 		List<Value> parameterList = new ArrayList<>();
 		parameterList.add(arrayIndex);
@@ -331,13 +379,11 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 
 		generatedAfter.addAll(addTraceStop(fakeMethodSignature, array, leftOp, body));
 
-		
 		System.out.println("ABCInstrumentArtificialInvocations.instrumentArrayAccessExpression() GENERATED CODE: ");
-		for( Unit u : generatedBefore ){
-			System.out.println(">>" + u );
+		for (Unit u : generatedBefore) {
+			System.out.println(">>" + u);
 		}
-		
-		
+
 		injectTracingCode(body, currentUnit, generatedBefore, generatedAfter);
 	}
 
@@ -380,12 +426,12 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 	private void injectTracingCode(Body body, Unit currentUnit, List<Unit> generatedBefore, List<Unit> generatedAfter) {
 		PatchingChain<Unit> units = body.getUnits();
 		for (Unit unit : generatedBefore) {
-			System.out.println("ABCInstrumentArtificialInvocations.injectTracingCode() TAG " + unit );
+			System.out.println("ABCInstrumentArtificialInvocations.injectTracingCode() TAG " + unit);
 			unit.addTag(ABCTag.TAG);
 		}
 
 		for (Unit unit : generatedAfter) {
-			System.out.println("ABCInstrumentArtificialInvocations.injectTracingCode() TAG " + unit );
+			System.out.println("ABCInstrumentArtificialInvocations.injectTracingCode() TAG " + unit);
 			unit.addTag(ABCTag.TAG);
 		}
 		// Be sure to tage the units we generate !

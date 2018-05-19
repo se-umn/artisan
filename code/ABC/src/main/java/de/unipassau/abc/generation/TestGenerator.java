@@ -42,6 +42,7 @@ import soot.VoidType;
 import soot.jimple.ArrayRef;
 import soot.jimple.AssignStmt;
 import soot.jimple.ClassConstant;
+import soot.jimple.IntConstant;
 import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
 import soot.jimple.JimpleBody;
@@ -640,6 +641,45 @@ public class TestGenerator {
 						+ methodInvocation.getXmlDumpForReturn(), e);
 			}
 
+			break;
+		case "MainArgsOperation":
+			/*
+			 * This is to retrieve from XML and rebuild the original String
+			 * args[] (if any ?!)
+			 */
+
+			// TODO Not sure the objLocal is really there !
+
+			logger.trace("Processing method invocation " + methodInvocation.getJimpleMethod() + " -- "
+					+ methodInvocation.getInvocationType() + " on local " + objLocal + " with params "
+					+ parametersValues + " to return " + returnObjLocal);
+			try {
+				// We need to rebuild the array...
+				String[] stringArrayFromXmlContent = (String[]) XMLDumper
+						.loadObject(methodInvocation.getXmlDumpForReturn());
+
+				System.out.println(
+						"TestGenerator.addUnitFor() FOUND ELEMENTS: " + Arrays.toString(stringArrayFromXmlContent));
+
+				// Create a local which hosts the array
+				NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(RefType.v("java.lang.String"),
+						IntConstant.v(stringArrayFromXmlContent.length));
+				Stmt arrayAssignment = Jimple.v().newAssignStmt(returnObjLocal, arrayExpr);
+				//
+				System.out.println("Added " + arrayAssignment);
+				units.add(arrayAssignment);
+				// Fill in the array
+				for (int i = 0; i < stringArrayFromXmlContent.length; i++) {
+					ArrayRef arrayRef = Jimple.v().newArrayRef(returnObjLocal, IntConstant.v(i));
+					AssignStmt assignStmt = Jimple.v().newAssignStmt(arrayRef,
+							StringConstant.v(stringArrayFromXmlContent[i]));
+					units.add(assignStmt);
+					System.out.println("Added " + assignStmt);
+				}
+			} catch (Throwable e) {
+				throw new CarvingException("Cannot find a dumped value for string " + returnObjLocal + " in file "
+						+ methodInvocation.getXmlDumpForReturn(), e);
+			}
 			break;
 		default:
 			logger.error("Unexpected Invocation type " + methodInvocation.getInvocationType());

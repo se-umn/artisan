@@ -264,9 +264,10 @@ public class SootTestCaseFactory {
 
 		for (SootClass testClass : testClasses) {
 
+			logger.info("\n TestCaseFactory.generateTestFiles() For Class " + testClass.getName());
+
 			includeXMLValidationCalls(testClass, carvedTestCases);
 
-			logger.info("TestCaseFactory.generateTestFiles() " + testClass.getName());
 			String classFileName = SourceLocator.v().getFileNameFor(testClass, Options.output_format_class);
 			try {
 
@@ -353,7 +354,6 @@ public class SootTestCaseFactory {
 			}
 		}
 
-		
 		for (CompilationUnit testClass : generatedClasses) {
 //			// Include the reset environment call if needed
 			Carver.createAtBeforeResetMethod(resetEnvironmentBy, testClass);

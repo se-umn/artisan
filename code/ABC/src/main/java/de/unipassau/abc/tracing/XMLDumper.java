@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.Random;
 import java.util.UUID;
 
 import com.thoughtworks.xstream.XStream;
@@ -39,11 +38,11 @@ public class XMLDumper {
 	private static File dumpDirectory;
 	private static MethodInvocationMatcher methodInvocationMatcher ;
 	
+	//
+	private static MethodInvocationMatcher abcMethodInvocationMatcher=getMatcherFor("package=abc");
+	
 	static {
 		try {
-			java.util.Random r = new Random();
-			r.nextInt();
-
 			// USE A CONSTANT FOR THIS !
 			if (System.getProperty(DUMP_DIR_PROPERTY_NAME) != null) {
 				dumpDirectory = new File(System.getProperty(DUMP_DIR_PROPERTY_NAME));
@@ -52,11 +51,10 @@ public class XMLDumper {
 			} else {
 				dumpDirectory = Files.createTempDirectory("tmp-dump").toFile();
 			}
-			// System.out.println("**** Dump and Load XML Values directory " +
-			// dumpDirectory);
-			
 			methodInvocationMatcher = getMatcherFor(System.getProperty(DUMP_BY_PROPERTY_NAME));
 			
+			// Do not output anything on console
+			// System.out.println("**** Dump and Load XML Values directory " + dumpDirectory);
 			
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -94,10 +92,14 @@ public class XMLDumper {
 		}
 	}
 
-	// This is to avoid adding complexity to the instrumentation
-	// Use String instead of File to further simplify the interfaces
-	// TODO How to handle null values ? we do not create a file for them? or we
-	// create an empty file?
+	/**
+	 * Dumps to XML file the object, either owner or return type, of the given method invocation
+	 * 
+	 * @param jimpleMethod
+	 * @param object
+	 * @return
+	 * @throws IOException
+	 */
 	public static String dumpObject(String jimpleMethod, Object object) throws IOException {
 
 		if (object == null) {
@@ -105,8 +107,11 @@ public class XMLDumper {
 			return null;
 		}
 		
-		if( ! methodInvocationMatcher.matches( new MethodInvocation(jimpleMethod, -1) ) && ! (object instanceof String) ){
-//			System.out.println("DEBUG: will not dump " + jimpleMethod );
+		if( ! ( 
+				methodInvocationMatcher.matches( new MethodInvocation(jimpleMethod, -1) ) ||
+				abcMethodInvocationMatcher.matches( new MethodInvocation(jimpleMethod, -1) )
+			) 
+				&& ! (object instanceof String) ){
 			return null;
 		}
 		

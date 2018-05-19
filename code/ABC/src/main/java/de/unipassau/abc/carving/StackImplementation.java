@@ -217,8 +217,15 @@ public class StackImplementation implements TraceParser {
 				return jimpleMethod;
 			}
 
+			if (JimpleUtils.getClassNameForMethod(jimpleMethod).startsWith("java")) {
+				//
+				logger.debug("Return the java method without checking..."+ jimpleMethod );
+				return jimpleMethod;
+			}
+			
 			// If the method exists, returns it otherwise lookup into the
-			// SuperClasses until we find one
+			// SuperClasses until we find one, unless the method is a "java" method ?
+			
 			return Scene.v().getMethod(jimpleMethod).getSignature();
 
 		} catch (Throwable e) {
@@ -230,8 +237,7 @@ public class StackImplementation implements TraceParser {
 					logger.debug("Cannot find " + jimpleMethod + " in " + sClass.getName());
 					// This raise exception if there's no superclass !
 					sClass = sClass.getSuperclass();
-					// logger.debug("StackImplementation.findCorrectJimpleMethod()
-					// Going to " + superClass.getName() );
+					logger.debug("StackImplementation.findCorrectJimpleMethod() Going to " + sClass.getName());
 					while (sClass != null) {
 						try {
 							SootMethod sMethod = sClass.getMethod(JimpleUtils.getSubSignature(jimpleMethod));

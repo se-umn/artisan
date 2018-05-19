@@ -345,11 +345,16 @@ public class Carver {
 				.generateTestCases(carvedTests, new EachTestAlone());
 
 		// Collect the test classes (back compatibility)
+		System.out.println("\n\n\n");
 		Set<SootClass> testClasses = new HashSet<>();
 		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
+			
+			System.out.println("Carver.main() ADDING " + carvedTestCase.getThird().getDeclaringClass().getName() + " as TEST CLASS");
 			testClasses.add(carvedTestCase.getThird().getDeclaringClass());
 		}
 
+		System.out.println("\n\n\n");
+		
 		logger.debug("Generating input mocking values");
 		// TODO Are assertions STILL generated ?!
 		//// DECORATORS HERE: ASSERTIONS AND MOCKING !
@@ -427,7 +432,8 @@ public class Carver {
 		// provided call to avoid state pollution as @Before method
 		Set<CompilationUnit> augmentedTestClasses = SootTestCaseFactory.generateAugmenetedTestFiles(projectJars,
 				testClasses, carvedTestCases, resetEnvironmentBy);
-		// --> This breaks regression selection because contains the XMLValidation calls...
+		// --> This breaks regression selection because contains the
+		// XMLValidation calls...
 		storeToFile(augmentedTestClasses, outputDir);
 
 		// Soot generated files are optimized, there's less variables and test
@@ -619,14 +625,19 @@ public class Carver {
 			// return value
 			public void caseAssignStmt(soot.jimple.AssignStmt stmt) {
 
+				// In some case ? the right side of the stmt is not an
+				// invocation (e.g., arrayref)
+
 				System.out.println("Validation for " + stmt);
 
-				InvokeExpr invokeExpr = stmt.getInvokeExpr();
+				if (stmt.containsInvokeExpr()) {
 
-				if (!(invokeExpr instanceof StaticInvokeExpr)) {
-					generateValidationForCut(((InstanceInvokeExpr) invokeExpr).getBase());
+					InvokeExpr invokeExpr = stmt.getInvokeExpr();
+
+					if (!(invokeExpr instanceof StaticInvokeExpr)) {
+						generateValidationForCut(((InstanceInvokeExpr) invokeExpr).getBase());
+					}
 				}
-
 				generateValidationForReturnValue(stmt.getLeftOp());
 			};
 
@@ -754,7 +765,7 @@ public class Carver {
 	// }
 
 	// create a @Before method which invokes resetEnvironment by unless there's
-	// already one
+	// already one. TODO in that case what we do ?!
 	public static void createAtBeforeResetMethod(String resetEnvironmentBy, CompilationUnit testClass) {
 		if (resetEnvironmentBy == null) {
 			return;
@@ -769,6 +780,7 @@ public class Carver {
 		//
 		MethodDeclaration setupMethod = testType.addMethod("setup", Modifier.PUBLIC);
 		setupMethod.addAnnotation(Before.class);
+		setupMethod.addThrownException(Exception.class);
 		BlockStmt body = new BlockStmt();
 		body.addStatement(new NameExpr(resetEnvironmentBy));
 		setupMethod.setBody(body);
@@ -825,7 +837,8 @@ public class Carver {
 			// Thos are all hardcoded
 			return exp.contains(".close") || //
 					exp.contains(".setAutoCommit") || //
-					exp.contains("XMLVerifier.verify") || // Include also verifyPrimitives
+					exp.contains("XMLVerifier.verify") || // Include also
+															// verifyPrimitives
 					exp.contains("= null");
 		}
 		return false;
@@ -872,9 +885,9 @@ public class Carver {
 		// Those are removed ONLY if the value they return is NOT used !
 		// This includes ALSO the name of the variable
 		String m = methodCall.getNameAsString();
-		
-		return m.equals("length(") || m.equals("startsWith(") || m.equals("endsWith(") || m.equals("lastIndexOf(") || 
-				m.equals("equals(") || m.equals("trim(") || // String
+
+		return m.equals("length(") || m.equals("startsWith(") || m.equals("endsWith(") || m.equals("lastIndexOf(")
+				|| m.equals("equals(") || m.equals("trim(") || // String
 				m.equals("getAutoCommit(") || // Sql Connection
 				m.equals("getResultSet(") || // Sql statement
 				m.equals("getInt(") || // Sql result set
@@ -883,7 +896,8 @@ public class Carver {
 				// m.equals("getPrice") || m.equals("getTotalPrice") ||
 				// m.equals("getAdults") || m.equals("getChildren")
 				// || m.equals("getMaxOccupancy") || m.equals("getRoomID") ||
-//				m.equals("getFname") || // --> This leads to breaking the tests? I suspect that this is removed ALSO in the assignmStmt
+				// m.equals("getFname") || // --> This leads to breaking the
+				// tests? I suspect that this is removed ALSO in the assignmStmt
 				// m.equals("getTotalPrice") || // HotelMe
 				// "getCheckOut", getCheckIn
 				false;
@@ -917,14 +931,13 @@ public class Carver {
 			"java.sql.Statement", //
 			"java.sql.PreparedStatement", //
 			"java.sql.ResultSet", //
-			}));
+	}));
 
 	// this requires the SymbolSover to get the type of S
 	// A statement might include several calls !
-	
-	
-	
-	// Processing a file to extract which external calls are made shall be done only once...
+
+	// Processing a file to extract which external calls are made shall be done
+	// only once...
 	@SuppressWarnings("unchecked")
 	public static boolean isExternalInterface(Statement s) {
 		final AtomicBoolean isExternalInterface = new AtomicBoolean(false);
