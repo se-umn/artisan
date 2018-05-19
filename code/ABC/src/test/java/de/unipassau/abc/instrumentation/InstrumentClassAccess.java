@@ -19,6 +19,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
+import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.abc.utils.SystemTest;
 
@@ -30,22 +31,22 @@ public class InstrumentClassAccess {
 		@Rule
 		public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-		private static File traceJar;
+		private static File traceJar = new File(ABCUtils.getTraceJar());
 
-		@BeforeClass
-		public static void setupTraceJar() {
-			// Use this if you want to inspect the traces afterwards
-			// File outputDir = com.google.common.io.Files.createTempDir();
-			// File traceOutput = File.createTempFile("trace", ".txt");
-
-			traceJar = new File("./libs/trace.jar"); // Eclipse testing
-			if (!traceJar.exists()) {
-				traceJar = new File("../libs/trace.jar"); // Actual usage ...
-				if (!traceJar.exists()) {
-					throw new RuntimeException("trace.jar file is missing");
-				}
-			}
-		}
+//		@BeforeClass
+//		public static void setupTraceJar() {
+//			// Use this if you want to inspect the traces afterwards
+//			// File outputDir = com.google.common.io.Files.createTempDir();
+//			// File traceOutput = File.createTempFile("trace", ".txt");
+//
+//			traceJar = new File("./libs/trace.jar"); // Eclipse testing
+//			if (!traceJar.exists()) {
+//				traceJar = new File("../libs/trace.jar"); // Actual usage ...
+//				if (!traceJar.exists()) {
+//					throw new RuntimeException("trace.jar file is missing");
+//				}
+//			}
+//		}
 
 		@Test
 		@Category(SystemTest.class)
@@ -60,18 +61,8 @@ public class InstrumentClassAccess {
 			tracer.main(new String[] { "--project-jar", testsubjectJar.getAbsolutePath(), //
 					"--output-to", outputDir.getAbsolutePath(), //
 					"--output-type", "jimple", 
-					"--include", "de.unipassau.abc.testsubject4.*" });
-			//
-//			final AtomicInteger count = new AtomicInteger(0);
-//			Files.walkFileTree(outputDir.toPath(), new SimpleFileVisitor<Path>() {
-//				@Override
-//				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-//					if (file.toString().endsWith(".jimple")) {
-//						count.incrementAndGet();
-//					}
-//					return super.visitFile(file, attrs);
-//				}
-//			});
+					"--exclude", "de.unipassau.abc.testsubject2.*",
+					"--include", "de.unipassau.abc.testsubject2.Main" });
 
 			// TODO Separate methos call; Visualize the JIMPLE Files
 			for( File jimpleFile : outputDir.listFiles(new FilenameFilter() {
