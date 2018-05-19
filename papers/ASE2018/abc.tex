@@ -504,6 +504,49 @@ method invocations to ensure a correct invocation of the method under carve $m_x
 % Validation
 
 \section{Evaluation}
+
+\xxx{The original evaluation do not report on coverage and amount of method invocations that were covered in the carved differential unit tests. Here we replicate, as much as possible the original evaluation. We do so by applying ABC and "basic" state-based carving on SIENA and Nano XML taken from SIR}.
+
+The three original RQ are:
+RQ1. Can DUTs reduce regression testing costs?  We would like to compare the cost of carving and reusing DUTs versus the costs of utilizing regression test selection techniques that work on system test cases.
+\xxx{Which is basically what we did already. }
+
+S-retest-All. When P is modified, we simply reuse all runnable test cases in T to test P 0 ; this is known as the retest-all technique [23]. 
+
+S-selection. They utilize the modified entity technique. \xxx{We instead use the technique implemented in Ekstazi, since its implementation is available. The difference being that Ekstazi its faster to compute, but usually include more tests than needed. I.e., is a bit conservative}
+
+C-selection-k. This technique executes all DUTs, carved with a k-bounded reachable projection, that exercise methods that were changed.
+\xxx{so they do not re-execute all of the tests? Apparently not, 20K -> 400/500, plus is not clear what they test. They report on number of faults found, but not on how many DUTs fail. In our implementation we can implement probably k=1 only primitive fields in assertions, and k=ALL.
+We can use Ekstazy here as well?}
+
+C-k: Interface k-bounded reachable projection. The interface k-bounded reachable projection for a method invocation defines the set of preserved objects to include only those reachable from the target method class via dereference chains of length up to k. The intuition behind this projection is that DUTs that have identical heap structure up to depth k may exercise m in a similar manner and this could lead to significant filtering (e.g., a method working on link lists may only need to access the first k elements in a list to exhibit all of its interesting behavior).  \xxx{How to implement this one? Cutting away pieces in the XML would be enough, basically putting nulls here and there?}
+
+If a method changes to access data along a reference chain of length greater than the k set during carving, then the DUTs carved using the k-bounded projection would have retained insufficient data about the prestate to allow replay. Our implementation dynamically detects this situation and raises a custom exception to indicate a replay anomaly.
+\xxx{Probably we should keep the K-Inf only, so we serialize all the elements and that's it}
+
+It is not clear how/which other element they implemented. For example, do they filter DUT based on clustering projection? I do not think so...
+
+\xxx{We can add on our own strategies: string as objects vs string as primitives, minimized tests vs original tests}
+
+----
+
+To evaluate these effects, we measure the time to execute and the time to check the outputs of the test cases in the original test suite, the selected test suite, and the carved selected test suites. For a carved test suite, we also measure the time and space to carve the original DUT test suite. By default, we applied the default \xxx[what's this?]{lossless filter on all DUT test suites} so that DUTs with unique pre-states are kept for each program method.
+
+RQ2. What is the fault detection effectiveness of DUTs? 
+\xxx{This rely on fault injection, which we have at least for siena. 
+Note that DUT identifies differences in the behaviors, which are not necessarily faults. RQ3 is about empirically evaluate this...}
+
+We will measure fault detection effectiveness by computing the percentage of faults found by each test suite. We will also qualify our findings by analyzing instances where the outcomes of a carved test case are different from its corresponding system test case.
+RQ3. How robust are the DUTs in the presence of software evolution? 
+We would like to assess the reusability of DUTs on a real evolving system and examine how different types of change can affect the robustness and sensitivity of the carved tests.
+
+To evaluate the robustness of the carved test cases in the presence of program changes, we are interested in considering three potential outcomes of replaying a DU Txm on unit m0 : 1) fault is detected, DUTxm causes m0 to reveal a behavioral differences due to a fault; 2) false difference is detected, DUTxm causes m0 to reveal a behavioral change from m to m0 that is not a fault (not captured by stx); and 3) test is unexecutable, DU Txm is ill-formed with respect to m0 .
+\xxx{1 and 2} are evaluated but 3 is not...
+
+degree to which a test set becomes ill-formed under a change as its sensitivity to change. We assess robustness by computing the percentage of carved tests and program units falling into each one of the outcomes. Since the robustness of a test case depends on the change, we qualify robustness by analyzing the relationship between the type of change and sensitivity of the DUTs.
+
+------
+
 \abc supports developers by automatically creating meaningful and useful unit tests.
 On the one side, the carved unit tests must corresponds to real usages of the application, and,
 on the other side, the carved unit tests must effectively support the traditional
@@ -565,6 +608,105 @@ while still achieving the same code coverage of the system tests.}
 \end{RQ}
 
 \subsection{Test Subjects}
+The artifact we will use to perform this experiment study is Siena [9]. Siena is an event notification middleware implemented in Java. This artifact is available for download in the Subject Infrastructure Repository (SIR) [16], [31]. SIR provides Siena?s source code, a system-level test suite with 503 unique test cases, multiple versions corresponding to product releases, and a set of seeded faults in each version (the authors were not involved in this latest activity). For this study, we consider Siena?s core components (not the application included in the package that is built with those components).We utilize the five versions of Siena that have seeded faults that did not generate compilation errors (faults that generated compilation errors cannot be tested) and that were exposed by at least one system test case (faults that were not found by system tests would not affect our assessment).
+
+----
+First, we prepare the base test suites.
+The preparation of the carved selection suites, required us to run the CR tool to carve all the DUTs for all the methods in v0 executed by the system tests. Once the base test suites were generated, we performed test selection for each version
+
+Second, we run each generated test suite on the fault-free versions of Siena to obtain an oracle for each version. For the system tests, the oracle consisted of the set of outputs generated by the program. For the carved tests, the oracle consisted of the method return value and the relevant spost.
+
+\xxx{Does it make sense to use the same oracles everywhere? How do ABC creates oracles? Based on usage of the Unit as it was observed during execution?}
+
+Third, we run each test suite on each faulty instance of each version (some versions contained multiple faults) and recorded their execution time. We dealt with each fault instance individually to control for potential masking effects among faults that might obscure the fault detection performance of the tests.
+
+Fourth, for each test suite, we compared the outcome of each test case between the fault-free version (oracle) and the faulty instances of each version. To compare the system test outcomes between correct and faulty versions, we used \xxx[This is problematic!]{predefined differencing functions that are part of our implementation which ignore transient output data (e.g., dates, times, and random numbers)}.
+For the DUTs, we performed a similar differencing, but applied to the target method return values and spost. When the outcome of a system test case differed between the fault-free and the faulty version, a fault is said to be found.\xxx{This is on the same version, with the tests carved at v0?}
+
+For the differences on the carved tests, we performed a deeper analysis to determine whether the observed behavioral differences correspond to faults.
+
+
+\begin{table}[tp]
+\centering
+\caption{Original Table - Siena}
+\begin{tabular}{r r r r r r}
+\toprule
+Version & SLOC & Methods & Method covered & Executed Tests in SIENA (S-selection) & Faults (seeded?) \\
+v0 & \\
+v1 & \\
+v5 & \\
+v6 & \\
+v7 & \\
+\end{tabular}
+\end{table}
+
+\xxx{Changed methods covered} But how many changes?
+
+\begin{table}[tp]
+\centering
+\caption{Original Table:Carving results}
+\begin{tabular}{r r r}
+\toprule
+Carving & Minutes & DUTs \\
+k=1 & 120* & 20698\\
+k=5 & 120* & 23399\\
+k=inf & 120* & 23514\\
+\end{tabular}
+\end{table}
+
+---- Original Results:
+
+RQ1: Efficiency. 
+\textbf{Carving efficiency}
+Table 2 summarizes the time (in minutes) and the size (in megabytes?MB) that it took to carve and store the complete initial suite carved from v0 of approximately 20,000 DUTs utilizing the different CR techniques with and without the use of compression on the spre and spost.
+
+The last two rows of Table 2 reveal that 69 percent of the DUTs carved at k 1?4 1 contained sentinels while only 3 percent of the DUTs carved at a k 1?4 5 contained sentinels
+\xxx{Not sure what's sentinels and how they are important... I guess those counts how many time cutting at K=1 leaves out informations}
+
+It is important to note that the carving numbers reported in Table 2 correspond to the initial carving of the complete DUT suite?DUTs carved for each of the methods in Siena from each of 503 system tests that may execute each method. 
+
+\textbf{Replay efficiency}
+We now proceed to analyze replay efficiency. Replay efficiency is particularly important since, as with regular units tests, it is likely that a carved DUT will be repeatedly replayed as a method evolves while preserving its original intended behavior.
+
+Fig. 11 shows the time in minutes to execute the system regression test suites and to replay the C-selection-k-INF suite (the most expensive of all carved suites). 
+\xxx{Each observation corresponds to the replay time of each generated test suite under each version} This is not entirely clear, they say that to replay 20K tests it takes less than 4 minutes? Smells like BS. In fact, C-selection is based on SELECTION... However, they never report on HOW many DUT where actually selected to run !
+
+Replaying the C-selection-k1 provides gains of at least an order of magnitude over the S-select suites, averaging less than a minute per version. On average, replaying carved suites take 2 percent of the time required by S-retest-all, and 3 percent of the time required by S-select. 
+
+The test suite resulting from the S-retest-all technique consistently averages 43 minutes per version. The test suites resulting from S-select averages 28 minutes across versions, with savings over S-retest-all ranging from barely a minute in v7 to a maximum of 41 minutes in v6.1
+
+Fig. 12 summarizes the replay execution times for some of the other test suites we generated. We find that, on average, all the C-selection?? suites (excluding the one with compression) replay execution time was less than 1 minute. They all took less than 10 seconds to replay v6 and up to 96 seconds to replay the DUTs selected for v1. Constraining the carving depth with k 1?4 1 consistently reduced replay time (over percent 50 reduction in v5). 
+
+---
+RQ2: Fault detection effectiveness.
+
+Most of the test suites carved from S-selection, (with k ?? 1), C-selection- mayref, and C-selection-touched detected as many faults as the S-retest-all technique. This indicates that a DUT test suite can be as effective as a system test suite at detecting faults, even when using aggressive projections.
+
+It is worth noting, however, that computing fault detection effectiveness over a whole DUT suite overlooks the fact that, for some system tests, their corresponding carved DUTs may have lost or gained fault detection effectiveness
+
+To address this situation, we perform an effectiveness analysis at the test case level. For each carving technique we compute: 1) PP, the percentage of passing selected system tests (selected utilizing S-Selection) that have all corresponding DUTs passing, and 2) FF, the percentage of failing system tests that have at least one corresponding failing DUT.
+
+\xxx{I am not sure what this is about... do we need to map system tests to carved tests? What about carved tests which are the same for multiple system tests? Are those selected? Are those filtered?
+Anyway, we can do that by checking which system test runs when, and carve test separately for each of them.}
+
+Table: the suites under \xxx{all faults in each version}
+3 v1, 1 v5, 1 v6, 2, v7
+
+In general, we observe that most PP and FF values are over 90 percent indicating that DUTs carved from a system test case tend to preserve much of their effective- ness.
+
+Exceptions: for v7 : f1 (the first fault in version v7), only 24 percent of the passing system tests had all their associated DUTs passing.
+
+The rest of the system tests had at least one DUT that detected a behavioral difference that was not detected by the system test case oracle because it did not propagate to the output (the level at which the system test case oracle operated). This is one example where a DUT is more powerful than its corresponding system test.
+
+Another interesting instance is FF for C-selection-k1, v5, where we observed that replaying the carved test suite did not detect any of the behavioral differences exhibited by the selected system test cases. Upon further examination, we found that the changed method in v5 required access to references in the heap deeper than k 1?4 1 which were not satisfied by the captured prestate of the C-selection-k1 suite, therefore resulting in a SentinelAccessException.
+\xxx{This requires to be accounted for also in our case !}
+Because of this, no poststates were stored for the method and the fault goes undetected
+
+----
+RQ3: Robustness and sensitivity. 
+We further evaluate the robustness and sensitivity of DUTs by comparing their performance in the presence of \xxx{methods that changed but are not faulty} and in the presence of \xxx{methods that changed and are indeed faulty}. We performed such detailed comparison on the suites generated with C-selection-k-INF. 
+
+\xxx{This is more relevant
 
 \begin{table}[tp]
 \centering
