@@ -616,6 +616,8 @@ public class TestGenerator {
 				// System.out.println("TestGenerator.addUnitFor() " +
 				// assignStmt1);
 			} else {
+				// [main] ERROR de.unipassau.abc.generation.TestGenerator - ERROR WRONG method invocation: <java.lang.String[]: java.lang.String get(int)>_27
+
 				logger.error("ERROR WRONG method invocation: " + methodInvocation);
 			}
 			break;

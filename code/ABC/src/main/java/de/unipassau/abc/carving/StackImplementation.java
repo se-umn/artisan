@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -18,12 +19,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de.unipassau.abc.ABCUtils;
+import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.tracing.Trace;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.Scene;
-import soot.SootClass;
-import soot.SootMethod;
 
 /**
  * @author gambi
@@ -79,7 +80,7 @@ public class StackImplementation implements TraceParser {
 	// This method is hard to test, and cannot be public since requires setup
 	// from the method calling it
 	private int parseMethodStart(int startLine, List<String> allLines,
-			List<MethodInvocationMatcher> externalInterfaceMatchers) {
+			List<MethodInvocationMatcher> externalInterfaceMatchers) throws CarvingException {
 		logger.trace("StackImplementation.parseMethodStart()" + allLines.get(startLine));
 
 		// Assuming that there's no ";" inside any of those elements !!!
@@ -99,23 +100,35 @@ public class StackImplementation implements TraceParser {
 		if ("StaticInvokeExpr".equals(typeOfInvocation) ||
 		//
 				"ClassOperation".equals(typeOfInvocation) || "StaticFieldOperation".equals(typeOfInvocation)
-				|| "FieldOperation".equals(typeOfInvocation) || "StringOperation".equals(typeOfInvocation)) {
+				|| "FieldOperation".equals(typeOfInvocation) || "StringOperation".equals(typeOfInvocation)
+				|| "MainArgsOperation".equals(typeOfInvocation)
+
+		) {
 			methodInvocation.setStatic(true);
 		}
 
 		// Check with soot ?
 		try {
 
-			if (!typeOfInvocation.equals("ClassOperation") && !typeOfInvocation.equals("ArrayOperation")
-					&& !typeOfInvocation.equals("StringOperation") && !typeOfInvocation.equals("StaticFieldOperation")
-					&& !typeOfInvocation.equals("FieldOperation")) {
+			if (!ABCUtils.ARTIFICIAL_METHODS.contains(typeOfInvocation)) {
+				// if (!typeOfInvocation.equals("ClassOperation") &&
+				// !typeOfInvocation.equals("ArrayOperation")
+				// && !typeOfInvocation.equals("StringOperation") &&
+				// !typeOfInvocation.equals("StaticFieldOperation")
+				// && !typeOfInvocation.equals("FieldOperation")) {
 				// This might be required to get to the method in the first
 				// place
 				Scene.v().loadClassAndSupport(JimpleUtils.getClassNameForMethod(jimpleMethod));
 				methodInvocation.setPrivate(Scene.v().getMethod(jimpleMethod).isPrivate());
+				// Not sure how to handle those...
+				// methodInvocation.setBelongsToAbstractClass(
+				// Scene.v().getMethod(
+				// jimpleMethod).getDeclaringClass().isAbstract() );
 			}
 
 		} catch (Throwable e) {
+			String correctMethod = findCorrectJimpleMethod(jimpleMethod);
+			System.out.println("StackImplementation.parseMethodStart() ERROR : " + correctMethod);
 			// This fails for java classes
 			logger.info("StackImplementation.parseMethodStart() Swallow:  " + e.getMessage());
 			// e.printStackTrace();
@@ -195,14 +208,9 @@ public class StackImplementation implements TraceParser {
 		return peekIndex - 1;
 	}
 
-	// jimple -> real
-	private static HashMap<String, String> cachedMethods = new HashMap<>();
-
-	public static String findCorrectJimpleMethod(String jimpleMethod) {
+	public static String findCorrectJimpleMethod(String jimpleMethod) throws CarvingException {
 
 		// Shall we keep a cache here ?
-		try {
-
 			if (JimpleUtils.getClassNameForMethod(jimpleMethod).startsWith("abc")) {
 				// This is an artificial method
 				return jimpleMethod;
@@ -217,47 +225,21 @@ public class StackImplementation implements TraceParser {
 				return jimpleMethod;
 			}
 
-			if (JimpleUtils.getClassNameForMethod(jimpleMethod).startsWith("java")) {
-				//
-				logger.debug("Return the java method without checking..."+ jimpleMethod );
-				return jimpleMethod;
-			}
-			
+			// This breaks for java.sql ? No, this breaks for interfaces...
+			// if
+			// (JimpleUtils.getClassNameForMethod(jimpleMethod).startsWith("java"))
+			// {
+			// //
+			// logger.debug("Return the java method without checking..."+
+			// jimpleMethod );
+			// return jimpleMethod;
+			// }
+
 			// If the method exists, returns it otherwise lookup into the
-			// SuperClasses until we find one, unless the method is a "java" method ?
-			
-			return Scene.v().getMethod(jimpleMethod).getSignature();
+			// SuperClasses until we find one, unless the method is a "java"
+			// method ?
 
-		} catch (Throwable e) {
-			if (!cachedMethods.containsKey(jimpleMethod)) {
-				// We handle this here because this is rare case
-				SootClass sClass = Scene.v().getSootClass(JimpleUtils.getClassNameForMethod(jimpleMethod));
-				//
-				try {
-					logger.debug("Cannot find " + jimpleMethod + " in " + sClass.getName());
-					// This raise exception if there's no superclass !
-					sClass = sClass.getSuperclass();
-					logger.debug("StackImplementation.findCorrectJimpleMethod() Going to " + sClass.getName());
-					while (sClass != null) {
-						try {
-							SootMethod sMethod = sClass.getMethod(JimpleUtils.getSubSignature(jimpleMethod));
-							cachedMethods.put(jimpleMethod, sMethod.getSignature());
-							return cachedMethods.get(jimpleMethod);
-						} catch (Exception e1) {
-							logger.debug("Cannot find " + jimpleMethod + " in " + sClass.getName());
-							// TODO: handle exception
-							sClass = sClass.getSuperclass();
-						}
-					}
-				} catch (Exception e1) {
-					// TODO: handle exception
-				}
-				throw new RuntimeException("Cannot find Soot Method for " + jimpleMethod);
-			} else {
-				return cachedMethods.get(jimpleMethod);
-			}
-
-		}
+			return ABCUtils.lookUpMethod(jimpleMethod);
 
 	}
 
@@ -302,7 +284,7 @@ public class StackImplementation implements TraceParser {
 		return peekIndex - 1;
 	}
 
-	private int parseMethodEnd(int startLine, List<String> allLines) {
+	private int parseMethodEnd(int startLine, List<String> allLines) throws CarvingException {
 		logger.trace("StackImplementation.parseMethodEnd() " + allLines.get(startLine));
 		String[] tokens = allLines.get(startLine).split(";");
 		// tokens[0] is METHOD_END_TOKEN
@@ -389,7 +371,7 @@ public class StackImplementation implements TraceParser {
 
 	private int parseTraceFile(List<String> lines, // Lines of the trace file
 			List<MethodInvocationMatcher> externalInterfaceMatchers, int initialPosition)
-			throws FileNotFoundException, IOException {
+			throws FileNotFoundException, IOException, CarvingException {
 
 		// Reinitialize all the parsing state variables
 		executionFlowGraph = new ExecutionFlowGraph();
@@ -440,7 +422,7 @@ public class StackImplementation implements TraceParser {
 	 * System.exit().
 	 */
 	public Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parseTrace(String traceFilePath,
-			List<MethodInvocationMatcher> externalInterfaceMatchers) throws FileNotFoundException, IOException {
+			List<MethodInvocationMatcher> externalInterfaceMatchers) throws FileNotFoundException, IOException, CarvingException {
 
 		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> result = new HashMap<>();
 
@@ -501,7 +483,7 @@ public class StackImplementation implements TraceParser {
 			result.put(UUID.randomUUID().toString(), new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
 					executionFlowGraph, dataDependencyGraph, callGraph));
 		}
-
+		
 		return result;
 	}
 
@@ -518,10 +500,6 @@ public class StackImplementation implements TraceParser {
 		return callGraph;
 	}
 
-	// public DuplicateGraph getDuplicateGraph() {
-	// return duplicateGraph;
-	// }
-
 	public DataDependencyGraph getDataDependencyGraph() {
 		return dataDependencyGraph;
 	}
@@ -530,441 +508,6 @@ public class StackImplementation implements TraceParser {
 		return executionFlowGraph;
 	}
 
-	// public boolean checkParamIsAObject(String param) {
-	// logger.debug("checkParamIsAObject : The parameter is " + param);
-	// return Graph_Details.instancesHashId.containsKey(param);
-	// }
-
-	// public void paramEdgeCreation(String param) {
-	// Iterator<Map.Entry<String, ArrayList<String>>> it =
-	// Graph_Details.instancesHashId.entrySet().iterator();
-	//
-	// while (it.hasNext()) {
-	// Map.Entry<String, ArrayList<String>> entry = it.next();
-	// String key = entry.getKey();
-	// if (key.equals(param)) {
-	// ArrayList<String> list = entry.getValue();
-	// for (String s : list)
-	// if (s.contains("<init()>")) {
-	//
-	// }
-	// }
-	// }
-	// }
-	//
-	// /**
-	// * Gives the parameter values for a method if parameter is present
-	// *
-	// * @param methodName
-	// * - Full name of the method for which parameters are needed
-	// * @return the parameter values
-	// */
-	// public String paramOfMethod(String methodName) {
-	// if (Graph_Details.hashParam.containsKey(methodName))
-	// return Graph_Details.hashParam.get(methodName);
-	// return null;
-	// }
-
-	// // Why we need a differnt method here ?/
-	// public void parentsCarve(String methodName, String objectOfMUT) {
-	//
-	// HashSet<String> parents = null; // sgv.getParents(methodName);
-	//
-	// for (String each : parents) {
-	//
-	// if (!(each.equalsIgnoreCase("main")) &&
-	// !alreadyCoveredParents.contains(each)) {
-	// // logger.debug("Old Valueee "+ each );
-	// alreadyCoveredParents.add(each);
-	// returnCountOfMUTBeforeParent(each);
-	// each = each.substring(0, each.lastIndexOf('>') + 1);
-	// // logger.debug("Valueee "+ each );
-	//
-	// // FIXME this looks really interesting... how to han
-	// // Why this returns a null objectID?
-	// List<String> objectIds = getObjectInstanceIdsForMethod(each);
-	// if (objectIds.isEmpty()) {
-	// System.err.println("ERROR: Object id is NULL for " + each);
-	// return;
-	// }
-	// String objectID = objectIds.get(0);
-	//
-	// testCaseInstructions.clear();
-	// extractConstructors(objectID);
-	//
-	// logger.debug("Entering helper method from parent");
-	//
-	// carveHelperMethod(objectOfMUT, Graph_Details.carvingMethod);
-	//
-	// addMethods();
-	// methodCarve(each);
-	// ArrayList<String> list = new ArrayList<String>(testCaseInstructions);
-	// for (String s : list) {
-	// for (String external : externalDependencyList) {
-	// if (s.contains(external)) {
-	//
-	// if (!externalTestCases.isEmpty()) {
-	//
-	// testCaseInstructions.addAll(0, externalTestCases);
-	// }
-	// }
-	// }
-	// }
-	// ArrayList<String> listFinal = new
-	// ArrayList<String>(testCaseInstructions);
-	// int index = Graph_Details.testCases.size() + 1;
-	// Graph_Details.parentAndNumberOfMUTChildren.put(index,
-	// numberOfMUTChildren(each));
-	// Graph_Details.testCases.put(index, listFinal);
-	// parentsCarve(each, objectOfMUT);
-	// }
-	//
-	// }
-	//
-	// }
-
-	// public int numberOfMUTChildren(String parent) {
-	// HashSet<String> allChildren = null;// duplicateGraph.getChildren(parent);
-	//
-	// int countOfMUTChildren = 0;
-	// for (String each : allChildren) {
-	// if (each.contains(Graph_Details.carvingMethod))
-	// countOfMUTChildren++;
-	// }
-	// return countOfMUTChildren;
-	// }
-
-	// // Not sure we still need this...
-	// public void returnCountOfMUTBeforeParent(String parent) {
-	// MethodInvocation wrongParent = new MethodInvocation(parent, parent, -1);
-	// Set<String> previousMethods = exectuionFlowGraph.getParents(wrongParent);
-	// for (String eachMethod : previousMethods) {
-	// // logger.debug("The parents are :"+eachMethod);
-	// if (eachMethod.contains(Graph_Details.carvingMethod)) {
-	// String count = eachMethod.substring(eachMethod.lastIndexOf('>') + 1);
-	// if (!count.isEmpty()) {
-	//
-	// Graph_Details.parentMethodAndMUTStartCount.put(parent,
-	// Integer.parseInt(count));
-	// } else
-	// Graph_Details.parentMethodAndMUTStartCount.put(parent, 0);
-	// // logger.debug("The edgeCount is : "+edgeCount);
-	// } else {
-	// Graph_Details.parentMethodAndMUTStartCount.put(parent, 0);
-	// }
-	// }
-	//
-	// }
-
-	// public List<String> getObjectInstanceIdsForMethod(String jimpleMethod) {
-	// List<String> methodTargetInstances = new ArrayList<>();
-	// // TODO WHy this uses this data structure since we build the graph ?!
-	// // Can we
-	// // simply lookup the graph, find the nodes, and such ?
-	// // We might use a cache and a lookup table, but shall go and point
-	// // directly to the right instances/nodes
-	// Iterator<Map.Entry<String, ArrayList<String>>> it =
-	// Graph_Details.instancesHashId.entrySet().iterator();
-	// while (it.hasNext()) {
-	// Map.Entry<String, ArrayList<String>> entry = it.next();
-	// ArrayList<String> list = entry.getValue();
-	// String key = entry.getKey();
-	// for (String s : list) {
-	// if (s.equals(jimpleMethod)) {
-	// methodTargetInstances.add(key);
-	// }
-	// }
-	// }
-	// // logger.error("Cannot find an object id for this method : " + method);
-	// // return null;
-	// return methodTargetInstances;
-	//
-	// }
-
-	// /**
-	// * Generates the first test case
-	// *
-	// * @param object-
-	// * Id of the object whose method needs to be carved
-	// * @param methodUnderTest
-	// * - Method for carving
-	// */
-	// public void level0TestCarving(String objectInstance, String
-	// methodUnderTest) {
-	// logger.debug("The object id is " + objectInstance + " and the method to
-	// carve is" + methodUnderTest);
-	//
-	// // THis contains the method invocations which build up the test case
-	// testCaseInstructions.clear();
-	//
-	// // The followin implementation by Pallavi its an simple heuristic.
-	//
-	// // Ensures that recursively, all the constructors of all the
-	// // objects/dependencies for the test are called !
-	// extractConstructors(objectInstance);
-	//
-	// // FIXME Not sure we can reconstrcu paramters of the constructors as
-	// // well !!!
-	// // recreateDependenciesForContructor but why this is not simply
-	// // carving the constructor ?
-	//
-	// // TODO This one no idea
-	// // This one call carving to all the predecessors of the MUT... at
-	// // least
-	// // this is what it looks like.
-	// // Probably to ensure only the relevant calls where made ?
-	// carveHelperMethod(objectInstance, methodUnderTest);
-	//
-	// // Collects the methods which potentially change the state of the
-	// // object.
-	// // Why isn't this linked to the previous one ?!
-	// listMethodsToAdd(objectInstance, methodUnderTest);
-	//
-	// // Why hrere there's no object id ?
-	// methodCarve(methodUnderTest);
-	//
-	// // CArving: start from MUT
-	// // Include all the invocations that happen before (Execution graph) -
-	// // this excludes methods that happened after MUT
-	// // NOTE: DataNode Dependency is not directed ! It links instances with
-	// // method invocations !
-	// // Include all the invocations that have are transitively reached via
-	// // data dependency from MUT (DataNode dependency) - this excludes main
-	// and
-	// // caller methods, but includes also methods which produce parameters
-	// // that are used somewhere in the chain
-	// // Exclude all the invocations the are subsumed, i.e., that are
-	// // reachable by the transitive closure of the call graph of any method
-	// // (Call Graph)
-	// setBasedMethodCarving(objectInstance, methodUnderTest);
-	// ArrayList<String> list = new ArrayList<String>(testCaseInstructions);
-	// // Collections.copy(list, testCaseInstructions);
-	// for (String s : list) {
-	// for (String external : externalDependencyList) {
-	// if (s.contains(external)) {
-	//
-	// if (!externalTestCases.isEmpty()) {
-	//
-	// testCaseInstructions.addAll(0, externalTestCases);
-	// }
-	// }
-	// }
-	// }
-	// ArrayList<String> listFinal = new
-	// ArrayList<String>(testCaseInstructions);
-	//
-	// Graph_Details.testCases.put(1, listFinal);
-	//
-	// }
-
-	// // WHY STATIC METHODS SHOULD BE TREATED DIFFERENTLY? They STILL REQUIRE
-	// // PARAMETERS TO BE SETUP !
-	// public void level0TestCarvingForStaticMethods(String method) {
-	// testCaseInstructions.clear();
-	//
-	// // Why there's not object id here ?!
-	// methodCarve(method);
-	//
-	// ArrayList<String> list = new ArrayList<String>(testCaseInstructions);
-	//
-	// for (String s : list) {
-	// for (String external : externalDependencyList) {
-	// if (s.contains(external)) {
-	//
-	// if (!externalTestCases.isEmpty()) {
-	//
-	// testCaseInstructions.addAll(0, externalTestCases);
-	// }
-	// }
-	// }
-	// }
-	// ArrayList<String> listFinal = new
-	// ArrayList<String>(testCaseInstructions);
-	//
-	// Graph_Details.testCases.put(1, listFinal);
-	// // logger.debug("The test case is "+testCaseInstructions.get(1));
-	// }
-
-	// public String methodCarve(String methodName) {
-	//
-	// logger.debug("method carve " + methodName);
-	// // TODO What's FLAG ? Some way to capture "static" methods? or
-	// // constructors ?
-	// if (!flag) {
-	// // Why we cannot add the same method multiple times ?
-	// if (!testCaseInstructions.contains(methodName)) {
-	// testCaseInstructions.add(methodName);
-	// }
-	// } else {
-	// if (!testCaseInstructions.contains(methodName))
-	// testCaseInstructions.add(0, methodName);
-	// }
-	// // Basically we check if the method under test requires parameters, in
-	// // that case we need to reconstruct them as well...
-	// if (Graph_Details.hashParam.containsKey(methodName)) {
-	// logger.debug("inside if method carve");
-	// // Parameters are present
-	// // Store all the parameters
-	// // Take the parameter types as an arraylist
-	// ArrayList<String> parameterTypes = parameterTypeReturn(methodName);
-	//
-	// for (String s : parameterTypes)
-	// logger.trace("The type of parameter is " + s);
-	//
-	// // Parameters are present
-	// // Get the actual VALUE for the paramters ? what if there's more ?
-	// // what if those are objects ? Does this return (I hope) the
-	// // reference to them?
-	// String allParams = paramOfMethod(methodName);
-	// // Store all the parameters
-	// listOfParameters.clear();
-	// listOfParameters.addAll(parameterList(allParams));
-	//
-	// // FIXME THis is wrong... but here I suspect we need to match
-	// // methods and methodInvocations !
-	// MethodInvocation wrong = new MethodInvocation(methodName, -1);
-	//
-	// if (dataDependencyGraph.vertexExists(wrong)) {
-	// // There is atleast 1 parameter which is an object again
-	// flag = false;
-	// logger.debug("inside vertices if method carve");
-	// Iterator<String> it = listOfParameters.iterator();
-	// while (it.hasNext()) {
-	// String each = it.next();
-	// logger.debug(each);
-	// if (Graph_Details.instancesHashId.containsKey(each)) {
-	// // Object
-	// // logger.debug("inside vertices second if method
-	// // carve" +each);
-	// // Instead of the object id as the parameter value I
-	// // have replace with the
-	// // init of that object
-	// logger.debug("Heree");
-	// for (String external : externalDependencyList) {
-	// if (each.contains(external)) {
-	// logger.debug("There is an external dependencies");
-	// if (Graph_Details.instancesHashId.containsKey(each)) {
-	// ArrayList<String> list = Graph_Details.instancesHashId.get(each);
-	// for (String method : list) {
-	// if (method.contains("init"))
-	// externalinitCarve(each);
-	// else
-	// externalResourceExecution(method);
-	// }
-	// }
-	//
-	// } else {
-	// logger.debug("Going for init carve");
-	// extractConstructors(each);
-	// }
-	// }
-	// if (externalDependencyList.isEmpty())
-	// extractConstructors(each);
-	//
-	// }
-	//
-	// }
-	// } else {
-	// /**
-	// * All parameters are primitive type Send a list of parameters
-	// * and the entire method to Soot and there Soot handles the
-	// * conversion and building function
-	// *
-	// */
-	// // logger.debug("inside vertices else method carve");
-	// // Check type of parameter for each
-	// flag = false;
-	// logger.debug("Entering parameter check");
-	// Iterator<String> it = listOfParameters.iterator();
-	// while (it.hasNext()) {
-	// String each = it.next();
-	// // logger.debug("Index of "+each+" is
-	// // "+listOfParameters.indexOf(each));
-	// String type = parameterTypes.get(listOfParameters.indexOf(each));
-	// logger.debug("Paramter " + each);
-	// logger.debug("The type is " + type);
-	//
-	// // Special case Hardcoded for the Employ/HotelBooking cases
-	// // !
-	// // if (type.equals("java.util.Scanner")) {
-	// // logger.debug("Scanner object");
-	// // String signature = "<java.util.Scanner: void
-	// // <init>(java.io.InputStream)>";
-	// // String parameterSignature = "<java.lang.System:
-	// // java.io.InputStream in>";
-	// // Graph_Details.hashParam.put(signature,
-	// // parameterSignature);
-	// // Graph_Details.methodAndTypeOfInvocation.put(signature,
-	// // "SpecialInvokeExpr");
-	// // testCaseInstructions.add(0, signature);
-	// // } else
-	// // if (type.equals("java.lang.String") || type.equals("int")
-	// // || type.equals("double")
-	// // || type.equals("boolean") || type.equals("float") ||
-	// // type.equals("long")) {
-	// //
-	// // logger.debug("Primitive type");
-	// //
-	// // }
-	// // Again this is a special case for Date ...
-	// // else if (type.equals("java.util.Date")) {
-	// // // String signature3="<java.util.Date: void <init>()>";
-	// // // //String parameterSignature1="EEE MMM dd HH:mm:ss zzz
-	// // // yyyy";
-	// // // //Graph_Details.hashParam.put(signature1,
-	// // // parameterSignature1);
-	// // //
-	// // Graph_Details.methodAndTypeOfInvocation.put(signature3,
-	// // // "SpecialInvokeExpr");
-	// // // testCaseInstructions.add(0,signature3);
-	// // logger.debug("Date object");
-	// // String signature2 = "<java.text.DateFormat:
-	// // java.util.Date parse(java.lang.String)>";
-	// // String parameterSignature2 = "Wed Aug 09 00:00:00 CEST
-	// // 2017";
-	// // Graph_Details.hashParam.put(signature2,
-	// // parameterSignature2);
-	// // Graph_Details.methodAndTypeOfInvocation.put(signature2,
-	// // "VirtualInvokeExpr");
-	// // Graph_Details.returnValues.put(signature2, "Wed Aug 09
-	// // 00:00:00 CEST 2017");
-	// // testCaseInstructions.add(0, signature2);
-	// // String signature1 = "<java.text.SimpleDateFormat: void
-	// // <init>(java.lang.String)>";
-	// // String parameterSignature1 = "EEE MMM dd HH:mm:ss zzz
-	// // yyyy";
-	// // Graph_Details.hashParam.put(signature1,
-	// // parameterSignature1);
-	// // Graph_Details.methodAndTypeOfInvocation.put(signature1,
-	// // "SpecialInvokeExpr");
-	// // testCaseInstructions.add(0, signature1);
-	// // }
-	//
-	// // If the parameter is primitive, it's byValue semantic so
-	// // we don't to anything, otherwise we process the parameter
-	// // byReference
-	// if (!isPrimitive(type)) {
-	// // else {
-	// flag = true;
-	// ArrayList<String> preFunction = methodWithreturnType(type);
-	// for (String s : preFunction) {
-	// methodCarve(s);
-	// }
-	// }
-	// }
-	// }
-	//
-	// } else {
-	//
-	// // No parameters are present
-	// // logger.debug("Inside else");
-	// flag = false;
-	// return methodName;
-	// }
-	//
-	// return methodName;
-	// }
-
 	private boolean isPrimitive(String type) {
 		return type.equals("boolean") || type.equals("byte") || type.equals("char") || type.equals("short")
 				|| type.equals("int") || type.equals("long") || type.equals("float") || type.equals("double") //
@@ -972,215 +515,7 @@ public class StackImplementation implements TraceParser {
 				|| type.equals("java.lang.String");
 	}
 
-	// /**
-	// * This one carves only the methods of the CUT which comes BEFORE the
-	// * invocation of the MUT.
-	// *
-	// * @param objectId
-	// * @param methodUnderTest
-	// */
-	// public void carveHelperMethod(String objectId, String methodUnderTest) {
-	// if (Graph_Details.instancesHashId.containsKey(objectId)) {
-	//
-	// List<String> allMethod = Graph_Details.instancesHashId.get(objectId);
-	//
-	// System.out.println("StackImplementation.carveHelperMethod() " +
-	// allMethod);
-	// // Probably this shall skip Constructors ?
-	// for (String method : allMethod) {
-	//
-	// if (method.contains("<init>")) {
-	// logger.debug("StackImplementation.carveHelperMethod() Skip constructor
-	// : " + method);
-	// continue;
-	// }
-	//
-	// // How to indentify each and every invokation of this ?
-	// // What if I invoke init, foo, foo, bar ? and want to carve foo
-	// // ? and the second foo ?!
-	// if (method.equals(methodUnderTest)) {
-	// break;
-	// } else {
-	// // TODO Not sure this will work.. How shall we prevent to
-	// // reinstaintiate and reconfigure the same object over and
-	// // over ?
-	// // WE literally check if the same method INVOCATION is
-	// // ALREADY THERE !
-	// // FIXME We need a specific class for these types !
-	// // WHY There's no objectID here ?
-	// methodCarve(method);
-	// }
-	// }
-	// }
-	//
-	// }
-
-	// /**
-	// * Create a list of the methods to potentially we should add to the test
-	// * case to recreate the state of the object. It overwrites the global
-	// * variable "extraMethodsAdded"
-	// **/
-	// public void listMethodsToAdd(String objectId, String methodUnderTest) {
-	//
-	// logger.debug("method to carve " + methodUnderTest);
-	//
-	// // For the objectId get all the method executions
-	//
-	// if (Graph_Details.instancesHashId.containsKey(objectId) // &&
-	// // !Graph_Details.carvingMethod.contains("HotelView") &&
-	// // !Graph_Details.carvingMethod.contains("Room") // Oh Come on !!
-	// ) {
-	// // Get all the methods that were invoked on this instance. Note that
-	// // the methods are ORDERED by the time of their invocation
-	// // Note that ALL the invocations are here
-	// List<String> allMethodInvocations =
-	// Graph_Details.instancesHashId.get(objectId);
-	// // Collects ALL the methods which were invoked BEFORE the method
-	// // under test... Basically, this code collects all the methods which
-	// // might change the internal state of the object
-	// // am not sure how this can work
-	// for (String method : allMethodInvocations) {
-	// if (method.equals(methodUnderTest))
-	// break;
-	// else if (checkIfMethodHasTestCase(method))
-	// break;
-	// else {
-	//
-	// extraMethodsAdded.add(method);
-	// }
-	// }
-	// }
-	//
-	// }
-
-	// public void addMethods() {
-	// for (String method : extraMethodsAdded) {
-	// methodCarve(method);
-	// }
-	// }
-
-	// Was this to verify the implementation is correct of for some other goal?
-	// public boolean checkIfMethodHasTestCase(String method) {
-	// if (!Graph_Details.testCases.isEmpty()) {
-	// Iterator<Map.Entry<Integer, List<String>>> it =
-	// Graph_Details.testCases.entrySet().iterator();
-	// while (it.hasNext()) {
-	// Map.Entry<Integer, List<String>> entry = it.next();
-	// List<String> list = entry.getValue();
-	// int key = entry.getKey();
-	// if (list.contains(method))
-	// return true;
-	//
-	// }
-	//
-	// }
-	// return false;
-	// }
-
-	// public ArrayList<String> methodWithreturnType(String returnType) {
-	// logger.debug(returnType);
-	// ArrayList<String> matchingFunctions = new ArrayList<String>();
-	// Iterator<Map.Entry<String, String>> it =
-	// Graph_Details.returnTypes.entrySet().iterator();
-	// logger.debug("The elements are(return Type) ::::::::::::::::::::::");
-	// while (it.hasNext()) {
-	//
-	// Map.Entry<String, String> entry = it.next();
-	//
-	// String key = entry.getKey();
-	//
-	// String returnValue = entry.getValue();
-	// if (returnValue.equals(returnType))
-	// matchingFunctions.add(key);
-	//
-	// }
-	//
-	// return matchingFunctions;
-	// }
-
-	// /**
-	// * Constructor for the given object. This captures the dependencies via
-	// * parameters, if a paramter is required we need to generate it, so we go
-	// * back in the graph and find how. Why we need this in the first place ?
-	// *
-	// * @param objectId
-	// */
-	// public void extractConstructors(String objectId) {
-	//
-	// String constructor = methodObject(objectId);
-	//
-	// logger.debug("The constructor for " + objectId + " is the method " +
-	// constructor);
-	//
-	// // Not sure... WHy are we checking if the Construcotr is there?
-	// if (!testCaseInstructions.contains(constructor))
-	// testCaseInstructions.add(0, constructor);
-	//
-	// logger.debug(" Test cases " + testCaseInstructions);
-	//
-	// // hashParam stores the formal parameters for each methos...
-	// if (Graph_Details.hashParam.containsKey(constructor)) {
-	// // Parameters are present
-	// // Store all the parameters
-	// // Take the parameter types as an arraylist
-	// ArrayList<String> parameterTypes = parameterTypeReturn(constructor);
-	// // Parameters are present
-	// String allParams = paramOfMethod(constructor);
-	// logger.trace("Contructor actual parameters " + allParams);
-	// // Store all the parameters
-	// // listOfParameters.clear();
-	//
-	// listOfParameters.addAll(parameterList(allParams));
-	//
-	// // Check if we stored a dependency in the dependency graph...
-	// // This assumes that the dependency graph is correct
-	// MethodInvocation wrongConstructor = new MethodInvocation(constructor,
-	// -1);
-	// if (dataDependencyGraph.vertexExists(wrongConstructor)) {
-	// logger.debug("Dependancy present");
-	// // There is atleast 1 parameter which is an object again
-	// // logger.debug("inside vertices if");
-	// Iterator<String> it = listOfParameters.iterator();
-	// while (it.hasNext()) {
-	// String each = it.next();
-	// logger.debug("The parameters is :: " + each);
-	// if (Graph_Details.instancesHashId.containsKey(each)) {
-	// // Object
-	// logger.debug("inside vertices second if");
-	// // Instead of the object id as the parameter value I
-	// // have replace with the
-	// // init of that object
-	// int i = listOfParameters.indexOf(each);
-	// if (i != -1)
-	// listOfParameters.remove(i);
-	//
-	// extractConstructors(each);
-	//
-	// }
-	//
-	// }
-	// } else {
-	// /**
-	// * All parameters are primitive type Send a list of parameters
-	// * and the entire method to Soot and there Soot handles the
-	// * conversion and building function
-	// */
-	// // logger.debug("inside vertices else");
-	//
-	// // return init;
-	//
-	// }
-	// // ArrayList<String> list=new ArrayList<String>(listOfParameters);
-	// // parameters.put(init, list);
-	// } else {
-	// // TODO This is impossible, throw exception !
-	// // No parameters are present
-	// // logger.debug("Inside else");
-	// // return init;
-	// }
-	// // return init;
-	// }
-
+	
 	/**
 	 * Return all parameters of a method
 	 * 
@@ -1206,59 +541,7 @@ public class StackImplementation implements TraceParser {
 
 	}
 
-	// /**
-	// * Returns the <init> (constructor?) for the particular object Note that
-	// * staic initializers are <cinit> methods ... right?
-	// *
-	// * @param objectId
-	// * @return init Method
-	// */
-	// public String methodObject(String objectId) {
-	// String className = "";
-	// logger.debug("Object id is " + objectId);
-	//
-	// // Extract the class name for this object
-	// if (objectId.contains("@")) {
-	// className = objectId.substring(0, objectId.indexOf("@"));
-	// }
-	// // else {
-	// // className = "<java.sql.Date: void <init>(long)>";
-	// // }
-	// // logger.debug("method trying to find " + className);
-	//
-	// if (Graph_Details.instancesHashId.containsKey(objectId)) {
-	// ArrayList<String> list = Graph_Details.instancesHashId.get(objectId);
-	// for (String each : list) {
-	// // If the item in list contains init(constructor) return the
-	// // constructor back
-	// // logger.debug("output "+each);
-	// if (each.contains("<init>") && each.contains(className)) {
-	// logger.debug("Returning " + each);
-	// // returnValues=each;
-	// return each;
-	// }
-	// }
-	//
-	// logger.error("Instance " + objectId + " was never initialized ?!");
-	// // TODO Make this a app specific exception:
-	// throw new RuntimeException("Instance " + objectId + " was never
-	// initialized ?!");
-	// }
-	// logger.error("Cannot find instance " + objectId);
-	// // TODO Make this a app specific exception:
-	// throw new RuntimeException("Cannot find instance " + objectId);
-	// // else {
-	// // String staticMethod = "";
-	// // // Graph_Details.showReturnValues();
-	// // if (Graph_Details.isReturnValuePresent(objectId)) {
-	// // logger.debug("return value bi map has the value");
-	// // staticMethod = Graph_Details.returnValueIfPresent(objectId);
-	// // return staticMethod;
-	// // }
-	// // }
-	// // return "Not init";
-	// }
-
+	
 	/**
 	 * Return the parameter list from the given parameter string
 	 * 
@@ -1279,146 +562,5 @@ public class StackImplementation implements TraceParser {
 
 		return types;
 	}
-
-	// /**
-	// * Generates a list for external dependent objects
-	// *
-	// * @param methodName
-	// * @return
-	// */
-	// public String externalResourceExecution(String methodName) {
-	// if (!externalTestCases.contains(methodName))
-	// externalTestCases.add(methodName);
-	// if (Graph_Details.hashParam.containsKey(methodName)) {
-	// // logger.debug("inside if method carve");
-	// // Parameters are present
-	// // Store all the parameters
-	// // Take the parameter types as an arraylist
-	// // ArrayList<String> parameterTypes=parameterTypeReturn(methodName);
-	// // Parameters are present
-	// String allParams = paramOfMethod(methodName);
-	// // Store all the parameters
-	// // listOfParameters.clear();
-	// listOfParameters.addAll(parameterList(allParams));
-	// MethodInvocation wrong = new MethodInvocation(methodName, -1);
-	// if (dataDependencyGraph.vertexExists(wrong)) {
-	// // There is atleast 1 parameter which is an object again
-	// // logger.debug("inside vertices if method carve");
-	// Iterator<String> it = listOfParameters.iterator();
-	// while (it.hasNext()) {
-	// String each = it.next();
-	// logger.debug(each);
-	// if (Graph_Details.instancesHashId.containsKey(each)) {
-	// // Object
-	// // logger.debug("inside vertices second if method
-	// // carve" +each);
-	// // Instead of the object id as the parameter value I
-	// // have replace with the
-	// // init of that object
-	// //
-	// listOfParameters.set(listOfParameters.indexOf(each),methodCarve(each));
-	//
-	// externalinitCarve(each);
-	//
-	// }
-	//
-	// }
-	// } else {
-	// /**
-	// * All parameters are primitive type Send a list of parameters
-	// * and the entire method to Soot and there Soot handles the
-	// * conversion and building function
-	// */
-	// // logger.debug("inside vertices else method carve");
-	// return methodName;
-	//
-	// }
-	// // ArrayList<String> list=new ArrayList<String>(listOfParameters);
-	// // parameters.put(methodName, list);
-	// } else {
-	//
-	// // No parameters are present
-	// // logger.debug("Inside else");
-	// return methodName;
-	// }
-	//
-	// return methodName;
-	// }
-
-	// /**
-	// * Generates the init for external dependencies
-	// *
-	// * @param objectId
-	// */
-	// public void externalinitCarve(String objectId) {
-	//
-	// String init = methodObject(objectId);
-	// // logger.debug("the method is "+init);
-	//
-	// if (!externalTestCases.contains(init))
-	// externalTestCases.add(0, init);
-	//
-	// if (Graph_Details.hashParam.containsKey(init)) {
-	//
-	// // logger.debug("inside if");
-	// // Parameters are present
-	// // Store all the parameters
-	// // Take the parameter types as an arraylist
-	// ArrayList<String> parameterTypes = parameterTypeReturn(init);
-	// // Parameters are present
-	// String allParams = paramOfMethod(init);
-	// // Store all the parameters
-	// // listOfParameters.clear();
-	// listOfParameters.addAll(parameterList(allParams));
-	// // logger.debug("Print");
-	//
-	// MethodInvocation wrongConstructor = new MethodInvocation(init, -1);
-	//
-	// if (dataDependencyGraph.vertexExists(wrongConstructor)) {
-	// // logger.debug("Print");
-	// // There is atleast 1 parameter which is an object again
-	// // logger.debug("inside vertices if");
-	// Iterator<String> it = listOfParameters.iterator();
-	// while (it.hasNext()) {
-	// String each = it.next();
-	// // logger.debug("The parameters is ::; "+each);
-	// if (Graph_Details.instancesHashId.containsKey(each)) {
-	// // Object
-	// logger.debug("inside vertices second if");
-	// // Instead of the object id as the parameter value I
-	// // have replace with the
-	// // init of that object
-	// int i = listOfParameters.indexOf(each);
-	// if (i != -1)
-	// listOfParameters.remove(i);
-	// // listOfParameters.set(listOfParameters.indexOf(each),initCarve(each));
-	// extractConstructors(each);
-	//
-	// // parameterTypes.set(parameterTypes.indexOf(each),replace);
-	//
-	// }
-	//
-	// }
-	// } else {
-	// /**
-	// * All parameters are primitive type Send a list of parameters
-	// * and the entire method to Soot and there Soot handles the
-	// * conversion and building function
-	// */
-	// // logger.debug("inside vertices else");
-	//
-	// // return init;
-	//
-	// }
-	// // ArrayList<String> list=new ArrayList<String>(listOfParameters);
-	// // parameters.put(init, list);
-	// } else {
-	//
-	// // No parameters are present
-	// // logger.debug("Inside else");
-	// // return init;
-	// }
-	// // return init;
-	// }
 
 }

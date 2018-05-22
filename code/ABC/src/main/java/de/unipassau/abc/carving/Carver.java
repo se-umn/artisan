@@ -124,7 +124,7 @@ public class Carver {
 
 	}
 
-	private static MethodInvocationMatcher getMatcherFor(final String type, final String regEx) {
+	public static MethodInvocationMatcher getMatcherFor(final String type, final String regEx) {
 		switch (type) {
 		case "package":
 			return MethodInvocationMatcher.byPackage(regEx);
@@ -210,7 +210,7 @@ public class Carver {
 
 	}
 
-	public static void main(String[] args) throws IOException, InterruptedException, URISyntaxException {
+	public static void main(String[] args) throws IOException, InterruptedException, URISyntaxException, CarvingException {
 		long startTime = System.nanoTime();
 
 		boolean skipMinimize = false;
@@ -222,6 +222,8 @@ public class Carver {
 		List<MethodInvocationMatcher> excludeBy = new ArrayList<>();
 		{
 			excludeBy.add(MethodInvocationMatcher.byPackage("java.lang"));
+			// Framework method, this should not be necessary
+			excludeBy.add(MethodInvocationMatcher.byPackage("abc"));
 		}
 
 		List<MethodInvocationMatcher> testSetupBy = new ArrayList<>();

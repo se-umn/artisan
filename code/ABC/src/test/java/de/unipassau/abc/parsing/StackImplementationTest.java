@@ -23,18 +23,24 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
+import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.CallGraph;
 import de.unipassau.abc.carving.Carver;
 import de.unipassau.abc.carving.DataDependencyGraph;
 import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocationMatcher;
 import de.unipassau.abc.carving.StackImplementation;
+import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.tracing.Trace;
 import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.ManualTest;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
+import soot.FastHierarchy;
 import soot.G;
+import soot.Scene;
+import soot.SootClass;
+import soot.SootMethod;
 
 //@RunWith(PowerMockRunner.class)
 //@PrepareForTest(Graph_Details.class)
@@ -49,15 +55,28 @@ public class StackImplementationTest {
 	private final List<MethodInvocationMatcher> emptyMethodInvocationMatcherList = new ArrayList<MethodInvocationMatcher>();
 
 	@BeforeClass
-	public static void setupSoot(){
+	public static void setupSoot() {
 		Carver.setupSoot(Collections.singletonList(new File(ABCTestUtils.getTestSubjectJar())));
 	}
-	
+
 	@AfterClass
-	public static void resetSoot(){
+	public static void resetSoot() {
 		G.reset();
 	}
-	
+
+	@Test
+	public void resolveMissingMethodFromInterfaces() {
+		Carver.setupSoot(Collections
+				.singletonList(new File("/Users/gambi/.m2/repository/org/hsqldb/hsqldb/2.4.0/hsqldb-2.4.0.jar")));
+
+		try {
+			ABCUtils.lookUpMethod("<java.sql.PreparedStatement: java.sql.ResultSet getResultSet()>");
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail();
+		}
+	}
+
 	@Test
 	public void testParserWithStoreArrays() throws FileNotFoundException, IOException {
 
@@ -84,8 +103,8 @@ public class StackImplementationTest {
 	}
 
 	@Test
-	public void testTraceParseWithTraceFromTestSubject() throws FileNotFoundException, IOException {
-		
+	public void testTraceParseWithTraceFromTestSubject() throws Exception {
+
 		File traceFile = new File("./src/test/resources/DummySystemTestGetSimple-trace.txt");
 
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
@@ -104,7 +123,7 @@ public class StackImplementationTest {
 
 	@Test
 	@Category(ManualTest.class)
-	public void testTraceParseWithSystemIn() throws FileNotFoundException, IOException {
+	public void testTraceParseWithSystemIn() throws Exception {
 		File traceFile = new File("/Users/gambi/action-based-test-carving/code/ABC/scripts/tracingOut/trace.txt");
 
 		// MethodInvocationMatcher byClass =
@@ -127,7 +146,7 @@ public class StackImplementationTest {
 	/// The following tests are broken since the trace format changed !
 	@Ignore
 	@Test
-	public void testTraceParserWithFormalParameters() throws IOException {
+	public void testTraceParserWithFormalParameters() throws Exception {
 		// Trace file
 		String trace = Trace.METHOD_START_TOKEN
 				+ "SpecialInvokeExpr;<jpass.util.Configuration: java.lang.Object getValue(java.lang.String,java.lang.Object,java.lang.Class)>;(system.look.and.feel.enabled,true,class java.lang.Boolean)"
@@ -158,7 +177,7 @@ public class StackImplementationTest {
 
 	@Ignore
 	@Test
-	public void testTraceParser() throws IOException {
+	public void testTraceParser() throws Exception {
 		// Trace file
 		String trace = Trace.METHOD_START_TOKEN
 				+ "StaticInvokeExpr;<jpass.util.Configuration: jpass.util.Configuration getInstance()>" + "\n"
@@ -185,7 +204,7 @@ public class StackImplementationTest {
 
 	@Ignore
 	@Test
-	public void testTraceParserWithMultilineStringsInObjectToken() throws IOException {
+	public void testTraceParserWithMultilineStringsInObjectToken() throws Exception {
 		// Trace file
 		String trace = Trace.METHOD_START_TOKEN
 				+ "VirtualInvokeExpr;<jpass.ui.action.TextComponentActionType: java.lang.String getName()>" + "\n"
@@ -215,7 +234,7 @@ public class StackImplementationTest {
 
 	@Ignore
 	@Test
-	public void testTraceParserWithMultilineStringsInParameter() throws IOException {
+	public void testTraceParserWithMultilineStringsInParameter() throws Exception {
 		// Trace file
 		String trace = Trace.METHOD_START_TOKEN
 				+ "SpecialInvokeExpr;<jpass.util.Configuration: java.lang.Object getValue(java.lang.String,java.lang.Object,java.lang.Class)>;(system.look.and.feel.enabled\n\nA\nB\n,true,class java.lang.Boolean)"

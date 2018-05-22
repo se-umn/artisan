@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
 
+import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.CallGraph;
 import de.unipassau.abc.carving.DataDependencyGraph;
 import de.unipassau.abc.carving.ExecutionFlowGraph;
@@ -30,6 +31,7 @@ import de.unipassau.abc.carving.exceptions.NotALevel0TestCaseException;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.utils.JimpleUtils;
+import soot.coffi.constant_element_value;
 
 /**
  * This carved uses an heuristic to select a single CARVING strategy when
@@ -111,12 +113,30 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// (second)
 		Queue<Pair<Set<MethodInvocation>, Set<MethodInvocation>>> workList = new LinkedList<>();
 
+		// Collect the calls to the E.I.
+		Set<MethodInvocation> methosInvocationsToExternalInterfaces = context.getFirst()
+				.getMethodInvocationsToExternalInterfaceBefore(methodInvocationToCarve);
+		// FIXME Collect explicit calls to setup the test
+//		Set<MethodInvocation> testSetupMethosInvocations = context.getFirst().getTestSetupMethodInvocations();
+
+		// What do we need to carve
+		Set<MethodInvocation> workToDo = new HashSet<MethodInvocation>();
+		workToDo.add(methodInvocationToCarve);
+		//
+		workToDo.addAll(methosInvocationsToExternalInterfaces);
+		// FIXME: Cannot remember the meaning of this, probably reduce the size of the data deps by compressing setup calls
+//		workToDo.addAll(testSetupMethosInvocations);
+
+		// Empty
+		Set<MethodInvocation> workDone = new HashSet<MethodInvocation>();
+
 		// Add the MUT as task in the work list
 		Pair<Set<MethodInvocation>, Set<MethodInvocation>> mutTask = new Pair<Set<MethodInvocation>, Set<MethodInvocation>>(
-				new HashSet<MethodInvocation>(),
-				new HashSet<MethodInvocation>(Collections.singleton(methodInvocationToCarve)));
-		//
+				workDone, workToDo);
+
+		// Schedule the task for the task
 		workList.add(mutTask);
+
 		// Pass everything along
 		// This produces the "real" carved tests, that is, those invocations
 		// which
@@ -136,106 +156,101 @@ public class Level_0_MethodCarver implements MethodCarver {
 		long start = System.currentTimeMillis();
 		level0TestCarving(workList, carvedTests, context, skipCartesian);
 		long end = System.currentTimeMillis();
-		logger.info("\t Core Carving took " + (end - start));
+		logger.info("\t Carving took " + (end - start));
 		// Ensure that any required testSetupCall, which is not yet included in
 		// the carved test, is taken into account,
 		// including its own carved preconditions
-		start = System.currentTimeMillis();
+		// start = System.currentTimeMillis();
 		// Include the user defined test setup calls. Those are by definition
 		// disjointed from the actual test execution !
 		// Roughly, they correspond to @Before calls
-		includeTestSetupCalls(carvedTests, context);
-		end = System.currentTimeMillis();
-		logger.info("\t Core Test Setup Calls took " + (end - start));
 
-		start = System.currentTimeMillis();
-		includeCallsToExternalInterfaces(carvedTests, context);
-		end = System.currentTimeMillis();
-		logger.info("\t Carving External Interface took " + (end - start));
+		// FIXME: What about this one ?!
+		// includeTestSetupCalls(carvedTests, context);
+
+		// end = System.currentTimeMillis();
+		// logger.info("\t Core Test Setup Calls took " + (end - start));
+		//
+		// start = System.currentTimeMillis();
+		// includeCallsToExternalInterfaces(carvedTests, context);
+		// end = System.currentTimeMillis();
+		// logger.info("\t Carving External Interface took " + (end - start));
 
 		return carvedTests;
 	}
 
-	public void includeTestSetupCalls(List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests,
-			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context) throws CarvingException {
+//	public void includeTestSetupCalls(List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests,
+//			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context) throws CarvingException {
+//
+//		// Collect the testSetupMethodInvocations from the context
+//		Set<MethodInvocation> testSetupMethosInvocations = context.getFirst().getTestSetupMethodInvocations();
+//
+//		// If the method invocation is not there yet, include it.
+//		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
+//
+//			for (MethodInvocation testSetupFromContext : testSetupMethosInvocations) {
+//
+//				if (!carvedTest.getFirst().contains(testSetupFromContext)) {
+//					logger.trace("Level_0_MethodCarver.includeTestSetupCalls() INCLUDING Test Setup Call "
+//							+ testSetupFromContext + " in carved test "
+//							+ carvedTest.getFirst().getOrderedMethodInvocations());
+//
+//					// Build the testSetupContext1
+//					List<MethodInvocation> invocationsBefore = context.getFirst()
+//							.getOrderedMethodInvocationsBefore(testSetupFromContext);
+//					ExecutionFlowGraph first = context.getFirst().getSubGraph(invocationsBefore);
+//					DataDependencyGraph second = context.getSecond().getSubGraph(invocationsBefore);
+//					//
+//					CallGraph third = context.getThird().getSubGraph(testSetupFromContext);
+//					//
+//					Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> testSetupContext = new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
+//							first, second, third);
+//
+//					//
+//					Queue<Pair<Set<MethodInvocation>, Set<MethodInvocation>>> workList = new LinkedList<>();
+//
+//					// Add the MUT as task in the work list
+//					Pair<Set<MethodInvocation>, Set<MethodInvocation>> mutTask = new Pair<Set<MethodInvocation>, Set<MethodInvocation>>(
+//							new HashSet<MethodInvocation>(),
+//							new HashSet<MethodInvocation>(Collections.singleton(testSetupFromContext)));
+//					//
+//					workList.add(mutTask);
+//				}
+//			}
+//
+//			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedPreconditions = new ArrayList<>();
+//
+//			boolean skipCartesian = true;
+//			level0TestCarving(workList, carvedPreconditions, testSetupContext, skipCartesian);
+//
+//			//
+//			Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition = carvedPreconditions.iterator().next();
+//			preconditionCache.put(testSetupFromContext, carvedPrecondition.getFirst().getOrderedMethodInvocations());
+//			logger.trace("Level_0_MethodCarver.includeTestSetupCalls() PRECONDITION for " + testSetupFromContext
+//					+ " STORED IN THE CACHE");
+//			// }
+//
+//			//
+//			// In case there's more than one because of cartesian
+//			// product, pick the first one.
+//			// NOTE THAT THERE"S SHOULD BE NO DATA DEPS OR SIMILAR INTO
+//			// THE CARVE PRECONDITIONS !
+//			Set<MethodInvocation> mergedSorted = new HashSet(carvedTest.getFirst().getOrderedMethodInvocations());
+//			// Return this from the cache !
+//			mergedSorted.addAll(preconditionCache.get(testSetupFromContext));
+//
+//			List<MethodInvocation> orderedSlice = new ArrayList<>(mergedSorted);
+//			Collections.sort(orderedSlice);
+//			//
+//			carvedTest.setFirst(context.getFirst().getSubGraph(orderedSlice));
+//			carvedTest.setSecond(context.getSecond().getSubGraph(orderedSlice));
+//
+//		}
+//
+//	}
 
-		// Collect the testSetupMethodInvocations from the context
-		Set<MethodInvocation> testSetupMethosInvocations = context.getFirst().getTestSetupMethodInvocations();
-
-		// If the method invocation is not there yet, include it.
-		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
-
-			for (MethodInvocation testSetupFromContext : testSetupMethosInvocations) {
-
-				if (!carvedTest.getFirst().contains(testSetupFromContext)) {
-					logger.trace("Level_0_MethodCarver.includeTestSetupCalls() INCLUDING Test Setup Call "
-							+ testSetupFromContext + " in carved test "
-							+ carvedTest.getFirst().getOrderedMethodInvocations());
-
-					// Build the testSetupContext1
-					List<MethodInvocation> invocationsBefore = context.getFirst()
-							.getOrderedMethodInvocationsBefore(testSetupFromContext);
-					ExecutionFlowGraph first = context.getFirst().getSubGraph(invocationsBefore);
-					DataDependencyGraph second = context.getSecond().getSubGraph(invocationsBefore);
-					//
-					CallGraph third = context.getThird().getSubGraph(testSetupFromContext);
-					//
-					Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> testSetupContext = new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
-							first, second, third);
-
-					//
-					Queue<Pair<Set<MethodInvocation>, Set<MethodInvocation>>> workList = new LinkedList<>();
-
-					// Add the MUT as task in the work list
-					Pair<Set<MethodInvocation>, Set<MethodInvocation>> mutTask = new Pair<Set<MethodInvocation>, Set<MethodInvocation>>(
-							new HashSet<MethodInvocation>(),
-							new HashSet<MethodInvocation>(Collections.singleton(testSetupFromContext)));
-					//
-					workList.add(mutTask);
-					// THIS ONE IS THE ONE WHICH ACTUALLYS COMPUTE THE CARVE
-					// using recursion
-					// and FULL CARTESIAN... But do not include test setup calls
-					// ;)
-
-					List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedPreconditions = new ArrayList<>();
-					//
-
-					if (!preconditionCache.containsKey(testSetupFromContext)) {
-						// NOTE context -> testSetupContext
-						boolean skipCartesian = true;
-						level0TestCarving(workList, carvedPreconditions, testSetupContext, skipCartesian);
-						//
-						Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition = carvedPreconditions
-								.iterator().next();
-						preconditionCache.put(testSetupFromContext,
-								carvedPrecondition.getFirst().getOrderedMethodInvocations());
-						logger.trace("Level_0_MethodCarver.includeTestSetupCalls() PRECONDITION for "
-								+ testSetupFromContext + " STORED IN THE CACHE");
-					}
-
-					//
-					// In case there's more than one because of cartesian
-					// product, pick the first one.
-					// NOTE THAT THERE"S SHOULD BE NO DATA DEPS OR SIMILAR INTO
-					// THE CARVE PRECONDITIONS !
-					Set<MethodInvocation> mergedSorted = new HashSet(
-							carvedTest.getFirst().getOrderedMethodInvocations());
-					// Return this from the cache !
-					mergedSorted.addAll(preconditionCache.get(testSetupFromContext));
-
-					List<MethodInvocation> orderedSlice = new ArrayList<>(mergedSorted);
-					Collections.sort(orderedSlice);
-					//
-					carvedTest.setFirst(context.getFirst().getSubGraph(orderedSlice));
-					carvedTest.setSecond(context.getSecond().getSubGraph(orderedSlice));
-
-				}
-			}
-		}
-
-	}
-
-	//// TODO: WHY DO NOT WE USE THE SAME APPROACH FOR CARVING REGULAR METHODS? We HAVE the work list, we can simply start from there, isn't it? 
+	//// TODO: WHY DO NOT WE USE THE SAME APPROACH FOR CARVING REGULAR METHODS?
+	//// We HAVE the work list, we can simply start from there, isn't it?
 	public void includeCallsToExternalInterfaces(List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests,
 			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context) throws CarvingException {
 
@@ -262,11 +277,6 @@ public class Level_0_MethodCarver implements MethodCarver {
 							+ methodInvocationToExternalInterface + " in carved test "
 							+ carvedTest.getFirst().getOrderedMethodInvocations());
 
-					
-					
-					
-					
-					
 					// Build the testSetupContext1
 					List<MethodInvocation> invocationsBefore = context.getFirst()
 							.getOrderedMethodInvocationsBefore(methodInvocationToExternalInterface);
@@ -853,7 +863,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 				Collections.sort(workUnits);
 				MethodInvocation unitOfWork = workUnits.get(0);
 
-				System.out.println("Processing " + unitOfWork + " from " + workUnits);
+				logger.debug("Processing " + unitOfWork + " from " + workUnits);
 				// This might not be really relevant since later we remove the
 				// work done from the work to do, and unit of work is workdone
 				//
@@ -867,7 +877,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 				// Do the carving
 				if (!preconditionCache.containsKey(unitOfWork)) {
-					System.out.println(" Carve" + unitOfWork);
+					logger.info("Carving: " + unitOfWork);
 
 					// Carve the method and store the preconditions
 					Map<MethodInvocation, Set<ObjectInstance>> dataDependencies = new HashMap<>();
@@ -1073,7 +1083,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 									// closest = Collections.min(ranked);
 									// }
 									// }
-									logger.info("MULTIPLE METHODS RETURN " + data + "\n" + tempSet
+									logger.debug("MULTIPLE METHODS RETURN " + data + "\n" + tempSet
 											+ " \n choosing the closest " + closest + " to " + entry.getKey());
 								}
 								methodsWhichReturnTheObject.add(closest);
@@ -1125,12 +1135,12 @@ public class Level_0_MethodCarver implements MethodCarver {
 					 * At this point we collect up to N methods which might
 					 * return the data, we pick only one according to the
 					 * following heuristic: - Constructors are preferred unless
-					 * they are private, otherwise chose the other.
-					 * In theory, there's only one "other" call, the closest one...
+					 * they are private, otherwise chose the other. In theory,
+					 * there's only one "other" call, the closest one...
 					 */
 					for (Entry<ObjectInstance, Set<MethodInvocation>> methodsWhichReturnTheObject : methodsWhichReturnTheObjects
 							.entrySet()) {
-						
+
 						if (methodsWhichReturnTheObject.getValue().size() > 1) {
 
 							// Keep only the constructor, unless it is private !
@@ -1144,7 +1154,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 							}
 							// TODO Refactor this method ...
 							methods = methodsWhichReturnTheObject.getValue();
-							// This is just NAIVE, but let's see how far we can get with it...
+							// This is just NAIVE, but let's see how far we can
+							// get with it...
 							for (MethodInvocation method : methods) {
 								if (!method.getJimpleMethod().contains("<init>") && !method.isPrivate()) {
 									logger.trace("RANDOMLY SELECT " + method + "To reduce the combination for "
@@ -1177,13 +1188,14 @@ public class Level_0_MethodCarver implements MethodCarver {
 					preconditions.remove(unitOfWork);
 
 					preconditionCache.put(unitOfWork, preconditions);
-					System.out.println("Carve of " + unitOfWork + " Done " + preconditions);
-				} else {
-					// At this point unit of work is definitvely in the cache
-					System.out.println(" Found " + unitOfWork + " in the cache");
 				}
 
+				logger.debug("Carve of " + unitOfWork + " Done " + preconditionCache.get(unitOfWork));
+
 				/////// Prepare the next iteration
+
+				// FIXME This can be optimized by fast-forwarding carving using
+				// the cache without the need to recreate tasks over and over
 
 				// Accumulate past work
 				Set<MethodInvocation> workDone = new HashSet<>(task.getFirst());
@@ -1206,9 +1218,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 						workDone, workToDo);
 
 				//
-				logger.info("Level_0_MethodCarver.level0TestCarving() Enqueuing new task with "
+				logger.debug("Level_0_MethodCarver.level0TestCarving() Enqueuing new task with "
 						+ newTask.getSecond().size() + " method invocations");
-				logger.info("" + newTask.getSecond());
+				logger.debug("" + newTask.getSecond());
 				workList.add(newTask);
 
 			}
@@ -1386,7 +1398,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 	}
 
 	/**
-	 * methodToBeCarved in Jimple format
+	 * methodToBeCarved in Jimple format. Note that we should not carve our own
+	 * methods, abc.* and ArrayOperations, etc.
 	 * 
 	 * @param carveBy
 	 * @return
@@ -1407,9 +1420,15 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 		for (MethodInvocation methodInvocationUnderTest : orderedMethodsInvocationsToCarve) {
 
+			if (ABCUtils.ARTIFICIAL_METHODS.contains(methodInvocationUnderTest.getInvocationType())) {
+				logger.info("We do not carve ABC artificial methods " + methodInvocationUnderTest);
+				continue;
+			}
+
 			// Skip methods which has no sense to carve
 			if (methodInvocationUnderTest.isPrivate()) {
 				logger.info("We do not carve private methods " + methodInvocationUnderTest);
+				continue;
 			}
 
 			// Note that SOOT will report the same methods as being executed
