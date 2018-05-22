@@ -57,7 +57,7 @@ public class InstrumentClassAccessAndTrace {
 
 	@Test
 	@Category(SystemTest.class)
-	public void instrumentAndTraceTestSubjects() throws URISyntaxException, IOException, InterruptedException {
+	public void instrumentAndTraceTestSubjects() throws Exception{
 
 		 File tracingOutputDir = temporaryFolder.newFolder();
 //		File outputDir = Files.createTempDirectory("TEMP").toFile();

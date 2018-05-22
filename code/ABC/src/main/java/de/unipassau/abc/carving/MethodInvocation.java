@@ -35,6 +35,8 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
 	private boolean isTestSetupCall;
 
+//	private boolean belongsToAbstractClass;
+
 	public MethodInvocation(String jimpleMethod, int invocationCount) {
 		this.jimpleMethod = jimpleMethod;
 		this.invocationCount = invocationCount;
@@ -148,6 +150,14 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		return isPrivate;
 	}
 
+//	public void setBelongsToAbstractClass(boolean belongsToAbstractClass) {
+//		this.belongsToAbstractClass = belongsToAbstractClass;
+//	}
+//	public boolean belongsToAbstractClass() {
+//		return belongsToAbstractClass;
+//	}
+	
+	
 	// This define the order as in the execution graph
 	@Override
 	public int compareTo(MethodInvocation o) {
@@ -169,4 +179,5 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	public boolean isBefore(MethodInvocation next) {
 		return compareTo( next ) < 0;
 	}
+
 }

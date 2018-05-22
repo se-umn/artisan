@@ -1,10 +1,9 @@
 package de.unipassau.abc.parsing;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -23,61 +22,60 @@ import de.unipassau.abc.carving.ObjectInstance;
 import de.unipassau.abc.carving.StackImplementation;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.utils.ABCTestUtils;
-import de.unipassau.abc.utils.JimpleUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import edu.emory.mathcs.backport.java.util.Arrays;
 import soot.G;
-import soot.Scene;
-import soot.SootClass;
-import soot.SootMethod;
 
 public class ParserTest {
 
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevel = new Slf4jSimpleLoggerRule(Level.TRACE);
 
-//	@BeforeClass
-//	public static void setupSoot() {
-//		Carver.setupSoot(Collections.EMPTY_LIST);
-//	}
+	// @BeforeClass
+	// public static void setupSoot() {
+	// Carver.setupSoot(Collections.EMPTY_LIST);
+	// }
 
-//	@AfterClass
-//	public static void resetSoot() {
-//		G.reset();
-//	}
+	// @AfterClass
+	// public static void resetSoot() {
+	// G.reset();
+	// }
 
-	
 	@Test
-	public void findCorrectMethod(){
+	public void findCorrectMethod() throws Exception {
 		Carver.setupSoot(Collections.EMPTY_LIST);
-		
-//		SootClass superClass = Scene.v().getSootClass("javax.swing.JTextField");
-//		SootMethod sMethod = superClass.getMethod("void addCaretListener(javax.swing.event.CaretListener)");
-//		assertNotNull(sMethod);
-//		System.out.println( JimpleUtils.getSubSignature("<javax.swing.JTextField: void addMouseListener(java.awt.event.MouseListener)>") );
-		StackImplementation.findCorrectJimpleMethod("<javax.swing.JTextField: void addMouseListener(java.awt.event.MouseListener)>");
+
+		// SootClass superClass =
+		// Scene.v().getSootClass("javax.swing.JTextField");
+		// SootMethod sMethod = superClass.getMethod("void
+		// addCaretListener(javax.swing.event.CaretListener)");
+		// assertNotNull(sMethod);
+		// System.out.println(
+		// JimpleUtils.getSubSignature("<javax.swing.JTextField: void
+		// addMouseListener(java.awt.event.MouseListener)>") );
+		StackImplementation.findCorrectJimpleMethod(
+				"<javax.swing.JTextField: void addMouseListener(java.awt.event.MouseListener)>");
 		//
-		StackImplementation.findCorrectJimpleMethod("<javax.swing.JTextField: void addMouseListener(java.awt.event.MouseListener)>");
-		
-		
+		StackImplementation.findCorrectJimpleMethod(
+				"<javax.swing.JTextField: void addMouseListener(java.awt.event.MouseListener)>");
+
 		G.reset();
 	}
-	
+
 	@Test
-	public void testParseMethodEndWithoutXML(){
-//		Pattern pattern = Pattern.compile("^http://.*?/(.*?)/.*?$");
-//		Matcher matcher = pattern.matcher(urlString);
-//		matcher.group(0);
-		
+	public void testParseMethodEndWithoutXML() {
+		// Pattern pattern = Pattern.compile("^http://.*?/(.*?)/.*?$");
+		// Matcher matcher = pattern.matcher(urlString);
+		// matcher.group(0);
+
 		String methodEnd = "[<];<java.io.File: boolean createNewFile()>;;;true";
 		String[] tokens = methodEnd.split(";");
-		System.out.println( Arrays.toString( tokens ));
-		
-		
+		System.out.println(Arrays.toString(tokens));
+
 	}
-	
+
 	@Test
-	public void testParseStaticMethodStartWithArrayParameters() throws FileNotFoundException, IOException {
+	public void testParseStaticMethodStartWithArrayParameters() throws Exception {
 		List<String> lines = new ArrayList<>();
 		lines.add("[>];ArrayOperation;<java.nio.file.attribute.FileAttribute[]: void <init>(int)>;(0)");
 		lines.add(
@@ -104,7 +102,7 @@ public class ParserTest {
 	}
 
 	@Test
-	public void testParsingWithAlias() throws FileNotFoundException, IOException {
+	public void testParsingWithAlias() throws Exception {
 		List<String> lines = new ArrayList<>();
 		lines.add("[>];ArrayOperation;<java.nio.file.attribute.FileAttribute[]: void <init>(int)>;(0)");
 		lines.add(

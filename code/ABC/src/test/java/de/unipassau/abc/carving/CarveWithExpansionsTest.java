@@ -127,7 +127,7 @@ public class CarveWithExpansionsTest {
 
 	@Ignore
 	@Test
-	public void testExpansionWithModifiedStatic() throws FileNotFoundException, IOException, InterruptedException {
+	public void testExpansionWithModifiedStatic() throws Exception{
 		File traceFile = new File("./src/test/resources/DummySystemTestGetModified-trace.txt");
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
 		// Parsing
@@ -184,7 +184,7 @@ public class CarveWithExpansionsTest {
 
 	@Ignore
 	@Test
-	public void testExpansionWithSimpleWithDelegate() throws FileNotFoundException, IOException, InterruptedException {
+	public void testExpansionWithSimpleWithDelegate() throws Exception{
 		File traceFile = new File("./src/test/resources/DummySystemTestGetSimpleWithDelegate-trace.txt");
 
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
@@ -254,7 +254,7 @@ public class CarveWithExpansionsTest {
 	 * @throws InterruptedException
 	 */
 	public void testExpansionWithModifiedWithDelegate()
-			throws FileNotFoundException, IOException, InterruptedException {
+			throws Exception{
 		File traceFile = new File("./src/test/resources/DummySystemTestGetModifiedWithDelegate-trace.txt");
 
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
@@ -328,7 +328,7 @@ public class CarveWithExpansionsTest {
 	 * @throws InterruptedException
 	 */
 	public void testExpansionWithModifiedWithDelegateAndExternalInterface()
-			throws FileNotFoundException, IOException, InterruptedException {
+			throws Exception{
 		File traceFile = new File("./src/test/resources/DummySystemTestGetModifiedWithDelegate-trace.txt");
 
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
@@ -390,7 +390,7 @@ public class CarveWithExpansionsTest {
 	@Ignore
 	@Test
 	public void testExpansionWithDoubleModifiedWithDelegate()
-			throws FileNotFoundException, IOException, InterruptedException {
+			throws Exception{
 		File traceFile = new File("./src/test/resources/DummySystemTestGetDoubleModifiedWithDelegate-trace.txt");
 
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
@@ -450,7 +450,7 @@ public class CarveWithExpansionsTest {
 	
 	@Ignore
 	@Test
-	public void testExpansionWithSimpleWithParameter() throws FileNotFoundException, IOException, InterruptedException {
+	public void testExpansionWithSimpleWithParameter() throws Exception{
 		File traceFile = new File("./src/test/resources/DummySystemTestGetSimpleWithParameter-trace.txt");
 
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);
@@ -512,7 +512,7 @@ public class CarveWithExpansionsTest {
 	@Ignore
 	@Test
 	public void testExpansionWithSimpleWithNonRequiredParameter()
-			throws FileNotFoundException, IOException, InterruptedException {
+			throws Exception{
 		File traceFile = new File("./src/test/resources/DummySystemTestGetSimpleWithNonRequiredParameter-trace.txt");
 
 		StackImplementation stackImplementation = new StackImplementation(emptyMethodInvocationMatcherList);

@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Triplette;
 
 public interface TraceParser {
@@ -18,7 +19,8 @@ public interface TraceParser {
 	 * @return
 	 * @throws FileNotFoundException
 	 * @throws IOException
+	 * @throws CarvingException 
 	 */
 	public Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parseTrace(String traceFilePath,
-			List<MethodInvocationMatcher> externalInterfaceMatchers) throws FileNotFoundException, IOException;
+			List<MethodInvocationMatcher> externalInterfaceMatchers) throws FileNotFoundException, IOException, CarvingException;
 }

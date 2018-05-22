@@ -2,11 +2,20 @@ package de.unipassau.abc;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import de.unipassau.abc.carving.exceptions.CarvingException;
+import de.unipassau.abc.utils.JimpleUtils;
+import edu.emory.mathcs.backport.java.util.Arrays;
+import soot.Scene;
+import soot.SootClass;
+import soot.SootMethod;
+import soot.jimple.JimpleMethodSource;
 
 public class ABCUtils {
 
@@ -14,10 +23,102 @@ public class ABCUtils {
 
 	public final static String ABC_HOME = System.getenv("ABC_HOME");
 
+	public static final List<String> ARTIFICIAL_METHODS = Arrays.asList(new String[] { "StringOperation",
+			"ArrayOperation", "ClassOperation", "MainArgsOperation", "StaticFieldOperation", "FieldOperation" });
+
+	private final static HashMap<String, String> cachedMethods = new HashMap<>();
+
+	// private static SootClass findInterfaceImplementing(String subSignature ){
+	//
+	// }
+	//
+	// private static SootClass findClassImplemeting(String subSignature ){
+	//
+	// }
+
+	/**
+	 * Recursively loop up the method
+	 * 
+	 * @param classOrInterface
+	 * @param methodSubSignature
+	 * @return
+	 */
+	public static SootMethod lookUp(SootClass classOrInterface, String jimpleMethod) {
+		SootMethod theMethod = null;
+		
+		String methodSubSignature = JimpleUtils.getSubSignature(jimpleMethod);
+		try {
+			logger.trace("Check if " + methodSubSignature + " is declared  by " + classOrInterface);
+			theMethod = classOrInterface.getMethod(methodSubSignature);
+		} catch (RuntimeException e) {
+			if (classOrInterface.hasSuperclass()) {
+				// Rebuild the jimpleMethod for this class !
+				String signature = "<" + classOrInterface.getSuperclass().getType().getClassName() + ": " + methodSubSignature+">";
+
+				logger.trace("Check if " + methodSubSignature + " is declared  by superclass of "
+						+ classOrInterface + " which is " + classOrInterface.getSuperclass() + " as " + signature);
+				
+				
+				theMethod = lookUp(classOrInterface.getSuperclass(), signature);
+			}
+
+			if (theMethod == null) {
+				for (SootClass sInterface : classOrInterface.getInterfaces()) {
+					
+					String signature = "<" + sInterface  + ": " + methodSubSignature+">";
+					
+					logger.trace("Check if " + methodSubSignature + " is declared by interface " + sInterface
+							+ " of class " + classOrInterface + "as " + signature );
+					
+					theMethod = lookUp(sInterface, signature);
+					if (theMethod != null) {
+						break;
+					}
+				}
+			}
+			// TODO: handle exception
+		}
+
+		if (theMethod != null) {
+			logger.trace("Found " + methodSubSignature + " as declared by "
+					+ (classOrInterface.isInterface() ? "interface " : "") + classOrInterface );
+			//
+//			String signature = "<" + classOrInterface.getSuperclass().getType().getClassName() + ": " + methodSubSignature+">";
+			String signature = jimpleMethod;
+			
+			logger.trace("ABCUtils.lookUp() Store " + signature +" --> " + theMethod.getSignature() );
+			cachedMethods.put( signature , theMethod.getSignature());
+			
+		}
+		return theMethod;
+	}
+
+	/**
+	 * We need to look up which class or interface declare a method such that we
+	 * can reconstruct it later
+	 * 
+	 * @param jimpleMethod
+	 * @return
+	 * @throws CarvingException
+	 */
+	public static String lookUpMethod(String jimpleMethod) throws CarvingException {
+		SootClass sClass = Scene.v().getSootClass(JimpleUtils.getClassNameForMethod(jimpleMethod));
+		
+		// This method has the cache, so we can also cache partial results
+		SootMethod sMethod = lookUp(sClass, jimpleMethod);
+
+		if (sMethod != null) {
+			return sMethod.getSignature();
+		} else {
+			throw new CarvingException("Cannot find Soot Method for " + jimpleMethod);
+		}
+
+	}
+
 	public static String getTraceJar() {
 
 		String prefix = (ABC_HOME != null) ? ABC_HOME + "/" : "";
-		
+
 		String traceJar = new File(prefix + "./libs/trace.jar").getAbsolutePath();
 
 		if (new File(traceJar).exists()) {

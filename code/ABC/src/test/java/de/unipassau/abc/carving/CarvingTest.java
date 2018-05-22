@@ -42,12 +42,13 @@ public class CarvingTest {
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
 
-	private final List<MethodInvocationMatcher> excludeNoMethodInvocationsMatcher = Collections.singletonList(MethodInvocationMatcher.noMatch());
+	private final List<MethodInvocationMatcher> excludeNoMethodInvocationsMatcher = Collections
+			.singletonList(MethodInvocationMatcher.noMatch());
 	private final List<MethodInvocationMatcher> emptyMethodInvocationMatcherList = new ArrayList<MethodInvocationMatcher>();
-	
+
 	@Ignore
 	@Test
-	public void testFileTransformer() throws FileNotFoundException, IOException {
+	public void testFileTransformer() throws Exception {
 		System.setProperty("debug", "true");
 
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
@@ -60,7 +61,7 @@ public class CarvingTest {
 
 	@Ignore
 	@Test
-	public void testCarveStaticMethod() throws FileNotFoundException, IOException, InterruptedException {
+	public void testCarveStaticMethod() throws Exception {
 		// StaticInvokeExpr;
 		MethodInvocationMatcher staticMethodToCarve = MethodInvocationMatcher.fromJimpleMethod(
 				"<org.employee.DummyObjectFactory: org.employee.DummyObjectToPassAsParameter createNewDummyObject()>");
@@ -78,7 +79,8 @@ public class CarvingTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
 				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(staticMethodToCarve, excludeNoMethodInvocationsMatcher);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(staticMethodToCarve,
+				excludeNoMethodInvocationsMatcher);
 
 		// System tests contains 2 executions
 		assertEquals(2, carvedTests.size());
@@ -91,17 +93,18 @@ public class CarvingTest {
 
 		String employeeProjectJar = "./src/test/resources/Employee.jar";
 
-		Carver.setupSoot( Collections.singletonList( new File(employeeProjectJar) ) );
-		TestGenerator testGenerator = new TestGenerator( parsedTrace );
+		Carver.setupSoot(Collections.singletonList(new File(employeeProjectJar)));
+		TestGenerator testGenerator = new TestGenerator(parsedTrace);
 
-		Collection<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
+		Collection<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases = testGenerator
+				.generateTestCases(carvedTests, new AllTestTogether());
 		assertEquals(1, carvedTestCases.size());
 
 		Set<SootClass> testCases = new HashSet<>();
-		for( Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases ){
-			testCases.add( carvedTestCase.getThird().getDeclaringClass() );
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
+			testCases.add(carvedTestCase.getThird().getDeclaringClass());
 		}
-		
+
 		for (SootClass testCase : testCases) {
 			JimpleUtils.prettyPrint(testCase);
 		}
@@ -109,8 +112,7 @@ public class CarvingTest {
 
 	@Ignore
 	@Test
-	public void testCarveMethodWhichDependsOnFactoryStaticMethod()
-			throws FileNotFoundException, IOException, InterruptedException {
+	public void testCarveMethodWhichDependsOnFactoryStaticMethod() throws Exception {
 		// This method gets a dummy object which is created via static factory
 		MethodInvocationMatcher methodToCarve = MethodInvocationMatcher.fromJimpleMethod(
 				"<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>");
@@ -128,7 +130,8 @@ public class CarvingTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
 				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarve, excludeNoMethodInvocationsMatcher);
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarve,
+				excludeNoMethodInvocationsMatcher);
 
 		// The trace contains 2 executions. start -> exit, start -> register
 		// user -> exit
@@ -155,16 +158,16 @@ public class CarvingTest {
 
 		String employeeProjectJar = "./src/test/resources/Employee.jar";
 
-		
-		Carver.setupSoot( Collections.singletonList( new File(employeeProjectJar) ) );
-		TestGenerator testGenerator = new TestGenerator( parsedTrace  );
-		
-		Collection<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases = testGenerator.generateTestCases(carvedTests, new AllTestTogether());
+		Carver.setupSoot(Collections.singletonList(new File(employeeProjectJar)));
+		TestGenerator testGenerator = new TestGenerator(parsedTrace);
+
+		Collection<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases = testGenerator
+				.generateTestCases(carvedTests, new AllTestTogether());
 		assertEquals(1, carvedTestCases.size());
-		
+
 		Set<SootClass> testCases = new HashSet<>();
-		for( Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases ){
-			testCases.add( carvedTestCase.getThird().getDeclaringClass() );
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
+			testCases.add(carvedTestCase.getThird().getDeclaringClass());
 		}
 
 		for (SootClass testCase : testCases) {
@@ -174,7 +177,7 @@ public class CarvingTest {
 
 	@Ignore
 	@Test
-	public void testCarveMethodWithDependencies() throws FileNotFoundException, IOException {
+	public void testCarveMethodWithDependencies() throws Exception {
 		// System.setProperty("debug", "true");
 
 		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>";
@@ -190,7 +193,7 @@ public class CarvingTest {
 
 	@Ignore
 	@Test
-	public void testCallGraphGeneration() throws FileNotFoundException, IOException {
+	public void testCallGraphGeneration() throws Exception {
 		System.setProperty("debug", "true");
 		String objectId = "org.employee.Validation@2114874018";
 		String dependencyObjectId = "org.employee.Dummy@2114874017";
@@ -239,7 +242,7 @@ public class CarvingTest {
 
 	@Ignore
 	@Test
-	public void testExecutionGraphGeneration() throws FileNotFoundException, IOException {
+	public void testExecutionGraphGeneration() throws Exception {
 		System.setProperty("debug", "true");
 		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String)>";
 
@@ -263,7 +266,7 @@ public class CarvingTest {
 
 	@Ignore
 	@Test
-	public void testDependencyGraphGeneration() throws FileNotFoundException, IOException {
+	public void testDependencyGraphGeneration() throws Exception {
 		// Parse trace and fill up Graph_Details.
 		String objectId = "org.employee.Validation@2114874018";
 		String trace =
@@ -305,7 +308,7 @@ public class CarvingTest {
 
 	@Ignore
 	@Test
-	public void testCarvingShort() throws IOException {
+	public void testCarvingShort() throws Exception {
 		// Parse trace and fill up Graph_Details.
 		String objectId = "org.employee.Validation@2114874018";
 		String jimpleMethod = "<org.employee.Validation: void <init>(org.employee.Dummy)>";
@@ -356,7 +359,7 @@ public class CarvingTest {
 
 	@Ignore
 	@Test
-	public void testCarving() throws FileNotFoundException, IOException {
+	public void testCarving() throws Exception {
 		//
 		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String)>";
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");
@@ -379,7 +382,7 @@ public class CarvingTest {
 
 	@Ignore
 	@Test
-	public void testCarvingMethodWithDependencey() throws FileNotFoundException, IOException {
+	public void testCarvingMethodWithDependencey() throws Exception {
 		//
 		String methodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>";
 		File traceFile = new File("./src/test/resources/Employee-trace-simple.txt");

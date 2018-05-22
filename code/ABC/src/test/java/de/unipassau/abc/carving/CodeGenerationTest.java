@@ -76,7 +76,7 @@ public class CodeGenerationTest {
 
 	@Ignore
 	@Test
-	public void generateTestCode() throws FileNotFoundException, IOException, InterruptedException {
+	public void generateTestCode() throws Exception{
 		String jimpleMethod = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>";
 		int invocationID = 116;
 		File traceFile = new File("./src/test/resources/Employee-trace.txt");

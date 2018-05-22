@@ -19,7 +19,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -63,10 +62,10 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 
 	}
 
-//	@Ignore
+	// @Ignore
 	@Test
 	@Category(SystemTest.class)
-	public void instrumentAndTrace() throws URISyntaxException, IOException, InterruptedException {
+	public void instrumentAndTrace() throws Exception {
 
 		// File outputDir = temporaryFolder.newFolder();
 		File outputDir = Files.createTempDirectory("TEMP").toFile();
@@ -104,55 +103,55 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 		jarFiles.add(new File("./src/test/resources/system-rules-1.17.0.jar"));
 		//
 
-//		String[] systemTests = new String[] { //
-//				"org.employee.systemtest.TestAdminLoginWithEmptyDb", //
-//				"org.employee.systemtest.TestAdminLoginWithNonEmptyDb", //
-//				"org.employee.systemtest.TestEmployeeLogin", //
-//				"org.employee.systemtest.TestRegisterANewSeniorSoftwareEnginner", //
-//				"org.employee.systemtest.TestRegisterANewSoftwareEnginner", //
-//				"org.employee.systemtest.TestRegisterANewSoftwareTrainee", //
-//				"org.employee.systemtest.TestStartAndExit"//
+		// String[] systemTests = new String[] { //
+		// "org.employee.systemtest.TestAdminLoginWithEmptyDb", //
+		// "org.employee.systemtest.TestAdminLoginWithNonEmptyDb", //
+		// "org.employee.systemtest.TestEmployeeLogin", //
+		// "org.employee.systemtest.TestRegisterANewSeniorSoftwareEnginner", //
+		// "org.employee.systemtest.TestRegisterANewSoftwareEnginner", //
+		// "org.employee.systemtest.TestRegisterANewSoftwareTrainee", //
+		// "org.employee.systemtest.TestStartAndExit"//
 
-//		};
-		
+		// };
+
 		String systemTest = "org.employee.systemtest.TestRegisterANewSoftwareTrainee";
-		
-		File trace = runSystemTestAndGetTraceFile( systemTest, outputDir, jarFiles);
-		
-		// Now do the carving 
-		
+
+		File trace = runSystemTestAndGetTraceFile(systemTest, outputDir, jarFiles);
+
+		// Now do the carving
+
 		File carvingOutputDirectory = Files.createTempDirectory("CARVING").toFile();
-		// Problem with FileWriter which gets the wrong (false, instead of true) input
+		// Problem with FileWriter which gets the wrong (false, instead of true)
+		// input
 		String carveBy = "method=<org.employee.FileRead2: int fileIsRead(java.lang.String,java.lang.String)>";
 
-		String[] args = new String[] {
-				"--carve-by", carveBy,
+		String[] args = new String[] { "--carve-by", carveBy,
 				// String traceFile =
-				"--trace-file", trace.getAbsolutePath(), 
+				"--trace-file", trace.getAbsolutePath(),
 				// String projectJar =
 				"--project-jar", "./src/test/resources/Employee.jar", "./src/test/resources/Employee-tests.jar",
 				// String outputDir =
 				"--output-to", carvingOutputDirectory.getAbsolutePath(),
 				// List the external interfaces here
-				"--external", "java.io.Writer", "java.io.FileWriter", "java.io.BufferedWriter", "java.io.File", "java.nio.file.Path", "java.nio.file.Files",//
-				 "--test-setup-by", "class=org.employee.systemtest.SystemTestUtils",
-//				"abc.StaticField", // System.in, System.out, System.err
-//				"abc.Field"
+				"--external", "java.io.Writer", "java.io.FileWriter", "java.io.BufferedWriter", "java.io.File",
+				"java.nio.file.Path", "java.nio.file.Files", //
+				"--test-setup-by", "class=org.employee.systemtest.SystemTestUtils",
+				// "abc.StaticField", // System.in, System.out, System.err
+				// "abc.Field"
 				"--exclude-by", "package=org.employee.systemtest", "class=org.employee.Employee", //
-				"--skip-minimize"
-				};
+				"--skip-minimize" };
 		//
 		Carver.main(args);
 		//
-		//assertEquals(5, ABCTestUtils.countFiles(outputDirectory, ".java"));
+		// assertEquals(5, ABCTestUtils.countFiles(outputDirectory, ".java"));
 
 		ABCTestUtils.printJavaClasses(carvingOutputDirectory);
 
 	}
 
 	// Return trace file
-	private File runSystemTestAndGetTraceFile(String systemTestClassName, File instrumentedClassesDir, List<File> jarFiles)
-			throws IOException, URISyntaxException, InterruptedException {
+	private File runSystemTestAndGetTraceFile(String systemTestClassName, File instrumentedClassesDir,
+			List<File> jarFiles) throws IOException, URISyntaxException, InterruptedException {
 
 		File tracingOutput = Files.createTempDirectory("CARVING").toFile();
 
@@ -175,7 +174,7 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 		System.out.println("InstrumentEmployeeTest.instrumentAndTraceTestSubjects()" + processBuilder.command());
 
 		// This causes problems wher run on command line
-		 processBuilder.inheritIO();
+		processBuilder.inheritIO();
 
 		Process process = processBuilder.start();
 
@@ -195,7 +194,7 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 			System.out.println(line);
 		}
 		System.out.println("=====================================");
-		
+
 		return trace;
 
 	}

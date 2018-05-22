@@ -31,7 +31,7 @@ public class TestCarvingWithStrings {
 	}
 	
 	@Test
-	public void testWithStringDeclaration() throws FileNotFoundException, IOException{
+	public void testWithStringDeclaration()throws Exception{
 		String trace = "[>];ArrayOperation;<java.nio.file.attribute.FileAttribute[]: void <init>(int)>;(0)" + "\n" +
 					"[||];<java.nio.file.attribute.FileAttribute[]: void <init>(int)>;/Users/gambi/Documents/Passau/Research/action-based-test-carving/code/ABC/scripts/./tracingOut/2f5ae63f-e866-454a-941d-c5ade0081876.xml;java.nio.file.attribute.FileAttribute[]@1025922771" + "\n" +
 					"[<];<java.nio.file.attribute.FileAttribute[]: void <init>(int)>;;" + "\n" +
