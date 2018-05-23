@@ -112,9 +112,9 @@ public class DataDependencyGraph {
 							// This is a string node - TODO Refactor add a map
 							// or index to fast access to those nodes !
 							if (actualParameters[position].equals(((PrimitiveValue) vertex).getRefid())) {
-								System.out.println(
-										"DataDependencyGraph.addMethodInvocation() Found the Primitive Node for "
-												+ actualParameters[position]);
+//								System.out.println(
+//										"DataDependencyGraph.addMethodInvocation() Found the Primitive Node for "
+//												+ actualParameters[position]);
 								// We need to generate a new one for each use,
 								// so there's no deps on them.
 								node = PrimitiveNodeFactory.get(formalParameters[position],
@@ -271,7 +271,7 @@ public class DataDependencyGraph {
 			// This might be tweaked
 			node = PrimitiveNodeFactory.createStringNode(formalReturnValue, returnValue);
 			setSootValueFor(node, ((ValueNode) node).getData());
-		} else if (JimpleUtils.isNull(returnValue)) {
+		}  else if (JimpleUtils.isNull(returnValue)) {
 			// System.out.println("DataDependencyGraph.addDataDependencyOnReturn()
 			// Capture a null return value");
 			node = NullNodeFactory.get(formalReturnValue);
@@ -706,14 +706,11 @@ public class DataDependencyGraph {
 	}
 
 	public void setSootValueFor(DataNode node, Value localVariable) {
-		// System.out.println("DataDependencyGraph.setSootValueFor() " + node +
-		// " " + localVariable);
 		additionalData.put(node, localVariable);
 	}
 
 	public Value getSootValueFor(DataNode node) {
 		// For the strings this can be null, so we look it up in the XML !
-
 		return additionalData.get(node);
 	}
 

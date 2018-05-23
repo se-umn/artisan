@@ -100,7 +100,7 @@ public class StackImplementation implements TraceParser {
 				&& !JimpleUtils.isString(JimpleUtils.getReturnType(jimpleMethod))
 
 		) {
-			System.out.println(
+			logger.debug(
 					"StackImplementation.parseMethodStart() Strings are primitives we do not track their methods, unless return a String");
 			// FIXME Not sure if this is startLine + 1 ?!
 			return startLine;
@@ -142,7 +142,7 @@ public class StackImplementation implements TraceParser {
 
 		} catch (Throwable e) {
 			String correctMethod = findCorrectJimpleMethod(jimpleMethod);
-			System.out.println("StackImplementation.parseMethodStart() ERROR : " + correctMethod);
+			logger.warn("StackImplementation.parseMethodStart() ERROR : " + correctMethod);
 			// This fails for java classes
 			logger.info("StackImplementation.parseMethodStart() Swallow:  " + e.getMessage());
 			// e.printStackTrace();
@@ -250,7 +250,7 @@ public class StackImplementation implements TraceParser {
 				&& !JimpleUtils.isString(JimpleUtils.getReturnType(jimpleMethod))
 
 		) {
-			System.out.println(
+			logger.info(
 					"StackImplementation.parseMethodStart() Strings are primitives we do not track their methods, unless return a String");
 			// FIXME Not sure if this is startLine + 1 ?!
 			return startLine;
@@ -285,7 +285,7 @@ public class StackImplementation implements TraceParser {
 				&& !JimpleUtils.isString(JimpleUtils.getReturnType(jimpleMethod))
 
 		) {
-			System.out.println(
+			logger.info(
 					"StackImplementation.parseMethodStart() Strings are primitives we do not track their methods, unless return a String");
 			// FIXME Not sure if this is startLine + 1 ?!
 			return startLine;
@@ -341,7 +341,8 @@ public class StackImplementation implements TraceParser {
 			methodInvocation.setXmlDumpForReturn(returnXmlFile);
 		}
 
-		// Ideally there's no need to keep track of the entire method, it would be enough to register the creation of a new string
+		// Ideally there's no need to keep track of the entire method, it would
+		// be enough to register the creation of a new string
 		if (!Carver.STRINGS_AS_OBJECTS
 				&& JimpleUtils.isString(JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()))) {
 

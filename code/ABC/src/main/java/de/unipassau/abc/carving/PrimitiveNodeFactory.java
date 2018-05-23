@@ -20,8 +20,9 @@ public class PrimitiveNodeFactory {
 		if (!type.equals("java.lang.String")) {
 			throw new RuntimeException("Cannot create a string node for type " + type);
 		}
-
-		System.out.println("PrimitiveNodeFactory.get() node value for" + type + " -- " + value);
+		
+		// Value null or empty ?!
+//		System.out.println("PrimitiveNodeFactory.createStringNode() node value for: " + type + " -- " + value);
 
 		String theValue = null;
 
@@ -37,7 +38,11 @@ public class PrimitiveNodeFactory {
 				throw new RuntimeException("Cannot create NodeValue for " + type + " -- " + value, e);
 			}
 		}
-		return new PrimitiveValue(uniqueId.incrementAndGet(), type, theValue);
+		PrimitiveValue pv = new PrimitiveValue(uniqueId.incrementAndGet(), type, theValue);
+		if( value == null ){
+			pv.setRefid( type+"@0");
+		}
+		return pv;
 	}
 
 }

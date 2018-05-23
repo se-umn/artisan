@@ -5,6 +5,7 @@ import soot.jimple.DoubleConstant;
 import soot.jimple.FloatConstant;
 import soot.jimple.IntConstant;
 import soot.jimple.LongConstant;
+import soot.jimple.NullConstant;
 import soot.jimple.StringConstant;
 
 public class PrimitiveValue implements ValueNode {
@@ -12,8 +13,9 @@ public class PrimitiveValue implements ValueNode {
 	private int id;
 	private String type;
 	private String stringValue;
-	
-	// Patch for strings. TODO Refactor with proper subclass of primitive or implementation of ValueNode.
+
+	// Patch for strings. TODO Refactor with proper subclass of primitive or
+	// implementation of ValueNode.
 	private String refid;
 
 	public void setRefid(String refid) {
@@ -24,11 +26,11 @@ public class PrimitiveValue implements ValueNode {
 		return refid;
 	}
 	/////
-	
+
 	public String getStringValue() {
 		return stringValue;
 	}
-	
+
 	public PrimitiveValue(int id, String type, String stringValue) {
 		this.id = id;
 		this.type = type;
@@ -93,8 +95,11 @@ public class PrimitiveValue implements ValueNode {
 				return Boolean.parseBoolean(stringValue) ? IntConstant.v(1) : IntConstant.v(0);
 			}
 		case "java.lang.String":
-			System.out.println("PrimitiveValue.getData() for string " + stringValue);
-			return StringConstant.v(stringValue);
+			if (stringValue == null) {
+				return NullConstant.v();
+			} else {
+				return StringConstant.v(stringValue);
+			}
 		default:
 			throw new RuntimeException("Unknonw primitive type " + type);
 		}
