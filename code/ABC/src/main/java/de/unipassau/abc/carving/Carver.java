@@ -79,6 +79,10 @@ public class Carver {
 	private static final Logger logger = LoggerFactory.getLogger(Carver.class);
 
 	public interface CarverCLI {
+		
+		@Option(longName = "strings-as-objects")
+		boolean isTreatStringsAsObjects();
+		
 		@Option(longName = "trace-file")
 		File getTraceFile();
 
@@ -240,6 +244,11 @@ public class Carver {
 			outputDir = cli.getOutputDir();
 			projectJars.addAll(cli.getProjectJar());
 
+			STRINGS_AS_OBJECTS = cli.isTreatStringsAsObjects();
+			if( STRINGS_AS_OBJECTS ){
+				logger.info("Treat Strings as Objects option active !!");
+			}
+			
 			setupTypeSolver(projectJars);
 
 			resetEnvironmentBy = cli.getResetEnvironmentBy();
@@ -934,6 +943,9 @@ public class Carver {
 			"java.sql.PreparedStatement", //
 			"java.sql.ResultSet", //
 	}));
+	
+	// Note that this is not FINAL !!
+	public static boolean STRINGS_AS_OBJECTS = false;
 
 	// this requires the SymbolSover to get the type of S
 	// A statement might include several calls !

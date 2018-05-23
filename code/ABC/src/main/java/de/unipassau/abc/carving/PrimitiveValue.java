@@ -5,12 +5,31 @@ import soot.jimple.DoubleConstant;
 import soot.jimple.FloatConstant;
 import soot.jimple.IntConstant;
 import soot.jimple.LongConstant;
+import soot.jimple.NullConstant;
+import soot.jimple.StringConstant;
 
 public class PrimitiveValue implements ValueNode {
 
 	private int id;
 	private String type;
 	private String stringValue;
+
+	// Patch for strings. TODO Refactor with proper subclass of primitive or
+	// implementation of ValueNode.
+	private String refid;
+
+	public void setRefid(String refid) {
+		this.refid = refid;
+	}
+
+	public String getRefid() {
+		return refid;
+	}
+	/////
+
+	public String getStringValue() {
+		return stringValue;
+	}
 
 	public PrimitiveValue(int id, String type, String stringValue) {
 		this.id = id;
@@ -58,7 +77,7 @@ public class PrimitiveValue implements ValueNode {
 		case "char":
 			return IntConstant.v((int) stringValue.charAt(0));
 		case "int":
-		case "short":			
+		case "short":
 		case "byte":
 			return IntConstant.v(Integer.parseInt(stringValue));
 		case "double":
@@ -68,11 +87,18 @@ public class PrimitiveValue implements ValueNode {
 		case "long":
 			return LongConstant.v(Long.parseLong(stringValue));
 		case "boolean":
-			// For whatever reason, in some cases we got true/false and in others 1/0 !?
-			try{
-				return IntConstant.v( Integer.parseInt(stringValue));
+			// For whatever reason, in some cases we got true/false and in
+			// others 1/0 !?
+			try {
+				return IntConstant.v(Integer.parseInt(stringValue));
 			} catch (NumberFormatException e) {
-				return Boolean.parseBoolean(stringValue) ? IntConstant.v(1 ) : IntConstant.v(0) ;
+				return Boolean.parseBoolean(stringValue) ? IntConstant.v(1) : IntConstant.v(0);
+			}
+		case "java.lang.String":
+			if (stringValue == null) {
+				return NullConstant.v();
+			} else {
+				return StringConstant.v(stringValue);
 			}
 		default:
 			throw new RuntimeException("Unknonw primitive type " + type);

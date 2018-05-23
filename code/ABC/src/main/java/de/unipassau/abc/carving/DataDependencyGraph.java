@@ -29,7 +29,6 @@ import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.utils.GraphUtility;
 import de.unipassau.abc.utils.JimpleUtils;
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
-import edu.uci.ics.jung.graph.DirectedSparseGraph;
 import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
 import edu.uci.ics.jung.graph.Graph;
 import edu.uci.ics.jung.graph.util.EdgeType;
@@ -62,7 +61,7 @@ public class DataDependencyGraph {
 	private Map<DataNode, Value> additionalData;
 
 	public DataDependencyGraph() {
-//		graph = new SparseMultigraph<GraphNode, String>();
+		// graph = new SparseMultigraph<GraphNode, String>();
 		graph = new DirectedSparseMultigraph<GraphNode, String>();
 		additionalData = new HashMap<>();
 	}
@@ -78,16 +77,10 @@ public class DataDependencyGraph {
 	@SuppressWarnings("unchecked")
 	public void addMethodInvocation(MethodInvocation methodInvocation, String... actualParameters) {
 
-//		System.out.println("DataDependencyGraph.addMethodInvocation() " + methodInvocation + " "
-//				+ Arrays.toString(actualParameters));
-
 		if (!graph.containsVertex(methodInvocation)) {
 			graph.addVertex(methodInvocation);
 		}
 
-		// extract formal parameters from method invocation, build a mask
-		// <org.employee.Validation: int
-		// numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>
 		String[] formalParameters = JimpleUtils.getParameterList(methodInvocation.getJimpleMethod());
 		for (int position = 0; position < formalParameters.length; position++) {
 			DataNode node = null;
@@ -95,14 +88,57 @@ public class DataDependencyGraph {
 			if (JimpleUtils.isPrimitive(formalParameters[position])) {
 				node = PrimitiveNodeFactory.get(formalParameters[position], actualParameters[position]);
 				setSootValueFor(node, ((ValueNode) node).getData());
-			} else if ("java.lang.System.in".equals(actualParameters[position])) {
+			}
+			// We need to check those hard coded constants as first... TODO
+			// refactor to deal with system constant using artificial operation
+			// maybe ?!
+			else if ("java.lang.System.in".equals(actualParameters[position])) {
 				node = ObjectInstance.systemIn;
 			} else if ("java.lang.System.out".equals(actualParameters[position])) {
 				node = ObjectInstance.systemOut;
 			} else if ("java.lang.System.err".equals(actualParameters[position])) {
 				node = ObjectInstance.systemErr;
-			} else if( "StaticFieldOperation".equals( methodInvocation.getInvocationType())){
-				node = new StaticObjectInstance( actualParameters[position]+"@0", JimpleUtils.getReturnType( methodInvocation.getJimpleMethod() ) );
+			} else if ("StaticFieldOperation".equals(methodInvocation.getInvocationType())) {
+				node = new StaticObjectInstance(actualParameters[position] + "@0",
+						JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()));
+			} else if (JimpleUtils.isString(formalParameters[position]) && !Carver.STRINGS_AS_OBJECTS) {
+				// Since the string here is a PARAMETER somewhere its value has
+				// been set, hence stored in the data dependency graph, we need
+				// to retrieve it.
+				// Look up the node
+				for (GraphNode vertex : graph.getVertices()) {
+					if (vertex instanceof PrimitiveValue) {
+						if (((PrimitiveValue) vertex).getRefid() != null) {
+							// This is a string node - TODO Refactor add a map
+							// or index to fast access to those nodes !
+							if (actualParameters[position].equals(((PrimitiveValue) vertex).getRefid())) {
+//								System.out.println(
+//										"DataDependencyGraph.addMethodInvocation() Found the Primitive Node for "
+//												+ actualParameters[position]);
+								// We need to generate a new one for each use,
+								// so there's no deps on them.
+								node = PrimitiveNodeFactory.get(formalParameters[position],
+										((PrimitiveValue) vertex).getStringValue());
+								setSootValueFor(node, ((ValueNode) node).getData());
+								break;
+							}
+						}
+					}
+				}
+
+				// If there's no matching node, that's an error ...
+				if (node == null) {
+
+					if (actualParameters[position].equals("java.lang.String@0")) {
+						node = NullNodeFactory.get("java.lang.Sting");
+						setSootValueFor(node, ((ValueNode) node).getData());
+					}
+				}
+
+				if (node == null) {
+					throw new RuntimeException("Cannot find node value for String " + actualParameters[position]);
+				}
+
 			}
 			// else if (actualParameters[position].equals("java.lang.String@0"))
 			// {
@@ -164,8 +200,8 @@ public class DataDependencyGraph {
 		} else if (((ObjectInstance) node).getType()
 				.startsWith("org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock")) {
 			// TODO This feels wrong... Check if this is System.in mocking
-			logger.debug("DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with "
-					+ ObjectInstance.systemIn);
+			logger.debug(
+					"DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with " + ObjectInstance.systemIn);
 			return ObjectInstance.systemIn;
 		} else if (((ObjectInstance) node).getType().endsWith("[]")) {
 			return node;
@@ -211,7 +247,8 @@ public class DataDependencyGraph {
 	}
 
 	// This will not work for static methods
-	public void addDataDependencyOnReturn(MethodInvocation methodInvocation, String returnValue) {
+	// THIS IS A PATCH TO ALLOW STORING ADDITIONAL DATA IN STRING NODES...
+	public DataNode addDataDependencyOnReturn(MethodInvocation methodInvocation, String returnValue) {
 
 		if (!graph.containsVertex(methodInvocation)) {
 			graph.addVertex(methodInvocation);
@@ -226,18 +263,15 @@ public class DataDependencyGraph {
 		DataNode node = null;
 
 		if (JimpleUtils.isVoid(formalReturnValue)) {
-			return;
+			return null;
 		} else if (JimpleUtils.isPrimitive(formalReturnValue)) {
 			node = PrimitiveNodeFactory.get(formalReturnValue, returnValue);
 			setSootValueFor(node, ((ValueNode) node).getData());
-		}
-		// else if (JimpleUtils.isString(formalReturnValue)) {
-		// // FIXME How to handle NULL string?
-		// node = StringNodeFactory.get(returnValue);
-		// System.out.println("DataDependencyGraph.addDataDependencyOnReturn()
-		// NEW STRING NODE " + node);
-		// }
-		else if (JimpleUtils.isNull(returnValue)) {
+		} else if (!Carver.STRINGS_AS_OBJECTS && JimpleUtils.isString(formalReturnValue)) {
+			// This might be tweaked
+			node = PrimitiveNodeFactory.createStringNode(formalReturnValue, returnValue);
+			setSootValueFor(node, ((ValueNode) node).getData());
+		}  else if (JimpleUtils.isNull(returnValue)) {
 			// System.out.println("DataDependencyGraph.addDataDependencyOnReturn()
 			// Capture a null return value");
 			node = NullNodeFactory.get(formalReturnValue);
@@ -263,6 +297,8 @@ public class DataDependencyGraph {
 		}
 
 		graph.addEdge(RETURN_DEPENDENCY_PREFIX + id.getAndIncrement(), methodInvocation, node, EdgeType.DIRECTED);
+		//
+		return node;
 	}
 
 	// This will not work for static methods
@@ -402,7 +438,6 @@ public class DataDependencyGraph {
 		return (Collection<GraphNode>) (successors != null ? successors : new HashSet<>());
 	}
 
-	// FIXME: isn't this a bit too much ? 
 	public Set<MethodInvocation> getMethodInvocationsRecheableFrom(MethodInvocation methodInvocation) {
 		// Find all the Method invocation nodes that are reachable via
 		// Dependency Graph from the method invocation
@@ -429,17 +464,16 @@ public class DataDependencyGraph {
 				continue;
 			}
 
+			// If ( ! STRINGS_AS_OBJECTS ) then string nodes are of type
+			// ValueNode !
 			if (node instanceof ValueNode) {
 				continue;
 			}
 
 			if (node instanceof ObjectInstance && !bookeeping.contains(node)) {
-				bookeeping.add((ObjectInstance) node);
-				// Here we take both predecessors (i.e., the method which
-				// returns this instance), and successors (i.e, the methods
-				// which use this instance)
 
-				/// TODO WE MUST FOLLOW ONLY OWNESRSHIP SUCCESSORS ?
+				// TODO NOT SURE ABOUT THIS... SHALL WE BOOK KEEP IT ?
+				bookeeping.add((ObjectInstance) node);
 
 				workList.addAll(getMethodInvocationsForOwner((ObjectInstance) node));
 			} else if (node instanceof MethodInvocation) {
@@ -672,14 +706,11 @@ public class DataDependencyGraph {
 	}
 
 	public void setSootValueFor(DataNode node, Value localVariable) {
-		// System.out.println("DataDependencyGraph.setSootValueFor() " + node +
-		// " " + localVariable);
 		additionalData.put(node, localVariable);
 	}
 
 	public Value getSootValueFor(DataNode node) {
 		// For the strings this can be null, so we look it up in the XML !
-
 		return additionalData.get(node);
 	}
 
@@ -705,8 +736,10 @@ public class DataDependencyGraph {
 	}
 
 	/// Note that static instances have no init method ...
-	// Soot calls super.<init> recursively for each super class of this instance before calling the actual 
-	// <init> method. So we need to return the one which actually matches the type of the object
+	// Soot calls super.<init> recursively for each super class of this instance
+	/// before calling the actual
+	// <init> method. So we need to return the one which actually matches the
+	/// type of the object
 	//
 	public MethodInvocation getInitMethodInvocationFor(ObjectInstance objectInstance) {
 
@@ -716,10 +749,10 @@ public class DataDependencyGraph {
 				if (graph.getOpposite(objectInstance, outgoingEdge) instanceof MethodInvocation) {
 					MethodInvocation methodInvocation = (MethodInvocation) graph.getOpposite(objectInstance,
 							outgoingEdge);
-					
-					
-					if (methodInvocation.getJimpleMethod().contains("<init>") &&
-							JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod()).equals(objectInstance.getType())) {
+
+					if (methodInvocation.getJimpleMethod().contains("<init>")
+							&& JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod())
+									.equals(objectInstance.getType())) {
 						return ((MethodInvocation) graph.getOpposite(objectInstance, outgoingEdge));
 					}
 				}
@@ -895,31 +928,30 @@ public class DataDependencyGraph {
 
 	public void markNodeAsExternalInterface(MethodInvocation mi) {
 		// Collecte edges
-		
+
 		// TODO Those might not really realiable !!
 		Collection<Pair<GraphNode, String>> predecessors = new HashSet<>();
-		for( String inEdge : graph.getInEdges( mi ) ){
-			predecessors.add( new Pair<GraphNode, String>( graph.getOpposite(mi, inEdge), inEdge));
+		for (String inEdge : graph.getInEdges(mi)) {
+			predecessors.add(new Pair<GraphNode, String>(graph.getOpposite(mi, inEdge), inEdge));
 		}
-		
+
 		Collection<Pair<GraphNode, String>> successors = new HashSet<>();
-		for( String outEdge : graph.getOutEdges( mi ) ){
-			predecessors.add( new Pair<GraphNode, String>( graph.getOpposite(mi, outEdge), outEdge));
+		for (String outEdge : graph.getOutEdges(mi)) {
+			predecessors.add(new Pair<GraphNode, String>(graph.getOpposite(mi, outEdge), outEdge));
 		}
-		
+
 		// Remove the node, this shall remove also the edges
-		graph.removeVertex( mi );
+		graph.removeVertex(mi);
 		// Update the node content
 		mi.setBelongsToExternalInterface(true);
 		// Reinsert the node
-		graph.addVertex( mi );
+		graph.addVertex(mi);
 		// Reinsert the edges
-		for(  Pair<GraphNode, String> predecessor : predecessors ){
-			graph.addEdge( predecessor.getSecond(), predecessor.getFirst(), mi, EdgeType.DIRECTED);
+		for (Pair<GraphNode, String> predecessor : predecessors) {
+			graph.addEdge(predecessor.getSecond(), predecessor.getFirst(), mi, EdgeType.DIRECTED);
 		}
-		for(  Pair<GraphNode, String> successor : successors ){
-			graph.addEdge( successor.getSecond(), mi, successor.getFirst(), EdgeType.DIRECTED);
+		for (Pair<GraphNode, String> successor : successors) {
+			graph.addEdge(successor.getSecond(), mi, successor.getFirst(), EdgeType.DIRECTED);
 		}
 	}
-
 }
