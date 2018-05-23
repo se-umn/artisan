@@ -11,7 +11,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -95,6 +94,20 @@ public class StackImplementation implements TraceParser {
 
 		jimpleMethod = findCorrectJimpleMethod(jimpleMethod);
 
+		// Unless it returns a "new" string, in that case we need to capture the
+		// fact that a new string node is generated !
+		if (!Carver.STRINGS_AS_OBJECTS && JimpleUtils.isString(JimpleUtils.getClassNameForMethod(jimpleMethod))
+				&& !JimpleUtils.isString(JimpleUtils.getReturnType(jimpleMethod))
+
+		) {
+			System.out.println(
+					"StackImplementation.parseMethodStart() Strings are primitives we do not track their methods, unless return a String");
+			// FIXME Not sure if this is startLine + 1 ?!
+			return startLine;
+		}
+
+		////
+
 		MethodInvocation methodInvocation = new MethodInvocation(jimpleMethod, invocationCount.incrementAndGet());
 		methodInvocation.setInvocationType(typeOfInvocation);
 		if ("StaticInvokeExpr".equals(typeOfInvocation) ||
@@ -107,6 +120,7 @@ public class StackImplementation implements TraceParser {
 			methodInvocation.setStatic(true);
 		}
 
+		// Can use directly ABCUtils.lookup !
 		// Check with soot ?
 		try {
 
@@ -139,18 +153,7 @@ public class StackImplementation implements TraceParser {
 			if (externalInterfaceMatcher.matches(methodInvocation)) {
 				methodInvocation.setBelongsToExternalInterface(true);
 			}
-			// else {
-			// System.out.println(externalInterfaceMatcher + " does not match "
-			// + methodInvocation);
-			// }
 		}
-
-		// if (isPure(methodInvocation)) {
-		// purityFlag = true;
-		// pureMethod = methodInvocation;
-		// logger.trace("StackImplementation.parseMethodEnd() Switch PURITY
-		// ON");
-		// }
 
 		logger.trace("InvocationType for " + jimpleMethod + " is " + typeOfInvocation);
 
@@ -191,13 +194,8 @@ public class StackImplementation implements TraceParser {
 		// We push nevertheless
 		callGraph.push(methodInvocation, false);
 
-		// if (!purityFlag) {
-		// This also tracks parameter dependency
 		dataDependencyGraph.addMethodInvocation(methodInvocation, actualParameters);
 		executionFlowGraph.enqueueMethodInvocations(methodInvocation);
-		// } else {
-		// logger.trace(methodInvocation + " excluded by purity");
-		// }
 
 		// Check if this method is System.exit
 		if (systemExitMatcher.matches(methodInvocation)) {
@@ -211,35 +209,21 @@ public class StackImplementation implements TraceParser {
 	public static String findCorrectJimpleMethod(String jimpleMethod) throws CarvingException {
 
 		// Shall we keep a cache here ?
-			if (JimpleUtils.getClassNameForMethod(jimpleMethod).startsWith("abc")) {
-				// This is an artificial method
-				return jimpleMethod;
-			}
+		if (JimpleUtils.getClassNameForMethod(jimpleMethod).startsWith("abc")) {
+			// This is an artificial method
+			return jimpleMethod;
+		}
 
-			if (JimpleUtils.getClassNameForMethod(jimpleMethod).endsWith("[]")) {
-				// This is an artificial method
-				return jimpleMethod;
-			}
+		if (JimpleUtils.getClassNameForMethod(jimpleMethod).endsWith("[]")) {
+			// This is an artificial method
+			return jimpleMethod;
+		}
 
-			if (JimpleUtils.getMethodName(jimpleMethod).equals("<init>")) {
-				return jimpleMethod;
-			}
+		if (JimpleUtils.getMethodName(jimpleMethod).equals("<init>")) {
+			return jimpleMethod;
+		}
 
-			// This breaks for java.sql ? No, this breaks for interfaces...
-			// if
-			// (JimpleUtils.getClassNameForMethod(jimpleMethod).startsWith("java"))
-			// {
-			// //
-			// logger.debug("Return the java method without checking..."+
-			// jimpleMethod );
-			// return jimpleMethod;
-			// }
-
-			// If the method exists, returns it otherwise lookup into the
-			// SuperClasses until we find one, unless the method is a "java"
-			// method ?
-
-			return ABCUtils.lookUpMethod(jimpleMethod);
+		return ABCUtils.lookUpMethod(jimpleMethod);
 
 	}
 
@@ -247,6 +231,7 @@ public class StackImplementation implements TraceParser {
 	// So invocationCount is wrong. We need to rely on the Stack for this !
 	private int parseMethodThis(int startLine, List<String> allLines) {
 		logger.trace("StackImplementation.parseMethodThis() " + allLines.get(startLine));
+
 		// FIXME First line tokens - Assuming that there's no ";" inside any of
 		// those elements !!!
 		// Probably we should move to something structured, that is which encode
@@ -259,16 +244,19 @@ public class StackImplementation implements TraceParser {
 		// Static methods
 		StringBuffer thisObject = new StringBuffer(tokens[2]);
 
+		// Unless it returns a "new" string, in that case we need to capture the
+		// fact that a new string node is generated !
+		if (!Carver.STRINGS_AS_OBJECTS && JimpleUtils.isString(JimpleUtils.getClassNameForMethod(jimpleMethod))
+				&& !JimpleUtils.isString(JimpleUtils.getReturnType(jimpleMethod))
+
+		) {
+			System.out.println(
+					"StackImplementation.parseMethodStart() Strings are primitives we do not track their methods, unless return a String");
+			// FIXME Not sure if this is startLine + 1 ?!
+			return startLine;
+		}
+
 		int peekIndex = startLine + 1;
-		// // Accumulate strings
-		// while (peekIndex < allLines.size() &&
-		// !allLines.get(peekIndex).startsWith(Trace.METHOD_START_TOKEN)
-		// && !allLines.get(peekIndex).startsWith(Trace.METHOD_END_TOKEN)
-		// && !allLines.get(peekIndex).startsWith(Trace.METHOD_OBJECT_TOKEN)) {
-		// thisObject.append("\n");
-		// thisObject.append(allLines.get(peekIndex));
-		// peekIndex++;
-		// }
 
 		// Static methods are automatically skipped
 		ObjectInstance owner = new ObjectInstance(thisObject.toString());
@@ -290,6 +278,18 @@ public class StackImplementation implements TraceParser {
 		// tokens[0] is METHOD_END_TOKEN
 
 		String jimpleMethod = tokens[1];
+
+		// Unless it returns a "new" string, in that case we need to capture the
+		// fact that a new string node is generated !
+		if (!Carver.STRINGS_AS_OBJECTS && JimpleUtils.isString(JimpleUtils.getClassNameForMethod(jimpleMethod))
+				&& !JimpleUtils.isString(JimpleUtils.getReturnType(jimpleMethod))
+
+		) {
+			System.out.println(
+					"StackImplementation.parseMethodStart() Strings are primitives we do not track their methods, unless return a String");
+			// FIXME Not sure if this is startLine + 1 ?!
+			return startLine;
+		}
 
 		// Void methods are not reported...
 		StringBuffer returnValue = new StringBuffer();
@@ -341,10 +341,20 @@ public class StackImplementation implements TraceParser {
 			methodInvocation.setXmlDumpForReturn(returnXmlFile);
 		}
 
-		// TODO This is tricky: one might actually encode the string null
-		// !!!
-		dataDependencyGraph.addDataDependencyOnReturn(methodInvocation,
-				(returnValue.length() != 0) ? returnValue.toString() : null);
+		// Ideally there's no need to keep track of the entire method, it would be enough to register the creation of a new string
+		if (!Carver.STRINGS_AS_OBJECTS
+				&& JimpleUtils.isString(JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()))) {
+
+			// The value of the string is stored in the xmlFile
+			DataNode stringValueNode = dataDependencyGraph.addDataDependencyOnReturn(methodInvocation,
+					(returnXmlFile.trim().length() != 0) ? returnXmlFile : null);
+			// Store the additional metadata to look up strings later
+			((PrimitiveValue) stringValueNode).setRefid(returnValue.toString());
+		} else {
+
+			dataDependencyGraph.addDataDependencyOnReturn(methodInvocation,
+					(returnValue.length() != 0) ? returnValue.toString() : null);
+		}
 
 		// }
 
@@ -420,9 +430,13 @@ public class StackImplementation implements TraceParser {
 	/**
 	 * There might be multiple test cases, each terminating by a call to
 	 * System.exit().
+	 * 
+	 * @param stringsAsObjects
+	 * @throws CarvingException
 	 */
 	public Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parseTrace(String traceFilePath,
-			List<MethodInvocationMatcher> externalInterfaceMatchers) throws FileNotFoundException, IOException, CarvingException {
+			List<MethodInvocationMatcher> externalInterfaceMatchers)
+			throws FileNotFoundException, IOException, CarvingException {
 
 		Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> result = new HashMap<>();
 
@@ -483,7 +497,7 @@ public class StackImplementation implements TraceParser {
 			result.put(UUID.randomUUID().toString(), new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
 					executionFlowGraph, dataDependencyGraph, callGraph));
 		}
-		
+
 		return result;
 	}
 
@@ -515,7 +529,6 @@ public class StackImplementation implements TraceParser {
 				|| type.equals("java.lang.String");
 	}
 
-	
 	/**
 	 * Return all parameters of a method
 	 * 
@@ -541,7 +554,6 @@ public class StackImplementation implements TraceParser {
 
 	}
 
-	
 	/**
 	 * Return the parameter list from the given parameter string
 	 * 

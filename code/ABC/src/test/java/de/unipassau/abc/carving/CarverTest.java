@@ -12,6 +12,8 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
+import com.google.common.io.Files;
+
 import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.ManualTest;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
@@ -41,11 +43,12 @@ public class CarverTest {
 
 		try {
 			Carver carver = new Carver();
-			File outputDirectory = temporaryFolderRule.newFolder();
+//			File outputDirectory = temporaryFolderRule.newFolder();
+			File outputDirectory = Files.createTempDir();
 			
 //			String jimpleMethodToCarve = "<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>"; //
 //			String jimpleMethodToCarve = "<org.employee.DummyObjectToPassAsParameter: void <init>()>";
-			String traceFile = "/Users/gambi/action-based-test-carving/code/ABC/scripts/employee-tracingOut/trace.txt";
+			String traceFile = "/Users/gambi/action-based-test-carving/code/scripts/employee-tracingOut/trace.txt";
 //			String carveBy = "method=" + jimpleMethodToCarve;
 //			String carveBy = "class=DummyObjectToPassAsParameter";
 //			String carveBy = "invocation=<org.employee.DummyObjectToPassAsParameter: void <init>()>_40";
@@ -59,9 +62,8 @@ public class CarverTest {
 //			String carveBy = "invocation=<org.employee.FileRead2: int fileIsRead(java.lang.String,java.lang.String)>_6108";
 //			String carveBy = "invocation=<org.employee.Validation: void <init>()>_54";
 			
-//			String carveBy = "method=<org.employee.SeniorSoftwareEngineer: void calcCal()>";
-			
-			String carveBy = "invocation=<org.employee.SeniorSoftwareEngineer: void calcCal()>_1035";
+			String carveBy = "method=<org.employee.SeniorSoftwareEngineer: void calcCal()>";
+//			String carveBy = "invocation=<org.employee.SeniorSoftwareEngineer: void calcCal()>_1035";
 			
 			String[] args = new String[] {
 					"--carve-by", carveBy,
@@ -77,7 +79,7 @@ public class CarverTest {
 //					"abc.StaticField", // System.in, System.out, System.err
 //					"abc.Field"
 					"--exclude-by", "package=org.employee.systemtest", "class=org.employee.Employee", //
-//					"--skip-minimize"
+					"--skip-minimize"
 					};
 			//
 			carver.main(args);

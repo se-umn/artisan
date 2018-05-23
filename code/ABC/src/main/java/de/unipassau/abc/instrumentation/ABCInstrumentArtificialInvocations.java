@@ -56,7 +56,7 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 
 		final SootMethod containerMethod = body.getMethod();
 
-		System.out.println("ABCInstrumentArtificialInvocations.internalTransform() STARTING " + containerMethod);
+//		System.out.println("ABCInstrumentArtificialInvocations.internalTransform() STARTING " + containerMethod);
 
 		logger.debug("STRATING " + containerMethod);
 
@@ -154,9 +154,9 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 		
 		// Check if this is the main method, in that case create artificial calls to access its input parameters
 				if (containerMethod.isMain() ){
-					System.out.println("ABCInstrumentArtificialInvocations.internalTransform() THIS IS THE MAIN METHOD");
+//					System.out.println("ABCInstrumentArtificialInvocations.internalTransform() THIS IS THE MAIN METHOD");
 					for( Local p : body.getParameterLocals() ){
-						System.out.println("PARAMETER LOCAL: " + p + " " + p.getType());
+//						System.out.println("PARAMETER LOCAL: " + p + " " + p.getType());
 						instrumentMainArgs(body, p);
 						// Add a special call that accesses it?
 						// This should be a String[] arg or a void...
@@ -379,10 +379,10 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 
 		generatedAfter.addAll(addTraceStop(fakeMethodSignature, array, leftOp, body));
 
-		System.out.println("ABCInstrumentArtificialInvocations.instrumentArrayAccessExpression() GENERATED CODE: ");
-		for (Unit u : generatedBefore) {
-			System.out.println(">>" + u);
-		}
+//		System.out.println("ABCInstrumentArtificialInvocations.instrumentArrayAccessExpression() GENERATED CODE: ");
+//		for (Unit u : generatedBefore) {
+//			System.out.println(">>" + u);
+//		}
 
 		injectTracingCode(body, currentUnit, generatedBefore, generatedAfter);
 	}
@@ -426,12 +426,12 @@ public class ABCInstrumentArtificialInvocations extends BodyTransformer {
 	private void injectTracingCode(Body body, Unit currentUnit, List<Unit> generatedBefore, List<Unit> generatedAfter) {
 		PatchingChain<Unit> units = body.getUnits();
 		for (Unit unit : generatedBefore) {
-			System.out.println("ABCInstrumentArtificialInvocations.injectTracingCode() TAG " + unit);
+//			System.out.println("ABCInstrumentArtificialInvocations.injectTracingCode() TAG " + unit);
 			unit.addTag(ABCTag.TAG);
 		}
 
 		for (Unit unit : generatedAfter) {
-			System.out.println("ABCInstrumentArtificialInvocations.injectTracingCode() TAG " + unit);
+//			System.out.println("ABCInstrumentArtificialInvocations.injectTracingCode() TAG " + unit);
 			unit.addTag(ABCTag.TAG);
 		}
 		// Be sure to tage the units we generate !

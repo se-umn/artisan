@@ -16,6 +16,7 @@ public interface TraceParser {
 	 * 
 	 * @param traceFilePath
 	 * @param externalInterfaceMatchers
+	 * @param stringsAsObjects
 	 * @return
 	 * @throws FileNotFoundException
 	 * @throws IOException
