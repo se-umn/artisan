@@ -16,6 +16,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
+import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.abc.utils.SystemTest;
 
@@ -27,22 +28,7 @@ public class InstrumentEmployeeTest {
 	@Rule
 	public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private static File traceJar;
-
-	@BeforeClass
-	public static void setupTraceJar() {
-		// Use this if you want to inspect the traces afterwards
-		// File outputDir = com.google.common.io.Files.createTempDir();
-		// File traceOutput = File.createTempFile("trace", ".txt");
-
-		traceJar = new File("./libs/trace.jar"); // Eclipse testing
-		if (!traceJar.exists()) {
-			traceJar = new File("../libs/trace.jar"); // Actual usage ...
-			if (!traceJar.exists()) {
-				throw new RuntimeException("trace.jar file is missing");
-			}
-		}
-	}
+	private static File traceJar = new File(ABCUtils.getTraceJar());
 
 	@Test
 	@Category(SystemTest.class)

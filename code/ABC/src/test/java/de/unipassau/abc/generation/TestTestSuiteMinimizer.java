@@ -83,7 +83,7 @@ public class TestTestSuiteMinimizer {
 		}
 
 		String resetEnvironmentBy = null;
-		TestSuiteExecutor testSuiteExecutor = new TestSuiteExecutor(projectJars);
+		TestSuiteExecutor testSuiteExecutor = new TestSuiteExecutor(projectJars, Collections.EMPTY_LIST);
 
 		TestSuiteMinimizer minimizer = new TestSuiteMinimizer(testClasses, resetEnvironmentBy, testSuiteExecutor);
 		//
@@ -97,7 +97,7 @@ public class TestTestSuiteMinimizer {
 	class FakeTestSuiteExecutor extends TestSuiteExecutor {
 
 		public FakeTestSuiteExecutor(List<File> projectJars) {
-			super(projectJars);
+			super(projectJars, Collections.EMPTY_LIST);
 		}
 
 		@Override

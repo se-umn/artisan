@@ -11,10 +11,16 @@ import java.io.Writer;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +38,7 @@ import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.utils.JimpleUtils;
+import edu.emory.mathcs.backport.java.util.Collections;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.SourceLocator;
@@ -128,53 +135,57 @@ public class SootTestCaseFactory {
 				//
 				decompilerSettings.setForceExplicitImports(true);
 				decompilerSettings.setForceExplicitTypeArguments(true);
-				decompilerSettings.setRetainRedundantCasts( true );
+				decompilerSettings.setRetainRedundantCasts(true);
 				// Not sure ?
-//				decompilerSettings.setExcludeNestedTypes( true );
-				decompilerSettings.setMergeVariables( false );
-				decompilerSettings.setSimplifyMemberReferences( true );
+				// decompilerSettings.setExcludeNestedTypes( true );
+				decompilerSettings.setMergeVariables(false);
+				decompilerSettings.setSimplifyMemberReferences(true);
 				//
-				final Writer writer = new StringWriter();
-				com.strobel.decompiler.Decompiler.decompile(testClassFile.getAbsolutePath(),
-						new com.strobel.decompiler.PlainTextOutput(writer), //
-						decompilerSettings);
 
-				CompilationUnit javaCode = JavaParser.parse(writer.toString());
+				// Maybe it will be wise working with Files instead of big
+				// strings ?!
+				try (final Writer writer = new StringWriter();) {
+					com.strobel.decompiler.Decompiler.decompile(testClassFile.getAbsolutePath(),
+							new com.strobel.decompiler.PlainTextOutput(writer), //
+							decompilerSettings);
 
-				// Forcefully initialize all the Objects to null if they are not
-				// initialized !
-				TestCaseFactory.forceObjectInitialization(javaCode, combinedTypeSolver);
+					CompilationUnit javaCode = JavaParser.parse(writer.toString());
+					// Forcefully initialize all the Objects to null if they are
+					// not
+					// initialized !
+					TestCaseFactory.forceObjectInitialization(javaCode, combinedTypeSolver);
 
-				// During delta debugging there's no need to resolve types
-				// if (resolveTypes) {
-				// This updates the code
-				TestCaseFactory.resolveMissingGenerics(javaCode, combinedTypeSolver);
-				// }
+					// During delta debugging there's no need to resolve types
+					// if (resolveTypes) {
+					// This updates the code
+					TestCaseFactory.resolveMissingGenerics(javaCode, combinedTypeSolver);
+					// }
 
-				// extract the type of retunValue if any
-				// Type returnValueType = null;
-				// for (SootMethod m : testClass.getMethods()) {
-				// if (m.getName().startsWith("test")) {
-				// for (Local l : m.getActiveBody().getLocals()) {
-				// if (l.getName().equals("returnValue")) {
-				// returnValueType = l.getType();
-				// //
-				// System.out.println("SootTestCaseFactory.generateTestFiles()
-				// // Found return value "
-				// // + returnValueType);
-				// break;
-				// }
-				//
-				// }
-				// }
-				// }
-				//
-				// if (returnValueType != null) {
-				// TestCaseFactory.checkAndSetRetunValue(javaCode,
-				// returnValueType.toString());
-				// }
+					// extract the type of retunValue if any
+					// Type returnValueType = null;
+					// for (SootMethod m : testClass.getMethods()) {
+					// if (m.getName().startsWith("test")) {
+					// for (Local l : m.getActiveBody().getLocals()) {
+					// if (l.getName().equals("returnValue")) {
+					// returnValueType = l.getType();
+					// //
+					// System.out.println("SootTestCaseFactory.generateTestFiles()
+					// // Found return value "
+					// // + returnValueType);
+					// break;
+					// }
+					//
+					// }
+					// }
+					// }
+					//
+					// if (returnValueType != null) {
+					// TestCaseFactory.checkAndSetRetunValue(javaCode,
+					// returnValueType.toString());
+					// }
 
-				generatedClasses.add(javaCode);
+					generatedClasses.add(javaCode);
+				}
 
 			} catch (Throwable e) {
 				logger.error("Cannot generate class file for " + classFileName);
@@ -203,12 +214,13 @@ public class SootTestCaseFactory {
 			JimpleUtils.prettyPrint(sClass);
 		}
 
-		OutputStream streamOut = new JasminOutputStream(new FileOutputStream(fileName));
-		PrintWriter writerOut = new PrintWriter(new OutputStreamWriter(streamOut));
-		JasminClass jasminClass = new soot.jimple.JasminClass(sClass);
-		jasminClass.print(writerOut);
-		writerOut.flush();
-		streamOut.close();
+		// Autoclose those ?
+		try (OutputStream streamOut = new JasminOutputStream(new FileOutputStream(fileName));
+				PrintWriter writerOut = new PrintWriter(new OutputStreamWriter(streamOut));) {
+			JasminClass jasminClass = new soot.jimple.JasminClass(sClass);
+			jasminClass.print(writerOut);
+			writerOut.flush();
+		}
 
 		return new File(fileName);
 	}
@@ -238,200 +250,118 @@ public class SootTestCaseFactory {
 		return clazz;
 	}
 
-	public static Set<CompilationUnit> generateAugmenetedTestFiles(List<File> projectJars, Set<SootClass> testClasses,
-			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases, String resetEnvironmentBy) throws IOException {
+	/**
+	 * Generate the class and store it to outputDir folder
+	 * 
+	 * @param projectJars
+	 * @param testClasses
+	 * @param carvedTestCases
+	 * @param resetEnvironmentBy
+	 * @return
+	 * @throws IOException
+	 */
+
+	// Use a thread pool to parallelize this
+	public static Set<File> generateAugmenetedTestFiles(List<File> projectJars, Set<SootClass> testClasses,
+			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases,
+			String resetEnvironmentBy, File outputDir) throws IOException {
+
+		// Use a thread pool to compile and generate the files !
+		final ExecutorService executor = Executors.newFixedThreadPool(10);
 
 		// Use a temp folder
-		File outputDir = Files.createTempDirectory("SootDecompile").toFile();
-		outputDir.deleteOnExit();
+		// File outputDir = Files.createTempDirectory("SootDecompile").toFile();
+		// outputDir.deleteOnExit();
 
 		Options.v().set_output_dir(outputDir.getAbsolutePath());
 
-		logger.debug("Output directory is " + outputDir.getAbsolutePath());
+		// logger.debug("Output directory is " + outputDir.getAbsolutePath());
 
 		if (!outputDir.exists() && !outputDir.mkdirs()) {
 			throw new RuntimeException("Output dir " + outputDir.getAbsolutePath() + " cannot be created ");
 		}
 
 		// Externalize this to a dependency !
-		Set<CompilationUnit> generatedClasses = new HashSet<>();
+		// Set<CompilationUnit> generatedClasses = new HashSet<>();
+		Set<File> generatedFiles = new HashSet<>();
+
+		// Is this thread safe ?!
+
 		// Resolve the missing generics
-		CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
+		final CombinedTypeSolver combinedTypeSolver = new CombinedTypeSolver();
 		combinedTypeSolver.add(new ReflectionTypeSolver());
 		for (File jar : projectJars) {
 			combinedTypeSolver.add(new JarTypeSolver(jar.getAbsolutePath()));
 		}
 
-		for (SootClass testClass : testClasses) {
+		List<Future<File>> files = new ArrayList<>();
+		for (final SootClass testClass : testClasses) {
+			files.add(executor.submit(new Callable<File>() {
 
-			logger.info("\n TestCaseFactory.generateTestFiles() For Class " + testClass.getName());
+				@Override
+				public File call() throws Exception {
+					logger.info("\n TestCaseFactory.generateTestFiles() [" + Thread.currentThread().getName()
+							+ "] For Class " + testClass.getName());
+					
+					String classFileName = SourceLocator.v().getFileNameFor(testClass, Options.output_format_class);
+					try {
+						// Since we set the Soot set_output_dir, the following
+						// returns
+						// exactly the class file we need
+						// Generate a the .class File from jimple
+						File testClassFile = generateClassBytecode(classFileName, testClass);
 
-			includeXMLValidationCalls(testClass, carvedTestCases);
-
-			String classFileName = SourceLocator.v().getFileNameFor(testClass, Options.output_format_class);
-			try {
-
-				// Since we set the Soot set_output_dir, the following
-				// returns
-				// exactly the class file we need
-				// Generate a the .class File from jimple
-				File testClassFile = generateClassBytecode(classFileName, testClass);
-				try {
-					Class javaTestClass = loadClass(testClass.getName(), Files.readAllBytes(testClassFile.toPath()));
-					// TODO Verify using ASM !
-				} catch (Throwable e) {
-					logger.error("Cannot generate class file for " + classFileName);
-					e.printStackTrace();
-					// cannot generate class - skip
+						// You need to call flush/close the have the class
+						// actually
+						// generated, that's why this is in a try(Resource){}
+						// block
+						DecompilerSettings decompilerSettings = DecompilerSettings.javaDefaults();
+						//
+						decompilerSettings.setForceExplicitImports(true);
+						decompilerSettings.setForceExplicitTypeArguments(true);
+						//
+						try (final Writer writer = new StringWriter();) {
+							com.strobel.decompiler.Decompiler.decompile(testClassFile.getAbsolutePath(),
+									new com.strobel.decompiler.PlainTextOutput(writer), //
+									decompilerSettings);
+							CompilationUnit javaCode = JavaParser.parse(writer.toString());
+							TestCaseFactory.resolveMissingGenerics(javaCode, combinedTypeSolver);
+							Carver.createAtBeforeResetMethod(resetEnvironmentBy, javaCode);
+							// Return the file
+							return (File) Carver.storeToFile(Collections.singleton(javaCode), outputDir).iterator()
+									.next();
+						}
+					} catch (Throwable e) {
+						logger.error("Cannot generate class file for " + classFileName);
+						e.printStackTrace();
+						// cannot generate class - skip
+						// continue;
+					}
+					return null;
 				}
+			}));
+		}
 
-				// Write directly into a String
-				// File sourceFile = new
-				// File(classFileName.replaceAll(".class",
-				// ".java"));
+		// Do not accept new work
+		executor.shutdown();
+		//
+		logger.info("Collecting the results from Test Generation");
 
-				// logger.debug("The output files are:\n" + //
-				// testClassFile.getAbsolutePath() + "\n" + //
-				// sourceFile.getAbsolutePath());
+		for (Future<File> fFile : files) {
+			try {
+				File f = fFile.get();
+				if (f != null) {
 
-				// You need to call flush/close the have the class actually
-				// generated, that's why this is in a try(Resource){} block
-				DecompilerSettings decompilerSettings = DecompilerSettings.javaDefaults();
-				//
-				decompilerSettings.setForceExplicitImports(true);
-				decompilerSettings.setForceExplicitTypeArguments(true);
-				//
-				final Writer writer = new StringWriter();
-				com.strobel.decompiler.Decompiler.decompile(testClassFile.getAbsolutePath(),
-						new com.strobel.decompiler.PlainTextOutput(writer), //
-						decompilerSettings);
-
-				CompilationUnit javaCode = JavaParser.parse(writer.toString());
-
-				// Forcefully initialize all the Objects to null if they are
-				// not
-				// initialized !
-//				System.out.println("SootTestCaseFactory.generateAugmenetedTestFiles() SKIP Object INITIALIZATION");
-				// TestCaseFactory.forceObjectInitialization(javaCode, combinedTypeSolver);
-
-				// Now we force the cast while generating Soot Units !
-				// During delta debugging there's no need to resolve types
-				// if (resolveTypes) {
-				// This updates the code
-				TestCaseFactory.resolveMissingGenerics(javaCode, combinedTypeSolver);
-				// }
-
-				// extract the type of retunValue if any
-				// Type returnValueType = null;
-				// for (SootMethod m : testClass.getMethods()) {
-				// if (m.getName().startsWith("test")) {
-				// for (Local l : m.getActiveBody().getLocals()) {
-				// if (l.getName().equals("returnValue")) {
-				// returnValueType = l.getType();
-				// //
-				// System.out.println("SootTestCaseFactory.generateTestFiles()
-				// // Found return value "
-				// // + returnValueType);
-				// break;
-				// }
-				//
-				// }
-				// }
-				// }
-				//
-				// if (returnValueType != null) {
-				// TestCaseFactory.checkAndSetRetunValue(javaCode,
-				// returnValueType.toString());
-				// }
-
-				generatedClasses.add(javaCode);
-
-			} catch (Throwable e) {
-				logger.error("Cannot generate class file for " + classFileName);
+					// This is blocking
+					System.out.println("SootTestCaseFactory.generateAugmenetedTestFiles() Adding " + f.getAbsolutePath() );
+					generatedFiles.add(f);
+				}
+			} catch (InterruptedException | ExecutionException e) {
 				e.printStackTrace();
-				// cannot generate class - skip
-				continue;
 			}
 		}
 
-		for (CompilationUnit testClass : generatedClasses) {
-//			// Include the reset environment call if needed
-			Carver.createAtBeforeResetMethod(resetEnvironmentBy, testClass);
-		}
-			
-		return generatedClasses;
-
-		// // Find the class and test method
-		// for (CompilationUnit cu : generatedClasses) {
-		// String sootClassName = testMethod.getDeclaringClass().getName();
-		// String javaClassName =
-		// cu.getPackageDeclaration().get().getNameAsString() + "."
-		// + cu.getType(0).getNameAsString();
-		// if (javaClassName.equals(sootClassName)) {
-		//
-		// cu.accept(new ModifierVisitor<JavaParserFacade>() {
-		// public Visitable visit(MethodDeclaration n, JavaParserFacade arg)
-		// {
-		//
-		// System.out.println(" Visiting " + n.getDeclarationAsString());
-		// // There's only 1 test method
-		// // if
-		// // (n.getNameAsString().equals(testMethod.getName()))
-		// // {
-		// if (n.isAnnotationPresent(Test.class)) {
-		// BlockStmt methodBody = n.getBody().get();
-		//
-		//// methodBody.addStatement(mut);
-		//
-		// // Include the statements into the body
-		// for (Unit validationUnit : validation) {
-		//
-		// if (validationUnit instanceof InvokeStmt) {
-		// InvokeExpr validationExpr = ((InvokeStmt)
-		// validationUnit).getInvokeExpr();
-		//
-		// Expression validationStmt = TestCaseFactory
-		// .convertSootInvocationExpr(validationExpr,
-		// testMethod.getActiveBody());
-		//
-		// // TODO Introduce the returnValue
-		// // varaible agin ! wee most likely need
-		// // symbolSovler
-		// methodBody.addStatement(validationStmt);
-		// // Create the statements here and
-		// // include
-		// // them in the right test method body !
-		// logger.info("DeltaDebugger.minimize() Add Validation code: " +
-		// validationStmt
-		// + " to " + testMethod.getName());
-		// }
-		// }
-		// return n;
-		// } else {
-		// return super.visit(n, arg);
-		// }
-		//
-		// }
-		// }, JavaParserFacade.get(TYPE_SOLVER));
-		// }
-		// }
-
-		// Generate "literally" the calls
-
-		// Add the calls to the method bofy
-
-		// final Body body = testMethod.getActiveBody();
-		// // The very last unit is the "return" we need the one before
-		// it...
-		// final PatchingChain<Unit> units = body.getUnits();
-		// // Insert the validation code - if any ?!
-		// if (validation.isEmpty()) {
-		// logger.debug("DeltaDebugger.minimize() VALIDAITON IS EMPTY FOR "
-		// + testMethod);
-		// } else {
-		// units.insertBefore(validation, units.getLast());
-		// }
-
+		return generatedFiles;
 	}
 
 	private static void includeXMLValidationCalls(SootClass testClass, //

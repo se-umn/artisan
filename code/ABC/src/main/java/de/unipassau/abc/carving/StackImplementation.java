@@ -250,7 +250,7 @@ public class StackImplementation implements TraceParser {
 				&& !JimpleUtils.isString(JimpleUtils.getReturnType(jimpleMethod))
 
 		) {
-			logger.info(
+			logger.debug(
 					"StackImplementation.parseMethodStart() Strings are primitives we do not track their methods, unless return a String");
 			// FIXME Not sure if this is startLine + 1 ?!
 			return startLine;
@@ -273,7 +273,7 @@ public class StackImplementation implements TraceParser {
 	}
 
 	private int parseMethodEnd(int startLine, List<String> allLines) throws CarvingException {
-		logger.trace("StackImplementation.parseMethodEnd() " + allLines.get(startLine));
+		logger.trace("StackImplementation.parseMethodEnd() {}", allLines.get(startLine));
 		String[] tokens = allLines.get(startLine).split(";");
 		// tokens[0] is METHOD_END_TOKEN
 
@@ -285,7 +285,7 @@ public class StackImplementation implements TraceParser {
 				&& !JimpleUtils.isString(JimpleUtils.getReturnType(jimpleMethod))
 
 		) {
-			logger.info(
+			logger.debug(
 					"StackImplementation.parseMethodStart() Strings are primitives we do not track their methods, unless return a String");
 			// FIXME Not sure if this is startLine + 1 ?!
 			return startLine;

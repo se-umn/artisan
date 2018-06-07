@@ -9,7 +9,6 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -116,7 +115,8 @@ public class TestSuiteMinimizer {
 					break;
 				}
 				//
-				logger.info("-- Skip non external call " + s); // We need to remove it !
+				logger.info("-- Skip non external call " + s); // We need to
+																// remove it !
 				newIndex = newIndex - 1;
 			} while (newIndex > 0);
 
@@ -190,11 +190,12 @@ public class TestSuiteMinimizer {
 					BlockStmt originalBody = originalBodies.get(testMethodData.getSecond().asString());
 					//
 					testMethod.setBody(originalBody);
-				} 
-//				else {
-//					logger.info("   - Removed " + statementsUnderAnalysis.get(testMethodData.getSecond().asString())
-//							+ " from " + testMethodData.getSecond().asString());
-//				}
+				}
+				// else {
+				// logger.info(" - Removed " +
+				// statementsUnderAnalysis.get(testMethodData.getSecond().asString())
+				// + " from " + testMethodData.getSecond().asString());
+				// }
 			}
 		}
 
@@ -208,37 +209,40 @@ public class TestSuiteMinimizer {
 	private Map<Pair<CompilationUnit, Signature>, Integer> generateCurrentIndex(CompilationUnit testClass) {
 		Map<Pair<CompilationUnit, Signature>, Integer> currentIndex = new HashMap<Pair<CompilationUnit, Signature>, Integer>();
 
-		// Before we needed to skip some calls but now it's getting ugly, so we start from the bottom and will skip later calls to XMLVerifier
+		// Before we needed to skip some calls but now it's getting ugly, so we
+		// start from the bottom and will skip later calls to XMLVerifier
 		testClass.accept(new VoidVisitorAdapter<Void>() {
 			public void visit(MethodDeclaration n, Void arg) {
 				if (n.isAnnotationPresent(Test.class)) {
-//					// Process only test methods, by findind the
-//
-//					BlockStmt body = n.getBody().get();
-//					List<Statement> statements = new ArrayList<>(body.getStatements());
-//					Collections.reverse(statements);
-//
-					int total = n.getBody().get().getStatements().size() -1;
-//
-//					// Skip the XML Verifier calls
-//					int mutIndex = Integer.MAX_VALUE;
-//					for (int index = total - 1; index > 0; index--) {
-//						Statement s = body.getStatement(index);
-//						if (s.toString().contains("XMLVerifier")) {
-//							mutIndex = index - 1;
-//							continue;
-//						}
-//					}
-//					if (mutIndex == Integer.MAX_VALUE) {
-//						// This might happen for static void calls... but then,
-//						// what do we assert about them !? Nothing
-//						// Pick the last as MUT
-//						mutIndex = total - 1;
-//						logger.info("Cannot generate current index for " + testClass.getType(0).getNameAsString() + "."
-//								+ n.getDeclarationAsString() + " use " + mutIndex);
-//					}
-//					// mutIndex is the position of the MUT which we need to
-//					// skip during minimization
+					// // Process only test methods, by findind the
+					//
+					// BlockStmt body = n.getBody().get();
+					// List<Statement> statements = new
+					// ArrayList<>(body.getStatements());
+					// Collections.reverse(statements);
+					//
+					int total = n.getBody().get().getStatements().size() - 1;
+					//
+					// // Skip the XML Verifier calls
+					// int mutIndex = Integer.MAX_VALUE;
+					// for (int index = total - 1; index > 0; index--) {
+					// Statement s = body.getStatement(index);
+					// if (s.toString().contains("XMLVerifier")) {
+					// mutIndex = index - 1;
+					// continue;
+					// }
+					// }
+					// if (mutIndex == Integer.MAX_VALUE) {
+					// // This might happen for static void calls... but then,
+					// // what do we assert about them !? Nothing
+					// // Pick the last as MUT
+					// mutIndex = total - 1;
+					// logger.info("Cannot generate current index for " +
+					// testClass.getType(0).getNameAsString() + "."
+					// + n.getDeclarationAsString() + " use " + mutIndex);
+					// }
+					// // mutIndex is the position of the MUT which we need to
+					// // skip during minimization
 					currentIndex.put(new Pair<CompilationUnit, Signature>(testClass, n.getSignature()), total - 1);
 
 				}
@@ -254,10 +258,10 @@ public class TestSuiteMinimizer {
 	public Set<CompilationUnit> coverageBasedMinimization(Set<CompilationUnit> testClasses) throws CarvingException {
 		try {
 			// https://javabeat.net/the-java-6-0-compiler-api/
-			File tempOutputDir = Files.createTempDirectory("Reduction").toFile();
-			tempOutputDir.deleteOnExit();
+			File tempWorkingDir = Files.createTempDirectory("Reduction").toFile();
+			tempWorkingDir.deleteOnExit();
 			//
-			return coverageBasedMinimization(testClasses, tempOutputDir);
+			return coverageBasedMinimization(testClasses, tempWorkingDir);
 		} catch (Exception e) {
 			throw new CarvingException("Error while doing coverageBasedMinimization", e);
 		}
@@ -268,11 +272,17 @@ public class TestSuiteMinimizer {
 
 		double totalCoverage = Double.MAX_VALUE;
 		try {
+			if (true)
+				throw new RuntimeException("Not implemented !");
+
 			// Compile and run tests. Collect total coverage
-			totalCoverage = testSuiteExecutor.compileRunAndGetCoverageJUnitTests(testClasses, workingDir);
-			logger.debug("TestSuiteMinimizer.minimizeTestSuite() Total coverage " + totalCoverage);
-		} catch (CarvingException e) {
-			throw e;
+			// totalCoverage =
+			// testSuiteExecutor.compileRunAndGetCoverageJUnitTests(testClasses,
+			// workingDir);
+			// logger.debug("TestSuiteMinimizer.minimizeTestSuite() Total
+			// coverage " + totalCoverage);
+			// } catch (CarvingException e) {
+			// throw e;
 		} catch (Exception e) {
 			throw new CarvingException("Wrapping", e);
 		}
@@ -386,7 +396,7 @@ public class TestSuiteMinimizer {
 
 		for (CompilationUnit testClass : testClasses) {
 			// Remove methods that statically are not state-changing
-			 Carver.removePureMethods(testClass);
+			Carver.removePureMethods(testClass);
 			// Extract the TestMethods and set the currentIndex at the right
 			// position. Put all since a test class might contain more test
 			// methods !
@@ -432,13 +442,18 @@ public class TestSuiteMinimizer {
 		@Option(longName = "reset-environment-by", defaultToNull = true)
 		String getResetEnvironmentBy();
 
+		@Option(longName = "additional-properties", defaultToNull = true)
+		List<String> getAdditionalProperties();
+
 	}
 
 	public static void main(String[] args) throws CarvingException, IOException {
 
 		String resetEnvironmentBy = null;
 		Set<CompilationUnit> testSuite = new HashSet<>();
+
 		List<File> projectJars = new ArrayList<>();
+		List<String> additionalProperties = new ArrayList<>();
 		File outputDir = null;
 		// Parse input
 		try {
@@ -448,6 +463,9 @@ public class TestSuiteMinimizer {
 			}
 			resetEnvironmentBy = cli.getResetEnvironmentBy();
 			projectJars.addAll(cli.getProjectJar());
+			if (cli.getAdditionalProperties() != null) {
+				additionalProperties.addAll(cli.getAdditionalProperties());
+			}
 			outputDir = cli.getOutputFolder();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -456,7 +474,7 @@ public class TestSuiteMinimizer {
 
 		//
 		TestSuiteMinimizer minimizer = new TestSuiteMinimizer(testSuite, resetEnvironmentBy,
-				new TestSuiteExecutor(projectJars));
+				new TestSuiteExecutor(projectJars, additionalProperties));
 
 		logger.info("Coverage Based Minimization Start");
 

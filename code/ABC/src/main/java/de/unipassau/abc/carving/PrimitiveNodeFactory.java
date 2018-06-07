@@ -7,6 +7,9 @@ import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.security.NoTypePermission;
+import com.thoughtworks.xstream.security.NullPermission;
+import com.thoughtworks.xstream.security.PrimitiveTypePermission;
 
 public class PrimitiveNodeFactory {
 
@@ -30,6 +33,17 @@ public class PrimitiveNodeFactory {
 
 			// Read the value from value
 			XStream xStream = new XStream();
+			// clear out existing permissions and set own ones
+			xStream.addPermission(NoTypePermission.NONE);
+			// xstream.addPermission(AnyTypePermission.ANY);
+			xStream.allowTypeHierarchy(Object.class);
+
+			// Allow ALL The objects
+			xStream.addPermission(NullPermission.NULL);
+			xStream.addPermission(PrimitiveTypePermission.PRIMITIVES);
+			xStream.allowTypesByWildcard(new String[] { "java.lang.**" });
+			xStream.allowTypesByWildcard(new String[] { "*.**" });
+
 			try {
 				theValue = (String) xStream
 						.fromXML(new String(Files.readAllBytes(Paths.get(value)), StandardCharsets.UTF_8));

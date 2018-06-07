@@ -25,6 +25,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
+import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.Carver;
 import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
@@ -42,23 +43,10 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 
 	@BeforeClass
 	public static void setupTraceJar() {
-
-		// Use this if you want to inspect the traces afterwards
-		// File outputDir = com.google.common.io.Files.createTempDir();
-		// File traceOutput = File.createTempFile("trace", ".txt");
-
-		File traceJarFile = new File("./libs/trace.jar"); // Eclipse testing
-		if (!traceJarFile.exists()) {
-			traceJarFile = new File("../libs/trace.jar"); // Actual usage ...
-			if (!traceJarFile.exists()) {
-				throw new RuntimeException("trace.jar file is missing");
-			}
-		}
-
 		traceCP = new ArrayList<>();
-		traceCP.add(traceJarFile);
-		traceCP.add(new File("./src/test/resources/xmlpull-1.1.3.1.jar"));
-		traceCP.add(new File("./src/test/resources/xstream-1.4.10.jar"));
+		traceCP.add( new File(ABCUtils.getTraceJar()));
+		traceCP.addAll( ABCUtils.getXStreamJars() );
+		traceCP.add( new File(ABCUtils.getSystemRulesJar()));
 
 	}
 
@@ -75,6 +63,8 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 		File testsubjectJar = new File("./src/test/resources/Employee.jar");
 		// Note that -tests is not instrumented so we lose those informations !
 		File testsubjectTestsJar = new File("./src/test/resources/Employee-tests.jar");
+		
+		
 		tracer.main(new String[] { "--project-jar", testsubjectJar.getAbsolutePath(), //
 				"--output-to", outputDir.getAbsolutePath(), //
 				"--output-type", "class" });
@@ -98,23 +88,8 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 		jarFiles.add(testsubjectJar);
 		jarFiles.add(testsubjectTestsJar);
 		jarFiles.addAll(traceCP);
-		// This is a link to
-		// ~/.m2/repository/com/github/stefanbirkner/system-rules/1.17.0/system-rules-1.17.0.jar
-		jarFiles.add(new File("./src/test/resources/system-rules-1.17.0.jar"));
-		//
 
-		// String[] systemTests = new String[] { //
-		// "org.employee.systemtest.TestAdminLoginWithEmptyDb", //
-		// "org.employee.systemtest.TestAdminLoginWithNonEmptyDb", //
-		// "org.employee.systemtest.TestEmployeeLogin", //
-		// "org.employee.systemtest.TestRegisterANewSeniorSoftwareEnginner", //
-		// "org.employee.systemtest.TestRegisterANewSoftwareEnginner", //
-		// "org.employee.systemtest.TestRegisterANewSoftwareTrainee", //
-		// "org.employee.systemtest.TestStartAndExit"//
-
-		// };
-
-		String systemTest = "org.employee.systemtest.TestRegisterANewSoftwareTrainee";
+		String systemTest = "org.employee.MainTest";
 
 		File trace = runSystemTestAndGetTraceFile(systemTest, outputDir, jarFiles);
 
@@ -167,9 +142,13 @@ public class InstrumentEmployeeTestAndRunSystemTest {
 
 		String javaPath = SystemUtils.JAVA_HOME + File.separator + "bin" + File.separator + "java";
 
-		ProcessBuilder processBuilder = new ProcessBuilder(javaPath, "-cp", classpath, "org.junit.runner.JUnitCore",
+		ProcessBuilder processBuilder = new ProcessBuilder(javaPath, "-cp", classpath, 
+				"-Dtrace.output="+tracingOutput.getAbsolutePath(),
+				 "-Ddump.output="+tracingOutput.getAbsolutePath(),
+				 "-Ddump.by=package=org.employee",
+				//
+				"org.junit.runner.JUnitCore",
 				systemTestClassName);
-		processBuilder.environment().put("trace.output", tracingOutput.getAbsolutePath());
 
 		System.out.println("InstrumentEmployeeTest.instrumentAndTraceTestSubjects()" + processBuilder.command());
 

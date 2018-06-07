@@ -5,6 +5,7 @@ import java.util.List;
 
 import de.unipassau.abc.carving.MethodInvocation;
 import de.unipassau.abc.data.Pair;
+import de.unipassau.abc.utils.JimpleUtils;
 import soot.ArrayType;
 import soot.Body;
 import soot.BooleanType;
@@ -16,6 +17,7 @@ import soot.IntType;
 import soot.Local;
 import soot.LongType;
 import soot.NullType;
+import soot.PatchingChain;
 import soot.PrimType;
 import soot.RefType;
 import soot.Scene;
@@ -29,7 +31,6 @@ import soot.javaToJimple.LocalGenerator;
 import soot.jimple.ArrayRef;
 import soot.jimple.IntConstant;
 import soot.jimple.Jimple;
-import soot.jimple.JimpleBody;
 import soot.jimple.NewArrayExpr;
 import soot.jimple.StaticInvokeExpr;
 import soot.jimple.StringConstant;
@@ -165,10 +166,10 @@ public class UtilInstrumenter {
 	 */
 	public static Value generateCorrectObject(Body body, Value value, List<Unit> generated) {
 
-		if (value.getType() instanceof PrimType) {
+		if (value.getType() instanceof PrimType || JimpleUtils.isPrimitive(value.getType())) {
 			// in case of a primitive type, we use boxing (I know it is not
 			// nice, but it works...) in order to use the Object type
-			if (value.getType() instanceof BooleanType) {
+			if (value.getType() instanceof BooleanType || value.getType().toString().equals("boolean")) {
 				Local booleanLocal = generateFreshLocal(body, RefType.v("java.lang.Boolean"));
 
 				SootClass sootClass = Scene.v().getSootClass("java.lang.Boolean");
@@ -180,7 +181,7 @@ public class UtilInstrumenter {
 				generated.add(newAssignStmt);
 
 				return booleanLocal;
-			} else if (value.getType() instanceof ByteType) {
+			} else if (value.getType() instanceof ByteType || value.getType().toString().equals("byte")) {
 				Local byteLocal = generateFreshLocal(body, RefType.v("java.lang.Byte"));
 
 				SootClass sootClass = Scene.v().getSootClass("java.lang.Byte");
@@ -191,7 +192,7 @@ public class UtilInstrumenter {
 				generated.add(newAssignStmt);
 
 				return byteLocal;
-			} else if (value.getType() instanceof CharType) {
+			} else if (value.getType() instanceof CharType || value.getType().toString().equals("char")) {
 				Local characterLocal = generateFreshLocal(body, RefType.v("java.lang.Character"));
 
 				SootClass sootClass = Scene.v().getSootClass("java.lang.Character");
@@ -202,7 +203,7 @@ public class UtilInstrumenter {
 				generated.add(newAssignStmt);
 
 				return characterLocal;
-			} else if (value.getType() instanceof DoubleType) {
+			} else if (value.getType() instanceof DoubleType || value.getType().toString().equals("double")) {
 				Local doubleLocal = generateFreshLocal(body, RefType.v("java.lang.Double"));
 
 				SootClass sootClass = Scene.v().getSootClass("java.lang.Double");
@@ -214,7 +215,7 @@ public class UtilInstrumenter {
 				generated.add(newAssignStmt);
 
 				return doubleLocal;
-			} else if (value.getType() instanceof FloatType) {
+			} else if (value.getType() instanceof FloatType || value.getType().toString().equals("float")) {
 				Local floatLocal = generateFreshLocal(body, RefType.v("java.lang.Float"));
 
 				SootClass sootClass = Scene.v().getSootClass("java.lang.Float");
@@ -225,7 +226,7 @@ public class UtilInstrumenter {
 				generated.add(newAssignStmt);
 
 				return floatLocal;
-			} else if (value.getType() instanceof IntType) {
+			} else if (value.getType() instanceof IntType || value.getType().toString().equals("int")) {
 				Local integerLocal = generateFreshLocal(body, RefType.v("java.lang.Integer"));
 
 				SootClass sootClass = Scene.v().getSootClass("java.lang.Integer");
@@ -236,7 +237,7 @@ public class UtilInstrumenter {
 				generated.add(newAssignStmt);
 
 				return integerLocal;
-			} else if (value.getType() instanceof LongType) {
+			} else if (value.getType() instanceof LongType || value.getType().toString().equals("long")) {
 				Local longLocal = generateFreshLocal(body, RefType.v("java.lang.Long"));
 
 				SootClass sootClass = Scene.v().getSootClass("java.lang.Long");
@@ -247,7 +248,7 @@ public class UtilInstrumenter {
 				generated.add(newAssignStmt);
 
 				return longLocal;
-			} else if (value.getType() instanceof ShortType) {
+			} else if (value.getType() instanceof ShortType || value.getType().toString().equals("short")) {
 				Local shortLocal = generateFreshLocal(body, RefType.v("java.lang.Short"));
 
 				SootClass sootClass = Scene.v().getSootClass("java.lang.Short");
@@ -332,11 +333,11 @@ public class UtilInstrumenter {
 	}
 
 	public static Local generateFreshLocal(Body body, Type type) {
-		
-		if( type instanceof NullType ){
+
+		if (type instanceof NullType) {
 			System.out.println("UtilInstrumenter.generateFreshLocal() Null type !!");
 		}
-		
+
 		LocalGenerator lg = new LocalGenerator(body);
 		return lg.generateLocal(type);
 	}
@@ -352,8 +353,8 @@ public class UtilInstrumenter {
 
 		List<Unit> generated = new ArrayList<Unit>();
 		Value rightSide = generateCorrectObject(body, returnValue, generated);
-		
-		if( ! rightSide.equals( returnValue ) ){
+
+		if (!rightSide.equals(returnValue)) {
 			// No need for adding boxing and such
 			Value newBoxedObjectLocal = generateFreshLocal(body, RefType.v("java.lang.Object"));
 			Unit returnAssignStmt = Jimple.v().newAssignStmt(newBoxedObjectLocal, rightSide);
@@ -363,33 +364,56 @@ public class UtilInstrumenter {
 		return new Pair<Value, List<Unit>>(returnValue, generated);
 	}
 
-	public static Value generateExpectedValueFor(Body body, Chain<Unit> units, String xmlFile) {
+	/**
+	 * Return the objected loaded from XML which has type "ownerType"
+	 * 
+	 * @param body
+	 * @param units
+	 * @param xmlFile
+	 * @param ownerType
+	 * @return
+	 */
+	public static Local generateExpectedValueFor(Body body, List<Unit> validationUnits, String xmlFile,
+			String ownerType) {
+		// TODO Check if xmlFile exists
 
+		// System.out.println("UtilInstrumenter.generateExpectedValueFor()
+		// xmlFile is " + xmlFile );
 		// TODO Check for nulls !
 		List<Value> parameters = new ArrayList<>();
 		parameters.add(StringConstant.v(xmlFile));
 
-		// Casting later
-		// Local loadedFromXml = generateFreshLocal(body, RefType.v(
-		// JimpleUtils.getReturnType( methodInvocation.getJimpleMethod() )));
-		Local loadedFromXml = generateFreshLocal(body, RefType.v("java.lang.Object"));
+		// Make the call to load the object from memory as Object
+		Local uncastedAndLoadedFromXml = generateFreshLocal(body, RefType.v("java.lang.Object"));
+		Local expectedValue = generateFreshLocal(body, RefType.v(ownerType));
+
 		SootMethod loadFromXml = Scene.v()
 				.getMethod("<de.unipassau.abc.tracing.XMLDumper: java.lang.Object loadObject(java.lang.String)>");
 
-		units.add(Jimple.v().newAssignStmt(loadedFromXml,
+		// Assign the uncasted to the return value of XMLDumper
+
+		validationUnits.add(Jimple.v().newAssignStmt(uncastedAndLoadedFromXml,
 				Jimple.v().newStaticInvokeExpr(loadFromXml.makeRef(), parameters)));
 
-		return loadedFromXml;
+		// Create a second assignment which assign the result of casting the
+		// uncasted to the target type
+		validationUnits.add(Jimple.v().newAssignStmt(expectedValue,
+				Jimple.v().newCastExpr(uncastedAndLoadedFromXml, expectedValue.getType())));
+
+		return expectedValue;
 	}
 
-	public static Value generateExpectedValueForOwner(MethodInvocation methodInvocation, JimpleBody body,
-			Chain<Unit> units) {
+	public static Local generateExpectedValueForOwner(MethodInvocation methodInvocation, Body body,
+			List<Unit> validationUnits) {
 
-		return generateExpectedValueFor(body, units, methodInvocation.getXmlDumpForOwner());
+		return generateExpectedValueFor(body, validationUnits, methodInvocation.getXmlDumpForOwner(),
+				JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod()));
 	}
 
-	public static Value generateExpectedValueForReturn(MethodInvocation methodInvocation, JimpleBody body,
-			Chain<Unit> units) {
-		return generateExpectedValueFor(body, units, methodInvocation.getXmlDumpForReturn());
+	// This must consider the case of Primitive types !
+	public static Local generateExpectedValueForReturn(MethodInvocation methodInvocation, Body body,
+			List<Unit> validationUnits) {
+			return generateExpectedValueFor(body, validationUnits, methodInvocation.getXmlDumpForReturn(),
+					JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()));
 	}
 }

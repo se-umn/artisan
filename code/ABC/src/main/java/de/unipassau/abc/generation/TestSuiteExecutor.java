@@ -42,6 +42,7 @@ import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
 import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.exceptions.CarvingException;
+import de.unipassau.abc.carving.exceptions.FailedValidationException;
 import de.unipassau.abc.data.Pair;
 import soot.SootClass;
 
@@ -52,9 +53,11 @@ public class TestSuiteExecutor {
 	private static final Logger logger = LoggerFactory.getLogger(TestSuiteExecutor.class);
 
 	private List<File> projectJars;
+	private List<String> additionalProperties;
 
-	public TestSuiteExecutor(List<File> projectJars) {
+	public TestSuiteExecutor(List<File> projectJars, List<String> additionalProperties) {
 		this.projectJars = new ArrayList<>(projectJars);
+		this.additionalProperties = additionalProperties;
 	}
 
 	public String buildClassPath(File srcFolder) {
@@ -262,13 +265,17 @@ public class TestSuiteExecutor {
 			commands.add("-cp");
 			commands.add(classpath);
 
+			// Include additional system properties
+			for (String prop : additionalProperties) {
+				commands.add("-D" + prop);
+			}
+
 			commands.add("org.junit.runner.JUnitCore");
 
 			// Include test names
 			commands.addAll(testClassNames);
 
 			ProcessBuilder processBuilder = new ProcessBuilder(commands);
-
 			logger.trace("Execute for coverage: " + processBuilder.command());
 
 			// Disabling this creates some sort of data race and execution does
@@ -326,20 +333,17 @@ public class TestSuiteExecutor {
 		return coverage;
 	}
 
-	// FIXME THIS DOES NOT REALLY NeEd TO COMPILE AND RECOMPILE THE STUFF...
-	// OUTPUTTING THE STRINGS OF COMPILATION UNIT BECOMES A BURDER FOR THE CG !
-	public double compileRunAndGetCoverageJUnitTests(Collection<CompilationUnit> testClasses)
+	public double compileRunAndGetCoverageJUnitTests(Collection<File> testClassesJavaFiles, File srcFolder)
 			throws CarvingException, IOException {
 		// https://javabeat.net/the-java-6-0-compiler-api/
 		File tempOutputDir = Files.createTempDirectory("DeltaDebug").toFile();
 		tempOutputDir.deleteOnExit();
-		//
-		return compileRunAndGetCoverageJUnitTests(testClasses, tempOutputDir);
+		return compileRunAndGetCoverageJUnitTests(testClassesJavaFiles, srcFolder, tempOutputDir);
 
 	}
 
-	public double compileRunAndGetCoverageJUnitTests(Collection<CompilationUnit> testClasses, File workingDir)
-			throws CarvingException {
+	public double compileRunAndGetCoverageJUnitTests(Collection<File> testClassesJavaFiles, File srcFolder,
+			File outputDir) throws CarvingException {
 		long time = System.currentTimeMillis();
 		long prepareExecution = -1;
 		long prepareProcess = -1;
@@ -348,22 +352,24 @@ public class TestSuiteExecutor {
 
 		double coverage = 0;
 
-		List<String> testClassesAsArg = new ArrayList<>();
-		for (CompilationUnit testClass : testClasses) {
-			testClassesAsArg.add(testClass.getPackageDeclaration().get().getNameAsString() + "."
-					+ testClass.getTypes().get(0).getNameAsString());
-		}
-
 		prepareExecution = System.currentTimeMillis() - time;
 
-		if (testClasses.isEmpty()) {
+		if (testClassesJavaFiles.isEmpty()) {
 			// No test no coverage
 			return coverage;
 		}
 
+		List<String> testClassesAsArg = new ArrayList<>();
+		for( File testFile : testClassesJavaFiles ){
+			String testClassName = testFile.getAbsolutePath().replace( srcFolder.getAbsolutePath() + File.separator, "").replaceAll( File.separator,".").replaceAll(".java$", "");
+			logger.info("Adding test for execution : " + testClassName );
+			testClassesAsArg.add( testClassName );
+		}
+		
+		
 		try {
-
-			if (!compileJUnitTests(testClasses, workingDir)) {
+			// Compile the javaClasses to outputDir !
+			if (!compileJUnitTests(testClassesJavaFiles, srcFolder, outputDir)) {
 				throw new CarvingException("Compilation should not fail at this point !!!");
 			}
 
@@ -374,7 +380,7 @@ public class TestSuiteExecutor {
 			commands.add(javaPath);
 
 			// Add JaCoCo agent
-			File jacocoExec = new File(workingDir, "jacoco.exec");
+			File jacocoExec = new File(outputDir, "jacoco.exec");
 			// TODO FIXME
 			String jacocoAgent = ABCUtils.getJacocoAget();
 
@@ -384,12 +390,12 @@ public class TestSuiteExecutor {
 			commands.add("-javaagent:" + jacocoAgent + "=destfile=" + jacocoExec.getAbsolutePath() + ",excludes="
 					+ excludeList);
 
-			String classpath = buildClassPath(workingDir);
+			String classpath = buildClassPath(outputDir);
 			commands.add("-cp");
 			commands.add(classpath);
 
 			commands.add("org.junit.runner.JUnitCore");
-
+			
 			// Include test names
 			commands.addAll(testClassesAsArg);
 
@@ -411,8 +417,9 @@ public class TestSuiteExecutor {
 			int result = process.waitFor();
 
 			if (result != 0) {
-				throw new CarvingException(
-						"Test execution cannot fail at this point ! Check " + processBuilder.command());
+				// TODO Collect here the data about test which not passed !
+				throw new FailedValidationException(
+						"Found invalid tests ! Check " + processBuilder.command());
 			}
 
 			actualExecution = System.currentTimeMillis() - prepareProcess;
@@ -442,7 +449,7 @@ public class TestSuiteExecutor {
 			throw e;
 		} catch (Exception e) {
 			logger.error("Exception Thrown " + e.getMessage());
-			e.printStackTrace();
+			throw new CarvingException("Error during test case valiation", e);
 		} finally {
 			logger.info("Execution of " + testClassesAsArg.size() + " tests took " + (System.currentTimeMillis() - time)
 					+ "\n" + " prepareExecution " + prepareExecution + " prepareProcess " + prepareProcess
@@ -477,10 +484,31 @@ public class TestSuiteExecutor {
 
 		try {
 			// https://javabeat.net/the-java-6-0-compiler-api/
-			File tempOutputDir = Files.createTempDirectory("DeltaDebug").toFile();
-			tempOutputDir.deleteOnExit();
+			// Use src and destination folder the same !
+			File tempWorkingDir = Files.createTempDirectory("DeltaDebug").toFile();
+			tempWorkingDir.deleteOnExit();
 
-			if (!compileJUnitTests(testClasses, tempOutputDir)) {
+			Set<File> javaFiles = new HashSet<>();
+
+			for (CompilationUnit junitClass : testClasses) {
+				String testClassName = junitClass.getType(0).getNameAsString();
+				String packageDeclaration = junitClass.getPackageDeclaration().get().getNameAsString();
+
+				// Create the structure as javac expects
+				File packageFile = new File(tempWorkingDir, packageDeclaration.replaceAll("\\.", File.separator));
+				packageFile.mkdirs();
+
+				// Store the testClassName into a File inside the tempOutputDir
+				File classFile = new File(packageFile, testClassName + ".java");
+
+				// Not nice to pass by String ...
+				Files.write(classFile.toPath(), junitClass.toString().getBytes());
+
+				javaFiles.add(classFile);
+			}
+
+			// Is this really needed ?!
+			if (!compileJUnitTests(javaFiles, tempWorkingDir, tempWorkingDir)) {
 				throw new RuntimeException("Compilation should not fail at this point !!!");
 			}
 
@@ -494,7 +522,7 @@ public class TestSuiteExecutor {
 			// requires a custom runner that must be used instead of plain
 			// JUnitCore
 			// https://stackoverflow.com/questions/9288107/run-single-test-from-a-junit-class-using-command-line
-			String classpath = buildClassPath(tempOutputDir);
+			String classpath = buildClassPath(tempWorkingDir);
 			commands.add("-cp");
 			commands.add(classpath);
 
@@ -584,51 +612,37 @@ public class TestSuiteExecutor {
 
 	}
 
-	private boolean compileJUnitTests(Collection<CompilationUnit> testClasses, File tempOutputDir) {
+	// Do we really need the class content as string? Can't we simply use the
+	// output folder for that?
+	// TODO This might become huge if we have to compile 1500+ tests at once !
+	private boolean compileJUnitTests(Collection<File> testJavaFiles, File srcFolder, File outputDir) {
 		try {
 
-			// TODO Factor this out
-			// Create a file to compile for each test
-			for (CompilationUnit junitClass : testClasses) {
-				String testClassName = junitClass.getType(0).getNameAsString();
-				String packageDeclaration = junitClass.getPackageDeclaration().get().getNameAsString();
-
-				// Create the structure as javac expects
-				File packageFile = new File(tempOutputDir, packageDeclaration.replaceAll("\\.", File.separator));
-				packageFile.mkdirs();
-
-				// Store the testClassName into a File inside the tempOutputDir
-				File classFile = new File(packageFile, testClassName + ".java");
-
-				// Not nice to pass by String ...
-				Files.write(classFile.toPath(), junitClass.toString().getBytes());
-			}
-
-			String classpath = buildClassPath(tempOutputDir);
+			String classpath = buildClassPath(srcFolder);
 
 			// Now compile all of them together
 			final List<String> args = new ArrayList<>();
 			args.add("-classpath");
 			args.add(classpath);
+			// Speficy output folder
+			args.add("-d");
+			args.add(outputDir.getAbsolutePath());
 
-			java.nio.file.Files.walkFileTree(tempOutputDir.toPath(), new SimpleFileVisitor<Path>() {
-				@Override
-				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					if (file.toString().endsWith(".java")) {
-						args.add(file.toFile().getAbsolutePath());
-					}
-					return super.visitFile(file, attrs);
-				}
-			});
+			for (File testJavaFile : testJavaFiles) {
+				args.add(testJavaFile.getAbsolutePath());
+			}
+
+			logger.info("Compiling " + args.size() + " test classes");
 
 			JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 			int compilationResult = compiler.run(null, null, null, //
 					args.toArray(new String[] {}));
 
 			if (compilationResult != 0) {
-				logger.debug("Compilation failed");
+				logger.warn("Compilation failed");
 				return false;
 			} else {
+				logger.info("Compilation successful");
 				return true;
 			}
 		} catch (Throwable e) {

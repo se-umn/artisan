@@ -4,7 +4,9 @@ import static com.github.javaparser.JavaParser.parseVariableDeclarationExpr;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -64,6 +66,7 @@ import com.github.javaparser.symbolsolver.resolution.typesolvers.JarTypeSolver;
 import com.github.javaparser.symbolsolver.resolution.typesolvers.ReflectionTypeSolver;
 
 import de.unipassau.abc.utils.JimpleUtils;
+import edu.emory.mathcs.backport.java.util.Collections;
 import soot.Body;
 import soot.BooleanType;
 import soot.Local;
@@ -115,7 +118,9 @@ import soot.jimple.VirtualInvokeExpr;
 public class TestCaseFactory {
 
 	private final static Logger logger = LoggerFactory.getLogger(TestCaseFactory.class);
-
+	
+	private final static Map<Expression, ResolvedType> typeCache = new HashMap<>();
+	
 	public static NodeList<Expression> convertSootInvocationArguments(InvokeExpr invokeExpr) {
 		//
 		// List<Value> args
@@ -248,6 +253,16 @@ public class TestCaseFactory {
 			combinedTypeSolver.add(new JarTypeSolver(jar.getAbsolutePath()));
 		}
 
+		// Sort by id/name ?
+		List<SootClass> sortedClasses = new ArrayList<>( testClasses );
+		Collections.sort( sortedClasses, new Comparator<SootClass>() {
+
+			@Override
+			public int compare(SootClass o1, SootClass o2) {
+				return Integer.parseInt(o1.getName().split("_")[1]) - Integer.parseInt(o2.getName().split("_")[1]); 
+			}
+		});
+		
 		for (SootClass testClass : testClasses) {
 
 			logger.info("Generate source code for " + testClass.getName());
@@ -374,7 +389,7 @@ public class TestCaseFactory {
 									try {
 										missingGeneric.add(arg1.getType(n));
 									} catch (Exception e) {
-										System.out.println(">>> ERROR " + n);
+										logger.error(">>> ERROR " + n , e);
 									}
 									super.visit(n, arg);
 
@@ -424,8 +439,6 @@ public class TestCaseFactory {
 		// Cache repetitive assign expression to avoid calling type solver
 		// which is somehow broken..
 
-		final Map<Expression, ResolvedType> typeCache = new HashMap<>();
-
 		// For some weird reason this keep failing...
 		cu.accept(new ModifierVisitor<JavaParserFacade>() {
 
@@ -443,10 +456,15 @@ public class TestCaseFactory {
 					try {
 						typeCache.put(n.getTarget(), javaParserFacade.getType(n.getTarget()));
 					} catch (Exception e) {
+						// Avoid this over and over.
 						logger.info("Cannot resolve targetType in " + n.toString() + " reason. " + e);
 						// e.printStackTrace();
+						typeCache.put( n.getTarget(), null);
+						//
+						return n;
 					}
 				}
+				
 				targetType = typeCache.get(n.getTarget());
 
 				// Right
@@ -458,10 +476,15 @@ public class TestCaseFactory {
 					} catch (Exception e) {
 						logger.info("Cannot resolve valueType in " + n.toString() + " reason. " + e);
 						// e.printStackTrace();
+						typeCache.put( n.getValue(), null);
+						//
+						return n;
 					}
 				}
+				
 				valueType = typeCache.get(n.getValue());
 
+				// Since we store null values we must check the following
 				if (targetType == null || valueType == null) {
 					logger.info("Type info is missing for assignment n " + targetType);
 					return n;

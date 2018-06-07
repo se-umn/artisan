@@ -45,9 +45,11 @@ import com.lexicalscope.jewel.cli.Option;
 import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.carvers.Level_0_MethodCarver;
 import de.unipassau.abc.carving.exceptions.CarvingException;
+import de.unipassau.abc.carving.exceptions.FailedValidationException;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
-import de.unipassau.abc.generation.DeltaDebugger;
+import de.unipassau.abc.generation.AssertVia;
+import de.unipassau.abc.generation.AssertionGenerator;
 import de.unipassau.abc.generation.MockingGenerator;
 import de.unipassau.abc.generation.SootTestCaseFactory;
 import de.unipassau.abc.generation.TestGenerator;
@@ -72,6 +74,7 @@ import soot.jimple.Jimple;
 import soot.jimple.StaticInvokeExpr;
 import soot.jimple.StringConstant;
 import soot.options.Options;
+import soot.util.Chain;
 
 // TODO Use some sort of CLI/JewelCLI
 public class Carver {
@@ -79,10 +82,10 @@ public class Carver {
 	private static final Logger logger = LoggerFactory.getLogger(Carver.class);
 
 	public interface CarverCLI {
-		
+
 		@Option(longName = "strings-as-objects")
 		boolean isTreatStringsAsObjects();
-		
+
 		@Option(longName = "trace-file")
 		File getTraceFile();
 
@@ -96,6 +99,9 @@ public class Carver {
 		// method=<jimple method>, return=<regex>, instance=<Object@ID>
 		@Option(longName = "carve-by")
 		String getCarveBy();
+
+		@Option(longName = "additional-properties", defaultToNull = true)
+		List<String> getAdditionalProperties();
 
 		// This works like carveBy but we use it to exclude method invocations
 		// that are in the trace
@@ -125,6 +131,10 @@ public class Carver {
 
 		@Option(longName = "skip-minimize")
 		boolean isSkipMinimize();
+
+		// Specify the types of assertions to generate
+		@Option(longName = "assert-via")
+		AssertVia getAssertVia();
 
 	}
 
@@ -214,7 +224,8 @@ public class Carver {
 
 	}
 
-	public static void main(String[] args) throws IOException, InterruptedException, URISyntaxException, CarvingException {
+	public static void main(String[] args)
+			throws IOException, InterruptedException, URISyntaxException, CarvingException {
 		long startTime = System.nanoTime();
 
 		boolean skipMinimize = false;
@@ -238,17 +249,27 @@ public class Carver {
 			// Default Interfaces are the one for Files, Network, etc. ?
 		}
 
+		List<String> additionalProperties = new ArrayList<>();
+
+		AssertVia generateAssertionsUsing = null;
+
 		try {
 			CarverCLI cli = CliFactory.parseArguments(CarverCLI.class, args);
 			traceFile = cli.getTraceFile();
 			outputDir = cli.getOutputDir();
 			projectJars.addAll(cli.getProjectJar());
+			
+			generateAssertionsUsing = cli.getAssertVia();
+			
+			if (cli.getAdditionalProperties() != null) {
+				additionalProperties.addAll(cli.getAdditionalProperties());
+			}
 
 			STRINGS_AS_OBJECTS = cli.isTreatStringsAsObjects();
-			if( STRINGS_AS_OBJECTS ){
+			if (STRINGS_AS_OBJECTS) {
 				logger.info("Treat Strings as Objects option active !!");
 			}
-			
+
 			setupTypeSolver(projectJars);
 
 			resetEnvironmentBy = cli.getResetEnvironmentBy();
@@ -335,6 +356,15 @@ public class Carver {
 
 		logger.info("Carver.main() End carving");
 
+		/**
+		 * FIXME: At this moment, when the number of tests is large the
+		 * following process requires too much memory. This results in CG memory
+		 * expcetions. Maybe is better to generate and (forget) each class
+		 * separately instead of generating all of them at the same time.
+		 * 
+		 * Additionally, why we need several round of compilation ?!
+		 */
+
 		logger.debug(">> Carved tests : " + carvedTests.size());
 		carvingTime = System.currentTimeMillis() - carvingTime;
 
@@ -342,6 +372,8 @@ public class Carver {
 		// VERIFY THAT NO CARVED TEST IS EMPTY !
 		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
 			if (!carvedTest.getFirst().verify()) {
+				// Maybe skip or remove the invalid carved test instead of
+				// killing the whole process ?!
 				throw new RuntimeException("Failed verification");
 			}
 		}
@@ -352,29 +384,45 @@ public class Carver {
 		// Test Generation
 		TestGenerator testCaseGenerator = new TestGenerator(parsedTrace);
 		// DEFAULT SETTINGS
+
 		List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> carvedTestCases = testCaseGenerator
 				.generateTestCases(carvedTests, new EachTestAlone());
 
-		// Collect the test classes (back compatibility)
-		System.out.println("\n\n\n");
 		Set<SootClass> testClasses = new HashSet<>();
 		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase : carvedTestCases) {
-			
-			System.out.println("Carver.main() ADDING " + carvedTestCase.getThird().getDeclaringClass().getName() + " as TEST CLASS");
-			testClasses.add(carvedTestCase.getThird().getDeclaringClass());
+			// System.out.println("Carver.main() ADDING " +
+			// carvedTestCase.getThird().getDeclaringClass().getName()
+			// + " as TEST CLASS");
+			SootMethod testMethod = carvedTestCase.getThird();
+
+			// FIXME: TODO Make this configuratble using command line input
+			AssertionGenerator.gerenateRegressionAssertion(carvedTestCase, generateAssertionsUsing);
+			// TODO Move the following inside AssertionGenerator !
+			// includeXMLValidationCalls(testClass, carvedTestCases);
+
+			SootClass testClass = testMethod.getDeclaringClass();
+			// logger.info("Generating input mocking values");
+			// This is applied only once per testClass
+			MockingGenerator.addSystemIn(testClass, parsedTrace);
+			//
+			MockingGenerator.addSystemExit(testClass, parsedTrace);
+			// logger.info("Generating input mocking values - done");
+			// Note that this most likely work only because we put a test in a
+			// separate class !
+			testClasses.add(testClass);
+			// Add regression assertions
+
 		}
 
-		System.out.println("\n\n\n");
-		
-		logger.debug("Generating input mocking values");
-		// TODO Are assertions STILL generated ?!
-		//// DECORATORS HERE: ASSERTIONS AND MOCKING !
-		for (SootClass testClass : testClasses) {
-			MockingGenerator.addSystemIn(testClass, parsedTrace);
-			// FIXME ?! -> How it is possible that I see system.exit on the
-			// output ?!
-			// MockingGenerator.addSystemExit(testClass, parsedTrace);
-		}
+		/**
+		 * Regression assertion generators are configurable. But so far all are
+		 * based on XStream and serialization. - Full XML Based comparison. The
+		 * most stringent one - Getters/Accessors/Observers. We use an heuristic
+		 * (code-convention). - All the available ones (based on analysis of the
+		 * class) - All the observed for the INSTANCE (based on the trace
+		 * analysis) - 1 STEP - ahead - Globally - All the observed for the
+		 * CLASS (based on the trace analysis)
+		 */
 
 		// logger.info("Generating regression assertions - SKIP");
 		// MethodInvocation methodInvocationUnderTest =
@@ -441,21 +489,19 @@ public class Carver {
 		// Generate directly the augmented classes, we do not really care about
 		// XMLValidation to be there at this point. We also include any user
 		// provided call to avoid state pollution as @Before method
-		Set<CompilationUnit> augmentedTestClasses = SootTestCaseFactory.generateAugmenetedTestFiles(projectJars,
-				testClasses, carvedTestCases, resetEnvironmentBy);
-		// --> This breaks regression selection because contains the
-		// XMLValidation calls...
-		storeToFile(augmentedTestClasses, outputDir);
 
-		// Soot generated files are optimized, there's less variables and test
-		// cases have less instructions
+		Set<File> augumentedJavaTestFiles = SootTestCaseFactory.generateAugmenetedTestFiles(projectJars, testClasses,
+				carvedTestCases, resetEnvironmentBy, outputDir);
+
 		testGenerationTime = System.currentTimeMillis() - testGenerationTime;
 
 		logger.info("Carver.main() End Test generation. Files are available under " + outputDir.getAbsolutePath());
 
-		///////
+		/////// SIMPLIFY THIS. No need to pass via CompilationUnit if we simply
+		/////// need it for getting class names !
 
-		logger.info("Validating the carved tests STARTS");
+		logger.info("Validating the carved tests STARTS for tests.");
+		// THIS IS actually based on the assertion generated so far.
 
 		// This is only to improve readability of the code
 		try {
@@ -464,13 +510,17 @@ public class Carver {
 			// rename it !
 			// This is necessary to implement delta debugging since we remove
 			// E.I. !
-			TestSuiteExecutor testSuiteExecutor = new TestSuiteExecutor(projectJars);
+			TestSuiteExecutor testSuiteExecutor = new TestSuiteExecutor(projectJars, additionalProperties);
 			// This executes the test into a temp folder anyway, no need to
 			// rename them !
-			testSuiteExecutor.compileRunAndGetCoverageJUnitTests(augmentedTestClasses);
+
+			testSuiteExecutor.compileRunAndGetCoverageJUnitTests(augumentedJavaTestFiles, outputDir);
+		} catch (FailedValidationException e) {
+			// TODO: handle exception. For the moment, simply go on
+			logger.warn("Validation of the carved tests failed. ", e);
 		} catch (CarvingException e1) {
 			// This happens if
-			logger.warn("Validation of the carved tests failed. ", e1);
+			e1.printStackTrace();
 			System.exit(1);
 		}
 		logger.info("Validating the carved tests END");
@@ -516,47 +566,59 @@ public class Carver {
 		// testSuiteMinimizationTime = System.currentTimeMillis() -
 		// testSuiteMinimizationTime;
 
+		/*
+		 * 
+		 * 
+		 * THIS MUST BE DEEPLY REVISED, DO NOT WORK WITH COMPILATION UNIT !
+		 * 
+		 * 
+		 */
 		long minimizationTime = System.currentTimeMillis();
-
-		// Delta Debugging - We apply this to OUR test cases, not the REDUCED
-		// ones !
-		// This might take some time to complete... Note that we are modifying
-		// augmentedTestClasses
-		if (!skipMinimize) {
-			DeltaDebugger deltaDebugger = new DeltaDebugger(outputDir, augmentedTestClasses, resetEnvironmentBy,
-					projectJars);
-
-			// Minimized Carved Tests - We work at the level of JAVA files
-			// instead of SootMethods since soot methods do not carry
-			// Information about "generics", it's JVM fault BTW since bytecode
-			// does not have that.
-			//
-			logger.info("Carver.main() Start Minimize Test Cases via Delta Debugging");
-
-			// This changes augmentedTestClasses
-			deltaDebugger.minimizeTestCases();
-
-			// TODO At this point we might compress and remove duplicate test
-			// cases !
-
-			for (CompilationUnit reducedTestClass : augmentedTestClasses) {
-				renameClass(reducedTestClass, "_minimized");
-
-				Carver.removeAtBeforeResetMethod(reducedTestClass);
-
-				// REFACTOR and clean up
-				// THIS IS NOT GOOD ! XML Verifier calls nows might be like:
-				// XMLVerifier.verify( new CUT(), ...);
-				// XMLVerifier.verify( new CUT().foo(), ...);
-				// Carver.removeXMLVerifierCalls(reducedTestClass);
-			}
-
-			// Output the files
-			deltaDebugger.outputToFile();
-
-		}
-		logger.info("Carver.main() End Minimize Test Cases via Delta Debugging");
+		skipMinimize = true;
 		//
+		// // Delta Debugging - We apply this to OUR test cases, not the REDUCED
+		// // ones !
+		// // This might take some time to complete... Note that we are
+		// modifying
+		// // augmentedTestClasses
+		// if (!skipMinimize) {
+		// DeltaDebugger deltaDebugger = new DeltaDebugger(outputDir,
+		// augmentedTestClasses, resetEnvironmentBy,
+		// projectJars, additionalProperties);
+		//
+		// // Minimized Carved Tests - We work at the level of JAVA files
+		// // instead of SootMethods since soot methods do not carry
+		// // Information about "generics", it's JVM fault BTW since bytecode
+		// // does not have that.
+		// //
+		// logger.info("Carver.main() Start Minimize Test Cases via Delta
+		// Debugging");
+		//
+		// // This changes augmentedTestClasses
+		// deltaDebugger.minimizeTestCases();
+		//
+		// // TODO At this point we might compress and remove duplicate test
+		// // cases !
+		//
+		// for (CompilationUnit reducedTestClass : augmentedTestClasses) {
+		// renameClass(reducedTestClass, "_minimized");
+		//
+		// Carver.removeAtBeforeResetMethod(reducedTestClass);
+		//
+		// // REFACTOR and clean up
+		// // THIS IS NOT GOOD ! XML Verifier calls nows might be like:
+		// // XMLVerifier.verify( new CUT(), ...);
+		// // XMLVerifier.verify( new CUT().foo(), ...);
+		// // Carver.removeXMLVerifierCalls(reducedTestClass);
+		// }
+		//
+		// // Output the files
+		// deltaDebugger.outputToFile();
+		//
+		// }
+		// logger.info("Carver.main() End Minimize Test Cases via Delta
+		// Debugging");
+		// //
 		minimizationTime = System.currentTimeMillis() - minimizationTime;
 
 		// At this point we can start the minimization via delta debugging
@@ -592,12 +654,15 @@ public class Carver {
 
 	}
 
-	public static void storeToFile(Set<CompilationUnit> generatedTestClasses, File outputDir) throws IOException {
+	// Return the files !
+	public static Set<File> storeToFile(Set<CompilationUnit> generatedTestClasses, File outputDir) throws IOException {
 		logger.info("Storing tests to " + outputDir.getAbsolutePath());
 
 		if (!outputDir.exists() && !outputDir.mkdirs()) {
 			throw new RuntimeException("Output dir " + outputDir.getAbsolutePath() + " cannot be created ");
 		}
+
+		Set<File> stored = new HashSet<>();
 
 		for (CompilationUnit testClass : generatedTestClasses) {
 			// Store to file
@@ -607,7 +672,11 @@ public class Carver {
 			File classFile = new File(packageDir, testClass.getType(0).getNameAsString() + ".java");
 			//
 			Files.write(classFile.toPath(), testClass.toString().getBytes(), StandardOpenOption.CREATE_NEW);
+			//
+			stored.add(classFile);
 		}
+
+		return stored;
 
 	}
 
@@ -943,7 +1012,7 @@ public class Carver {
 			"java.sql.PreparedStatement", //
 			"java.sql.ResultSet", //
 	}));
-	
+
 	// Note that this is not FINAL !!
 	public static boolean STRINGS_AS_OBJECTS = false;
 

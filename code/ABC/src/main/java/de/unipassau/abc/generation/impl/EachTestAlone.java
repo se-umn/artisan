@@ -29,16 +29,16 @@ public class EachTestAlone implements TestClassGenerator {
 	private List<SootClass> testClasses = new ArrayList<>();
 
 	private SootClass getTestClass(String classUnderTest, int i) {
-		System.out.println("classUnderTest " + classUnderTest );
+//		System.out.println("classUnderTest " + classUnderTest );
 		String simpleClassName = classUnderTest.replaceAll("\\.", " ")
 				.split(" ")[classUnderTest.replaceAll("\\.", " ").split(" ").length - 1] + //
 				"_" + i;
 
-		System.out.println("simpleClassName " + simpleClassName );
+//		System.out.println("simpleClassName " + simpleClassName );
 
 		String classPackage = classUnderTest.substring(0, classUnderTest.lastIndexOf("."));
 
-		System.out.println("classPackage " + classPackage );
+//		System.out.println("classPackage " + classPackage );
 		
 		String testCaseName = classPackage + "." + "Test" + simpleClassName;
 
@@ -57,9 +57,9 @@ public class EachTestAlone implements TestClassGenerator {
 	@Override
 	public SootClass getTestClassFor(MethodInvocation mut) {
 
-		System.out.println("\n EachTestAlone.getTestClassFor() MUT " + mut.getJimpleMethod() );
+//		System.out.println("\n EachTestAlone.getTestClassFor() MUT " + mut.getJimpleMethod() );
 		String classUnderTest = JimpleUtils.getClassNameForMethod(mut.getJimpleMethod());
-		System.out.println("class Under test is " + classUnderTest + "\n");
+//		System.out.println("class Under test is " + classUnderTest + "\n");
 
 		if (!testClasseCounters.containsKey(classUnderTest)) {
 			testClasseCounters.put(classUnderTest, new AtomicInteger(0));

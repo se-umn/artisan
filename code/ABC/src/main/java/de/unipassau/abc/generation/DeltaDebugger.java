@@ -62,16 +62,20 @@ public class DeltaDebugger {
 	private String resetEnvironmentBy;
 	private List<File> projectJars;
 
+	private List<String> additionalProperties;
+
 
 	public DeltaDebugger(File outputDir,
 			Set<CompilationUnit> augmentedTestClasses, //
 			String resetEnvironmentBy, //
-			List<File> projectJars) throws IOException {
+			List<File> projectJars,
+			List<String> additionalProperties) throws IOException {
 
 		this.augmentedTestClasses = augmentedTestClasses;
 		this.outputDir = outputDir;
 		this.resetEnvironmentBy = resetEnvironmentBy;
 		this.projectJars = projectJars;
+		this.additionalProperties = additionalProperties;
 	}
 
 	public void outputToFile() throws IOException {
@@ -99,7 +103,7 @@ public class DeltaDebugger {
 	 */
 	public void minimizeTestCases() throws IOException, URISyntaxException, InterruptedException {
 		TestSuiteMinimizer testSuiteMinimizer = new TestSuiteMinimizer(augmentedTestClasses, resetEnvironmentBy,
-				new TestSuiteExecutor(projectJars));
+				new TestSuiteExecutor(projectJars, additionalProperties));
 		testSuiteMinimizer.minimizeTestMethods();
 	}
 

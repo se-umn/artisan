@@ -111,7 +111,8 @@ public class XMLDumper {
 				methodInvocationMatcher.matches( new MethodInvocation(jimpleMethod, -1) ) ||
 				abcMethodInvocationMatcher.matches( new MethodInvocation(jimpleMethod, -1) )
 			) 
-				&& ! (object instanceof String) ){
+			//	&& ! (object instanceof String) // TODO Why this?  
+				) { 
 			return null;
 		}
 		

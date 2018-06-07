@@ -12,6 +12,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -883,7 +885,6 @@ public class Level_0_MethodCarver implements MethodCarver {
 				Collections.sort(workUnits);
 				MethodInvocation unitOfWork = workUnits.get(0);
 
-				logger.debug("Processing " + unitOfWork + " from " + workUnits);
 				// This might not be really relevant since later we remove the
 				// work done from the work to do, and unit of work is workdone
 				//
@@ -897,7 +898,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 				// Do the carving
 				if (!preconditionCache.containsKey(unitOfWork)) {
-					logger.info("Carving: " + unitOfWork);
+//					logger.info("Carving: " + unitOfWork);
 
 					// Carve the method and store the preconditions
 					Map<MethodInvocation, Set<ObjectInstance>> dataDependencies = new HashMap<>();
@@ -932,17 +933,17 @@ public class Level_0_MethodCarver implements MethodCarver {
 					// Do the carving by following the method invocations
 					// chain
 					Set<MethodInvocation> backwardSlice = new HashSet<>(executioneBefore);
-					backwardSlice.retainAll(subGraphFromPastExecution
-							.getMethodInvocationsRecheableFrom(methodInvocation));
+					backwardSlice
+							.retainAll(subGraphFromPastExecution.getMethodInvocationsRecheableFrom(methodInvocation));
 					/*
 					 * The backwardSlice is the slice which contains the
 					 * MUT-centric view of the execution. It disregards the
 					 * location of methods which have potential impa
 					 */
 
-					logger.trace(
-							"Level_0_MethodCarver.level0TestCarving() Dependencies on Methods " + backwardSlice.size());
-					logger.trace("" + backwardSlice);
+//					logger.trace(
+//							"Level_0_MethodCarver.level0TestCarving() Dependencies on Methods " + backwardSlice.size());
+//					logger.trace("" + backwardSlice);
 
 					// TODO This might include calls which subsume also
 					// other
@@ -960,10 +961,10 @@ public class Level_0_MethodCarver implements MethodCarver {
 							Set<ObjectInstance> parameters = new HashSet<>(
 									_dataDependencyGraph.getParametersOf(methodInvocation));
 							//
-							logger.trace("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
-									+ methodInvocation + " are " + parameters.size());
-							logger.trace("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
-									+ methodInvocation + " are " + parameters);
+//							logger.trace("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
+//									+ methodInvocation + " are " + parameters.size());
+//							logger.trace("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
+//									+ methodInvocation + " are " + parameters);
 							//
 							dataDependencies.put(methodInvocation, parameters);
 						}
@@ -987,10 +988,10 @@ public class Level_0_MethodCarver implements MethodCarver {
 							// + " are " + parameters);
 							deps.addAll(parameters);
 						}
-						logger.debug("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
-								+ methodInvocation + " are " + deps.size());
-						logger.trace("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
-								+ methodInvocation + " are " + deps);
+//						logger.debug("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
+//								+ methodInvocation + " are " + deps.size());
+//						logger.trace("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
+//								+ methodInvocation + " are " + deps);
 						dataDependencies.put(methodInvocation, deps);
 
 					} else {
@@ -1011,10 +1012,10 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 							deps.addAll(parameters);
 						}
-						logger.debug("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
-								+ methodInvocation + " are " + deps.size());
-						logger.trace("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
-								+ methodInvocation + " are " + deps);
+//						logger.debug("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
+//								+ methodInvocation + " are " + deps.size());
+//						logger.trace("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
+//								+ methodInvocation + " are " + deps);
 						dataDependencies.put(methodInvocation, deps);
 					}
 
@@ -1091,11 +1092,11 @@ public class Level_0_MethodCarver implements MethodCarver {
 											distance = target - current;
 											ranked = new HashSet<>();
 											ranked.add(mi);
-											logger.trace("Level_0_MethodCarver.level0TestCarving() New distance "
-													+ distance + " for " + mi);
+//											logger.trace("Level_0_MethodCarver.level0TestCarving() New distance "
+//													+ distance + " for " + mi);
 										}
 									}
-									logger.trace("Level_0_MethodCarver.level0TestCarving() RANKED CALLS " + ranked);
+//									logger.trace("Level_0_MethodCarver.level0TestCarving() RANKED CALLS " + ranked);
 									// if (distance > 0) {
 									// There should be only 1
 									closest = Collections.max(ranked);
@@ -1103,8 +1104,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 									// closest = Collections.min(ranked);
 									// }
 									// }
-									logger.debug("MULTIPLE METHODS RETURN " + data + "\n" + tempSet
-											+ " \n choosing the closest " + closest + " to " + entry.getKey());
+//									logger.debug("MULTIPLE METHODS RETURN " + data + "\n" + tempSet
+//											+ " \n choosing the closest " + closest + " to " + entry.getKey());
 								}
 								methodsWhichReturnTheObject.add(closest);
 							}
@@ -1123,9 +1124,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 								if (methodsWhichReturnTheObjects.containsKey(data)
 										&& "java.lang.String".equals(data.getType())) {
 
-									logger.trace(
-											"Level_0_MethodCarver.level0TestCarving()\n\n\n" + "Already a call set for "
-													+ data + " " + methodsWhichReturnTheObjects.get(data) + "\n\n\n");
+//									logger.trace(
+//											"Level_0_MethodCarver.level0TestCarving()\n\n\n" + "Already a call set for "
+//													+ data + " " + methodsWhichReturnTheObjects.get(data) + "\n\n\n");
 
 									Set<MethodInvocation> firstCallSet = new HashSet<>(
 											methodsWhichReturnTheObjects.get(data));
@@ -1134,8 +1135,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 									Collections.sort(firstCall);
 									firstCallSet = new HashSet();
 									firstCallSet.add(firstCall.get(0));
-									logger.trace(
-											"Level_0_MethodCarver.level0TestCarving() REPLACING WITH " + firstCallSet);
+//									logger.trace(
+//											"Level_0_MethodCarver.level0TestCarving() REPLACING WITH " + firstCallSet);
 									methodsWhichReturnTheObjects.put(data, firstCallSet);
 
 								} else {
@@ -1144,8 +1145,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 									// the
 									// data !
 									methodsWhichReturnTheObjects.put(data, methodsWhichReturnTheObject);
-									logger.trace("Level_0_MethodCarver.level0TestCarving() methodsWhichReturn " + data
-											+ " before " + entry.getKey() + " are " + methodsWhichReturnTheObject);
+//									logger.trace("Level_0_MethodCarver.level0TestCarving() methodsWhichReturn " + data
+//											+ " before " + entry.getKey() + " are " + methodsWhichReturnTheObject);
 								}
 							}
 						}
@@ -1167,7 +1168,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 							Set<MethodInvocation> methods = methodsWhichReturnTheObject.getValue();
 							for (MethodInvocation method : methods) {
 								if (method.getJimpleMethod().contains("<init>") && !method.isPrivate()) {
-									logger.trace("Reduce the combination for " + methodsWhichReturnTheObject.getKey());
+//									logger.trace("Reduce the combination for " + methodsWhichReturnTheObject.getKey());
 									methodsWhichReturnTheObject.setValue(Collections.singleton(method));
 									break;
 								}
@@ -1178,8 +1179,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 							// get with it...
 							for (MethodInvocation method : methods) {
 								if (!method.getJimpleMethod().contains("<init>") && !method.isPrivate()) {
-									logger.trace("RANDOMLY SELECT " + method + "To reduce the combination for "
-											+ methodsWhichReturnTheObject.getKey());
+//									logger.trace("RANDOMLY SELECT " + method + "To reduce the combination for "
+//											+ methodsWhichReturnTheObject.getKey());
 									methodsWhichReturnTheObject.setValue(Collections.singleton(method));
 									break;
 								}
@@ -1208,9 +1209,12 @@ public class Level_0_MethodCarver implements MethodCarver {
 					preconditions.remove(unitOfWork);
 
 					preconditionCache.put(unitOfWork, preconditions);
-				}
+				} 
+//				else {
+//					logger.info("Carving: (Cached) " + unitOfWork);
+//				}
 
-				logger.debug("Carve of " + unitOfWork + " Done " + preconditionCache.get(unitOfWork));
+//				logger.debug("Carve of " + unitOfWork + " Done " + preconditionCache.get(unitOfWork));
 
 				/////// Prepare the next iteration
 
@@ -1238,9 +1242,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 						workDone, workToDo);
 
 				//
-				logger.debug("Level_0_MethodCarver.level0TestCarving() Enqueuing new task with "
-						+ newTask.getSecond().size() + " method invocations");
-				logger.debug("" + newTask.getSecond());
+//				logger.debug("Level_0_MethodCarver.level0TestCarving() Enqueuing new task with "
+//						+ newTask.getSecond().size() + " method invocations");
+//				logger.debug("" + newTask.getSecond());
 				workList.add(newTask);
 
 			}
@@ -1426,6 +1430,18 @@ public class Level_0_MethodCarver implements MethodCarver {
 	 */
 	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carve(MethodInvocationMatcher carveBy,
 			List<MethodInvocationMatcher> excludeBy) {
+		
+		/**
+		 * TODO Parallelize the carving. The only point to consider is the precondition cache, which must be made thread safe using some concurrent implementation !
+		 * 
+		 * 
+		 * 
+		 * 
+		 */
+		final ExecutorService executor = Executors.newFixedThreadPool(10);
+		
+		
+		
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
 
 		List<MethodInvocation> orderedMethodsInvocationsToCarve = new ArrayList<>(
@@ -1440,6 +1456,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 		for (MethodInvocation methodInvocationUnderTest : orderedMethodsInvocationsToCarve) {
 
+			
 			if (ABCUtils.ARTIFICIAL_METHODS.contains(methodInvocationUnderTest.getInvocationType())) {
 				logger.info("We do not carve ABC artificial methods " + methodInvocationUnderTest);
 				continue;
@@ -1467,6 +1484,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 				long carvingTime = System.currentTimeMillis();
 				carvedTestsPerMethodInvocation.addAll(level0TestCarving(methodInvocationUnderTest));
 
+				// TODO For the moment skip simplify !
 				// Simplify the carved tests: Following the data dependencies we
 				// might take into tests, invocations that are included but
 				// independent
@@ -1476,9 +1494,10 @@ public class Level_0_MethodCarver implements MethodCarver {
 				// dependencies unless those are (or contains?) calls to
 				// external
 				// libraries.
-				// FIXME Handle external libraries
-
-				simplify(methodInvocationUnderTest, carvedTestsPerMethodInvocation);
+				// simplify(methodInvocationUnderTest,
+				// carvedTestsPerMethodInvocation);
+				//
+				// FIXME No idea why this says always more than 1 sec ... when it's clearly faster ...
 				carvingTime = System.currentTimeMillis() - carvingTime;
 				logger.info("\n\n====================================================\n" + "Carved  "
 						+ carvedTestsPerMethodInvocation.size() + " in " + +carvingTime + " msec \n"
@@ -1491,6 +1510,14 @@ public class Level_0_MethodCarver implements MethodCarver {
 			}
 		}
 
+		
+		
+		
+		
+		
+		
+		
+		
 		// Here we need to remove the duplicated tests. After simplify they
 		// might end up implementing the same functionalities
 		// HashSet is difficult to ues since graph do not implements proper
@@ -1529,9 +1556,12 @@ public class Level_0_MethodCarver implements MethodCarver {
 		return uniqueCarvedTests;
 	}
 
+	// FIXME: this takes half a second and I do not recall what's for, Maybe
+	// removing duplicates or reducing the size of the carved tests ?
 	private void simplify(MethodInvocation methodInvocationUnderTest,
 			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests) {
 
+		long start = System.currentTimeMillis();
 		logger.debug("Simplify for " + methodInvocationUnderTest);
 
 		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
@@ -1558,6 +1588,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 			dataDependencyGraph.refine(coreMethodInvocations);
 			executionFlowGraph.refine(coreMethodInvocations);
 		}
+		long end = System.currentTimeMillis();
+		logger.info("Simplify took " + (end - start) + " msec");
+
 	}
 
 }

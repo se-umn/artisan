@@ -15,7 +15,6 @@ import edu.emory.mathcs.backport.java.util.Arrays;
 import soot.Scene;
 import soot.SootClass;
 import soot.SootMethod;
-import soot.jimple.JimpleMethodSource;
 
 public class ABCUtils {
 
@@ -109,6 +108,20 @@ public class ABCUtils {
 
 		if (sMethod != null) {
 			return sMethod.getSignature();
+		} else {
+			throw new CarvingException("Cannot find Soot Method for " + jimpleMethod);
+		}
+
+	}
+	
+	public static SootMethod lookUpSootMethod(String jimpleMethod) throws CarvingException {
+		SootClass sClass = Scene.v().getSootClass(JimpleUtils.getClassNameForMethod(jimpleMethod));
+		
+		// This method has the cache, so we can also cache partial results
+		SootMethod sMethod = lookUp(sClass, jimpleMethod);
+
+		if (sMethod != null) {
+			return sMethod;
 		} else {
 			throw new CarvingException("Cannot find Soot Method for " + jimpleMethod);
 		}

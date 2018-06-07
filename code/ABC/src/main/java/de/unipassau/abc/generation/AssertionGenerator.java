@@ -1,17 +1,23 @@
 package de.unipassau.abc.generation;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de.unipassau.abc.carving.DataDependencyGraph;
+import de.unipassau.abc.carving.ExecutionFlowGraph;
+import de.unipassau.abc.carving.MethodInvocation;
+import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.instrumentation.UtilInstrumenter;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.Body;
 import soot.DoubleType;
 import soot.Local;
 import soot.NullType;
+import soot.PatchingChain;
 import soot.RefType;
 import soot.Scene;
 import soot.SootClass;
@@ -19,8 +25,13 @@ import soot.SootMethod;
 import soot.Type;
 import soot.Unit;
 import soot.Value;
+import soot.jimple.AbstractStmtSwitch;
 import soot.jimple.DoubleConstant;
+import soot.jimple.InstanceInvokeExpr;
+import soot.jimple.InvokeExpr;
 import soot.jimple.Jimple;
+import soot.jimple.StaticInvokeExpr;
+import soot.jimple.StringConstant;
 import soot.util.Chain;
 
 /**
@@ -34,49 +45,289 @@ public class AssertionGenerator {
 
 	private static final Logger logger = LoggerFactory.getLogger(AssertionGenerator.class);
 
-	public static void gerenateRegressionAssertionOnOwner(Body body, Chain<Unit> units, Value expected, Value actual) {
+	public static void gerenateRegressionAssertion(
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase,
+			AssertVia generateAssertionsUsing) {
+		switch (generateAssertionsUsing) {
+		case XML:
+			generateRegressionAssertionUsingXStream(carvedTestCase);
+			break;
+		case GETTERS:
+			gerenateRegressionAssertionUsingGetters(carvedTestCase);
+			break;
+		default:
+			break;
+		}
+	}
+
+	/**
+	 * This generate assertions using the abstract stmt switch !
+	 * 
+	 * @param carvedTestCase
+	 */
+	public static void generateRegressionAssertionUsingXStream(
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase) {
+
+		System.out.println("AssertionGenerator.generateRegressionAssertionUsingXStream()");
+		
+		MethodInvocation mut = carvedTestCase.getFirst().getLastMethodInvocation();
+		SootClass cut = Scene.v().loadClassAndSupport(JimpleUtils.getClassNameForMethod(mut.getJimpleMethod()));
+
+		SootMethod testMethod = carvedTestCase.getThird();
+		Body body = testMethod.getActiveBody();
+
+		int beforeValidation = body.getUnits().size();
+
+		List<Unit> validationUnits = new ArrayList<>();
+
+		// The very last unit is the "return" we need the one before it...
+		PatchingChain<Unit> units = body.getUnits();
+		final Unit methodUnderTest = units.getPredOf(units.getLast());
+
+		// Expected values !
+		final String xmlOwner = mut.getXmlDumpForOwner();
+		final String xmlReturnValue = mut.getXmlDumpForReturn();
+		final Value primitiveReturnValue = carvedTestCase.getSecond().getReturnObjectLocalFor(mut);
+
+		// System.out.println("DeltaDebugger.generateValidationUnit() for " +
+		// methodUnderTest);
+		methodUnderTest.apply(new AbstractStmtSwitch() {
+
+			final SootMethod xmlDumperVerify = Scene.v().getMethod(
+					"<de.unipassau.abc.tracing.XMLVerifier: void verify(java.lang.Object,java.lang.String)>");
+
+			final SootMethod xmlDumperVerifyPrimitive = Scene.v().getMethod(
+					"<de.unipassau.abc.tracing.XMLVerifier: void verifyPrimitive(java.lang.Object,java.lang.String)>");
+
+			// return value
+			public void caseAssignStmt(soot.jimple.AssignStmt stmt) {
+
+				// In some case ? the right side of the stmt is not an
+				// invocation (e.g., arrayref)
+
+				System.out.println("Validation for " + stmt);
+
+				if (stmt.containsInvokeExpr()) {
+
+					InvokeExpr invokeExpr = stmt.getInvokeExpr();
+
+					if (!(invokeExpr instanceof StaticInvokeExpr)) {
+						generateValidationForCut(((InstanceInvokeExpr) invokeExpr).getBase());
+					}
+				}
+				generateValidationForReturnValue(stmt.getLeftOp());
+			};
+
+			// No Return value
+			public void caseInvokeStmt(soot.jimple.InvokeStmt stmt) {
+				InvokeExpr invokeExpr = stmt.getInvokeExpr();
+				if (stmt.containsInvokeExpr()) {
+					if (!(stmt.getInvokeExpr() instanceof StaticInvokeExpr)) {
+						// Extract OWNER
+						generateValidationForCut(((InstanceInvokeExpr) invokeExpr).getBase());
+					}
+				}
+			}
+
+			private void generateValidationForReturnValue(Value value) {
+				Value wrappedValue = UtilInstrumenter.generateCorrectObject(body, value, validationUnits);
+				if (JimpleUtils.isPrimitive(value.getType())) {
+					generateValidationForPrimitiveValue(wrappedValue, primitiveReturnValue, validationUnits);
+				} else {
+					generateValidationForValue(wrappedValue, xmlReturnValue, validationUnits);
+				}
+			}
+
+			private void generateValidationForCut(Value value) {
+				generateValidationForValue(value, xmlOwner, validationUnits);
+			}
+
+			private void generateValidationForPrimitiveValue(Value actualValue, Value expectedValue,
+					List<Unit> validationUnits) {
+
+				List<Value> methodStartParameters = new ArrayList<Value>();
+				methodStartParameters.add(actualValue);
+
+				// Wrap everythign into a String ! Why ? Can't I simply box the
+				// expected Value as well, because this will be invoked on java
+				// and fail !
+				methodStartParameters.add(StringConstant.v(expectedValue.toString()));
+
+				// Create the invocation object
+				validationUnits.add(Jimple.v().newInvokeStmt(
+						Jimple.v().newStaticInvokeExpr(xmlDumperVerifyPrimitive.makeRef(), methodStartParameters)));
+			};
+
+			private void generateValidationForValue(Value value, String xmlFile, List<Unit> validationUnits) {
+
+				if (xmlFile == null || xmlFile.trim().length() == 0) {
+					// it can be a void call
+					logger.debug("Null XML File for " + value + " cannot do not create validation call");
+					return;
+				}
+
+				if (!new File(xmlFile).exists()) {
+					logger.warn("Cannot find XML File" + xmlFile + ", do not create validation call");
+					return;
+				}
+
+				List<Value> methodStartParameters = new ArrayList<Value>();
+				methodStartParameters.add(value);
+				methodStartParameters.add(StringConstant.v(xmlFile));
+
+				// Create the invocation object
+				validationUnits.add(Jimple.v().newInvokeStmt(
+						Jimple.v().newStaticInvokeExpr(xmlDumperVerify.makeRef(), methodStartParameters)));
+			};
+		});
+		
+		// Include the validation units into the test method
+		body.getUnits().insertBefore(validationUnits, body.getUnits().getLast());
+	}
+
+	/*
+	 * Generate assertions on the owner based on the code convention of getters
+	 */
+	public static void gerenateRegressionAssertionUsingGetters(
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase) {
+		//
+		MethodInvocation mut = carvedTestCase.getFirst().getLastMethodInvocation();
+		SootClass cut = Scene.v().loadClassAndSupport(JimpleUtils.getClassNameForMethod(mut.getJimpleMethod()));
+
+		SootMethod testMethod = carvedTestCase.getThird();
+		Body body = testMethod.getActiveBody();
+
+		int beforeValidation = body.getUnits().size();
+
+		List<Unit> validationUnits = new ArrayList<>();
+
+		List<SootMethod> getters = new ArrayList<>();
+		for (SootMethod sootMethod : cut.getMethods()) {
+			if (sootMethod.getName().startsWith("get") && sootMethod.getParameterCount() == 0) {
+				getters.add(sootMethod);
+			}
+		}
+
+		//
+		if (getters.size() > 0) {
+			final Local expectedValueForOwner = UtilInstrumenter.generateExpectedValueForOwner(mut, body,
+					validationUnits);
+			// Why value and not Local ?
+			final Local actualValueForOwner = (Local) carvedTestCase.getSecond().getObjectLocalFor(mut);
+
+			for (SootMethod sootMethod : getters) {
+				logger.info("Generating Regression assertions for " + mut + " using " + sootMethod);
+				// Call getter and store locally
+				Local expectedValue = UtilInstrumenter.generateFreshLocal(body, sootMethod.getReturnType());
+				// TODO Probably a case statement here ? I have not idea
+				// which
+				// one should I call... and HOW to get this information
+				// from...
+				validationUnits.add(Jimple.v().newAssignStmt(expectedValue,
+						Jimple.v().newVirtualInvokeExpr(expectedValueForOwner, sootMethod.makeRef())));
+
+				Local actualValue = UtilInstrumenter.generateFreshLocal(body, sootMethod.getReturnType());
+				// TODO Probably a case statement here ? I have not idea
+				// which
+				// one should I call... and HOW to get this information
+				// from...
+				validationUnits.add(Jimple.v().newAssignStmt(actualValue,
+						Jimple.v().newVirtualInvokeExpr(actualValueForOwner, sootMethod.makeRef())));
+
+				// Assert that expected.getter equals actual.getter. If the
+				// object DOES NOT DEFINE AN EQUALS METHOD, this skip the
+				// generation. Store generation units into validationUnits
+				generateAssertEqualsForObjects(body, validationUnits, sootMethod.getReturnType(), expectedValue,
+						actualValue);
+			}
+		}
+
+		// Generate assertions on return type only if there's a return type
+		if (!JimpleUtils.isVoid(JimpleUtils.getReturnType(mut.getJimpleMethod()))) {
+			logger.info("Generating Regression assertions for return value of " + mut);
+
+			Local returnValue = null;
+			for (Local l : testMethod.getActiveBody().getLocals()) {
+				if (l.getName().equals("returnValue")) {
+					returnValue = l;
+					break;
+				}
+			}
+
+			if (JimpleUtils.isPrimitive(JimpleUtils.getReturnType(mut.getJimpleMethod()))) {
+				generateAssertEqualsForPrimitiveTypeUsingBoxing(body, validationUnits, returnValue.getType(),
+						carvedTestCase.getSecond().getReturnObjectLocalFor(mut), //
+						returnValue);
+			} else {
+				gerenateRegressionAssertionOnReturnValue(body, validationUnits, //
+						// Are we sure those are ok ?! I suspect that the
+						// following two are actually THE SAME !
+						UtilInstrumenter.generateExpectedValueForReturn(mut, body, validationUnits), //
+						// carvedTestCase.getSecond().getReturnObjectLocalFor(mut)
+						// ??
+						returnValue);
+			}
+		}
+
+		// Eventually include the validation units in the right place: before
+		// the final return
+		Unit insertionPoint = body.getUnits().getLast();
+
+		body.getUnits().insertBefore(validationUnits, insertionPoint);
+
+		int afterValidation = body.getUnits().size();
+
+		logger.info("\n\n\nValidation size " + (afterValidation - beforeValidation));
+
+	}
+
+	public static void gerenateRegressionAssertionOnOwner(Body body, List<Unit> validationUnits, Value expected,
+			Value actual) {
 		// IF TYPE PRIMITIVE THERE"S AN ERROR !
 		// IF STRING THERE"S AN ERROR
 		if (JimpleUtils.isPrimitive(actual.getType())) {
 			logger.error("Something wrong happened ! A primitive cannot own method invocations ");
 			//
 		} else {
-			generateAssertEqualsForObjects(body, units, actual.getType(), expected, actual);
+			generateAssertEqualsForObjects(body, validationUnits, actual.getType(), expected, actual);
 		}
 
 	}
 
-	public static void gerenateRegressionAssertionOnReturnValue(Body body, Chain<Unit> units, Value expected,
+	public static void gerenateRegressionAssertionOnReturnValue(Body body, List<Unit> validationUnits, Value expected,
 			Value actual) {
-		if (JimpleUtils.isPrimitive(actual.getType())) {
-			generateAssertEqualsForPrimitiveTypeUsingBoxing(body, units, actual.getType(), expected, actual);
-			//
+
+		if (actual == null) {
+			logger.error("Actual value is null ? ");
 		} else {
-			generateAssertNullityForObjects(body, units, actual.getType(), expected, actual);
-			generateAssertEqualsForObjects(body, units, actual.getType(), expected, actual);
+
+			if (JimpleUtils.isPrimitive(actual.getType())) {
+				generateAssertEqualsForPrimitiveTypeUsingBoxing(body, validationUnits, actual.getType(), expected,
+						actual);
+				//
+			} else {
+				generateAssertNullityForObjects(body, validationUnits, actual.getType(), expected, actual);
+				generateAssertEqualsForObjects(body, validationUnits, actual.getType(), expected, actual);
+			}
 		}
 
 	}
 
-	public static void generateAssertNullityForObjects(Body body, Chain<Unit> units, Type type, Value expected,
+	public static void generateAssertNullityForObjects(Body body, List<Unit> validationUnits, Type type, Value expected,
 			Value actual) {
-		List<Unit> generated = new ArrayList<>();
 
 		if (expected == null || expected instanceof NullType) {
 			SootMethod assertNull = Scene.v().getMethod("<org.junit.Assert: void assertNull(java.lang.Object)>");
-			generated.add(Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertNull.makeRef(), actual)));
+			validationUnits.add(Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertNull.makeRef(), actual)));
 		} else {
 			SootMethod assertNotNull = Scene.v().getMethod("<org.junit.Assert: void assertNotNull(java.lang.Object)>");
-			generated.add(Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertNotNull.makeRef(), actual)));
+			validationUnits
+					.add(Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertNotNull.makeRef(), actual)));
 		}
-
-		units.addAll(generated);
-
 	}
 
-	public static void generateAssertEqualsForPrimitiveTypeUsingBoxing(Body body, Chain<Unit> units, Type type,
+	public static void generateAssertEqualsForPrimitiveTypeUsingBoxing(Body body, List<Unit> validationUnits, Type type,
 			Value expectedValue, Value actualValue) {
-		List<Unit> generated = new ArrayList<>();
 
 		if ("boolean".equals(type.toString())) {
 
@@ -86,28 +337,31 @@ public class AssertionGenerator {
 			// // TODO Probably can be done better
 			if (expectedValue.toString().equals("1")) {
 				SootMethod assertTrue = Scene.v().getMethod("<org.junit.Assert: void assertTrue(boolean)>");
-				generated.add(Jimple.v()
+				validationUnits.add(Jimple.v()
 						.newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertTrue.makeRef(), assertParameters)));
 			} else {
 				SootMethod assertFalse = Scene.v().getMethod("<org.junit.Assert: void assertFalse(boolean)>");
-				generated.add(Jimple.v()
+				validationUnits.add(Jimple.v()
 						.newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertFalse.makeRef(), assertParameters)));
 			}
 		} else {
-			Value boxedExpected = UtilInstrumenter.generateCorrectObject(body, expectedValue, generated);
-			Value boxedActual = UtilInstrumenter.generateCorrectObject(body, actualValue, generated);
+			Value boxedExpected = UtilInstrumenter.generateCorrectObject(body, expectedValue, validationUnits);
+			Value boxedActual = UtilInstrumenter.generateCorrectObject(body, actualValue, validationUnits);
 
-			generateAssertEqualsForObjects(body, units, type, boxedExpected, boxedActual, generated);
+			// We cannot use tpye,since that would be a primitive !
+			System.out.println(
+					"AssertionGenerator.generateAssertEqualsForPrimitiveTypeUsingBoxing(): " + boxedExpected.getType());
+			System.out.println(
+					"AssertionGenerator.generateAssertEqualsForPrimitiveTypeUsingBoxing(): " + boxedActual.getType());
+			//
+			generateAssertEqualsForObjects(body, validationUnits, boxedExpected.getType(), boxedExpected, boxedActual);
 		}
-		//
-		units.addAll(generated);
-
 	}
 
 	// NOTE that expected value getType returns object, it should return type
 	// instead ?
-	public static void generateAssertEqualsForObjects(Body body, Chain<Unit> units, Type type, Value expectedValue,
-			Value actualValue) {
+	public static void generateAssertEqualsForObjects(Body body, List<Unit> validationUnits, Type type,
+			Value expectedValue, Value actualValue) {
 
 		// Generate the assertion only if the CUT re-implements equals/hashCode
 		// Scene.v().getMethod("<"+ expectedValue.getType().toString() +":
@@ -118,46 +372,47 @@ public class AssertionGenerator {
 			System.out.println("AssertionGenerator skip generateAssertEqualsForObjects for object " + type);
 			return;
 		}
-
-		List<Unit> generated = new ArrayList<Unit>();
-		generateAssertEqualsForObjects(body, units, type, expectedValue, actualValue, generated);
-		units.addAll(generated);
+		// Add the generated units to validationUnits
+		generateAssertEqualsForObjects(body, type, expectedValue, actualValue, validationUnits);
 
 	}
 
-	// TODO Probably there's a simpler way to access that method directly or at least
+	// TODO Probably there's a simpler way to access that method directly or at
+	// least
 	// get an exception that says the class does not..
 	// TODO How to handle super types at this point? If the super types?
 	private static boolean redefinesEqualsAndHashCodeMethods(Type type) {
-		System.out.println("AssertionGenerator.redefinesEqualsAndHashCodeMethods() " + type.getEscapedName() );
-		SootClass sc=Scene.v().loadClassAndSupport( type.getEscapedName() );
-		
-		// Check if this class or any of its super types except for Object redefine equals
-		while( ! sc.getType().equals(RefType.v("java.lang.Object"))){
+		System.out.println("AssertionGenerator.redefinesEqualsAndHashCodeMethods() " + type.getEscapedName());
+		SootClass sc = Scene.v().loadClassAndSupport(type.getEscapedName());
+
+		// Check if this class or any of its super types except for Object
+		// redefine equals
+		while (!sc.getType().equals(RefType.v("java.lang.Object"))) {
 			for (SootMethod method : sc.getMethods()) {
 				// NOTE THIS IS NAIVE
 				if (method.getSignature().contains("equals(java.lang.Object)>")) {
-					System.out.println(sc+ " has method " + method);
+					System.out.println(sc + " has method " + method);
 					return true;
 				}
 			}
 			sc = sc.getSuperclass();
 		}
-//		for (SootClass applicationClass : Scene.v().getApplicationClasses()) {
-//			if (applicationClass.getType().equals(type)) {
-//				for (SootMethod method : applicationClass.getMethods()) {
-//					if (method.getName().equals("equals")) {
-//						System.out.println(applicationClass + " has method " + method);
-//						return true;
-//					}
-//				}
-//			}
-//		}
+		// for (SootClass applicationClass : Scene.v().getApplicationClasses())
+		// {
+		// if (applicationClass.getType().equals(type)) {
+		// for (SootMethod method : applicationClass.getMethods()) {
+		// if (method.getName().equals("equals")) {
+		// System.out.println(applicationClass + " has method " + method);
+		// return true;
+		// }
+		// }
+		// }
+		// }
 		return false;
 	}
 
-	public static void generateAssertEqualsForObjects(Body body, Chain<Unit> units, Type type, Value expectedValue,
-			Value actualValue, List<Unit> generated) {
+	private static void generateAssertEqualsForObjects(Body body, Type type, Value expectedValue, Value actualValue,
+			List<Unit> generated) {
 
 		List<Value> assertParameters = new ArrayList<Value>();
 
