@@ -532,12 +532,14 @@ It is not clear how/which other element they implemented. For example, do they f
 
 To evaluate these effects, we measure the time to execute and the time to check the outputs of the test cases in the original test suite, the selected test suite, and the carved selected test suites. For a carved test suite, we also measure the time and space to carve the original DUT test suite. By default, we applied the default \xxx[what's this?]{lossless filter on all DUT test suites} so that DUTs with unique pre-states are kept for each program method.
 
-RQ2. What is the fault detection effectiveness of DUTs? 
+
+RQ2. What is the fault detection effectiveness of DUTs? 
 \xxx{This rely on fault injection, which we have at least for siena. 
 Note that DUT identifies differences in the behaviors, which are not necessarily faults. RQ3 is about empirically evaluate this...}
 
 We will measure fault detection effectiveness by computing the percentage of faults found by each test suite. We will also qualify our findings by analyzing instances where the outcomes of a carved test case are different from its corresponding system test case.
-RQ3. How robust are the DUTs in the presence of software evolution? 
+
+RQ3. How robust are the DUTs in the presence of software evolution? 
 We would like to assess the reusability of DUTs on a real evolving system and examine how different types of change can affect the robustness and sensitivity of the carved tests.
 
 To evaluate the robustness of the carved test cases in the presence of program changes, we are interested in considering three potential outcomes of replaying a DU Txm on unit m0 : 1) fault is detected, DUTxm causes m0 to reveal a behavioral differences due to a fault; 2) false difference is detected, DUTxm causes m0 to reveal a behavioral change from m to m0 that is not a fault (not captured by stx); and 3) test is unexecutable, DU Txm is ill-formed with respect to m0 .
@@ -608,7 +610,8 @@ while still achieving the same code coverage of the system tests.}
 \end{RQ}
 
 \subsection{Test Subjects}
-The artifact we will use to perform this experiment study is Siena [9]. Siena is an event notification middleware implemented in Java. This artifact is available for download in the Subject Infrastructure Repository (SIR) [16], [31]. SIR provides Siena?s source code, a system-level test suite with 503 unique test cases, multiple versions corresponding to product releases, and a set of seeded faults in each version (the authors were not involved in this latest activity). For this study, we consider Siena?s core components (not the application included in the package that is built with those components).We utilize the five versions of Siena that have seeded faults that did not generate compilation errors (faults that generated compilation errors cannot be tested) and that were exposed by at least one system test case (faults that were not found by system tests would not affect our assessment).
+The artifact we will use to perform this experiment study is Siena [9]. Siena is an event notification middleware implemented in Java. This artifact is available for download in the Subject Infrastructure Repository (SIR) [16], [31]. SIR provides Siena?s source code, a system-level test suite with 503 unique test cases, multiple versions corresponding to product releases, and a set of seeded faults in each version (the authors were not involved in this latest activity). For this study, we consider Siena?s core components (not the application included in the package that is built with those components).
+We utilize the five versions of Siena that have seeded faults that did not generate compilation errors (faults that generated compilation errors cannot be tested) and that were exposed by at least one system test case (faults that were not found by system tests would not affect our assessment).
 
 ----
 First, we prepare the base test suites.
@@ -703,10 +706,11 @@ Another interesting instance is FF for C-selection-k1, v5, where we observed tha
 Because of this, no poststates were stored for the method and the fault goes undetected
 
 ----
-RQ3: Robustness and sensitivity. 
+
+RQ3: Robustness and sensitivity. 
 We further evaluate the robustness and sensitivity of DUTs by comparing their performance in the presence of \xxx{methods that changed but are not faulty} and in the presence of \xxx{methods that changed and are indeed faulty}. We performed such detailed comparison on the suites generated with C-selection-k-INF. 
 
-\xxx{This is more relevant
+\xxx{This is more relevant}
 
 \begin{table}[tp]
 \centering
