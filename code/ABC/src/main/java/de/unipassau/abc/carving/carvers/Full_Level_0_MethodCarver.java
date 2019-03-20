@@ -636,7 +636,7 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 
 			for (MethodInvocation subsumedConstructor : subsumedCalls) {
 
-				if (JimpleUtils.getMethodName(subsumedConstructor.getJimpleMethod()).equals("<init>")) {
+				if (JimpleUtils.getMethodName(subsumedConstructor.getMethodSignature()).equals("<init>")) {
 					logger.debug("Level_0_MethodCarver.generateCarvedTestFromSlice() We are subsuming method "
 							+ subsumedConstructor);
 
@@ -912,7 +912,7 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 					// carving
 					if (methodInvocation.isStatic()) {
 						// Static calls require only parameters if any
-						if (JimpleUtils.getParameterList(methodInvocation.getJimpleMethod()).length > 0) {
+						if (JimpleUtils.getParameterList(methodInvocation.getMethodSignature()).length > 0) {
 							Set<ObjectInstance> parameters = new HashSet<>(
 									_dataDependencyGraph.getParametersOf(methodInvocation));
 							//
@@ -924,7 +924,7 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 							dataDependencies.put(methodInvocation, parameters);
 						}
 
-					} else if (methodInvocation.getJimpleMethod().contains(": void <init>(")) {
+					} else if (methodInvocation.getMethodSignature().contains(": void <init>(")) {
 						Set<ObjectInstance> deps = new HashSet<>();
 						// If the method is a constructor the preconditions are
 						// the parameters, no parameters means no preconditions
@@ -934,7 +934,7 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 						// + owner);
 						deps.add(owner);
 						//
-						if (JimpleUtils.getParameterList(methodInvocation.getJimpleMethod()).length > 0) {
+						if (JimpleUtils.getParameterList(methodInvocation.getMethodSignature()).length > 0) {
 							List<ObjectInstance> parameters = _dataDependencyGraph.getParametersOf(methodInvocation);
 							// logger.debug("Level_0_MethodCarver.level0TestCarving()
 							// dependencies for " + methodInvocation
@@ -956,7 +956,7 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 						deps.add(owner);
 						// Regular invocations require parameters and the
 						// constructor if the constructor is not there yet
-						if (JimpleUtils.getParameterList(methodInvocation.getJimpleMethod()).length > 0) {
+						if (JimpleUtils.getParameterList(methodInvocation.getMethodSignature()).length > 0) {
 							List<ObjectInstance> parameters = _dataDependencyGraph.getParametersOf(methodInvocation);
 
 							// logger.debug("Level_0_MethodCarver.level0TestCarving()
@@ -1152,7 +1152,7 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 							// Keep only the constructor, unless it is private !
 							Set<MethodInvocation> methods = methodsWhichReturnTheObject.getValue();
 							for (MethodInvocation method : methods) {
-								if (method.getJimpleMethod().contains("<init>") && !method.isPrivate()) {
+								if (method.getMethodSignature().contains("<init>") && !method.isPrivate()) {
 									logger.trace("Reduce the combination for " + methodsWhichReturnTheObject.getKey());
 									methodsWhichReturnTheObject.setValue(Collections.singleton(method));
 									break;
@@ -1160,7 +1160,7 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 							}
 							// At this point what do we pick ? One at random ?
 							for (MethodInvocation method : methods) {
-								if (!method.getJimpleMethod().contains("<init>") && !method.isPrivate()) {
+								if (!method.getMethodSignature().contains("<init>") && !method.isPrivate()) {
 									logger.trace("RANDOMLY SELECT " + method + "To reduce the combination for "
 											+ methodsWhichReturnTheObject.getKey());
 									methodsWhichReturnTheObject.setValue(Collections.singleton(method));

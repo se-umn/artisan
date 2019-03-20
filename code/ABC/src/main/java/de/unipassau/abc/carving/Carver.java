@@ -48,8 +48,8 @@ import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.carving.exceptions.FailedValidationException;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
-import de.unipassau.abc.generation.AssertVia;
 import de.unipassau.abc.generation.AssertionGenerator;
+import de.unipassau.abc.generation.AssertionGenerator.AssertVia;
 import de.unipassau.abc.generation.MockingGenerator;
 import de.unipassau.abc.generation.SootTestCaseFactory;
 import de.unipassau.abc.generation.TestGenerator;
@@ -74,7 +74,6 @@ import soot.jimple.Jimple;
 import soot.jimple.StaticInvokeExpr;
 import soot.jimple.StringConstant;
 import soot.options.Options;
-import soot.util.Chain;
 
 // TODO Use some sort of CLI/JewelCLI
 public class Carver {
@@ -396,7 +395,7 @@ public class Carver {
 			SootMethod testMethod = carvedTestCase.getThird();
 
 			// FIXME: TODO Make this configuratble using command line input
-			AssertionGenerator.gerenateRegressionAssertion(carvedTestCase, generateAssertionsUsing);
+			AssertionGenerator.gerenateRegressionAssertion(carvedTestCase, generateAssertionsUsing, parsedTrace);
 			// TODO Move the following inside AssertionGenerator !
 			// includeXMLValidationCalls(testClass, carvedTestCases);
 

@@ -146,9 +146,9 @@ public class CarvingTest {
 			ExecutionFlowGraph carvedExecutionFlowGraph = carvedTest.getFirst();
 			// carvedTest.getSecond().visualize();
 			for (MethodInvocation methodInvocation : carvedExecutionFlowGraph.getOrderedMethodInvocations()) {
-				if (staticJimpleMethodProvidingObjects.equals(methodInvocation.getJimpleMethod())) {
+				if (staticJimpleMethodProvidingObjects.equals(methodInvocation.getMethodSignature())) {
 					System.out.println("CarvingTest.testCarveMethodWhichDependsOnFactoryStaticMethod() Found "
-							+ methodInvocation.getJimpleMethod());
+							+ methodInvocation.getMethodSignature());
 					matchCount++;
 				}
 			}

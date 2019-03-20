@@ -58,7 +58,7 @@ public class EachTestAlone implements TestClassGenerator {
 	public SootClass getTestClassFor(MethodInvocation mut) {
 
 //		System.out.println("\n EachTestAlone.getTestClassFor() MUT " + mut.getJimpleMethod() );
-		String classUnderTest = JimpleUtils.getClassNameForMethod(mut.getJimpleMethod());
+		String classUnderTest = JimpleUtils.getClassNameForMethod(mut.getMethodSignature());
 //		System.out.println("class Under test is " + classUnderTest + "\n");
 
 		if (!testClasseCounters.containsKey(classUnderTest)) {

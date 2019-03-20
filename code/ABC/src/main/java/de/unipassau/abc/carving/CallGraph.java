@@ -40,8 +40,8 @@ public class CallGraph {
 		stack = new Stack<MethodInvocation>();
 	}
 
-	public void push(MethodInvocation methodInvocation, boolean purityFlag) {
-		logger.trace("CallGraph.push()" + methodInvocation + " purity flag " + purityFlag);
+	public void push(MethodInvocation methodInvocation) {
+	    boolean purityFlag = methodInvocation.isPure();
 
 		if (stack.isEmpty()) {
 			// This register the call in the graph
@@ -89,7 +89,7 @@ public class CallGraph {
 				if (node instanceof ObjectInstance) {
 					return ((ObjectInstance) node).getObjectId();
 				} else if (node instanceof MethodInvocation) {
-					return ((MethodInvocation) node).getJimpleMethod();
+					return ((MethodInvocation) node).getMethodSignature();
 				} else {
 					return super.apply(node);
 				}
@@ -200,7 +200,7 @@ public class CallGraph {
 			return;
 		} else {
 			MethodInvocation top = stack.peek();
-			if (!top.getJimpleMethod().equals("<java.lang.System: void exit(int)>")) {
+			if (!top.getMethodSignature().equals("<java.lang.System: void exit(int)>")) {
 				throw new RuntimeException("Stack contains the wrong element at the end of parsing: " + top);
 			}
 		}

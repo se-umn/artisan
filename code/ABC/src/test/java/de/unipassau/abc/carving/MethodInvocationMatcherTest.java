@@ -71,7 +71,18 @@ public class MethodInvocationMatcherTest {
 //		assertTrue(junit3StyleMatcherWithoutParameters.matches( junit3StyleWithReturnType ) );
 	}
 	
-	
+	@Test
+	public void testGettersMatch(){ // (.*?) -- TODO How to define a catch all for the parameters ?
+		MethodInvocationMatcher gettersMatcher = MethodInvocationMatcher.byMethodName("get.*");
+		
+		assertTrue( gettersMatcher.matches( new MethodInvocation("<siena.TestFilter: void getAlpha(java.lang.String[])>", -1)));
+		assertTrue( gettersMatcher.matches( new MethodInvocation("<siena.TestFilter: java.lang.String getBeta(java.lang.String)>", -1)));
+		
+		assertTrue( gettersMatcher.matches( new MethodInvocation("<siena.TestFilter: int getGamma(java.lang.String,int)>", -1)));
+		assertTrue( gettersMatcher.matches( new MethodInvocation("<siena.TestFilter: java.lang.Object getDelta()>", -1)));
+		//
+//		assertFalse( gettersMatcher.matches( new MethodInvocation("<siena.TestFilter: void fooget(java.lang.String,int)>", -1)));
+	}
 
 	@Test
 	public void testExactMatch() {

@@ -54,7 +54,11 @@ public class ExecutionFlowGraph {
 		graph = new DirectedSparseMultigraph<MethodInvocation, String>();
 	}
 
-	// TODO Maybe change the name...
+	// TODO Maybe change the name...and replace the next method
+	public void addOwnerToMethodInvocation(MethodInvocation methodInvocation, ObjectInstance object) {
+	    addOwnerToMethodInvocation(methodInvocation, object.getObjectId());
+	}
+	
 	public void addOwnerToMethodInvocation(MethodInvocation methodInvocation, String objectId) {
 
 		if (graph.containsVertex(methodInvocation)) {

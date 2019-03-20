@@ -15,6 +15,21 @@ public class XMLVerifier {
 	public static boolean skip = Boolean.parseBoolean(System.getProperty("skip.xmlverifier", "false"));
 	
 	/**
+	 * This is silly, but a valid alternative to compare the content of objects when there's no equals() defined for them !
+	 * 
+	 * @param object
+	 * @param xmlExpected
+	 * @throws IOException
+	 */
+	public static void verifyContentEquals(Object expected, Object actual) throws IOException {
+		XStream xstream = new XStream();
+
+		String expectedValue = xstream.toXML( expected );
+		String actualValue = xstream.toXML(actual);
+		//
+		org.junit.Assert.assertEquals("The content of object " + actual + " does not match the content of " + expected, expectedValue, actualValue);
+	}
+	/**
 	 * 
 	 * @param object
 	 * @param xmlExpected

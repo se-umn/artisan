@@ -104,4 +104,9 @@ public class PrimitiveValue implements ValueNode {
 			throw new RuntimeException("Unknonw primitive type " + type);
 		}
 	}
+	
+	@Override
+	public String toString() {
+	    return stringValue;
+	}
 }

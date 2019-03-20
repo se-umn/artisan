@@ -201,7 +201,7 @@ public class TestGenerator {
 
 		// Add the tag to this code. note that the last element is always the
 		// MUT !
-		testMethod.addTag(new CarvingTag(executionFlowGraph.getLastMethodInvocation().getJimpleMethod() + "_"
+		testMethod.addTag(new CarvingTag(executionFlowGraph.getLastMethodInvocation().getMethodSignature() + "_"
 				+ executionFlowGraph.getLastMethodInvocation().getInvocationCount()));
 		// if (tag.getName().startsWith("carving")) {
 
@@ -351,8 +351,8 @@ public class TestGenerator {
 			// bytecode. Most likely is some weird optimization which stripes
 			// off unused variables... but that's annoying !
 			if (methodInvocation.equals(methodInvocationToCarve)
-					&& !JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()))) {
-				String type = JimpleUtils.getReturnType(methodInvocation.getJimpleMethod());
+					&& !JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocation.getMethodSignature()))) {
+				String type = JimpleUtils.getReturnType(methodInvocation.getMethodSignature());
 				// This shall be null at this point, since we do not use the
 				// return value ?
 				actualReturnValue = Jimple.v().newLocal("returnValue", RefType.v(type));
@@ -438,12 +438,12 @@ public class TestGenerator {
 		SootMethod method = null;
 		switch (methodInvocation.getInvocationType()) {
 		case "SpecialInvokeExpr":
-			method = ABCUtils.lookUpSootMethod(methodInvocation.getJimpleMethod());
+			method = ABCUtils.lookUpSootMethod(methodInvocation.getMethodSignature());
 //			method = getSootMethod(methodInvocation.getJimpleMethod());
 			// This is a constructor so I need to call new and then <init>
 			// with
 			// the right parameteres
-			RefType cType = RefType.v(JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod()));
+			RefType cType = RefType.v(JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature()));
 			// Call "new"
 			Stmt assignToNew = jimple.newAssignStmt(objLocal, jimple.newNewExpr(cType));
 			// Call init + parameters
@@ -459,7 +459,7 @@ public class TestGenerator {
 		case "VirtualInvokeExpr":
 			// Some methods are only defined in super classes, so getting the
 			// method directly by name is not working !
-			method = Scene.v().getMethod(methodInvocation.getJimpleMethod());
+			method = Scene.v().getMethod(methodInvocation.getMethodSignature());
 
 			if (returnObjLocal != null) {
 
@@ -500,7 +500,7 @@ public class TestGenerator {
 			break;
 
 		case "StaticInvokeExpr":
-			method = Scene.v().getMethod(methodInvocation.getJimpleMethod());
+			method = Scene.v().getMethod(methodInvocation.getMethodSignature());
 			if (returnObjLocal != null) {
 
 				if (!method.getReturnType().toString().equals(returnObjLocal.getType().toString())) {
@@ -535,7 +535,7 @@ public class TestGenerator {
 			}
 			break;
 		case "InterfaceInvokeExpr":
-			method = Scene.v().getMethod(methodInvocation.getJimpleMethod());
+			method = Scene.v().getMethod(methodInvocation.getMethodSignature());
 			if (returnObjLocal != null) {
 
 				if (!method.getReturnType().toString().equals(returnObjLocal.getType().toString())) {
@@ -593,7 +593,7 @@ public class TestGenerator {
 				// Create an array to host the values
 				// System.out.println("TestGenerator.addUnitFor() INIT ARRAY " +
 				// objLocal);
-				String arrayType = JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod()).replace("[]",
+				String arrayType = JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature()).replace("[]",
 						"");
 				NewArrayExpr arrayExpr = Jimple.v().newNewArrayExpr(RefType.v(arrayType), parametersValues.get(0));
 				Stmt arrayAssignment = Jimple.v().newAssignStmt(objLocal, arrayExpr);

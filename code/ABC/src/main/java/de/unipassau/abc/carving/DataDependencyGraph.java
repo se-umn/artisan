@@ -75,19 +75,33 @@ public class DataDependencyGraph {
 	 * @param actualParameters
 	 */
 	@SuppressWarnings("unchecked")
-	public void addMethodInvocation(MethodInvocation methodInvocation, String... actualParameters) {
+	public void addMethodInvocation(MethodInvocation methodInvocation) {
 
 		if (!graph.containsVertex(methodInvocation)) {
 			graph.addVertex(methodInvocation);
 		}
 
-		String[] formalParameters = JimpleUtils.getParameterList(methodInvocation.getJimpleMethod());
+		String[] actualParameters = methodInvocation.getActualParameters();
+		String[] formalParameters = JimpleUtils.getParameterList(methodInvocation.getMethodSignature());
+
+		/*
+		 * An object of type String might be passed around as Object, that is the formal parameter of the call is Object, the actual parameter is a String
+		 */
+		
 		for (int position = 0; position < formalParameters.length; position++) {
 			DataNode node = null;
 
 			if (JimpleUtils.isPrimitive(formalParameters[position])) {
 				node = PrimitiveNodeFactory.get(formalParameters[position], actualParameters[position]);
 				setSootValueFor(node, ((ValueNode) node).getData());
+			} else if (JimpleUtils.isString(formalParameters[position]) ){ 
+			    // We need to explicitly use java.lang.String here and not the formal parameter, since that might be a super type (i.e., java.lang.Object)
+			    node = PrimitiveNodeFactory.get("java.lang.String", actualParameters[position]);
+                setSootValueFor(node, ((ValueNode) node).getData());
+			} else if (JimpleUtils.isStringContent(actualParameters[position])) {
+                // We need to explicitly use java.lang.String here and not the formal parameter, since that might be a super type (i.e., java.lang.Object)
+                node = PrimitiveNodeFactory.get("java.lang.String", actualParameters[position]);
+                setSootValueFor(node, ((ValueNode) node).getData());
 			}
 			// We need to check those hard coded constants as first... TODO
 			// refactor to deal with system constant using artificial operation
@@ -100,46 +114,47 @@ public class DataDependencyGraph {
 				node = ObjectInstance.systemErr;
 			} else if ("StaticFieldOperation".equals(methodInvocation.getInvocationType())) {
 				node = new StaticObjectInstance(actualParameters[position] + "@0",
-						JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()));
-			} else if (JimpleUtils.isString(formalParameters[position]) && !Carver.STRINGS_AS_OBJECTS) {
-				// Since the string here is a PARAMETER somewhere its value has
-				// been set, hence stored in the data dependency graph, we need
-				// to retrieve it.
-				// Look up the node
-				for (GraphNode vertex : graph.getVertices()) {
-					if (vertex instanceof PrimitiveValue) {
-						if (((PrimitiveValue) vertex).getRefid() != null) {
-							// This is a string node - TODO Refactor add a map
-							// or index to fast access to those nodes !
-							if (actualParameters[position].equals(((PrimitiveValue) vertex).getRefid())) {
-//								System.out.println(
-//										"DataDependencyGraph.addMethodInvocation() Found the Primitive Node for "
-//												+ actualParameters[position]);
-								// We need to generate a new one for each use,
-								// so there's no deps on them.
-								node = PrimitiveNodeFactory.get(formalParameters[position],
-										((PrimitiveValue) vertex).getStringValue());
-								setSootValueFor(node, ((ValueNode) node).getData());
-								break;
-							}
-						}
-					}
-				}
-
-				// If there's no matching node, that's an error ...
-				if (node == null) {
-
-					if (actualParameters[position].equals("java.lang.String@0")) {
-						node = NullNodeFactory.get("java.lang.Sting");
-						setSootValueFor(node, ((ValueNode) node).getData());
-					}
-				}
-
-				if (node == null) {
-					throw new RuntimeException("Cannot find node value for String " + actualParameters[position]);
-				}
-
-			}
+						JimpleUtils.getReturnType(methodInvocation.getMethodSignature()));
+			} 
+//			else if (JimpleUtils.isString(formalParameters[position]) && !Carver.STRINGS_AS_OBJECTS) {
+//				// Since the string here is a PARAMETER somewhere its value has
+//				// been set, hence stored in the data dependency graph, we need
+//				// to retrieve it.
+//				// Look up the node
+//				for (GraphNode vertex : graph.getVertices()) {
+//					if (vertex instanceof PrimitiveValue) {
+//						if (((PrimitiveValue) vertex).getRefid() != null) {
+//							// This is a string node - TODO Refactor add a map
+//							// or index to fast access to those nodes !
+//							if (actualParameters[position].equals(((PrimitiveValue) vertex).getRefid())) {
+////								System.out.println(
+////										"DataDependencyGraph.addMethodInvocation() Found the Primitive Node for "
+////												+ actualParameters[position]);
+//								// We need to generate a new one for each use,
+//								// so there's no deps on them.
+//								node = PrimitiveNodeFactory.get(formalParameters[position],
+//										((PrimitiveValue) vertex).getStringValue());
+//								setSootValueFor(node, ((ValueNode) node).getData());
+//								break;
+//							}
+//						}
+//					}
+//				}
+//
+//				// If there's no matching node, that's an error ...
+//				if (node == null) {
+//
+//					if (actualParameters[position].equals("java.lang.String@0")) {
+//						node = NullNodeFactory.get("java.lang.Sting");
+//						setSootValueFor(node, ((ValueNode) node).getData());
+//					}
+//				}
+//
+//				if (node == null) {
+//					throw new RuntimeException("Cannot find node value for String " + actualParameters[position]);
+//				}
+//
+//			}
 			// else if (actualParameters[position].equals("java.lang.String@0"))
 			// {
 			// NULL string
@@ -259,7 +274,7 @@ public class DataDependencyGraph {
 		// extract formal parameters from method invocation, build a mask
 		// <org.employee.Validation: int
 		// numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>
-		String formalReturnValue = JimpleUtils.getReturnType(methodInvocation.getJimpleMethod());
+		String formalReturnValue = JimpleUtils.getReturnType(methodInvocation.getMethodSignature());
 		DataNode node = null;
 
 		if (JimpleUtils.isVoid(formalReturnValue)) {
@@ -301,7 +316,11 @@ public class DataDependencyGraph {
 		return node;
 	}
 
-	// This will not work for static methods
+	// TODO Update this method and replace the next one with it
+	public void addDataDependencyOnOwner(MethodInvocation methodInvocation, ObjectInstance objectInstance) {
+	    addDataDependencyOnOwner(methodInvocation, objectInstance.getObjectId());
+	}
+	
 	public void addDataDependencyOnOwner(MethodInvocation methodInvocation, String objectInstanceId) {
 
 		if (!graph.containsVertex(methodInvocation)) {
@@ -531,7 +550,7 @@ public class DataDependencyGraph {
 			}
 
 		}
-		logger.warn("Cannot find ObjectLocal for " + methodInvocation.getJimpleMethod());
+		logger.warn("Cannot find ObjectLocal for " + methodInvocation.getMethodSignature());
 		return null;
 	}
 
@@ -541,7 +560,7 @@ public class DataDependencyGraph {
 	 * 
 	 */
 	public Value getReturnObjectLocalFor(MethodInvocation methodInvocation) {
-		if (JimpleUtils.hasVoidReturnType(methodInvocation.getJimpleMethod())) {
+		if (JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())) {
 			return null;
 		}
 
@@ -573,7 +592,7 @@ public class DataDependencyGraph {
 		}
 		// Can this be a null value, it's a value that we did not tracked (from
 		// invokeStmts that do not have an assignment)
-		logger.warn("Cannot find ReturnObjectLocalFor for " + methodInvocation.getJimpleMethod());
+		logger.warn("Cannot find ReturnObjectLocalFor for " + methodInvocation.getMethodSignature());
 		return null;
 	}
 
@@ -581,7 +600,7 @@ public class DataDependencyGraph {
 	// order them by position (which is on the edge)
 	public List<Value> getParametersSootValueFor(MethodInvocation methodInvocation) {
 		try {
-			int parameterCount = JimpleUtils.getParameterList(methodInvocation.getJimpleMethod()).length;
+			int parameterCount = JimpleUtils.getParameterList(methodInvocation.getMethodSignature()).length;
 
 			int dataDependencyCount = getIncomingEdges(methodInvocation).size();
 			if (!methodInvocation.isStatic()) {
@@ -750,8 +769,8 @@ public class DataDependencyGraph {
 					MethodInvocation methodInvocation = (MethodInvocation) graph.getOpposite(objectInstance,
 							outgoingEdge);
 
-					if (methodInvocation.getJimpleMethod().contains("<init>")
-							&& JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod())
+					if (methodInvocation.getMethodSignature().contains("<init>")
+							&& JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature())
 									.equals(objectInstance.getType())) {
 						return ((MethodInvocation) graph.getOpposite(objectInstance, outgoingEdge));
 					}

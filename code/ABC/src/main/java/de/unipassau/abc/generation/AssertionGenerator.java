@@ -2,14 +2,20 @@ package de.unipassau.abc.generation;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de.unipassau.abc.carving.CallGraph;
 import de.unipassau.abc.carving.DataDependencyGraph;
 import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
+import de.unipassau.abc.carving.MethodInvocationMatcher;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.instrumentation.UtilInstrumenter;
 import de.unipassau.abc.utils.JimpleUtils;
@@ -43,21 +49,113 @@ import soot.util.Chain;
  */
 public class AssertionGenerator {
 
+	public enum AssertVia {
+		XML, GETTERS, USAGE_INSTANCE, USAGE_CLASS;
+	}
+
+	
 	private static final Logger logger = LoggerFactory.getLogger(AssertionGenerator.class);
 
+	/**
+	 * This generates different kinds of regression assertions. Based on content
+	 * (XML Serialization using XStream), and observed object usage.
+	 * 
+	 * @param carvedTestCase
+	 * @param generateAssertionsUsing
+	 * @param parsedTraces
+	 */
 	public static void gerenateRegressionAssertion(
 			Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase,
-			AssertVia generateAssertionsUsing) {
+			AssertVia generateAssertionsUsing,
+			Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTraces) {
+		List<SootMethod> observers = new ArrayList<>();
+
 		switch (generateAssertionsUsing) {
 		case XML:
 			generateRegressionAssertionUsingXStream(carvedTestCase);
 			break;
-		case GETTERS:
-			gerenateRegressionAssertionUsingGetters(carvedTestCase);
+		case GETTERS: // Consider all the getters
+			observers.addAll(collectGettersFromClass(carvedTestCase.getThird().getDeclaringClass()));
+			gerenateRegressionAssertionUsingGivenMethods(carvedTestCase, observers);
+			break;
+		case USAGE_INSTANCE:
+			// Collect getters based only on the instance under test
+			observers.addAll(collectUsageForInstance(carvedTestCase, parsedTraces));
+			gerenateRegressionAssertionUsingGivenMethods(carvedTestCase, observers);
+			break;
+		case USAGE_CLASS:
+			// Collect getters based only on the class under test
+			observers.addAll(collectUsageForClass(carvedTestCase, parsedTraces));
+			gerenateRegressionAssertionUsingGivenMethods(carvedTestCase, observers);
 			break;
 		default:
 			break;
 		}
+	}
+
+	private static Collection<? extends SootMethod> collectUsageForClass(
+
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase,
+			Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTraces) {
+		// Find all and only the invocation which belong to CUT irrespective on
+		// their owner instance
+		Set<MethodInvocation> observedUsageAtClassLevel = new HashSet<>();
+
+		// Get all the method invocations invoke on instance of CUT
+		MethodInvocation mut = carvedTestCase.getFirst().getLastMethodInvocation();
+
+		MethodInvocationMatcher cutMatchers = MethodInvocationMatcher
+				.byClass(JimpleUtils.getClassNameForMethod(mut.getMethodSignature()));
+		MethodInvocationMatcher gettersMatcher = MethodInvocationMatcher.byMethodName("get.*");
+
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace : parsedTraces.values()) {
+			observedUsageAtClassLevel.addAll(parsedTrace.getFirst().getMethodInvocationsFor(cutMatchers));
+			observedUsageAtClassLevel.retainAll(parsedTrace.getFirst().getMethodInvocationsFor(gettersMatcher));
+			// System.out.println("AssertionGenerator.collectUsageForClass()
+			// Found " + observedUsageAtClassLevel.size() + " usages of class "
+			// + JimpleUtils.getClassNameForMethod(mut.getJimpleMethod()) );
+		}
+
+		// Conver MethodInvodation to SootMethod
+		Set<SootMethod> classUsage = new HashSet<>();
+		for (MethodInvocation mi : observedUsageAtClassLevel) {
+			classUsage.add(JimpleUtils.toSootMethod(mi));
+		}
+		return classUsage;
+	}
+
+	private static Set<SootMethod> collectUsageForInstance(
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase,
+			Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTraces) {
+		MethodInvocation mut = carvedTestCase.getFirst().getLastMethodInvocation();
+
+		MethodInvocationMatcher theInstance = MethodInvocationMatcher.byInstance(mut.getOwner());
+		MethodInvocationMatcher gettersMatcher = MethodInvocationMatcher.byMethodName("get.*");
+
+		Set<MethodInvocation> observedUsage = new HashSet<>();
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace : parsedTraces.values()) {
+			// get all the MUs which belong to the instance
+			observedUsage.addAll(parsedTrace.getFirst().getMethodInvocationsFor(theInstance));
+			// that are also getters
+			observedUsage.retainAll(parsedTrace.getFirst().getMethodInvocationsFor(gettersMatcher));
+		}
+
+		// Conver MethodInvodation to SootMethod
+		Set<SootMethod> usage = new HashSet<>();
+		for (MethodInvocation mi : observedUsage) {
+			usage.add(JimpleUtils.toSootMethod(mi));
+		}
+		return usage;
+	}
+
+	private static Set<SootMethod> collectGettersFromClass(SootClass cut) {
+		Set<SootMethod> getters = new HashSet<>();
+		for (SootMethod sootMethod : cut.getMethods()) {
+			if (sootMethod.getName().startsWith("get") && sootMethod.getParameterCount() == 0) {
+				getters.add(sootMethod);
+			}
+		}
+		return getters;
 	}
 
 	/**
@@ -69,9 +167,9 @@ public class AssertionGenerator {
 			Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase) {
 
 		System.out.println("AssertionGenerator.generateRegressionAssertionUsingXStream()");
-		
+
 		MethodInvocation mut = carvedTestCase.getFirst().getLastMethodInvocation();
-		SootClass cut = Scene.v().loadClassAndSupport(JimpleUtils.getClassNameForMethod(mut.getJimpleMethod()));
+		SootClass cut = Scene.v().loadClassAndSupport(JimpleUtils.getClassNameForMethod(mut.getMethodSignature()));
 
 		SootMethod testMethod = carvedTestCase.getThird();
 		Body body = testMethod.getActiveBody();
@@ -180,19 +278,26 @@ public class AssertionGenerator {
 						Jimple.v().newStaticInvokeExpr(xmlDumperVerify.makeRef(), methodStartParameters)));
 			};
 		});
-		
+
 		// Include the validation units into the test method
 		body.getUnits().insertBefore(validationUnits, body.getUnits().getLast());
 	}
 
-	/*
-	 * Generate assertions on the owner based on the code convention of getters
+	/**
+	 * Generate assertions on the owner based on the provided getters/observers
+	 * methods
+	 * 
+	 * @param carvedTestCase
+	 * @param getters
 	 */
-	public static void gerenateRegressionAssertionUsingGetters(
-			Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase) {
+	private static void gerenateRegressionAssertionUsingGivenMethods(
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod> carvedTestCase, List<SootMethod> getters) {
+
+		logger.info("Generate Assertions with getters: " + getters);
+
 		//
 		MethodInvocation mut = carvedTestCase.getFirst().getLastMethodInvocation();
-		SootClass cut = Scene.v().loadClassAndSupport(JimpleUtils.getClassNameForMethod(mut.getJimpleMethod()));
+		SootClass cut = Scene.v().loadClassAndSupport(JimpleUtils.getClassNameForMethod(mut.getMethodSignature()));
 
 		SootMethod testMethod = carvedTestCase.getThird();
 		Body body = testMethod.getActiveBody();
@@ -200,13 +305,6 @@ public class AssertionGenerator {
 		int beforeValidation = body.getUnits().size();
 
 		List<Unit> validationUnits = new ArrayList<>();
-
-		List<SootMethod> getters = new ArrayList<>();
-		for (SootMethod sootMethod : cut.getMethods()) {
-			if (sootMethod.getName().startsWith("get") && sootMethod.getParameterCount() == 0) {
-				getters.add(sootMethod);
-			}
-		}
 
 		//
 		if (getters.size() > 0) {
@@ -217,6 +315,15 @@ public class AssertionGenerator {
 
 			for (SootMethod sootMethod : getters) {
 				logger.info("Generating Regression assertions for " + mut + " using " + sootMethod);
+
+				/*
+				 * The problem here is: if the getter returns an Object, and
+				 * this Object does not implement assertEquals. Then, no
+				 * assertion is generated. Maybe we should recursively generate
+				 * assertions till we get to a fixed point ? Or we can default
+				 * to generate XML Assertion for those ?!
+				 */
+
 				// Call getter and store locally
 				Local expectedValue = UtilInstrumenter.generateFreshLocal(body, sootMethod.getReturnType());
 				// TODO Probably a case statement here ? I have not idea
@@ -237,13 +344,21 @@ public class AssertionGenerator {
 				// Assert that expected.getter equals actual.getter. If the
 				// object DOES NOT DEFINE AN EQUALS METHOD, this skip the
 				// generation. Store generation units into validationUnits
-				generateAssertEqualsForObjects(body, validationUnits, sootMethod.getReturnType(), expectedValue,
-						actualValue);
+
+				if (JimpleUtils.isPrimitive(sootMethod.getReturnType())) {
+					generateAssertEqualsForPrimitiveTypeUsingBoxing(body, validationUnits, sootMethod.getReturnType(),
+							expectedValue, actualValue);
+				} else {
+					// Fall back to XML verify if equals is not defined. Many
+					// other options are available, but not implemented.
+					generateAssertEqualsForObjects(body, validationUnits, sootMethod.getReturnType(), expectedValue,
+							actualValue);
+				}
 			}
 		}
 
 		// Generate assertions on return type only if there's a return type
-		if (!JimpleUtils.isVoid(JimpleUtils.getReturnType(mut.getJimpleMethod()))) {
+		if (!JimpleUtils.isVoid(JimpleUtils.getReturnType(mut.getMethodSignature()))) {
 			logger.info("Generating Regression assertions for return value of " + mut);
 
 			Local returnValue = null;
@@ -254,7 +369,7 @@ public class AssertionGenerator {
 				}
 			}
 
-			if (JimpleUtils.isPrimitive(JimpleUtils.getReturnType(mut.getJimpleMethod()))) {
+			if (JimpleUtils.isPrimitive(JimpleUtils.getReturnType(mut.getMethodSignature()))) {
 				generateAssertEqualsForPrimitiveTypeUsingBoxing(body, validationUnits, returnValue.getType(),
 						carvedTestCase.getSecond().getReturnObjectLocalFor(mut), //
 						returnValue);
@@ -269,11 +384,13 @@ public class AssertionGenerator {
 			}
 		}
 
-		// Eventually include the validation units in the right place: before
-		// the final return
-		Unit insertionPoint = body.getUnits().getLast();
-
-		body.getUnits().insertBefore(validationUnits, insertionPoint);
+		if (validationUnits.size() > 0) {
+			// Eventually include the validation units in the right place:
+			// before
+			// the final return
+			Unit insertionPoint = body.getUnits().getLast();
+			body.getUnits().insertBefore(validationUnits, insertionPoint);
+		}
 
 		int afterValidation = body.getUnits().size();
 
@@ -368,13 +485,24 @@ public class AssertionGenerator {
 		// boolean equals(java.lang.Object>");
 		// Scene.v().loadClass(expectedValue.getType().toString() )
 		if (!redefinesEqualsAndHashCodeMethods(type)) {
-			// Not sure about primitives and boxed primitives at this point..
-			System.out.println("AssertionGenerator skip generateAssertEqualsForObjects for object " + type);
-			return;
+			generateIndirectAssertEquals(body, type, expectedValue, actualValue, validationUnits);
+		} else {
+			// Add the generated units to validationUnits
+			generateAssertEqualsForObjects(body, type, expectedValue, actualValue, validationUnits);
 		}
-		// Add the generated units to validationUnits
-		generateAssertEqualsForObjects(body, type, expectedValue, actualValue, validationUnits);
 
+	}
+
+	private static void generateIndirectAssertEquals(Body body, Type type, Value expectedValue, Value actualValue,
+			List<Unit> validationUnits) {
+		List<Value> assertParameters = new ArrayList<Value>();
+		assertParameters.add(expectedValue);
+		assertParameters.add(actualValue);
+
+		final SootMethod xmlVerifyContent = Scene.v().getMethod(
+				"<de.unipassau.abc.tracing.XMLVerifier: void verifyContentEquals(java.lang.Object,java.lang.Object)>");
+		validationUnits.add(
+				Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(xmlVerifyContent.makeRef(), assertParameters)));
 	}
 
 	// TODO Probably there's a simpler way to access that method directly or at

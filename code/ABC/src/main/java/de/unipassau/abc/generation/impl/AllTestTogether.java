@@ -33,7 +33,7 @@ public class AllTestTogether implements TestClassGenerator {
 	@Override
 	public SootClass getTestClassFor(MethodInvocation mut) {
 		
-		String classUnderTest = JimpleUtils.getClassNameForMethod(mut.getJimpleMethod());
+		String classUnderTest = JimpleUtils.getClassNameForMethod(mut.getMethodSignature());
 
 		if (!testClasses.containsKey(classUnderTest)) {
 			testClasses.put(classUnderTest, getTestClass(classUnderTest));

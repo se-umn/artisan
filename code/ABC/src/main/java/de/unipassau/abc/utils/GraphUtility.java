@@ -57,8 +57,8 @@ public class GraphUtility {
 		}
 
 		for (int index = 0; index < orderedMethodInvocation.size(); index++) {
-			if ( ! orderedMethodInvocation.get(index).getJimpleMethod()
-					.equals(orderedMethodInvocation2.get(index).getJimpleMethod())) {
+			if ( ! orderedMethodInvocation.get(index).getMethodSignature()
+					.equals(orderedMethodInvocation2.get(index).getMethodSignature())) {
 				return false;
 			}
 		}

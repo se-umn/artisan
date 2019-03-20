@@ -192,9 +192,10 @@ public class StackImplementation implements TraceParser {
 		}
 
 		// We push nevertheless
-		callGraph.push(methodInvocation, false);
+		callGraph.push(methodInvocation);
 
-		dataDependencyGraph.addMethodInvocation(methodInvocation, actualParameters);
+		methodInvocation.setActualParameters(actualParameters);
+		dataDependencyGraph.addMethodInvocation(methodInvocation);
 		executionFlowGraph.enqueueMethodInvocations(methodInvocation);
 
 		// Check if this method is System.exit
@@ -323,13 +324,13 @@ public class StackImplementation implements TraceParser {
 
 		MethodInvocation methodInvocation = callGraph.pop();
 
-		while (!methodInvocation.getJimpleMethod().equals(findCorrectJimpleMethod(jimpleMethod))) {
+		while (!methodInvocation.getMethodSignature().equals(findCorrectJimpleMethod(jimpleMethod))) {
 			// This can be explained as the result of an exception being throw
 			// inside the method, which cause the method end NOT to be reached !
 			// throw new RuntimeException("Wrong call stack found " +
 			// methodInvocation.getJimpleMethod() + " but expecting " +
 			// jimpleMethod );
-			logger.warn("Possibly Exceptional behavior. Try to skip " + methodInvocation.getJimpleMethod());
+			logger.warn("Possibly Exceptional behavior. Try to skip " + methodInvocation.getMethodSignature());
 			methodInvocation = callGraph.pop();
 		}
 
@@ -337,14 +338,14 @@ public class StackImplementation implements TraceParser {
 			methodInvocation.setXmlDumpForOwner(ownerXmlFile);
 		}
 
-		if (!JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()))) {
+		if (!JimpleUtils.isVoid(JimpleUtils.getReturnType(methodInvocation.getMethodSignature()))) {
 			methodInvocation.setXmlDumpForReturn(returnXmlFile);
 		}
 
 		// Ideally there's no need to keep track of the entire method, it would
 		// be enough to register the creation of a new string
 		if (!Carver.STRINGS_AS_OBJECTS
-				&& JimpleUtils.isString(JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()))) {
+				&& JimpleUtils.isString(JimpleUtils.getReturnType(methodInvocation.getMethodSignature()))) {
 
 			// The value of the string is stored in the xmlFile
 			DataNode stringValueNode = dataDependencyGraph.addDataDependencyOnReturn(methodInvocation,

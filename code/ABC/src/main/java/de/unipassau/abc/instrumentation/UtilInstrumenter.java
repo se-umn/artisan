@@ -407,13 +407,13 @@ public class UtilInstrumenter {
 			List<Unit> validationUnits) {
 
 		return generateExpectedValueFor(body, validationUnits, methodInvocation.getXmlDumpForOwner(),
-				JimpleUtils.getClassNameForMethod(methodInvocation.getJimpleMethod()));
+				JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature()));
 	}
 
 	// This must consider the case of Primitive types !
 	public static Local generateExpectedValueForReturn(MethodInvocation methodInvocation, Body body,
 			List<Unit> validationUnits) {
 			return generateExpectedValueFor(body, validationUnits, methodInvocation.getXmlDumpForReturn(),
-					JimpleUtils.getReturnType(methodInvocation.getJimpleMethod()));
+					JimpleUtils.getReturnType(methodInvocation.getMethodSignature()));
 	}
 }

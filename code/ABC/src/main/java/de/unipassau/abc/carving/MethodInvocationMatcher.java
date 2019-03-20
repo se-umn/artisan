@@ -43,7 +43,7 @@ public class MethodInvocationMatcher {
 			// Tag
 			+ "[a-zA_Z_][\\.\\w]*(\\[\\])?" // accept arrays as owners
 			+ ":\\s" //
-			+ "[a-zA_Z_][\\.\\w]*(\\[\\])?" // accept arrats as return type
+			+ "[a-zA_Z_][\\.\\w]*(\\[\\])?" // accept arrays as return type
 			+ "\\s"//
 			+ "([\\.\\w][\\.\\w]*|<init>|<clinit>)" // Method name or
 													// constructor or static
@@ -112,12 +112,13 @@ public class MethodInvocationMatcher {
 	}
 
 	public static MethodInvocationMatcher fromMethodInvocation(MethodInvocation methodInvocation) {
-		String jimpleMethod = methodInvocation.getJimpleMethod();
+		String jimpleMethod = methodInvocation.getMethodSignature();
 		return new MethodInvocationMatcher(//
 				JimpleUtils.getClassNameForMethod(jimpleMethod), //
 				JimpleUtils.getReturnType(jimpleMethod), //
 				JimpleUtils.getMethodName(jimpleMethod), //
-				JimpleUtils.getParameterList(jimpleMethod), methodInvocation.getInvocationCount(), null);
+				JimpleUtils.getParameterList(jimpleMethod), //
+				methodInvocation.getInvocationCount(), null);
 	}
 
 	// This is only for the SubClasses
@@ -201,7 +202,7 @@ public class MethodInvocationMatcher {
 
 	private boolean matchByRegEx(MethodInvocation methodInvocation) {
 		// Basic chain of command pattern
-		String jimpleMethod = methodInvocation.getJimpleMethod();
+		String jimpleMethod = methodInvocation.getMethodSignature();
 		final Matcher jimpleMatcher = jimpleMethodInvocationPattern.matcher(jimpleMethod);
 
 		if (!jimpleMatcher.find()) {
@@ -235,6 +236,7 @@ public class MethodInvocationMatcher {
 			// methodPatternMatcher " + methodPattern);
 			return false;
 		}
+		
 		// Matching parametes positionally
 		String[] formalParams = JimpleUtils.getParameterList(jimpleMethod);
 		if (formalParams.length != parameterPatterns.length) {
@@ -282,6 +284,13 @@ public class MethodInvocationMatcher {
 
 	public static MethodInvocationMatcher alwaysMatch() {
 		return new AlwaysMatchMethodInvocationMatcher();
+	}
+
+	// Parameters must be matched one by one ?!
+	public static MethodInvocationMatcher byMethodName(String methodNameRegex) {
+		// Parameters regex, one for each parameter ?
+		return new ByNameOnlyMethodInvocationMatcher(methodNameRegex);
+		
 	}
 
 }

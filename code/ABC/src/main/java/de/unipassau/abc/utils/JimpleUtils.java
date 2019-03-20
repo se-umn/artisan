@@ -4,8 +4,13 @@ import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import de.unipassau.abc.carving.MethodInvocation;
 import soot.Body;
 import soot.Local;
+import soot.Scene;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.Type;
@@ -13,6 +18,7 @@ import soot.Unit;
 
 public class JimpleUtils {
 
+	private final static Logger logger = LoggerFactory.getLogger( JimpleUtils.class );
 	/**
 	 * Return parameter type names
 	 * 
@@ -51,6 +57,10 @@ public class JimpleUtils {
 	public static boolean isString(String type) {
 		return type.equals("java.lang.String");
 	}
+	
+	public static boolean isStringContent(String stringContent) {
+        return stringContent != null && (stringContent.startsWith("[") && stringContent.endsWith("]"));
+    }
 
 	public static boolean isVoid(String type) {
 		return type.equals("void");
@@ -155,4 +165,18 @@ public class JimpleUtils {
 		StringBuffer sb = new StringBuffer();
 		return sb.append(jimpleMethod.split(" ")[1]+" "+jimpleMethod.split(" ")[2]).deleteCharAt(sb.length()-1).toString();
 	}
+
+	// Some caching maybe ?
+	public static SootMethod toSootMethod(MethodInvocation mi) {
+		try{
+		return Scene.v().getMethod( mi.getMethodSignature() );
+		}catch(Throwable t ){
+			logger.error("Cannot find method {} ", mi.getMethodSignature() );
+			return null;
+		}
+	}
+	
+    public static boolean isConstructor(String methodSignature) {
+        return methodSignature.contains("<init>");
+    }
 }

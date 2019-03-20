@@ -10,9 +10,12 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
 	private final static Logger logger = LoggerFactory.getLogger(MethodInvocation.class);
 
-	private String invocationType;
-	private String jimpleMethod;
+	private String methodSignature;
+	private String[] actualParameters;
+	
+	
 	//
+	private String invocationType;
 	private String xmlFileForOwner; // This stores the owner value status AFTER
 									// calling this method
 	private String xmlFileForReturn; // This stores the return value status
@@ -31,14 +34,24 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
 	private boolean isPrivate = false;
 
+	// why we need this if we have owner? 
 	private boolean staticCall;
 
 	private boolean isTestSetupCall;
 
+    private boolean isLibraryCall;
+
 //	private boolean belongsToAbstractClass;
 
+    public MethodInvocation(int invocationCount, String methodSignature, String[] actualParameters) {
+        this.invocationCount = invocationCount;
+        this.methodSignature = methodSignature;
+        this.actualParameters = actualParameters;
+    }
+    
+    @Deprecated
 	public MethodInvocation(String jimpleMethod, int invocationCount) {
-		this.jimpleMethod = jimpleMethod;
+		this.methodSignature = jimpleMethod;
 		this.invocationCount = invocationCount;
 	}
 
@@ -50,8 +63,8 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		return invocationType;
 	}
 
-	public String getJimpleMethod() {
-		return jimpleMethod;
+	public String getMethodSignature() {
+		return methodSignature;
 	}
 
 	public int getInvocationCount() {
@@ -65,7 +78,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + invocationCount;
-		result = prime * result + ((jimpleMethod == null) ? 0 : jimpleMethod.hashCode());
+		result = prime * result + ((methodSignature == null) ? 0 : methodSignature.hashCode());
 		return result;
 	}
 
@@ -80,17 +93,17 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		MethodInvocation other = (MethodInvocation) obj;
 		if (invocationCount != other.invocationCount)
 			return false;
-		if (jimpleMethod == null) {
-			if (other.jimpleMethod != null)
+		if (methodSignature == null) {
+			if (other.methodSignature != null)
 				return false;
-		} else if (!jimpleMethod.equals(other.jimpleMethod))
+		} else if (!methodSignature.equals(other.methodSignature))
 			return false;
 		return true;
 	}
 
 	@Override
 	public String toString() {
-		return jimpleMethod + "_" + invocationCount;
+		return methodSignature + "_" + invocationCount;
 	}
 
 	public void setStatic(boolean staticCall) {
@@ -149,14 +162,6 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	public boolean isPrivate() {
 		return isPrivate;
 	}
-
-//	public void setBelongsToAbstractClass(boolean belongsToAbstractClass) {
-//		this.belongsToAbstractClass = belongsToAbstractClass;
-//	}
-//	public boolean belongsToAbstractClass() {
-//		return belongsToAbstractClass;
-//	}
-	
 	
 	// This define the order as in the execution graph
 	@Override
@@ -179,5 +184,27 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	public boolean isBefore(MethodInvocation next) {
 		return compareTo( next ) < 0;
 	}
+
+    /* Identifies System and 3rd party library method calls */
+	public void setLibraryCall(boolean b) {
+        this.isLibraryCall = b;
+    }
+    
+    public boolean isLibraryCall() {
+        return isLibraryCall;
+    }
+
+    public String[] getActualParameters() {
+        return actualParameters;
+    }
+
+    public void setActualParameters(String[] actualParameters) {
+        this.actualParameters = actualParameters;
+    }
+
+    public boolean isPure() {
+        // TODO Auto-generated method stub
+        return false;
+    }
 
 }
