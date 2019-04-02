@@ -78,7 +78,7 @@ public class Pair<F, S> implements Serializable, Cloneable {
 	}
 
 	public String toString() {
-		return "Pair " + first + "," + second;
+		return "Pair(" + first + ", " + second+")";
 	}
 
 }

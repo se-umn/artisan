@@ -3,46 +3,36 @@ package de.unipassau.abc.parsing;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.attribute.FileAttribute;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.StringTokenizer;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
 import com.thoughtworks.xstream.XStream;
 
 import de.unipassau.abc.carving.CallGraph;
-import de.unipassau.abc.carving.Carver;
 import de.unipassau.abc.carving.DataDependencyGraph;
 import de.unipassau.abc.carving.DataNode;
+import de.unipassau.abc.carving.DataNodeFactory;
 import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
 import de.unipassau.abc.carving.ObjectInstance;
-import de.unipassau.abc.carving.PrimitiveValue;
 import de.unipassau.abc.carving.exceptions.CarvingException;
-import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.tracing.Trace;
 import de.unipassau.abc.utils.JimpleUtils;
+import edu.emory.mathcs.backport.java.util.Arrays;
 
 /**
  * Parses the traces collected over android devices using the dyniac/duafdroid
@@ -58,6 +48,7 @@ import de.unipassau.abc.utils.JimpleUtils;
  * artifacts to file(s)
  * 
  * Library calls are identified by [>>] while user calls are identified by [>]
+ * Synthetic calls are identified by [>s]
  * 
  * @author gambi
  *
@@ -114,6 +105,17 @@ public class DuafDroidParser {
 
             String each = lines.get(i);
 
+            // We must call this every time we start a new trace to ensure it removes spurious/uncomplete onDestroy methods
+            if (each.contains("---- STARTING TRACING for")) {
+                List<MethodInvocation> invocationsToDrop = callGraph.verify();
+                for( MethodInvocation toDrop : invocationsToDrop ){
+                    executionFlowGraph.dequeue( toDrop );
+                    dataDependencyGraph.removeMethodInvocation(toDrop);
+                }
+
+                continue;
+            }
+
             String[] parsedLine = Trace.parseLine(each);
 
             if (parsedLine.length != 4) {
@@ -132,39 +134,76 @@ public class DuafDroidParser {
             // Currently analyzes method invocation in the trace
             MethodInvocation methodInvocation = null;
 
+            boolean isSyntheticMethod = false;
             switch (openingToken) {
+
+            case Trace.SYNTHETIC_METHOD_START_TOKEN:
             case Trace.METHOD_START_TOKEN:
             case Trace.LIB_METHOD_START_TOKEN:
-                //
-                String[] actualParameters = Trace.getActualParameters(methodSignature, parameterString);
-                // This is the basic carving object, a method call/method
-                // invocation
-                methodInvocation = new MethodInvocation(invocationCount.incrementAndGet(), methodSignature,
-                        actualParameters);
+                /*
+                 * This is the basic carving object, a method call/method
+                 * invocation
+                 */
+                methodInvocation = new MethodInvocation(invocationCount.incrementAndGet(), methodSignature);
+                /*
+                 * Explicitly set the relevant attributes of the object
+                 */
                 methodInvocation.setLibraryCall(openingToken.equals(Trace.LIB_METHOD_START_TOKEN));
-                methodInvocation.setStatic(methodOwner.isEmpty());
-                // Store parsing data
-                callGraph.push(methodInvocation);
+                methodInvocation.setSyntheticMethod(openingToken.equals(Trace.SYNTHETIC_METHOD_START_TOKEN));
+                /*
+                 * A call which lacks the owner and is not an instance
+                 * constructor must be static. Note there's no way from the
+                 * methodSignature to distinguish static vs instance calls
+                 */
+                if (!JimpleUtils.isConstructor(methodSignature)) {
+                    methodInvocation.setStatic(methodOwner.isEmpty());
+                }
+
+                /*
+                 * Update the parsing data
+                 */
                 executionFlowGraph.enqueueMethodInvocations(methodInvocation);
-                dataDependencyGraph.addMethodInvocation(methodInvocation);
-                // Update method ownership information for non static and non
-                // constructor methods
-                if (!(methodInvocation.isStatic() || JimpleUtils.isConstructor(methodSignature))) {
-                    // Method Owner is Type@ID, ID=0 if instance is null
+                callGraph.push(methodInvocation);
+                dataDependencyGraph.addMethodInvocationWithoutAnyDependency(methodInvocation);
+
+                /*
+                 * Update data dependencies and link the various objects
+                 */
+
+                /*
+                 * Method Ownership for non static, non constructor method
+                 * (including static initializers)
+                 */
+                if (!(methodInvocation.isStatic() || JimpleUtils.isConstructorOrClassConstructor(methodSignature))) {
                     ObjectInstance owner = new ObjectInstance(methodOwner);
                     methodInvocation.setOwner(owner);
                     dataDependencyGraph.addDataDependencyOnOwner(methodInvocation, owner);
-                    executionFlowGraph.addOwnerToMethodInvocation(methodInvocation, owner);
+                    // executionFlowGraph.addOwnerToMethodInvocation(methodInvocation,
+                    // owner);
                 }
+
+                /*
+                 * Parameters
+                 */
+                String[] actualParameters = Trace.getActualParameters(methodSignature, parameterString);
+                String[] formalParameters = Trace.getFormalParameters(methodSignature);
+                List<DataNode> actualParameterInstances = new ArrayList<>();
+
+                for (int position = 0; position < actualParameters.length; position++) {
+                    String actualParameterAsString = actualParameters[position];
+                    String formalParameter = formalParameters[position];
+                    DataNode actualParameter = DataNodeFactory.get(formalParameter, actualParameterAsString);
+                    actualParameterInstances.add(actualParameter);
+                    dataDependencyGraph.addDataDependencyOnActualParameter(methodInvocation, actualParameter, position);
+                }
+                methodInvocation.setActualParameterInstances(actualParameterInstances);
+
                 logger.trace(
                         "Method invocation:" + methodInvocation + "" + ((methodInvocation.isStatic()) ? " static" : "")
                                 + ((methodInvocation.isLibraryCall()) ? " libCall" : ""));
                 break;
             case Trace.METHOD_END_TOKEN:
-                String returnValue = parameterString.isEmpty() ? null : parameterString;
-                // TODO We cannot distinguish static from non-static calls from
-                // the methodSignature only
-
+                String returnValueAsString = parameterString.isEmpty() ? null : parameterString;
                 /*
                  * Retrieve the last method invocation registered Check that
                  * this corresponds to the one we just parsed Method Signatures
@@ -172,38 +211,58 @@ public class DuafDroidParser {
                  * constructor
                  */
                 methodInvocation = callGraph.pop();
+
+                /*
+                 * Check this is actually the call we are looking for
+                 */
                 if (!methodInvocation.getMethodSignature().equals(methodSignature)) {
-                    throw new RuntimeException("Cannot parse " + i + " -- " + each + ". Unexpected method return from "
-                            + methodInvocation);
+
+                    List<MethodInvocation> subsumingMethods = callGraph
+                            .getOrderedSubsumingMethodInvocationsFor(methodInvocation);
+
+                    throw new RuntimeException(
+                            "Cannot parse " + i + " -- " + each + ". Unexpected method return from " + methodInvocation
+                                    + "\nSubsuming methods; " + subsumingMethods.toString().replaceAll(",", "\n"));
                 }
-                // Owner should match for non constructor calls. For static this
-                // is empty/null on both sides?
-                if (!JimpleUtils.isConstructor(methodSignature)) {
-                    String storedMethodOwner = methodInvocation.getOwner() != null
-                            ? methodInvocation.getOwner().getObjectId() : "";
+
+                if (!methodInvocation.isStatic() && !JimpleUtils.isConstructorOrClassConstructor(methodSignature)) {
+                    String storedMethodOwner = methodInvocation.getOwner().getObjectId();
                     if (!storedMethodOwner.equals(methodOwner)) {
+
+                        List<MethodInvocation> subsumingMethods = callGraph
+                                .getOrderedSubsumingMethodInvocationsFor(methodInvocation);
+
                         throw new RuntimeException("Cannot parse " + i + " -- " + each
-                                + ". Method owner does not match with " + storedMethodOwner);
+                                + ". Method owner does not match with " + storedMethodOwner + "\nSubsuming methods; "
+                                + subsumingMethods.toString().replaceAll(",", "\n"));
                     }
                 }
 
                 /*
                  * At this point we found a matching method call we update the
-                 * data structures
+                 * data structures.
                  */
                 if (JimpleUtils.isConstructor(methodSignature)) {
-                    // Ownership info for constructors arrives by the end of the
-                    // invocation...
+                    /*
+                     * Ownership info for constructors are available only by the
+                     * end of the invocation... This is not 100% accurate but we
+                     * try to live with that...
+                     */
                     ObjectInstance owner = new ObjectInstance(methodOwner);
                     methodInvocation.setOwner(owner);
                     dataDependencyGraph.addDataDependencyOnOwner(methodInvocation, owner);
-                    executionFlowGraph.addOwnerToMethodInvocation(methodInvocation, owner);
+                    // Still not sure WHY we need to register the data deps if
+                    // we have that into the methodInvocation and data deps...
+                    // executionFlowGraph.addOwnerToMethodInvocation(methodInvocation,
+                    // owner);
                 }
-
+                /*
+                 * Return type
+                 */
                 String returnType = methodSignature.trim().split(" ")[1];
                 if (!JimpleUtils.isVoid(returnType)) {
-                    // TODO Do we need to handle NUll values in some special way
-                    // ?
+                    DataNode returnValue = DataNodeFactory.get(returnType, returnValueAsString);
+                    methodInvocation.setReturnValue(returnValue);
                     dataDependencyGraph.addDataDependencyOnReturn(methodInvocation, returnValue);
                 }
                 break;
@@ -252,7 +311,7 @@ public class DuafDroidParser {
 
             File outputArtifactTo = cli.getOutputDir();
             if (!outputArtifactTo.exists()) {
-                Files.createDirectories(outputArtifactTo.toPath(), new FileAttribute[] {});
+                Files.createDirectories(outputArtifactTo.getParentFile().toPath(), new FileAttribute[] {});
             }
 
             try (OutputStream writer = new FileOutputStream(outputArtifactTo)) {

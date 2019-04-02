@@ -29,8 +29,8 @@ public class DuafDroidParserTest {
     @Test
     public void mainTest() throws IOException{
         
-        File outputTo = tempFolder.newFile("parsed.xml");
-        String trace = new File("src/test/resources/android-24-traces/trace.log").getAbsolutePath();
+        File outputTo = new File("src/test/resources/android-28-traces/parsed.xml"); //tempFolder.newFile("parsed.xml");
+        String trace = new File("src/test/resources/android-28-traces/trace.log").getAbsolutePath();
         
         String[] args = new String[]{"--trace-files", trace, "--store-artifacts-to", outputTo.getAbsolutePath()};
         

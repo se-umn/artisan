@@ -1,0 +1,153 @@
+<de.unipassau.abc.data.Pair>
+  <first class="de.unipassau.abc.carving.ExecutionFlowGraph">
+    <logger class="org.slf4j.impl.SimpleLogger">
+      <name>de.unipassau.abc.carving.ExecutionFlowGraph</name>
+      <currentLogLevel>0</currentLogLevel>
+    </logger>
+    <id>
+      <value>3</value>
+    </id>
+    <tid>
+      <value>0</value>
+    </tid>
+    <graph class="edu.uci.ics.jung.graph.DirectedSparseMultigraph">
+      <edge__type>DIRECTED</edge__type>
+      <vertices>
+        <entry>
+          <de.unipassau.abc.carving.MethodInvocation>
+            <invocationCount>5</invocationCount>
+            <methodSignature>&lt;com.farmerbb.notepad.activity.MainActivity: void onCreate(android.os.Bundle)&gt;</methodSignature>
+            <owner>
+              <isAndroidActivity>false</isAndroidActivity>
+              <objectId>com.farmerbb.notepad.activity.MainActivity@162860595</objectId>
+            </owner>
+            <actualParameterInstances>
+              <de.unipassau.abc.carving.NullInstance>
+                <isAndroidActivity>false</isAndroidActivity>
+                <objectId>android.os.Bundle@0</objectId>
+                <uniqueId>1</uniqueId>
+                <type>android.os.Bundle</type>
+              </de.unipassau.abc.carving.NullInstance>
+            </actualParameterInstances>
+            <distanceFromMain>0</distanceFromMain>
+            <belongToExternalInterface>false</belongToExternalInterface>
+            <isPrivate>false</isPrivate>
+            <staticCall>false</staticCall>
+            <isTestSetupCall>false</isTestSetupCall>
+            <isLibraryCall>false</isLibraryCall>
+            <isConstructor>false</isConstructor>
+            <isSynthetic>false</isSynthetic>
+          </de.unipassau.abc.carving.MethodInvocation>
+          <edu.uci.ics.jung.graph.util.Pair>
+            <first class="set"/>
+            <second class="set"/>
+          </edu.uci.ics.jung.graph.util.Pair>
+        </entry>
+        <entry>
+          <de.unipassau.abc.carving.MethodInvocation>
+            <invocationCount>1</invocationCount>
+            <methodSignature>&lt;com.farmerbb.notepad.activity.MainActivity: void &lt;init&gt;()&gt;</methodSignature>
+            <owner>
+              <isAndroidActivity>false</isAndroidActivity>
+              <objectId>com.farmerbb.notepad.activity.MainActivity@162860595</objectId>
+            </owner>
+            <actualParameterInstances/>
+            <distanceFromMain>0</distanceFromMain>
+            <belongToExternalInterface>false</belongToExternalInterface>
+            <isPrivate>false</isPrivate>
+            <staticCall>false</staticCall>
+            <isTestSetupCall>false</isTestSetupCall>
+            <isLibraryCall>false</isLibraryCall>
+            <isConstructor>true</isConstructor>
+            <isSynthetic>false</isSynthetic>
+          </de.unipassau.abc.carving.MethodInvocation>
+          <edu.uci.ics.jung.graph.util.Pair>
+            <first class="set"/>
+            <second class="set"/>
+          </edu.uci.ics.jung.graph.util.Pair>
+        </entry>
+      </vertices>
+      <edges/>
+    </graph>
+    <lastMethodInvocation reference="../graph/vertices/entry/de.unipassau.abc.carving.MethodInvocation"/>
+    <firstMethodInvocation reference="../graph/vertices/entry[2]/de.unipassau.abc.carving.MethodInvocation"/>
+  </first>
+  <second class="de.unipassau.abc.carving.DataDependencyGraph">
+    <graph class="edu.uci.ics.jung.graph.DirectedSparseMultigraph">
+      <edge__type>DIRECTED</edge__type>
+      <vertices>
+        <entry>
+          <de.unipassau.abc.carving.NullInstance reference="../../../../../first/graph/vertices/entry/de.unipassau.abc.carving.MethodInvocation/actualParameterInstances/de.unipassau.abc.carving.NullInstance"/>
+          <edu.uci.ics.jung.graph.util.Pair>
+            <first class="set"/>
+            <second class="set">
+              <string>DataNode_0_5</string>
+            </second>
+          </edu.uci.ics.jung.graph.util.Pair>
+        </entry>
+        <entry>
+          <de.unipassau.abc.carving.MethodInvocation reference="../../../../../first/graph/vertices/entry/de.unipassau.abc.carving.MethodInvocation"/>
+          <edu.uci.ics.jung.graph.util.Pair>
+            <first class="set">
+              <string>Ownership_4</string>
+              <string>DataNode_0_5</string>
+            </first>
+            <second class="set"/>
+          </edu.uci.ics.jung.graph.util.Pair>
+        </entry>
+        <entry>
+          <de.unipassau.abc.carving.ObjectInstance>
+            <isAndroidActivity>false</isAndroidActivity>
+            <objectId>com.farmerbb.notepad.activity.MainActivity@162860595</objectId>
+          </de.unipassau.abc.carving.ObjectInstance>
+          <edu.uci.ics.jung.graph.util.Pair>
+            <first class="set"/>
+            <second class="set">
+              <string>Ownership_2</string>
+              <string>Ownership_4</string>
+            </second>
+          </edu.uci.ics.jung.graph.util.Pair>
+        </entry>
+        <entry>
+          <de.unipassau.abc.carving.MethodInvocation reference="../../../../../first/graph/vertices/entry[2]/de.unipassau.abc.carving.MethodInvocation"/>
+          <edu.uci.ics.jung.graph.util.Pair>
+            <first class="set">
+              <string>Ownership_2</string>
+            </first>
+            <second class="set"/>
+          </edu.uci.ics.jung.graph.util.Pair>
+        </entry>
+      </vertices>
+      <edges>
+        <entry>
+          <string>Ownership_2</string>
+          <edu.uci.ics.jung.graph.util.Pair>
+            <first class="de.unipassau.abc.carving.ObjectInstance" reference="../../../../../../first/graph/vertices/entry[2]/de.unipassau.abc.carving.MethodInvocation/owner"/>
+            <second class="de.unipassau.abc.carving.MethodInvocation" reference="../../../../../../first/graph/vertices/entry[2]/de.unipassau.abc.carving.MethodInvocation"/>
+          </edu.uci.ics.jung.graph.util.Pair>
+        </entry>
+        <entry>
+          <string>Ownership_4</string>
+          <edu.uci.ics.jung.graph.util.Pair>
+            <first class="de.unipassau.abc.carving.ObjectInstance" reference="../../../../../../first/graph/vertices/entry/de.unipassau.abc.carving.MethodInvocation/owner"/>
+            <second class="de.unipassau.abc.carving.MethodInvocation" reference="../../../../../../first/graph/vertices/entry/de.unipassau.abc.carving.MethodInvocation"/>
+          </edu.uci.ics.jung.graph.util.Pair>
+        </entry>
+        <entry>
+          <string>DataNode_0_5</string>
+          <edu.uci.ics.jung.graph.util.Pair>
+            <first class="de.unipassau.abc.carving.NullInstance" reference="../../../../../../first/graph/vertices/entry/de.unipassau.abc.carving.MethodInvocation/actualParameterInstances/de.unipassau.abc.carving.NullInstance"/>
+            <second class="de.unipassau.abc.carving.MethodInvocation" reference="../../../../../../first/graph/vertices/entry/de.unipassau.abc.carving.MethodInvocation"/>
+          </edu.uci.ics.jung.graph.util.Pair>
+        </entry>
+      </edges>
+    </graph>
+    <additionalData>
+      <entry>
+        <de.unipassau.abc.carving.NullInstance reference="../../../../first/graph/vertices/entry/de.unipassau.abc.carving.MethodInvocation/actualParameterInstances/de.unipassau.abc.carving.NullInstance"/>
+        <soot.jimple.NullConstant/>
+      </entry>
+    </additionalData>
+  </second>
+  <hashCode>0</hashCode>
+</de.unipassau.abc.data.Pair>

@@ -94,9 +94,13 @@ public class CodeGenerationTest {
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
 				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
 
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(
-				MethodInvocationMatcher.fromMethodInvocation(new MethodInvocation(jimpleMethod, invocationID)),
-				excludeNoMethodInvocationsMatcher);
+		List<MethodInvocation> methodsInvocationsToCarve = new ArrayList<>(
+		        parsedSystemTest.getFirst().getMethodInvocationsFor(
+		                MethodInvocationMatcher.fromMethodInvocation(new MethodInvocation(jimpleMethod, invocationID)),
+		                excludeNoMethodInvocationsMatcher.toArray(new MethodInvocationMatcher[]{})));
+		
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodsInvocationsToCarve);
+				
 
 		File projectJar = new File("./src/test/resources/Employee.jar");
 		Carver.setupSoot(Collections.singletonList(projectJar));

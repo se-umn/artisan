@@ -1,15 +1,6 @@
 package de.unipassau.abc.carving;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import com.thoughtworks.xstream.XStream;
-import com.thoughtworks.xstream.security.NoTypePermission;
-import com.thoughtworks.xstream.security.NullPermission;
-import com.thoughtworks.xstream.security.PrimitiveTypePermission;
 
 public class PrimitiveNodeFactory {
 
@@ -19,6 +10,11 @@ public class PrimitiveNodeFactory {
         return new PrimitiveValue(uniqueId.incrementAndGet(), type, value);
     }
 
+    // THIS IS UNSAFE... use with caution !
+    public static DataNode createPrimitiveClassNode(String value) {
+        return new PrimitiveValue(uniqueId.incrementAndGet(), Class.class.getName(), value+".class");
+    }
+    
     public static PrimitiveValue createStringNode(String type, String stringContent) {
         if (!type.equals("java.lang.String")) {
             throw new RuntimeException("Cannot create a string node for type " + type);
@@ -80,5 +76,28 @@ public class PrimitiveNodeFactory {
         }
         return pv;
     }
+
+    /**
+     * This returns an object which carries a literal representation of a method call... to an objects mocked
+     * 
+     * @param bytes
+     * @return
+     */
+    public static DataNode createMethodCallLiteralValue(MethodInvocation methodCall) {
+        // methodCall already encodes its actual parameters 
+        // Most likely this shall be replaced by an other implementatino of ValueNode
+        // TODO is most likely not working we need to keep methodCall as object ... 
+        return new MethodCallLiteralValue(uniqueId.incrementAndGet(), methodCall);
+    }
+    
+    // TODO Does this need to use formal or actual parameter? Don't care we match any objects...
+    public static DataNode createParameterMatcherLiteralValue(DataNode parameter) {
+        // methodCall already encodes its actual parameters 
+        // Most likely this shall be replaced by an other implementatino of ValueNode
+        // TODO is most likely not working we need to keep methodCall as object ... 
+        return new ParameterMatcherLiteralValue(uniqueId.incrementAndGet(), parameter);
+    }
+
+    
 
 }

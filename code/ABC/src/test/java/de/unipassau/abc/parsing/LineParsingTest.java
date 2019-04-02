@@ -2,11 +2,11 @@ package de.unipassau.abc.parsing;
 
 import java.util.Arrays;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.tracing.Trace;
 import de.unipassau.abc.utils.JimpleUtils;
 
@@ -15,7 +15,7 @@ public class LineParsingTest {
     // [>];com.farmerbb.notepad.activity.MainActivity@106000899;<com.farmerbb.notepad.activity.MainActivity:
     // void <init>()>;();
     @Test
-    public void parseMethodStart() {
+    public void parseMethodStart() throws CarvingException {
 
         String expectedToken = Trace.METHOD_START_TOKEN;
         String expectedMethodOwner = "com.farmerbb.notepad.activity.MainActivity@106000899";
@@ -36,7 +36,7 @@ public class LineParsingTest {
     }
 
     @Test
-    public void parseStaticMethodStart() {
+    public void parseStaticMethodStart() throws CarvingException {
 
         String expectedToken = Trace.METHOD_START_TOKEN;
         // Static methods do not have an owner
@@ -57,7 +57,7 @@ public class LineParsingTest {
     }
 
     @Test
-    public void testGetActualParametersForVoidMethod() {
+    public void testGetActualParametersForVoidMethod() throws CarvingException {
         String traceLine = "[>];android.content.SharedPreferences@119059907;<android.content.SharedPreferences: java.lang.String getString()>;();";
 
         String[] expectedParameters = new String[0];
@@ -74,7 +74,7 @@ public class LineParsingTest {
     }
 
     @Test
-    public void parserStartMethodWithStringParameters() {
+    public void parserStartMethodWithStringParameters() throws CarvingException {
 
         String expectedString = "This is it \n bla";
 
@@ -97,7 +97,7 @@ public class LineParsingTest {
     }
 
     @Test
-    public void parseEndMethod() {
+    public void parseEndMethod() throws CarvingException {
         String traceLine = "[>>];android.support.v7.app.b$a@244927587;<android.support.v7.app.b$a: void <init>(android.content.Context)>;(com.farmerbb.notepad.activity.MainActivity@89520409);";
         
         String[] parsedLine = Trace.parseLine(traceLine);

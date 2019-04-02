@@ -23,6 +23,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
+import com.google.common.collect.Lists;
+
 import de.unipassau.abc.carving.carvers.Level_0_MethodCarver;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
@@ -79,8 +81,10 @@ public class CarvingTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
 				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(staticMethodToCarve,
-				excludeNoMethodInvocationsMatcher);
+		fail("broken test");
+        List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
+//		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(staticMethodToCarve,
+//				excludeNoMethodInvocationsMatcher);
 
 		// System tests contains 2 executions
 		assertEquals(2, carvedTests.size());
@@ -130,12 +134,18 @@ public class CarvingTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
 				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarve,
-				excludeNoMethodInvocationsMatcher);
+		
+		
+		fail("broken test");
+		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>(); 
+//		        testCarver.carve( Lists.newArrayList(methodToCarve),
+//		        excludeNoMethodInvocationsMatcher.toArray(new MethodInvocationMatcher[]{}));
+        
 
+		
 		// The trace contains 2 executions. start -> exit, start -> register
 		// user -> exit
-		assertEquals(8, carvedTests.size());
+//		assertEquals(8, carvedTests.size());
 		//
 		String staticJimpleMethodProvidingObjects = "<org.employee.DummyObjectFactory: org.employee.DummyObjectToPassAsParameter createNewDummyObject()>";
 		// Two of those tests MUST include two invocations to

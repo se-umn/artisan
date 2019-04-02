@@ -4,8 +4,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -24,7 +22,6 @@ import org.slf4j.event.Level;
 import de.unipassau.abc.carving.carvers.Level_0_MethodCarver;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
-import de.unipassau.abc.generation.TestCaseFactory;
 import de.unipassau.abc.generation.TestGenerator;
 import de.unipassau.abc.generation.impl.AllTestTogether;
 import de.unipassau.abc.utils.ABCTestUtils;
@@ -79,8 +76,10 @@ public class CarveWithExpansionsTest {
 			Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
 					parsedSystemTest.getSecond(), parsedSystemTest.getThird());
 
-			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
-					excludeNoMethodInvocationsMatcher);
+			fail("broken test");
+	        List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
+//			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
+//					excludeNoMethodInvocationsMatcher);
 
 			// DEBUG MOSTLY
 			// visualize(carvedTests);
@@ -142,8 +141,10 @@ public class CarveWithExpansionsTest {
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
 				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
 
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
-				excludeNoMethodInvocationsMatcher);
+		fail("broken test");
+        List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
+//		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
+//				excludeNoMethodInvocationsMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -199,9 +200,10 @@ public class CarveWithExpansionsTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
 				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
-
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
-				excludeNoMethodInvocationsMatcher);
+		fail("broken test");
+        List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
+//		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
+//				excludeNoMethodInvocationsMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -269,9 +271,10 @@ public class CarveWithExpansionsTest {
 		// Carving
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
 				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
-
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
-				excludeNoMethodInvocationsMatcher);
+		fail("broken test");
+        List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
+//		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
+//				excludeNoMethodInvocationsMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -347,8 +350,10 @@ public class CarveWithExpansionsTest {
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
 				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
 
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
-				excludeNoMethodInvocationsMatcher);
+		fail("broken test");
+        List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
+//		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
+//				excludeNoMethodInvocationsMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -407,8 +412,10 @@ public class CarveWithExpansionsTest {
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
 				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
 
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
-				excludeNoMethodInvocationsMatcher);
+		fail("broken test");
+        List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
+//		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
+//				excludeNoMethodInvocationsMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -467,8 +474,10 @@ public class CarveWithExpansionsTest {
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
 				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
 
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
-				excludeNoMethodInvocationsMatcher);
+		fail("broken test");
+        List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
+//		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
+//				excludeNoMethodInvocationsMatcher);
 
 		// DEBUG MOSTLY
 		// visualize(carvedTests);
@@ -529,8 +538,10 @@ public class CarveWithExpansionsTest {
 		Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedSystemTest.getFirst(),
 				parsedSystemTest.getSecond(), parsedSystemTest.getThird());
 
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
-				excludeNoMethodInvocationsMatcher);
+		fail("broken test");
+        List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
+//		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodToCarveMatcher,
+//				excludeNoMethodInvocationsMatcher);
 
 		// ABCTestUtils.visualize(carvedTests);
 

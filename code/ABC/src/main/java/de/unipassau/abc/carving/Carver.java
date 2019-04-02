@@ -348,7 +348,10 @@ public class Carver {
 		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTest : parsedTrace.values()) {
 			Level_0_MethodCarver testCarver = new Level_0_MethodCarver(parsedTest.getFirst(), parsedTest.getSecond(),
 					parsedTest.getThird());
-			carvedTests.addAll(testCarver.carve(carveBy, excludeBy));
+			
+			// Select the method invocations to carve
+			List<MethodInvocation> methodsInvocationsToCarve = new ArrayList<>(parsedTest.getFirst().getMethodInvocationsFor(carveBy, excludeBy.toArray(new MethodInvocationMatcher[] {})));
+			carvedTests.addAll(testCarver.carve(methodsInvocationsToCarve));
 		}
 
 		// FIXME Remove duplicates here !
