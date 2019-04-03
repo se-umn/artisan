@@ -7,14 +7,16 @@ import de.unipassau.abc.utils.JimpleUtils;
 
 public class DataNodeFactory {
 
-    private static final Logger logger = LoggerFactory.getLogger( DataNodeFactory.class);
+    private static final Logger logger = LoggerFactory.getLogger(DataNodeFactory.class);
     // TODO Possibly build a cache ?
 
     // TODO Defense against NPE ?
     public static DataNode get(String formalParameter, String actualParameterAsString) {
         DataNode node = null;
 
-        if (JimpleUtils.isPrimitive(formalParameter)) {
+        if (actualParameterAsString == null) {
+            node = NullNodeFactory.get(formalParameter);
+        } else if (JimpleUtils.isPrimitive(formalParameter)) {
             node = PrimitiveNodeFactory.get(formalParameter, actualParameterAsString);
         } else if (JimpleUtils.isString(formalParameter)) {
             /*
@@ -32,11 +34,12 @@ public class DataNodeFactory {
              */
             node = PrimitiveNodeFactory.get("java.lang.String", actualParameterAsString);
         } else if (actualParameterAsString.split("@").length == 2) {
-            // actualParameterAsString can be null if its not specified... for example for strings ?
+            // actualParameterAsString can be null if its not specified... for
+            // example for strings ?
             if (JimpleUtils.isNull(actualParameterAsString)) {
                 // TODO Remove the log entry...
-                if( actualParameterAsString == null){
-                    logger.warn("Object instance is null for " + formalParameter );
+                if (actualParameterAsString == null) {
+                    logger.warn("Object instance is null for " + formalParameter);
                 }
                 node = NullNodeFactory.get(formalParameter);
             } else {

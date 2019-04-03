@@ -36,6 +36,8 @@ public class ObjectInstance implements DataNode {
 
     private String objectId;
 
+    private String type;
+    
     // This is for boxed primitives...
     private String stringValue;
 
@@ -50,6 +52,7 @@ public class ObjectInstance implements DataNode {
         } else {
             this.objectId = objectId;
         }
+        this.type = objectId.split("@")[0];
     }
 
     @Override
@@ -82,7 +85,7 @@ public class ObjectInstance implements DataNode {
         return stringValue;
     }
     public String getType() {
-        return objectId.split("@")[0];
+        return type;
     }
 
     @Override
@@ -111,6 +114,10 @@ public class ObjectInstance implements DataNode {
     
     public boolean isBoxedPrimitive() {
         return JimpleUtils.isBoxedPrimitive(getType());
+    }
+    
+    public static void retype(ObjectInstance objectInstance, String newType){
+        objectInstance.type = newType;
     }
 
 }

@@ -291,7 +291,6 @@ public class AndroidActivityTestGenerator {
          * add the import based on their package...
          */
 
-        // TODO Better handling of the AUT
 
         // https://www.baeldung.com/java-poet
         MethodInvocation methodInvocationUnderTest = carvedTest.getFirst().getLastMethodInvocation();
@@ -328,46 +327,22 @@ public class AndroidActivityTestGenerator {
          * 
          */
 
-        // Resolve alias -> declare them as the upper common type ?
+        /*
+         * Resolve alias
+         */
 
-        // Extract alias relations
-        List<Set<ObjectInstance>> aliases = new ArrayList<>();
+        resolveAliases( dataDependencyGraph );
+        // 
+
+        // Declare all the variables before using them. Objects are initialized by default to null;
         for (DataNode dataNode : dataDependencyGraph.getDataNodes()) {
 
-            if (dataNode instanceof ObjectInstance) {
-                Set<ObjectInstance> aliasSet = null;
+            Pair<String, String> variable = declareVariableFor(dataNode, dataDependencyGraph);
 
-                // Lookup for the corresponding set
-                for (Set<ObjectInstance> setOfAliasClasses : aliases) {
-
-                    if (aliases.contains(dataNode)) {
-                        aliasSet = setOfAliasClasses;
-                        break;
-                    }
-                }
-
-                if (aliasSet == null) {
-                    aliasSet = new HashSet<>();
-                    aliases.add(aliasSet);
-                }
-
-                aliasSet.add((ObjectInstance) dataNode);
-                aliasSet.addAll(dataDependencyGraph.getAliasesOf((ObjectInstance) dataNode));
+            if( variable == null ){
+                // Variable is already declared
+                continue;
             }
-        }
-
-        // Store the Typing information. 
-        Map<Set<ObjectInstance>, Class> aliasToClass = new HashMap<>();
-        for (Set<ObjectInstance> aliasSet : aliases) {
-            Class commonSuperClass = findCommonSuperClass(aliasSet);
-            aliasToClass.put( aliasSet, commonSuperClass);
-        }
-
-        // Declare all the variables before using them
-        for (DataNode dataNode : dataDependencyGraph.getDataNodes()) {
-
-            Pair<String, String> variable = declareVariableFor(dataNode, aliasToClass);
-
             if (dataNode instanceof ObjectInstance) {
                 /*
                  * Activities are managed objects, we cannot instantiate them
@@ -377,12 +352,6 @@ public class AndroidActivityTestGenerator {
             } else {
                 methodBuilder.addStatement(variable.getFirst() + " " + variable.getSecond());
             }
-
-            // System.out.println("AndroidActivityTestGenerator.generate
-            // Variable " + variable.getSecond()
-            // + " corresponding to " + dataNode + " " +
-            // dataDependencyGraph.contextualize(dataNode));
-
         }
 
         /*
@@ -451,8 +420,10 @@ public class AndroidActivityTestGenerator {
                     }
 
                 } else {
-
-                    if (methodInvocation.isConstructor()) {
+                    if (methodInvocation.isConstructor() && ! JimpleUtils.isArray( methodInvocation.getOwner().getType() ) ) {
+                        /*
+                         * Instantiate NON - Array objects 
+                         */
                         String type = getVariableFor(methodInvocation.getOwner()).getFirst();
                         // Use simple names instead of fully qualified names...
                         // type = type.substring(type.lastIndexOf(".") + 1,
@@ -460,7 +431,16 @@ public class AndroidActivityTestGenerator {
 
                         String name = getVariableFor(methodInvocation.getOwner()).getSecond();
                         methodBuilder.addStatement(name + " = new " + type + "(" + parameters.toString() + ")");
-                    } else {
+                    } else if (methodInvocation.isConstructor() && JimpleUtils.isArray( methodInvocation.getOwner().getType() ) ) {
+                        /*
+                         * Instantiate Array. Object[] bla = new Object[0];
+                         */
+                        
+                        String baseArrayType = getVariableFor(methodInvocation.getOwner()).getFirst().replace("[]", "");
+                        String name = getVariableFor(methodInvocation.getOwner()).getSecond();
+                        methodBuilder.addStatement(name + " = new " + baseArrayType + "[" + parameters.toString() + "]");
+                    }
+                    else {
                         methodBuilder.addStatement(returnValue + getVariableFor(methodInvocation.getOwner()).getSecond()
                                 + "." + JimpleUtils.getMethodName(methodInvocation.getMethodSignature()) + "("
                                 + parameters.toString() + ")");
@@ -493,6 +473,50 @@ public class AndroidActivityTestGenerator {
         javaFile.writeTo(System.out);
 
         return javaFile.toString();
+    }
+
+    /*
+     * Retype all the aliases and break  
+     */
+    private void resolveAliases(DataDependencyGraph dataDependencyGraph) {
+        
+        List<Set<ObjectInstance>> aliases = new ArrayList<>();
+        
+        for (DataNode dataNode : dataDependencyGraph.getDataNodes()) {
+
+            if (dataNode instanceof ObjectInstance) {
+                Set<ObjectInstance> aliasSet = dataDependencyGraph.getAliasesOf((ObjectInstance) dataNode);
+                aliasSet.add((ObjectInstance) dataNode);
+
+                if( aliases.contains( aliasSet ) ){
+                    continue;
+                }
+                aliases.add( aliasSet);
+            }
+        }
+        
+        /*
+         * Do we need to resolve aliases ?
+         */
+        // We cannot store typing information in terms of java classes but we might be able to do so using SootClasses?
+//        Map<Set<ObjectInstance>, String> aliasClassesToFormalType = new HashMap<>();
+        for (Set<ObjectInstance> aliasSet : aliases) {
+            if( aliasSet.size() <= 1 ){
+                continue;
+            }
+            System.out.println("AndroidActivityTestGenerator.generateTest() Aliases " + aliasSet );
+//            [java.util.List@184272637, java.util.Arrays$ArrayList@184272637]
+            for( ObjectInstance alias : aliasSet ){
+                if( alias.getType().equals("java.util.Arrays$ArrayList")){
+                    // Force update the type associated with this one. 
+                    ObjectInstance.retype(alias, "java.util.List");
+                }
+            }
+            // TODO Maybe you can use Soot for this...
+            // TODO Maybe we can create one variable of each type using formal parameters?
+//            Class commonSuperClass = findCommonSuperClass(aliasSet);
+//            aliasToClass.put( aliasSet, commonSuperClass);
+        }
     }
 
     private Class findCommonSuperClass(Set<ObjectInstance> aliases) throws ClassNotFoundException {
@@ -546,8 +570,10 @@ public class AndroidActivityTestGenerator {
      */
     private String getParameterFor(DataNode dataNode) {
         if (dataNode instanceof PrimitiveValue) {
-            // We use to string instead of getStringValue to wrap strings which
-            // have two different representations.
+            /*
+             * We use toString() instead of getStringValue() to wrap strings
+             * which have two different representations.
+             */
             return ((PrimitiveValue) dataNode).toString();
         } else if (dataNode instanceof MethodCallLiteralValue) {
             MethodCallLiteralValue methodCall = (MethodCallLiteralValue) dataNode;
@@ -573,19 +599,25 @@ public class AndroidActivityTestGenerator {
      * @param aliasToClass 
      * @return
      */
-    private String getVariableTypeFor(DataNode dataNode, Map<Set<ObjectInstance>, Class> aliasToClass) {
+private String getVariableTypeFor(DataNode dataNode//, 
+            // Rethinkg this aliasing stuff and type inference
+//            Map<Set<ObjectInstance>, Class> aliasToClass
+            ) {
         if (dataNode instanceof PrimitiveValue) {
             return ((PrimitiveValue) dataNode).getType();
         } else if (dataNode instanceof ObjectInstance) {
-            // THIS IS A PATCH
-            String actualType = null;
-            for( Set<ObjectInstance> aliases : aliasToClass.keySet() ){
-                if( aliases.contains(((ObjectInstance) dataNode).getType())){
-                    actualType = aliasToClass.get( aliases ).getName();
-                    break;
-                }
-            }
+            String actualType = ((ObjectInstance) dataNode).getType();
             
+            // THIS IS A PATCH
+//            for( Set<ObjectInstance> aliases : aliasToClass.keySet() ){
+//                if( aliases.contains(((ObjectInstance) dataNode).getType())){
+//                    actualType = aliasToClass.get( aliases ).getName();
+//                    break;
+//                }
+//            }
+//            if( actualType == null ){
+//                throw new RuntimeException("Cannot find actual type of " + dataNode );
+//            }
             // Not sure we can push this more than that...
             String formalType = actualType;
             if (actualType.equals("java.util.Arrays$ArrayList")) {
@@ -614,11 +646,14 @@ public class AndroidActivityTestGenerator {
     // Var Name -> ID
     private Map<String, AtomicInteger> declaredVariablesIndex = new HashMap<>();
 
-    private Pair<String, String> declareVariableFor(DataNode dataNode, Map<Set<ObjectInstance>, Class> aliasToClass) {
-        // Get type, possibly considering the alias information
-        String variableType = getVariableTypeFor(dataNode, aliasToClass);
+    private Pair<String, String> declareVariableFor(DataNode dataNode, DataDependencyGraph dataDependencyGraph) {
+        String variableType = getVariableTypeFor(dataNode);
         String className = variableType.substring(variableType.lastIndexOf('.') + 1, variableType.length());
 
+        if( declaredVariables.containsKey( dataNode ) ){
+            return null;
+        }
+        
         if (!declaredVariablesIndex.containsKey(className)) {
             declaredVariablesIndex.put(className, new AtomicInteger(0));
         }
@@ -632,6 +667,13 @@ public class AndroidActivityTestGenerator {
         Pair<String, String> variable = new Pair<String, String>(variableType, variableName);
 
         declaredVariables.put(dataNode, variable);
+        
+        // Link all the alias to the same variable if any
+        if( dataNode instanceof ObjectInstance ){
+            for( ObjectInstance alias : dataDependencyGraph.getAliasesOf( (ObjectInstance) dataNode )){
+                declaredVariables.put(alias, variable);    
+            }
+        }
 
         return variable;
     }

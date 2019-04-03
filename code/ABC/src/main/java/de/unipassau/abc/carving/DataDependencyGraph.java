@@ -19,7 +19,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.JFrame;
-import javax.xml.crypto.Data;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +36,8 @@ import edu.uci.ics.jung.graph.util.EdgeType;
 import edu.uci.ics.jung.visualization.VisualizationViewer;
 import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
 import soot.Local;
+import soot.Scene;
+import soot.SootClass;
 import soot.Value;
 import soot.jimple.NullConstant;
 
@@ -325,11 +326,14 @@ public class DataDependencyGraph {
              * this require type information to be available.. which is not ATM
              */
 
-            if (alias != null) {
+            if (alias != null && compatibleClasses(node, alias)) {
+
                 // Recording the aliasing relation - This is bidirectional
                 graph.addEdge(ALIAS_DEPENDENCY_PREFIX + "_" + id.getAndIncrement(), node, alias, EdgeType.DIRECTED);
                 graph.addEdge(ALIAS_DEPENDENCY_PREFIX + "_" + id.getAndIncrement(), alias, node, EdgeType.DIRECTED);
                 logger.debug("DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with " + alias);
+                // TODO MAYBE we shall encode directly here the type for the alias relation, and only have it one-directional?
+//                Maybe we can directly "retype" ? But to what? there might be more options ....
             }
         }
 
@@ -337,6 +341,41 @@ public class DataDependencyGraph {
         // Return the original node");
         // Worst case return the original node
         return node;
+
+    }
+
+    private boolean compatibleClasses(ObjectInstance node, ObjectInstance alias) {
+        return isAssignableFrom(node, alias) || isAssignableFrom(alias, node);
+    }
+
+    private boolean isAssignableFrom(ObjectInstance alias, ObjectInstance node) {
+        // If the ONLY common super type is Object and they do not implement any
+        // alias.isAssignableFrom(Foo.class) will be true whenever the class
+        // represented by the alias object
+        // is a superclass or superinterface of node.class.
+        if (alias.getType().equals(node.getType())) {
+            return true;
+        }
+
+        SootClass aliasClass = Scene.v().getSootClass(alias.getType());
+        SootClass nodeClass = Scene.v().getSootClass(node.getType());
+
+        // Compare classes
+        if (!aliasClass.isInterface() && !nodeClass.isInterface()) {
+            return Scene.v().getActiveHierarchy().isClassSuperclassOf(aliasClass, nodeClass);
+        }
+        // Compare interfaces
+        if (aliasClass.isInterface() && nodeClass.isInterface()) {
+            return Scene.v().getActiveHierarchy().isInterfaceSuperinterfaceOf(aliasClass, nodeClass);
+        }
+        
+        // Does node implement alias ?
+        if( aliasClass.isInterface() && ! nodeClass.isInterface()){
+            return Scene.v().getActiveHierarchy().getImplementersOf( aliasClass ).contains( nodeClass );
+        }
+
+        // An interface cannot be a subclass of a class
+        return false;
 
     }
 
@@ -1279,6 +1318,25 @@ public class DataDependencyGraph {
             logger.warn("Did not removed " + toDrop);
         }
 
+    }
+
+    public void addPrimitiveValue(PrimitiveValue primitiveValue) {
+        if (!graph.containsVertex(primitiveValue)) {
+            graph.addVertex(primitiveValue);
+        }
+    }
+
+    public void addNullInstance(NullInstance nullInstance) {
+        if (!graph.containsVertex(nullInstance)) {
+            graph.addVertex(nullInstance);
+        }
+
+    }
+
+    public void addObjectInstance(ObjectInstance carvingTarget) {
+        if (!graph.containsVertex(carvingTarget)) {
+            graph.addVertex(carvingTarget);
+        }
     }
 
 }

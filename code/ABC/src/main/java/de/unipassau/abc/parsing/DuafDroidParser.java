@@ -32,7 +32,6 @@ import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.tracing.Trace;
 import de.unipassau.abc.utils.JimpleUtils;
-import edu.emory.mathcs.backport.java.util.Arrays;
 
 /**
  * Parses the traces collected over android devices using the dyniac/duafdroid

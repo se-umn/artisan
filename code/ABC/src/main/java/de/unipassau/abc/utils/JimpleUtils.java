@@ -214,20 +214,28 @@ public class JimpleUtils {
     }
 
     // Assume this is a string content ...
+    // TODO This breaks on "\n" 
     public static String generateStringContent(String stringContent) {
         if( stringContent == null ){
             return null;
         }
         stringContent = stringContent.replace("[", "").replace("]", "");
+        // replace '\n'/(10) with '\'(92) followed by a 'n'(110)
+        stringContent = stringContent.replaceAll("\\b10\\b", "92, 110");
         if (stringContent.isEmpty()) {
             return "";
         } else {
             String[] bytesAsString = stringContent.split(",");
+            //
             byte[] bytes = new byte[bytesAsString.length];
             for (int ii = 0; ii < bytes.length; ii++) {
                 bytes[ii] = new Byte(bytesAsString[ii].trim());
             }
             return '"' + new String(bytes) + '"';
         }
+    }
+
+    public static boolean isArray(String type) {
+        return  type.split("@")[0].endsWith("[]");
     }
 }

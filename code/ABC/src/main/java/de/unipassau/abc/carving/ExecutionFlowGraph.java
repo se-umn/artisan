@@ -399,7 +399,7 @@ public class ExecutionFlowGraph {
         for (MethodInvocation node : graph.getVertices()) {
 
             if (!requiredMethodInvocations.contains(node)) {
-                logger.debug("ExecutionFlowGraph.refine() Remove " + node + " as not required");
+                logger.trace("ExecutionFlowGraph.refine() Remove " + node + " as not required");
                 unconnected.add(node);
             }
 
@@ -458,7 +458,7 @@ public class ExecutionFlowGraph {
             }
 
             graph.removeVertex(mi);
-            logger.debug("ExecutionFlowGraph.refine() Removed " + mi);
+            logger.trace("ExecutionFlowGraph.refine() Removed " + mi);
         }
     }
 
@@ -610,7 +610,7 @@ public class ExecutionFlowGraph {
         for (MethodInvocation subsumingCall : getOrderedMethodInvocations()) {
             for (MethodInvocation subsumedCall : callGraph.getMethodInvocationsSubsumedBy(subsumingCall)) {
                 if (graph.containsVertex(subsumedCall)) {
-                    logger.debug("Removing " + subsumedCall + " as this is subsumed by " + subsumingCall);
+                    logger.trace("Removing " + subsumedCall + " as this is subsumed by " + subsumingCall);
                     graph.removeVertex(subsumedCall);
                 }
             }
