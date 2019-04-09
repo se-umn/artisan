@@ -23,35 +23,42 @@ public class AndroidActivityTestGenerationTest {
     @Rule
     public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
-    private List<String> getTheFiles(File rootDirectory){
+    private List<String> getTheFiles(File rootDirectory) {
         List<String> files = new ArrayList<>();
         File[] subdirs = rootDirectory.listFiles();
         for (File subdir : subdirs) {
             if (subdir.isDirectory()) {
-                files.addAll( getTheFiles(subdir) );
+                files.addAll(getTheFiles(subdir));
             } else {
                 files.add(subdir.getAbsolutePath());
             }
         }
         return files;
     }
-    
+
     @Test
     public void testMain() throws IOException, InterruptedException, URISyntaxException, CarvingException {
 
         // String carvedTestFile =
         // "src/test/resources/android-28-carved-tests/com.farmerbb.notepad.activity.MainActivity.onCreate_4";
         File carvedTestDirectory = new File("src/test/resources/android-28-carved-tests/");
-        List<String> carvedTests = getTheFiles(carvedTestDirectory);
+        List<String> carvedTests = new ArrayList();
+        carvedTests.addAll(getTheFiles(carvedTestDirectory));
+        
+//        String fileName ="com.farmerbb.notepad.activity.MainActivity.isShareIntent_516";
+//        carvedTests.add( new File(carvedTestDirectory, fileName).getAbsolutePath() );
+        
         
         System.out.println("AndroidActivityTestGenerationTest.testMain() " + carvedTests );
         
         String outputfolder = "src/test/resources/android-28-generated-tests";
-        // String applicationCP = "/tmp/notepad-classes/";
-        // String androidJar =
-        // "/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar";
+        String apk = "/Users/gambi/MyDroidFax/apks/Notepad-Alessio.apk";
+        String androidJar = "/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar";
 
-        List<String> args = new ArrayList(Arrays.asList( new String[]{"--store-tests", outputfolder, "--carve-test-files"}));
+        List<String> args = new ArrayList(
+                Arrays.asList( 
+                        new String[]{"--store-tests", outputfolder, "--android-jar", androidJar, "--apk", apk, "--carve-test-files",})) ;
+        // Include the list of files as argument
         args.addAll( carvedTests );
         
         AndroidActivityTestGenerator.main(args.toArray(new String[]{}));

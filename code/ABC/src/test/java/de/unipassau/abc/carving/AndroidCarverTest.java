@@ -19,7 +19,7 @@ public class AndroidCarverTest {
     public TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Rule
-    public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
+    public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
 
     @Test
     public void testMain() throws IOException, InterruptedException, URISyntaxException, CarvingException {
@@ -31,30 +31,30 @@ public class AndroidCarverTest {
         /*
          * Util classes
          */
-//        String classToCarve = "com.farmerbb.notepad.util.NoteListItem";
-//        String classToCarve = "com.farmerbb.notepad.util.ScrollPositions";
+        // String classToCarve = "com.farmerbb.notepad.util.NoteListItem";
+        // String classToCarve = "com.farmerbb.notepad.util.ScrollPositions";
 
         /*
          * Activity class.
          */
-         String classToCarve = "com.farmerbb.notepad.activity.MainActivity";
-//         String classToCarve = "com.farmerbb.notepad.activity.NoteEditActivity";
-//         String classToCarve = "com.farmerbb.notepad.activity.SettingsActivity";
-         
-        // //
-
-        /*
-         * Fragment class
-         */
         // String classToCarve = "com.farmerbb.notepad.activity.MainActivity";
-        // //
+        // String classToCarve =
+        // "com.farmerbb.notepad.activity.NoteEditActivity";
+        // String classToCarve =
+        // "com.farmerbb.notepad.activity.SettingsActivity";
+        String classToCarve = "com.farmerbb.notepad.activity.MainActivity";
 
-//       String methodInvocation =
-//         String methodInvocation = "<com.farmerbb.notepad.activity.MainActivity: void <init>()>_922";
+        // String methodInvocation =
+        // "<com.farmerbb.notepad.activity.MainActivity: java.util.ArrayList
+        // getCabArray()>_210";
+//        String methodInvocation = "<com.farmerbb.notepad.activity.MainActivity: boolean isShareIntent()>_451";
+//         String methodInvocation = "<com.farmerbb.notepad.activity.MainActivity: void onBackPressed()>_1525";
+        // "<com.farmerbb.notepad.activity.MainActivity: void hideFab()>_1391";
+
         String[] args = new String[] { "--parsed-traces", parsedTrace, //
                 "--output-carved-tests-to", outputTo.getAbsolutePath(), //
-//                "--method-invocation-to-carve", methodInvocation };
-         "--class-to-carve", classToCarve};
+//                 "--method-invocation-to-carve", methodInvocation };
+                "--class-to-carve", classToCarve };
 
         AndroidCarver.main(args);
 
