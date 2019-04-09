@@ -26,6 +26,7 @@ import com.lexicalscope.jewel.cli.Option;
 import com.squareup.javapoet.AnnotationSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.MethodSpec.Builder;
 import com.squareup.javapoet.TypeSpec;
 import com.thoughtworks.xstream.XStream;
 
@@ -38,7 +39,6 @@ import de.unipassau.abc.carving.ObjectInstance;
 import de.unipassau.abc.carving.PrimitiveValue;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.utils.JimpleUtils;
-import edu.emory.mathcs.backport.java.util.Arrays;
 import soot.G;
 import soot.Scene;
 import soot.SootClass;
@@ -105,18 +105,24 @@ import soot.options.Options;
  */
 public class AndroidActivityTestGenerator {
 
-    // /Users/gambi/MyDroidFax/apks-sources/Notepad/app/src/test/java/com/farmerbb/notepad/activity
+    /*
+     * TODO Move the logic which creates the ActivityController and such back to
+     * the Carver. The carver does the logic, the generator simply translate the
+     * ExecutionGraph to java code
+     * 
+     * @author gambi
+     *
+     */
 
     public interface TestGeneratorCLI {
         @Option(longName = "carve-test-files")
         List<File> getCarvedTestsFiles();
 
-        // THERE IS NOT POINT TO INCLUDE THIS IF WE CANNOT LOAD THEIR CLASSES...
-        // @Option(longName = "application-cp", defaultValue = "")
-        // List<File> getApplicationClassPath();
-        //
-        // @Option(longName = "android-jar")
-        // File getAndroidJar();
+        @Option(longName = "apk")
+        File getAPK();
+
+        @Option(longName = "android-jar")
+        File getAndroidJar();
 
         @Option(longName = "store-tests")
         File getOutputDir();
@@ -168,11 +174,16 @@ public class AndroidActivityTestGenerator {
      * This is global anyway. Public for testing. Note that this loads all the
      * classes in my classpath ! COde Duplication !
      */
-    public static void setupSoot(List<File> projectJars) {
+    /*
+     * This is global anyway. Public for testing. Note that this loads all the
+     * classes in my classpath ! COde Duplication !
+     */
+    public static void setupSoot(File androidJar, File apk) {
         G.reset();
         Options.v().set_allow_phantom_refs(true);
         Options.v().set_whole_program(true);
 
+        // Not sure this will work with the APK
         ArrayList<String> necessaryJar = new ArrayList<String>();
         // Include here entries from the classpath
         for (String cpEntry : SystemUtils.JAVA_CLASS_PATH.split(File.pathSeparator)) {
@@ -180,19 +191,18 @@ public class AndroidActivityTestGenerator {
                 necessaryJar.add(cpEntry);
             }
         }
+        necessaryJar.add(apk.getAbsolutePath());
 
-        for (File projectLib : projectJars) {
-            System.out.println("- " + projectLib);
-            necessaryJar.add(projectLib.getAbsolutePath());
-        }
-
+        Options.v().set_soot_classpath(androidJar.getAbsolutePath());
         Options.v().set_process_dir(necessaryJar);
+        Options.v().set_src_prec(soot.options.Options.src_prec_apk);
 
         // Soot has problems in working on mac.
         String osName = System.getProperty("os.name");
         System.setProperty("os.name", "Whatever");
         Scene.v().loadNecessaryClasses();
         System.setProperty("os.name", osName);
+        // This is mostlty to check
         Scene.v().loadClassAndSupport(ActivityController.class.getName());
     }
 
@@ -204,7 +214,7 @@ public class AndroidActivityTestGenerator {
             TestGeneratorCLI cli = CliFactory.parseArguments(TestGeneratorCLI.class, args);
             XStream xStream = new XStream();
 
-            setupSoot(Arrays.asList(new File[] {}));
+            setupSoot(cli.getAndroidJar(), cli.getAPK());
 
             // /*
             // * Hackinsh -- include the use provided jars to the classloader
@@ -291,7 +301,6 @@ public class AndroidActivityTestGenerator {
          * add the import based on their package...
          */
 
-
         // https://www.baeldung.com/java-poet
         MethodInvocation methodInvocationUnderTest = carvedTest.getFirst().getLastMethodInvocation();
 
@@ -331,27 +340,20 @@ public class AndroidActivityTestGenerator {
          * Resolve alias
          */
 
-        resolveAliases( dataDependencyGraph );
-        // 
+        resolveAliases(dataDependencyGraph);
+        //
 
-        // Declare all the variables before using them. Objects are initialized by default to null;
+        // Declaring all the variables before using them. Note we do not
+        // generate code at this point.
         for (DataNode dataNode : dataDependencyGraph.getDataNodes()) {
 
-            Pair<String, String> variable = declareVariableFor(dataNode, dataDependencyGraph);
-
-            if( variable == null ){
-                // Variable is already declared
+            if (dataNode instanceof MethodCallLiteralValue) {
                 continue;
             }
-            if (dataNode instanceof ObjectInstance) {
-                /*
-                 * Activities are managed objects, we cannot instantiate them
-                 * directly, but we need to declare them anyway
-                 */
-                methodBuilder.addStatement(variable.getFirst() + " " + variable.getSecond() + " = null");
-            } else {
-                methodBuilder.addStatement(variable.getFirst() + " " + variable.getSecond());
-            }
+
+            System.out.println("AndroidActivityTestGenerator.generateTest() Declaring variable for " + dataNode);
+            // Pair<String, String> variable =
+            declareVariableFor(dataNode, dataDependencyGraph);
         }
 
         /*
@@ -361,96 +363,40 @@ public class AndroidActivityTestGenerator {
          */
         for (MethodInvocation methodInvocation : executionFlowGraph.getOrderedMethodInvocations()) {
             System.out.println("AndroidActivityTestGenerator.generateTest() - " + methodInvocation);
+
             /*
-             * Android activity objects shall be handled (init, onCreate, etc..)
-             * via an ActivityController
+             * Include a comment in the code pointing to the original method
+             * invocation.
              */
-            StringBuilder parameters = new StringBuilder();
-            for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
+            methodBuilder.addComment("$L", methodInvocation);// .toString().replaceAll("\\$",
+                                                             // ".") );
+            // Create the code here. Distingui
+            // Check if the variables have
+            // if (variable == null) {
+            // System.out.println("AndroidActivityTestGenerator.generateTest()
+            // Variable already declared " + dataNode);
+            // // Variable is already declared
+            // continue;
+            // }
+            // if (dataNode instanceof ObjectInstance) {
+            //
+            // /*
+            // * Activities are managed objects, we cannot instantiate them
+            // * directly, but we need to declare them anyway
+            // */
+            // methodBuilder.addStatement(variable.getFirst() + " " +
+            // variable.getSecond() + " = null");
+            // } else {
+            // methodBuilder.addStatement(variable.getFirst() + " " +
+            // variable.getSecond());
+            // }
 
-                parameters.append(getParameterFor(parameter));
-                if (methodInvocation.getActualParameterInstances()
-                        .indexOf(parameter) < methodInvocation.getActualParameterInstances().size() - 1) {
-                    parameters.append(",");
-                }
-            }
+            // ATM We handle Robolectrics here:
 
-            String returnValue = "";
-            if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())) {
-                returnValue = getVariableFor(methodInvocation.getReturnValue()).getSecond() + " = ";
-            }
-
-            if (!methodInvocation.isStatic()) {
-
-                ObjectInstance owner = methodInvocation.getOwner();
-
-                if (owner.isAndroidActivity()) {
-                    /*
-                     * Configure the activityController to handle activity
-                     * lifecycle events
-                     */
-                    if (methodInvocation.isConstructor()) {
-
-                        // Instantiate the ActivityController ?
-                        // TODO How to check this is the Activity Under Test ->
-                        // owner of last method invocation? Maybe an explicit
-                        // reference -> create a CarvedTest object
-                        methodBuilder.addStatement("$T<$L> activityController = $T.buildActivity($L.class)", //
-                                ActivityController.class, activityClassName, Robolectric.class, activityClassName) //
-                                /*
-                                 * Assign the reference of the activity to its
-                                 * variable
-                                 */
-                                .addStatement("$L = activityController.get()", getVariableFor(owner).getSecond());
-
-                    } else if (methodInvocation.isAndroidActivityCallback()) {
-                        String androidLifeCycleEventName = getCorrespondingMethodCall(methodInvocation);
-                        methodBuilder.addStatement(
-                                "activityController." + androidLifeCycleEventName + "(" + parameters + ")"); //
-
-                    } else {
-                        /*
-                         * This is a method which the class implements but is
-                         * not related to activity lifecycle. So we invoke it
-                         * like plain java method.
-                         */
-                        methodBuilder.addStatement(returnValue + getVariableFor(owner).getSecond() + "."
-                                + JimpleUtils.getMethodName(methodInvocation.getMethodSignature()) + "("
-                                + parameters.toString() + ")");
-                    }
-
-                } else {
-                    if (methodInvocation.isConstructor() && ! JimpleUtils.isArray( methodInvocation.getOwner().getType() ) ) {
-                        /*
-                         * Instantiate NON - Array objects 
-                         */
-                        String type = getVariableFor(methodInvocation.getOwner()).getFirst();
-                        // Use simple names instead of fully qualified names...
-                        // type = type.substring(type.lastIndexOf(".") + 1,
-                        // type.length());
-
-                        String name = getVariableFor(methodInvocation.getOwner()).getSecond();
-                        methodBuilder.addStatement(name + " = new " + type + "(" + parameters.toString() + ")");
-                    } else if (methodInvocation.isConstructor() && JimpleUtils.isArray( methodInvocation.getOwner().getType() ) ) {
-                        /*
-                         * Instantiate Array. Object[] bla = new Object[0];
-                         */
-                        
-                        String baseArrayType = getVariableFor(methodInvocation.getOwner()).getFirst().replace("[]", "");
-                        String name = getVariableFor(methodInvocation.getOwner()).getSecond();
-                        methodBuilder.addStatement(name + " = new " + baseArrayType + "[" + parameters.toString() + "]");
-                    }
-                    else {
-                        methodBuilder.addStatement(returnValue + getVariableFor(methodInvocation.getOwner()).getSecond()
-                                + "." + JimpleUtils.getMethodName(methodInvocation.getMethodSignature()) + "("
-                                + parameters.toString() + ")");
-                    }
-                }
-
+            if (belongsToAndroidActivity(methodInvocation)) {
+                generateCodeForAndroidActivity(methodBuilder, methodInvocation, activityClassName);
             } else {
-                methodBuilder.addStatement(
-                        returnValue + JimpleUtils.getFullyQualifiedMethodName(methodInvocation.getMethodSignature())
-                                + "(" + parameters.toString() + ")");
+                generateCode(methodBuilder, methodInvocation);
             }
         }
 
@@ -475,47 +421,198 @@ public class AndroidActivityTestGenerator {
         return javaFile.toString();
     }
 
+    private void generateCode(Builder methodBuilder, MethodInvocation methodInvocation) {
+        /*
+         * Android activity objects shall be handled (init, onCreate, etc..) via
+         * an ActivityController
+         */
+        StringBuilder parameters = new StringBuilder();
+        for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
+
+            parameters.append(getParameterFor(parameter));
+            if (methodInvocation.getActualParameterInstances()
+                    .indexOf(parameter) < methodInvocation.getActualParameterInstances().size() - 1) {
+                parameters.append(",");
+            }
+        }
+
+        // String returnValue = "";
+        // if
+        // (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature()))
+        // {
+        // returnValue =
+        // getVariableFor(methodInvocation.getReturnValue()).getSecond() + " =
+        // ";
+        // }
+
+        /*
+         * Instantiate NON - Array objects
+         */
+        if (methodInvocation.isConstructor() && !JimpleUtils.isArray(methodInvocation.getOwner().getType())) {
+            String type = getVariableFor(methodInvocation.getOwner()).getFirst();
+            // Use simple names instead of fully qualified names...
+            // type = type.substring(type.lastIndexOf(".") + 1,
+            // type.length());
+
+            String name = getVariableFor(methodInvocation.getOwner()).getSecond();
+            if (firstUseOf(methodInvocation.getOwner())) {
+                methodBuilder.addStatement(type + " " + name + " = new " + type + "(" + parameters.toString() + ")");
+                initializedVariables.add(methodInvocation.getOwner());
+            } else {
+                methodBuilder.addStatement(name + " = new " + type + "(" + parameters.toString() + ")");
+            }
+        } else if (methodInvocation.isConstructor() && JimpleUtils.isArray(methodInvocation.getOwner().getType())) {
+            /*
+             * Instantiate Array. Object[] bla = new Object[0];
+             */
+
+            String type = getVariableFor(methodInvocation.getOwner()).getFirst();
+            String baseArrayType = getVariableFor(methodInvocation.getOwner()).getFirst().replace("[]", "");
+            String name = getVariableFor(methodInvocation.getOwner()).getSecond();
+
+            if (firstUseOf(methodInvocation.getOwner())) {
+                methodBuilder.addStatement(
+                        type + " " + name + " = new " + baseArrayType + "[" + parameters.toString() + "]");
+            } else {
+                methodBuilder.addStatement(name + " = new " + baseArrayType + "[" + parameters.toString() + "]");
+            }
+        } else if (methodInvocation.isStatic()) {
+
+            String returnValue = "";
+            
+            if ( !JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature()) && firstUseOf(methodInvocation.getReturnValue())) {
+                String type = getVariableFor( methodInvocation.getReturnValue() ).getFirst();
+                returnValue = getVariableFor( methodInvocation.getReturnValue() ).getSecond();
+                methodBuilder.addStatement(
+                        type + " " + returnValue + JimpleUtils.getFullyQualifiedMethodName(methodInvocation.getMethodSignature())
+                                + "(" + parameters.toString() + ")");
+            } else {
+                methodBuilder.addStatement(
+                        returnValue + JimpleUtils.getFullyQualifiedMethodName(methodInvocation.getMethodSignature())
+                                + "(" + parameters.toString() + ")");
+            }
+        } else {
+            String returnValue = "";
+            
+            if ( ! JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature()) && firstUseOf(methodInvocation.getReturnValue())) {
+                String type = getVariableFor( methodInvocation.getReturnValue() ).getFirst();
+                returnValue = getVariableFor( methodInvocation.getReturnValue() ).getSecond();
+                methodBuilder.addStatement(type + " " + returnValue + getVariableFor(methodInvocation.getOwner()).getSecond() + "."
+                        + JimpleUtils.getMethodName(methodInvocation.getMethodSignature()) + "(" + parameters.toString()
+                        + ")");
+            } else {
+                methodBuilder.addStatement(returnValue + getVariableFor(methodInvocation.getOwner()).getSecond() + "."
+                        + JimpleUtils.getMethodName(methodInvocation.getMethodSignature()) + "(" + parameters.toString()
+                        + ")");
+            }
+        }
+
+    }
+
+    private void generateCodeForAndroidActivity(Builder methodBuilder, MethodInvocation methodInvocation,
+            String activityClassName) {
+        /*
+         * Android activity objects shall be handled (init, onCreate, etc..) via
+         * an ActivityController
+         */
+        StringBuilder parameters = new StringBuilder();
+        for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
+
+            parameters.append(getParameterFor(parameter));
+            if (methodInvocation.getActualParameterInstances()
+                    .indexOf(parameter) < methodInvocation.getActualParameterInstances().size() - 1) {
+                parameters.append(",");
+            }
+        }
+
+        String returnValue = "";
+        if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())) {
+            returnValue = getVariableFor(methodInvocation.getReturnValue()).getSecond() + " = ";
+        }
+
+        ObjectInstance owner = methodInvocation.getOwner();
+
+        /*
+         * Configure the activityController to handle activity lifecycle events
+         */
+        if (methodInvocation.isConstructor()) {
+
+            // Instantiate the ActivityController ?
+            // TODO How to check this is the Activity Under Test ->
+            // owner of last method invocation? Maybe an explicit
+            // reference -> create a CarvedTest object
+            methodBuilder
+                    .addStatement("$T<$L> activityController = $T.buildActivity($L.class)", //
+                            ActivityController.class, activityClassName, Robolectric.class, activityClassName) //
+                    /*
+                     * Assign the reference of the activity to its variable
+                     */
+                    .addStatement("$L $L = activityController.get()", getVariableFor(owner).getFirst(), getVariableFor(owner).getSecond());
+
+        } else if (methodInvocation.isAndroidActivityCallback()) {
+            String androidLifeCycleEventName = getCorrespondingMethodCall(methodInvocation);
+            methodBuilder.addStatement("activityController." + androidLifeCycleEventName + "(" + parameters + ")"); //
+
+        } else {
+            /*
+             * This is a method which the class implements but is not related to
+             * activity lifecycle. So we invoke it like plain java method.
+             */
+            methodBuilder.addStatement(returnValue + getVariableFor(owner).getSecond() + "."
+                    + JimpleUtils.getMethodName(methodInvocation.getMethodSignature()) + "(" + parameters.toString()
+                    + ")");
+        }
+
+    }
+
+    private boolean belongsToAndroidActivity(MethodInvocation methodInvocation) {
+        return methodInvocation.getOwner() != null && methodInvocation.getOwner().isAndroidActivity();
+    }
+
     /*
-     * Retype all the aliases and break  
+     * Retype all the aliases and break
      */
     private void resolveAliases(DataDependencyGraph dataDependencyGraph) {
-        
+
         List<Set<ObjectInstance>> aliases = new ArrayList<>();
-        
+
         for (DataNode dataNode : dataDependencyGraph.getDataNodes()) {
 
             if (dataNode instanceof ObjectInstance) {
                 Set<ObjectInstance> aliasSet = dataDependencyGraph.getAliasesOf((ObjectInstance) dataNode);
                 aliasSet.add((ObjectInstance) dataNode);
 
-                if( aliases.contains( aliasSet ) ){
+                if (aliases.contains(aliasSet)) {
                     continue;
                 }
-                aliases.add( aliasSet);
+                aliases.add(aliasSet);
             }
         }
-        
+
         /*
          * Do we need to resolve aliases ?
          */
-        // We cannot store typing information in terms of java classes but we might be able to do so using SootClasses?
-//        Map<Set<ObjectInstance>, String> aliasClassesToFormalType = new HashMap<>();
+        // We cannot store typing information in terms of java classes but we
+        // might be able to do so using SootClasses?
+        // Map<Set<ObjectInstance>, String> aliasClassesToFormalType = new
+        // HashMap<>();
         for (Set<ObjectInstance> aliasSet : aliases) {
-            if( aliasSet.size() <= 1 ){
+            if (aliasSet.size() <= 1) {
                 continue;
             }
-            System.out.println("AndroidActivityTestGenerator.generateTest() Aliases " + aliasSet );
-//            [java.util.List@184272637, java.util.Arrays$ArrayList@184272637]
-            for( ObjectInstance alias : aliasSet ){
-                if( alias.getType().equals("java.util.Arrays$ArrayList")){
-                    // Force update the type associated with this one. 
+            System.out.println("AndroidActivityTestGenerator.generateTest() Aliases " + aliasSet);
+            // [java.util.List@184272637, java.util.Arrays$ArrayList@184272637]
+            for (ObjectInstance alias : aliasSet) {
+                if (alias.getType().equals("java.util.Arrays$ArrayList")) {
+                    // Force update the type associated with this one.
                     ObjectInstance.retype(alias, "java.util.List");
                 }
             }
             // TODO Maybe you can use Soot for this...
-            // TODO Maybe we can create one variable of each type using formal parameters?
-//            Class commonSuperClass = findCommonSuperClass(aliasSet);
-//            aliasToClass.put( aliasSet, commonSuperClass);
+            // TODO Maybe we can create one variable of each type using formal
+            // parameters?
+            // Class commonSuperClass = findCommonSuperClass(aliasSet);
+            // aliasToClass.put( aliasSet, commonSuperClass);
         }
     }
 
@@ -596,28 +693,29 @@ public class AndroidActivityTestGenerator {
      * 
      * 
      * @param dataNode
-     * @param aliasToClass 
+     * @param aliasToClass
      * @return
      */
-private String getVariableTypeFor(DataNode dataNode//, 
-            // Rethinkg this aliasing stuff and type inference
-//            Map<Set<ObjectInstance>, Class> aliasToClass
-            ) {
+    private String getVariableTypeFor(DataNode dataNode// ,
+    // Rethinkg this aliasing stuff and type inference
+    // Map<Set<ObjectInstance>, Class> aliasToClass
+    ) {
         if (dataNode instanceof PrimitiveValue) {
             return ((PrimitiveValue) dataNode).getType();
         } else if (dataNode instanceof ObjectInstance) {
             String actualType = ((ObjectInstance) dataNode).getType();
-            
+
             // THIS IS A PATCH
-//            for( Set<ObjectInstance> aliases : aliasToClass.keySet() ){
-//                if( aliases.contains(((ObjectInstance) dataNode).getType())){
-//                    actualType = aliasToClass.get( aliases ).getName();
-//                    break;
-//                }
-//            }
-//            if( actualType == null ){
-//                throw new RuntimeException("Cannot find actual type of " + dataNode );
-//            }
+            // for( Set<ObjectInstance> aliases : aliasToClass.keySet() ){
+            // if( aliases.contains(((ObjectInstance) dataNode).getType())){
+            // actualType = aliasToClass.get( aliases ).getName();
+            // break;
+            // }
+            // }
+            // if( actualType == null ){
+            // throw new RuntimeException("Cannot find actual type of " +
+            // dataNode );
+            // }
             // Not sure we can push this more than that...
             String formalType = actualType;
             if (actualType.equals("java.util.Arrays$ArrayList")) {
@@ -645,15 +743,20 @@ private String getVariableTypeFor(DataNode dataNode//,
     private Map<DataNode, Pair<String, String>> declaredVariables = new HashMap<>();
     // Var Name -> ID
     private Map<String, AtomicInteger> declaredVariablesIndex = new HashMap<>();
+    private Set<DataNode> initializedVariables = new HashSet<>();
+
+    private boolean firstUseOf(DataNode dataNode) {
+        return declaredVariables.containsKey(dataNode) && !initializedVariables.contains(dataNode);
+    }
 
     private Pair<String, String> declareVariableFor(DataNode dataNode, DataDependencyGraph dataDependencyGraph) {
         String variableType = getVariableTypeFor(dataNode);
         String className = variableType.substring(variableType.lastIndexOf('.') + 1, variableType.length());
 
-        if( declaredVariables.containsKey( dataNode ) ){
+        if (declaredVariables.containsKey(dataNode)) {
             return null;
         }
-        
+
         if (!declaredVariablesIndex.containsKey(className)) {
             declaredVariablesIndex.put(className, new AtomicInteger(0));
         }
@@ -667,19 +770,19 @@ private String getVariableTypeFor(DataNode dataNode//,
         Pair<String, String> variable = new Pair<String, String>(variableType, variableName);
 
         declaredVariables.put(dataNode, variable);
-        
+
         // Link all the alias to the same variable if any
-        if( dataNode instanceof ObjectInstance ){
-            for( ObjectInstance alias : dataDependencyGraph.getAliasesOf( (ObjectInstance) dataNode )){
-                declaredVariables.put(alias, variable);    
+        if (dataNode instanceof ObjectInstance) {
+            for (ObjectInstance alias : dataDependencyGraph.getAliasesOf((ObjectInstance) dataNode)) {
+                declaredVariables.put(alias, variable);
             }
         }
 
         return variable;
     }
-    
+
     /*
-     * If a variable is used but not declared, that's an error 
+     * If a variable is used but not declared, that's an error
      */
     private Pair<String, String> getVariableFor(DataNode dataNode) {
 

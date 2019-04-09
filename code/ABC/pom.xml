@@ -24,6 +24,10 @@
 			<id>google</id>
 			<url>https://maven.google.com</url>
 		</repository>
+		<repository>
+			<id>central</id>
+			<url>http://central.maven.org/maven2/</url>
+		</repository>
 	</repositories>
 
 	<build>
@@ -44,17 +48,18 @@
 				<configuration>
 					<programs>
 						<program>
-							<mainClass>de.unipassau.abc.instrumentation.InstrumentTracer</mainClass>
-							<id>instrument</id>
+							<mainClass>de.unipassau.abc.parsing.DuafDroidParser</mainClass>
+							<id>parse</id>
 						</program>
 						<program>
-							<mainClass>de.unipassau.abc.carving.Carver</mainClass>
+							<mainClass>de.unipassau.abc.carving.AndroidCarver</mainClass>
 							<id>carve</id>
 						</program>
 						<program>
-							<mainClass>de.unipassau.abc.generation.TestSuiteMinimizer</mainClass>
-							<id>reduce</id>
-						</program>
+                            <mainClass>de.unipassau.abc.generation.AndroidActivityTestGenerator</mainClass>
+                            <id>generate</id>
+                        </program>
+						
 					</programs>
 					<configurationDirectory>libs</configurationDirectory>
 					<configurationSourceDirectory>libs</configurationSourceDirectory>
@@ -66,6 +71,22 @@
 	</build>
 
 	<dependencies>
+		<!-- Installed from source -->
+		<dependency>
+			<groupId>org.df4j</groupId>
+			<artifactId>df4j-core</artifactId>
+			<version>6.3</version>
+		</dependency>
+
+		<!-- Basic Data-Driven execution scheduler: This is not optimized and when 
+			the carving graph becomes bigger it cannot handle it -->
+		<dependency>
+			<groupId>no.systek.dataflow</groupId>
+			<artifactId>dataflow</artifactId>
+			<version>0.3-SNAPSHOT</version>
+		</dependency>
+
+
 		<!-- Plain Java Code Generation: https://github.com/square/javapoet -->
 		<dependency>
 			<groupId>com.squareup</groupId>
@@ -203,11 +224,12 @@
 		</dependency>
 
 		<!-- Mocking -->
+		<!-- We use mocking to generate code -->
 		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-all</artifactId>
 			<version>1.9.5</version>
-			<scope>test</scope>
+			<!-- <scope>test</scope> -->
 		</dependency>
 		<dependency>
 			<groupId>org.powermock</groupId>

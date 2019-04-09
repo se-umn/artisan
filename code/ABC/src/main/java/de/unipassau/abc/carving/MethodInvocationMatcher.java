@@ -14,6 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import de.unipassau.abc.utils.JimpleUtils;
+import soot.Scene;
+import soot.SootClass;
 
 public class MethodInvocationMatcher {
 
@@ -314,7 +316,7 @@ public class MethodInvocationMatcher {
         return new LibCallMethodInvocationMatcher();
     }
 
-    public static Set<MethodInvocation> filterBy(MethodInvocationMatcher filter,
+    public static Set<MethodInvocation> getMethodInvocationsMatchedBy(MethodInvocationMatcher filter,
             Collection<MethodInvocation> methodInvocationsToBeFiltered) {
 
         Set<MethodInvocation> matching = new HashSet<>();
@@ -325,7 +327,13 @@ public class MethodInvocationMatcher {
         }
         return matching;
     }
-
+    
+    /**
+     * Remove from the collection the matching elements.
+     * 
+     * @param filter
+     * @param methodInvocationsToBeFiltered
+     */
     public static void filterByInPlace(MethodInvocationMatcher filter,
             Collection<MethodInvocation> methodInvocationsToBeFiltered) {
 
@@ -418,6 +426,35 @@ public class MethodInvocationMatcher {
         };
     }
 
+    public static MethodInvocationMatcher not(final MethodInvocationMatcher matcher) {
+        return new MethodInvocationMatcher() {
+            @Override
+            public boolean matches(MethodInvocation methodInvocation) {
+                return !matcher.matches(methodInvocation);
+            }
+        };
+    }
+    public static MethodInvocationMatcher or(final MethodInvocationMatcher first, final MethodInvocationMatcher second,
+            final MethodInvocationMatcher... others) {
+        return new MethodInvocationMatcher() {
+            @Override
+            public boolean matches(MethodInvocation methodInvocation) {
+                // Simulate a shortcut evaluation of "AND"
+                List<MethodInvocationMatcher> all = new ArrayList<>();
+                all.add(first);
+                all.add(second);
+                all.addAll(Arrays.asList(others));
+                // As soon as one matcher matches we return the match
+                for (MethodInvocationMatcher matcher : all) {
+                    if (matcher.matches(methodInvocation)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        };
+    }
+    
     public static MethodInvocationMatcher and(final MethodInvocationMatcher first, final MethodInvocationMatcher second,
             final MethodInvocationMatcher... others) {
 
@@ -460,7 +497,7 @@ public class MethodInvocationMatcher {
         };
     }
 
-    public static MethodInvocationMatcher synthetic() {
+    public static MethodInvocationMatcher isSynthetic() {
         return new MethodInvocationMatcher() {
             @Override
             public boolean matches(MethodInvocation methodInvocation) {
@@ -468,5 +505,70 @@ public class MethodInvocationMatcher {
             }
         };
     }
+
+    /*
+     * This matches private method invocations
+     */
+    public static MethodInvocationMatcher visibilityPrivate() {
+        return new MethodInvocationMatcher() {
+            @Override
+            public boolean matches(MethodInvocation methodInvocation) {
+//                if( methodInvocation.isPrivate() ){
+//                    System.out.println(
+//                            "MethodInvocationMatcher.visibilityPrivate() " + methodInvocation + " is private ");
+//                }
+                return methodInvocation.isPrivate();
+            }
+        };
+    }
+
+    /*
+     * Would this call be visible from the given package ?
+     */
+    public static MethodInvocationMatcher isVisibleFromPackage(final String packageName) {
+        return new MethodInvocationMatcher() {
+            @Override
+            public boolean matches(MethodInvocation methodInvocation) {
+                return methodInvocation.isPublic() || JimpleUtils.getPackage(methodInvocation.getMethodSignature()).equals(packageName);
+            }
+        };
+    }
+
+    public static MethodInvocationMatcher lambda() {
+        return new MethodInvocationMatcher() {
+            @Override
+            public boolean matches(MethodInvocation methodInvocation) {
+                return JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature()).contains("$$Lambda$");
+            }
+        };
+    }
+
+    public static MethodInvocationMatcher isRootCall(final CallGraph callGraph) {
+        return new MethodInvocationMatcher() {
+            @Override
+            public boolean matches(MethodInvocation methodInvocation) {
+                return callGraph.getOrderedSubsumingMethodInvocationsFor(methodInvocation).isEmpty();
+            }
+        };
+    }
+
+    public static MethodInvocationMatcher isActivityLifeCycle() {
+        return new MethodInvocationMatcher() {
+            @Override
+            public boolean matches(MethodInvocation methodInvocation) {
+                return methodInvocation.isAndroidActivityCallback();
+            }
+        };
+    }
+    
+    public static MethodInvocationMatcher isFragmentLifeCycle() {
+        return new MethodInvocationMatcher() {
+            @Override
+            public boolean matches(MethodInvocation methodInvocation) {
+                return methodInvocation.isAndroidFragmentCallback();
+            }
+        };
+    }
+
 
 }

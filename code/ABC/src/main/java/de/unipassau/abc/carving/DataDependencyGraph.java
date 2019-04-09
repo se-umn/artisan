@@ -1221,6 +1221,7 @@ public class DataDependencyGraph {
      * This is not quite getSubGraph in the sense this method modifies the
      * current graph while the other returns a new one !
      * 
+     * TODO Check if the relations are then maintained ...
      * @param callGraph
      */
     public void summarize(ExecutionFlowGraph executionFlowGraph) {

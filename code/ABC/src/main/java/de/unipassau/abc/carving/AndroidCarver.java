@@ -143,7 +143,7 @@ public class AndroidCarver {
             
             
             // Remove the synthetic methods
-            MethodInvocationMatcher.filterByInPlace(MethodInvocationMatcher.synthetic(), methodsInvocationsToCarve);
+            MethodInvocationMatcher.filterByInPlace(MethodInvocationMatcher.isSynthetic(), methodsInvocationsToCarve);
             
             methodInvocationCount += methodsInvocationsToCarve.size();
             
@@ -174,7 +174,7 @@ public class AndroidCarver {
 
         logger.info("End carving");
 
-        logger.debug(">> Carved tests : " + carvedTests.size() + "/" + methodInvocationCount);
+        logger.info(">> Carved tests : " + carvedTests.size() + "/" + methodInvocationCount);
 
         logger.debug("Storing carved tests to : " + storeCarvedTestsTo.getAbsolutePath());
 

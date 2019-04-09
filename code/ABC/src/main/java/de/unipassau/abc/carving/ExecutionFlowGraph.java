@@ -399,7 +399,7 @@ public class ExecutionFlowGraph {
         for (MethodInvocation node : graph.getVertices()) {
 
             if (!requiredMethodInvocations.contains(node)) {
-                logger.trace("ExecutionFlowGraph.refine() Remove " + node + " as not required");
+//                logger.trace("ExecutionFlowGraph.refine() Remove " + node + " as not required");
                 unconnected.add(node);
             }
 
@@ -420,7 +420,7 @@ public class ExecutionFlowGraph {
                     // At least one element (actually, only one)
                     firstMethodInvocation = successors.iterator().next();
                 }
-                logger.trace("ExecutionFlowGraph.refine() Updated firstMethodInvocation to " + firstMethodInvocation);
+//                logger.trace("ExecutionFlowGraph.refine() Updated firstMethodInvocation to " + firstMethodInvocation);
             }
 
             if (successors == null || successors.isEmpty()) {
@@ -432,7 +432,7 @@ public class ExecutionFlowGraph {
                     // At least one element (actually, only one)
                     lastMethodInvocation = predecessors.iterator().next();
                 }
-                logger.trace("ExecutionFlowGraph.refine() Updated lastMethodInvocation to " + lastMethodInvocation);
+//                logger.trace("ExecutionFlowGraph.refine() Updated lastMethodInvocation to " + lastMethodInvocation);
 
             }
 
@@ -443,7 +443,7 @@ public class ExecutionFlowGraph {
             flowEdges.addAll(graph.getOutEdges(mi));
 
             for (String flowEdge : flowEdges) {
-                logger.trace("ExecutionFlowGraph.refine() Removing Edge " + flowEdge);
+//                logger.trace("ExecutionFlowGraph.refine() Removing Edge " + flowEdge);
                 graph.removeEdge(flowEdge);
             }
             // Really its just one
@@ -452,13 +452,13 @@ public class ExecutionFlowGraph {
                     int edgeID = id.getAndIncrement();
                     String edgeLabel = "ExecutionDependency-" + edgeID;
                     boolean added = graph.addEdge(edgeLabel, predecessor, successor, EdgeType.DIRECTED);
-                    logger.trace("ExecutionFlowGraph.refine() Introducing replacemente edge "
-                            + graph.getEndpoints(edgeLabel) + " added  " + added);
+//                    logger.trace("ExecutionFlowGraph.refine() Introducing replacemente edge "
+//                            + graph.getEndpoints(edgeLabel) + " added  " + added);
                 }
             }
 
             graph.removeVertex(mi);
-            logger.trace("ExecutionFlowGraph.refine() Removed " + mi);
+//            logger.trace("ExecutionFlowGraph.refine() Removed " + mi);
         }
     }
 
@@ -603,19 +603,25 @@ public class ExecutionFlowGraph {
     }
 
     /*
-     * Remove from the graph all the subsumed calls
+     * Remove from the graph all the subsumed calls. Will this update also the relations between method invocations
      */
     public void summarize(CallGraph callGraph) {
-
+        Set<MethodInvocation> unecessaryMethodInvocations = new HashSet<>();
         for (MethodInvocation subsumingCall : getOrderedMethodInvocations()) {
             for (MethodInvocation subsumedCall : callGraph.getMethodInvocationsSubsumedBy(subsumingCall)) {
-                if (graph.containsVertex(subsumedCall)) {
-                    logger.trace("Removing " + subsumedCall + " as this is subsumed by " + subsumingCall);
-                    graph.removeVertex(subsumedCall);
+                if (graph.containsVertex(subsumedCall) && ! unecessaryMethodInvocations.contains( subsumedCall )) {
+                    logger.trace("> " + subsumedCall + " as this is subsumed by " + subsumingCall);
+                    unecessaryMethodInvocations.add(subsumedCall);
                 }
+                
             }
         }
 
+        Set<MethodInvocation> necessaryMethodInvocations = new HashSet<>();
+        necessaryMethodInvocations.addAll( getOrderedMethodInvocations());
+        necessaryMethodInvocations.removeAll( unecessaryMethodInvocations );
+        
+        this.refine( necessaryMethodInvocations );
     }
 
     public void dequeue(MethodInvocation toDrop) {

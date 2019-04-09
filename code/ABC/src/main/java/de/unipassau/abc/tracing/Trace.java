@@ -26,6 +26,8 @@ public class Trace {
      * Because they are not "real" methods, i.e., they are not in the original source code, we shall not create tests for them !
      */
     public static final String SYNTHETIC_METHOD_START_TOKEN = "[>s]";
+    // Private methods are interesting to log to help readability and give a bit more context to the execution
+    public final static String PRIVATE_METHOD_START_TOKEN = "[>p]";
 
     // We do not log this anymore, owner info are withing the lines
     public final static String METHOD_OBJECT_TOKEN = "[||]" + DELIMITER;

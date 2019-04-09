@@ -52,6 +52,10 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
     private boolean isConstructor;
 
+    private boolean isAndroidActivityCallback;
+
+    private boolean isAndroidFragmentCallback;
+
     // The parameters and the owners are set later from the Graph Objects?
     // Basically explicitly set all the properties ?
     public MethodInvocation(int invocationCount, String methodSignature) {
@@ -342,20 +346,52 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
      * @return
      */
     public boolean isAndroidActivityCallback() {
-        // This is quite an heursitic
-        return (this.owner != null && this.owner.isAndroidActivity()
-                && activityLifecycleCallbacks.contains(JimpleUtils.getMethodName(this.methodSignature)));
+        return this.isAndroidActivityCallback;
+    }
+
+    public void setAndroidActivityCallback(boolean isAndroidActivityCallback) {
+        this.isAndroidActivityCallback = isAndroidActivityCallback;
+    }
+
+    public boolean isAndroidFragmentCallback() {
+        return this.isAndroidFragmentCallback;
+    }
+
+    public void setAndroidFragmentCallback(boolean isAndroidFragmentCallback) {
+        this.isAndroidFragmentCallback = isAndroidFragmentCallback;
     }
 
     // The list is incomplete !
     final static List<String> activityLifecycleCallbacks = new ArrayList<>(
             Arrays.asList("onCreate", "onStart", "onResume", "onPause", "onStop", "onDestroy", "onPostCreate"));
 
-    private boolean isSynthetic  = false;
+    private boolean isSynthetic = false;
+
+    private boolean isPublic;
+
+    private boolean isProtected;
+
     public void setSyntheticMethod(boolean synthetic) {
         this.isSynthetic = synthetic;
     }
+
     public boolean isSynthetic() {
         return isSynthetic;
+    }
+
+    public void setPublic(boolean isPublic) {
+        this.isPublic = isPublic;
+    }
+
+    public boolean isPublic() {
+        return isPublic;
+    }
+
+    public void setProtected(boolean isProtected) {
+        this.isProtected = isProtected;
+    }
+
+    public boolean isProtected() {
+        return isProtected;
     }
 }

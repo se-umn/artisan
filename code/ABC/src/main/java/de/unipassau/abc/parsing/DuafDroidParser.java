@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.robolectric.android.controller.ActivityController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +33,13 @@ import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.tracing.Trace;
 import de.unipassau.abc.utils.JimpleUtils;
+import edu.emory.mathcs.backport.java.util.Arrays;
+import soot.G;
+import soot.Main;
+import soot.Scene;
+import soot.SootClass;
+import soot.SootMethod;
+import soot.options.Options;
 
 /**
  * Parses the traces collected over android devices using the dyniac/duafdroid
@@ -54,15 +62,62 @@ import de.unipassau.abc.utils.JimpleUtils;
  */
 public class DuafDroidParser {
 
+    public final static File ANDROID_28 = new File("/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar");
+
     private static final Logger logger = LoggerFactory.getLogger(DuafDroidParser.class);
 
     public interface ParserCLI {
         @Option(longName = "trace-files")
         List<File> getTraceFiles();
 
+        @Option(longName = "apk")
+        File getApk();
+
+        @Option(longName = "android-jar")
+        File getAndroidJar();
+
         @Option(longName = "store-artifacts-to", defaultValue = "./wip")
         File getOutputDir();
     }
+
+    /*
+     * This is global anyway. Public for testing. Note that this loads all the
+     * classes in my classpath ! COde Duplication !
+     */
+    public static void setupSoot(File androidJar, File apk) {
+        G.reset();
+        Options.v().set_allow_phantom_refs(true);
+        Options.v().set_whole_program(true);
+
+        Options.v().set_soot_classpath(androidJar.getAbsolutePath());
+        Options.v().set_process_dir(Arrays.asList(new String[] { apk.getAbsolutePath() }));
+        Options.v().set_src_prec(soot.options.Options.src_prec_apk);
+
+        soot.options.Options.v().set_allow_phantom_refs(true);
+
+        // // Soot has problems in working on mac.
+        String osName = System.getProperty("os.name");
+        System.setProperty("os.name", "Whatever");
+        Scene.v().loadNecessaryClasses();
+        System.setProperty("os.name", osName);
+
+    }
+
+    // Class constants
+    public static final String ACTIVITYCLASS = "android.app.Activity";
+    public static final String FRAGMENTCLASS = "android.app.Fragment";
+    // public static final String SUPPORTFRAGMENTCLASS =
+    // "android.support.v4.app.Fragment";
+    //
+    // protected final SootClass scFragmentTransaction =
+    // Scene.v().getSootClassUnsafe("android.app.FragmentTransaction");
+    protected final SootClass scFragment = Scene.v().getSootClassUnsafe(FRAGMENTCLASS);
+    protected final SootClass scActivity = Scene.v().getSootClassUnsafe(ACTIVITYCLASS);
+    //
+    // protected final SootClass scSupportFragmentTransaction =
+    // Scene.v().getSootClassUnsafe("android.support.v4.app.FragmentTransaction");
+    protected final SootClass scSupportFragment = Scene.v().getSootClassUnsafe("android.support.v4.app.Fragment");
+    protected final SootClass scSupportActivity = Scene.v().getSootClassUnsafe("android.support.v7.app.AppCompatActivity");
 
     /**
      * Parse the traceFilePath and generates the required DataStructures
@@ -104,11 +159,12 @@ public class DuafDroidParser {
 
             String each = lines.get(i);
 
-            // We must call this every time we start a new trace to ensure it removes spurious/uncomplete onDestroy methods
+            // We must call this every time we start a new trace to ensure it
+            // removes spurious/uncomplete onDestroy methods
             if (each.contains("---- STARTING TRACING for")) {
                 List<MethodInvocation> invocationsToDrop = callGraph.verify();
-                for( MethodInvocation toDrop : invocationsToDrop ){
-                    executionFlowGraph.dequeue( toDrop );
+                for (MethodInvocation toDrop : invocationsToDrop) {
+                    executionFlowGraph.dequeue(toDrop);
                     dataDependencyGraph.removeMethodInvocation(toDrop);
                 }
 
@@ -136,9 +192,11 @@ public class DuafDroidParser {
             boolean isSyntheticMethod = false;
             switch (openingToken) {
 
+            case Trace.PRIVATE_METHOD_START_TOKEN:
             case Trace.SYNTHETIC_METHOD_START_TOKEN:
             case Trace.METHOD_START_TOKEN:
             case Trace.LIB_METHOD_START_TOKEN:
+
                 /*
                  * This is the basic carving object, a method call/method
                  * invocation
@@ -149,13 +207,40 @@ public class DuafDroidParser {
                  */
                 methodInvocation.setLibraryCall(openingToken.equals(Trace.LIB_METHOD_START_TOKEN));
                 methodInvocation.setSyntheticMethod(openingToken.equals(Trace.SYNTHETIC_METHOD_START_TOKEN));
-                /*
-                 * A call which lacks the owner and is not an instance
-                 * constructor must be static. Note there's no way from the
-                 * methodSignature to distinguish static vs instance calls
-                 */
-                if (!JimpleUtils.isConstructor(methodSignature)) {
-                    methodInvocation.setStatic(methodOwner.isEmpty());
+                methodInvocation.setPrivate(openingToken.equals(Trace.PRIVATE_METHOD_START_TOKEN));
+                
+
+                SootClass sootClass = Scene.v().getSootClass(JimpleUtils.getClassNameForMethod(methodSignature));
+                SootMethod sootMethod = getSootMethodFor(methodSignature);
+
+                if (methodInvocation.isSynthetic()) {
+                    /*
+                     * A call which lacks the owner and is not an instance
+                     * constructor must be static. Note there's no way from the
+                     * methodSignature to distinguish static vs instance calls
+                     * but we cannot load the soot method for syntethic method
+                     * call generated by ABC.
+                     */
+                    if (!JimpleUtils.isConstructor(methodSignature)) {
+                        methodInvocation.setStatic(methodOwner.isEmpty());
+                    }
+                    // Since the method is generate we need to use an heuristic
+                    // to see if that's lifecycle
+
+                } else {
+
+                    methodInvocation.setStatic(sootMethod.isStatic());
+                    methodInvocation.setPrivate(sootMethod.isPrivate());
+                    methodInvocation.setPublic(sootMethod.isPublic());
+                    methodInvocation.setProtected(sootMethod.isProtected());
+                }
+
+                if (!sootClass.isInterface()) {
+                    if (isActivity(sootClass)) {
+                        methodInvocation.setAndroidActivityCallback(JimpleUtils.isActivityLifecycle(methodSignature));
+                    } else if (isFragment(sootClass)) {
+                        methodInvocation.setAndroidFragmentCallback(JimpleUtils.isFragmentLifecycle(methodSignature));
+                    }
                 }
 
                 /*
@@ -286,12 +371,42 @@ public class DuafDroidParser {
 
     }
 
+    private boolean isActivity(SootClass sootClass) {
+        return Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scActivity);
+    }
+
+    private boolean isFragment(SootClass sootClass) {
+        return Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scFragment) ||
+                Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scSupportFragment );
+    }
+
+    private SootMethod getSootMethodFor(String methodSignature) {
+        try {
+            return Scene.v().getMethod(methodSignature);
+        } catch (Throwable e) {
+//            logger.error("Cannot find method " + methodSignature);
+            // SootClass sootClass = Scene.v().getSootClass(
+            // JimpleUtils.getClassNameForMethod(methodSignature));
+            // System.out.println("DuafDroidParser.getSootMethodFor() Methods
+            // for class "+ sootClass );
+            // for( SootMethod sootMethod : sootClass.getMethods() ){
+            // System.out.println("- " + sootMethod );
+            // }
+            // Maybe the method is in some superclass ?
+            // Scene.v().getActiveHierarchy().re
+
+            return null;
+        }
+    }
+
     public static void main(String[] args) {
 
         long startTime = System.nanoTime();
 
         try {
             ParserCLI cli = CliFactory.parseArguments(ParserCLI.class, args);
+
+            DuafDroidParser.setupSoot(cli.getAndroidJar(), cli.getApk());
 
             Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTraceFiles = new HashMap<>();
             DuafDroidParser parser = new DuafDroidParser();
@@ -301,7 +416,7 @@ public class DuafDroidParser {
                     logger.debug("Parsing : " + traceFile);
                     parsedTraceFiles.put(traceFile.getAbsolutePath(), parser.parseTrace(traceFile));
                 } catch (Throwable e) {
-                    logger.error("Failed to parse" + traceFile, e);
+                    logger.error("Failed to parse " + traceFile, e);
                 }
             }
 

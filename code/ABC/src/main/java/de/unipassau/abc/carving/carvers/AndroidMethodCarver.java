@@ -32,7 +32,6 @@ import de.unipassau.abc.carving.NullNodeFactory;
 import de.unipassau.abc.carving.ObjectInstance;
 import de.unipassau.abc.carving.ObjectInstanceFactory;
 import de.unipassau.abc.carving.PrimitiveNodeFactory;
-import de.unipassau.abc.carving.PrimitiveValue;
 import de.unipassau.abc.carving.ValueNode;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.carving.steps.CarvingNode;
@@ -143,7 +142,9 @@ public class AndroidMethodCarver implements MethodCarver {
                         + " Skip carving of " + methodInvocationUnderTest + " as trivially uncarvable \n" //
                         + "====================================================");
                 // Explain why this is trivially uncarvable
-                logger.info("" + callGraph.getOrderedSubsumingMethodInvocationsFor(methodInvocationUnderTest));
+                logger.info("The following method subsumes " + methodInvocationUnderTest + ":"
+                        + callGraph.getOrderedSubsumingMethodInvocationsFor(methodInvocationUnderTest).toString()
+                                .replace("[", "\n\t").replace("]", "").replaceAll(",", "\n\t"));
                 continue;
 
             }
@@ -487,20 +488,108 @@ public class AndroidMethodCarver implements MethodCarver {
         ExecutionFlowGraph executionFlowGraph = carvedTest.getFirst();
         DataDependencyGraph dataDependencyGraph = carvedTest.getSecond();
 
-        logger.trace("Before Summarization: \n " + prettyPrint(executionFlowGraph));
+        // This contains all the necessary invocations we now need to compress
+        // this while keep the test valid.
+        logger.debug("Carved Test: \n" + prettyPrint(executionFlowGraph));
 
         /*
+         * Let's do some android specific carving.
+         */
+
+        // Identify all the "Root" Fragment Activity Lifecycle invocations
+        // before. This might be too stict
+        List<MethodInvocation> fragmentActivityMethodInvocations = new ArrayList();
+        // Use the "global" executionFlowGraph to consider all the method
+        // invocations
+        // Not only the one directly related to the Activity
+        fragmentActivityMethodInvocations
+                .addAll(this.executionFlowGraph.getOrderedMethodInvocationsBefore(methodInvocationToCarve));
+
+        /*
+         * Removes matching elements
+         */
+        MethodInvocationMatcher
+                .filterByInPlace(
+                        MethodInvocationMatcher
+                                .not(MethodInvocationMatcher.or(MethodInvocationMatcher.isActivityLifeCycle(),
+                                        MethodInvocationMatcher.isFragmentLifeCycle())),
+                        fragmentActivityMethodInvocations);
+
+        /*
+         * Identify and remove all the subsumed actions of the Activity or
+         * Fragments in the carved tests. In particular the one for the event
+         * lifecycle since those MUST have happened in the context of the
+         * life-cycle of an activity in any case.
+         */
+        // ExecutionFlowGraph carvedExecutionFlowGraph = carvedTest.getFirst();
+
+        List<MethodInvocation> requiredMethodInvocations = executionFlowGraph.getOrderedMethodInvocations();
+
+        logger.debug("Method calls before removal of fragment lifecycle " + requiredMethodInvocations.size());
+        for (Iterator<MethodInvocation> iterator = requiredMethodInvocations.iterator(); iterator.hasNext();) {
+            MethodInvocation methodInvocation = iterator.next();
+            // TODO Improve
+            for (MethodInvocation fragmentLifecycleMethodInvocation : fragmentActivityMethodInvocations) {
+                if (callGraph.getMethodInvocationsSubsumedBy(fragmentLifecycleMethodInvocation)
+                        .contains(methodInvocation)) {
+                    logger.debug(" methodInvocation " + methodInvocation
+                            + " is subsumed by Activity/Fragment lifecycle " + fragmentLifecycleMethodInvocation);
+                    iterator.remove();
+                    // Avoid removing the same method multiple times
+                    break;
+                }
+            }
+        }
+
+        /*
+         * Keep only the invocations that can be found in the provided set
+         */
+        executionFlowGraph.refine(new HashSet<>(requiredMethodInvocations));
+        dataDependencyGraph.summarize(executionFlowGraph);
+
+        logger.debug("Method calls after removal of fragment lifecycle " + requiredMethodInvocations.size() + " == "
+                + executionFlowGraph.getOrderedMethodInvocations().size());
+
+        /*
+         * Check if the MUT was already subsumed by a lifecycle event
+         */
+        if (!executionFlowGraph.contains(methodInvocationToCarve)) {
+            logger.warn("Method under test was removed by a lifecycle event");
+            // Explain.
+            logger.info(
+                    "Subsuming path: " + callGraph.getOrderedSubsumingMethodInvocationsFor(methodInvocationToCarve));
+            throw new CarvingException("Method under test subsumed by lifecycle event !");
+        }
+
+        /*
+         * At this point, i.e., after having considered the lifecycle of
+         * activity and fragments, we need to remove all the remaining calls to
+         * synthetic methods Since those methods do not really exist (ABC
+         * dynamically generated them), hence they trivially cannot be invoked.
+         */
+        requiredMethodInvocations = executionFlowGraph.getOrderedMethodInvocations();
+        MethodInvocationMatcher.filterByInPlace(MethodInvocationMatcher.isSynthetic(), requiredMethodInvocations);
+
+        executionFlowGraph.refine(new HashSet<>(requiredMethodInvocations));
+        dataDependencyGraph.summarize(executionFlowGraph);
+        
+        
+        /*
+         * Remove any duplicated method invocation
+         * 
          * Summarize carved method invocations: If an invocation is subsumed by
          * another invocation, we can remove it.
          */
+        logger.trace("Before Summarization: \n " + prettyPrint(executionFlowGraph));
+
         executionFlowGraph.summarize(callGraph);
         dataDependencyGraph.summarize(executionFlowGraph);
 
         logger.trace("After Summarization: \n " + prettyPrint(executionFlowGraph));
 
         /*
-         * Validate that the test is valid: After summarization the
-         * "method under test" must be there !
+         * Validate test: After summarization the "method under test" must be
+         * there !
          */
 
         if (!executionFlowGraph.contains(methodInvocationToCarve)) {
@@ -509,6 +598,55 @@ public class AndroidMethodCarver implements MethodCarver {
             // owner !
             logger.warn("Method under test was removed after summarization");
             throw new CarvingException("No more method under test !");
+        }
+
+        /*
+         * ATM we cannot handle ICC/multi-activity tests
+         */
+        if (thereIsMoreThanOneActivity(dataDependencyGraph)) {
+            // Is the activity returning something, so we mock it away ?
+            // Is the other activity from the same app so we might (offline) reproduce its outputs?
+            // Is the other activity THE same activity?
+            
+            
+            logger.warn("Carved test contains more than one activity. We cannot handle this at the moment.");
+            throw new CarvingException("More than one activity !");
+        }
+
+        /*
+         * The test cannot directly call non-visible methods or class
+         * definitions. We assume that the carved test is in the same package of
+         * the CUT
+         */
+        String packageName = JimpleUtils.getPackage(methodInvocationToCarve.getMethodSignature());
+
+        MethodInvocationMatcher nonVisibleMethodInvocationMatcher = MethodInvocationMatcher.or(
+                MethodInvocationMatcher.visibilityPrivate(),
+                MethodInvocationMatcher.not(MethodInvocationMatcher.isVisibleFromPackage(packageName)));
+
+        // Return the elements matching the filter
+        Set<MethodInvocation> nonVisibleMethodInvocations = MethodInvocationMatcher.getMethodInvocationsMatchedBy(
+                nonVisibleMethodInvocationMatcher, executionFlowGraph.getOrderedMethodInvocations());
+
+        if (!nonVisibleMethodInvocations.isEmpty()) {
+            logger.warn("Carved test contains direct calls to non-visible method invocations: "
+                    + nonVisibleMethodInvocations.toString().replaceAll(",", "\n"));
+            throw new CarvingException("Carved tests calls non-visible methods directly !");
+        }
+
+        // We cannot instantiate explicitly Lambda functions. Maybe we can get a
+        // reference to the class defining them, but invoking them I think it is
+        // possible only via
+        // their declaring class/instance ..
+        // https://stackoverflow.com/questions/34589435/get-the-enclosing-class-of-a-java-lambda-expression
+        // target class name + "$$Lambda$" + a counter.
+        MethodInvocationMatcher lambdaMethodInvocationMatcher = MethodInvocationMatcher.lambda();
+        Set<MethodInvocation> lambdaMethodInvocations = MethodInvocationMatcher.getMethodInvocationsMatchedBy(
+                lambdaMethodInvocationMatcher, executionFlowGraph.getOrderedMethodInvocations());
+        if (!lambdaMethodInvocations.isEmpty()) {
+            logger.warn("Carved test contains lamdba method invocations: "
+                    + lambdaMethodInvocations.toString().replaceAll(",", "\n"));
+            throw new CarvingException("Carved test calls lamdba functions directly !");
         }
 
         /*
@@ -650,6 +788,22 @@ public class AndroidMethodCarver implements MethodCarver {
         return carvedTest;
     }
 
+    /*
+     * Check if there's more than one activity type, not instances. This enable to test activity restart cases.
+     */
+    private boolean thereIsMoreThanOneActivity(DataDependencyGraph dataDependencyGraph) {
+        Set<String> androidActivities = new HashSet<>();
+        for (ObjectInstance objectInstance : dataDependencyGraph.getObjectInstances()) {
+            if (objectInstance.isAndroidActivity()) {
+                androidActivities.add(objectInstance.getType());
+            }
+        }
+        if (androidActivities.size() != 1) {
+            logger.info("Found the following activities in the carved test: " + androidActivities);
+        }
+        return androidActivities.size() > 1;
+    }
+
     /**
      * Ensures that the id of the method invocation is negative so the mockery
      * executes before carved test code, or refactor carved test to include
@@ -684,8 +838,7 @@ public class AndroidMethodCarver implements MethodCarver {
             Iterator<Pair<ObjectInstance, MethodInvocation>> danglingObjectWithContextIterator)
             throws CarvingException {
 
-        System.out.println(
-                "AndroidMethodCarver.stubCallsFor() for " + objectInstanceToMock + " in the context of " + context);
+        logger.debug("stubCallsFor() for " + objectInstanceToMock + " in the context of " + context);
         ExecutionFlowGraph executionFlowGraph = new ExecutionFlowGraph();
         DataDependencyGraph dataDependencyGraph = new DataDependencyGraph();
         Pair<ExecutionFlowGraph, DataDependencyGraph> mockery = new Pair<ExecutionFlowGraph, DataDependencyGraph>(
@@ -699,6 +852,7 @@ public class AndroidMethodCarver implements MethodCarver {
                 createArrayDouble(objectInstanceToMock, executionFlowGraph, dataDependencyGraph);
             } else {
                 logger.warn("We cannot mock Arrays");
+                throw new CarvingException("We cannot mock arrays " + objectInstanceToMock);
             }
         } else {
             if (!isTheObjectUsedInContext(objectInstanceToMock, context)) {
@@ -745,6 +899,9 @@ public class AndroidMethodCarver implements MethodCarver {
         return mockery;
     }
 
+    // TODO Find a way to define (negative) indices for mocks !
+    AtomicInteger arrayInitId = new AtomicInteger(-1);
+
     private void createArrayDouble(ObjectInstance arrayToInstantiate, //
             ExecutionFlowGraph executionFlowGraph, DataDependencyGraph dataDependencyGraph) {
         /*
@@ -752,8 +909,11 @@ public class AndroidMethodCarver implements MethodCarver {
          */
         DataNode arraySize = DataNodeFactory.get("int", "0");
 
-        // Probably we should use some constant or such...
-        MethodInvocation arrayInit = new MethodInvocation(-100,
+        // TODO: We cannot use a constant id for method calls as those are
+        // supposed to be unique.
+        // One "naive solution" is to start from a very big negative number and
+        // increment it, but do not use MIN_INTEGER !
+        MethodInvocation arrayInit = new MethodInvocation(arrayInitId.getAndDecrement(),
                 "<" + arrayToInstantiate.getType() + ": void <init>(int)>");
         arrayInit.setOwner(arrayToInstantiate);
         arrayInit.setActualParameterInstances(Arrays.asList(new DataNode[] { arraySize }));
@@ -782,7 +942,7 @@ public class AndroidMethodCarver implements MethodCarver {
         // Filter the call by owner
         MethodInvocationMatcher filterByOwner = MethodInvocationMatcher.byOwnerAndAliases(objectInstanceToMock,
                 this.dataDependencyGraph.getAliasesOf(objectInstanceToMock));
-        callsOnOnbjectInstanceToMockInContext = MethodInvocationMatcher.filterBy(filterByOwner,
+        callsOnOnbjectInstanceToMockInContext = MethodInvocationMatcher.getMethodInvocationsMatchedBy(filterByOwner,
                 callsOnOnbjectInstanceToMockInContext);
 
         // Create mock/spy
@@ -1117,21 +1277,27 @@ public class AndroidMethodCarver implements MethodCarver {
             return "null";
         } else if (actualParameter instanceof NullInstance) {
             return "null";
-        } else if (actualParameter instanceof PrimitiveValue
-                && JimpleUtils.isStringContent(((PrimitiveValue) actualParameter).getStringValue())) {
-            String stringContent = ((PrimitiveValue) actualParameter).getStringValue();
-            stringContent = stringContent.replace("[", "").replace("]", "");
-            if (stringContent.isEmpty()) {
-                return "";
-            } else {
-                String[] bytesAsString = stringContent.split(",");
-                byte[] bytes = new byte[bytesAsString.length];
-                for (int ii = 0; ii < bytes.length; ii++) {
-                    bytes[ii] = new Byte(bytesAsString[ii].trim());
-                }
-                return '"' + new String(bytes) + '"';
-            }
         } else {
+            // else if (actualParameter instanceof PrimitiveValue
+            // && JimpleUtils.isStringContent(((PrimitiveValue)
+            // actualParameter).getStringValue())) {
+            // return actualParameter.toString();
+            //
+            //
+            // String stringContent = ((PrimitiveValue)
+            // actualParameter).getStringValue();
+            // stringContent = stringContent.replace("[", "").replace("]", "");
+            // if (stringContent.isEmpty()) {
+            // return "";
+            // } else {
+            // String[] bytesAsString = stringContent.split(",");
+            // byte[] bytes = new byte[bytesAsString.length];
+            // for (int ii = 0; ii < bytes.length; ii++) {
+            // bytes[ii] = new Byte(bytesAsString[ii].trim());
+            // }
+            // return '"' + new String(bytes) + '"';
+            // }
+            // } else {
             return actualParameter.toString();
         }
     }
@@ -1518,12 +1684,15 @@ public class AndroidMethodCarver implements MethodCarver {
 
         // Take all the calls in this set which were invoked on the method owner
         MethodInvocationMatcher ownership = MethodInvocationMatcher.byInstance(objectInstanceToCarve);
-        potentiallyStateChangingMethods.addAll(MethodInvocationMatcher.filterBy(ownership, methodInvocationsBefore));
+        potentiallyStateChangingMethods
+                .addAll(MethodInvocationMatcher.getMethodInvocationsMatchedBy(ownership, methodInvocationsBefore));
 
         // Take all the calls in which this object was used but which do not
-        // belong to user classes (i.e., library calls). Do not limit to libCalls
-        MethodInvocationMatcher asParameter = MethodInvocationMatcher.asParameter(objectInstanceToCarve); 
-        potentiallyStateChangingMethods.addAll(MethodInvocationMatcher.filterBy(asParameter, methodInvocationsBefore));
+        // belong to user classes (i.e., library calls). Do not limit to
+        // libCalls
+        MethodInvocationMatcher asParameter = MethodInvocationMatcher.asParameter(objectInstanceToCarve);
+        potentiallyStateChangingMethods
+                .addAll(MethodInvocationMatcher.getMethodInvocationsMatchedBy(asParameter, methodInvocationsBefore));
 
         boolean methodFound = potentiallyStateChangingMethods.contains(constructor);
 
@@ -1536,7 +1705,7 @@ public class AndroidMethodCarver implements MethodCarver {
              * which is static and belong to the same class? Maybe some builder
              * method..
              */
-            Set<MethodInvocation> singletonPattern = MethodInvocationMatcher.filterBy(
+            Set<MethodInvocation> singletonPattern = MethodInvocationMatcher.getMethodInvocationsMatchedBy(
                     /*
                      * XXX
                      * MethodInvocationMatcher.byClass(objectInstanceToCarve.
@@ -1544,9 +1713,10 @@ public class AndroidMethodCarver implements MethodCarver {
                      */
                     MethodInvocationMatcher.byClassLiteral(objectInstanceToCarve.getType()),
                     methodInvocationsReturningTheObject);
-            singletonPattern = MethodInvocationMatcher.filterBy(MethodInvocationMatcher.staticCall(), singletonPattern);
-            singletonPattern = MethodInvocationMatcher.filterBy(MethodInvocationMatcher.before(context),
-                    singletonPattern);
+            singletonPattern = MethodInvocationMatcher
+                    .getMethodInvocationsMatchedBy(MethodInvocationMatcher.staticCall(), singletonPattern);
+            singletonPattern = MethodInvocationMatcher
+                    .getMethodInvocationsMatchedBy(MethodInvocationMatcher.before(context), singletonPattern);
 
             /*
              * Order them by ID and take the last one. This might be not
@@ -1565,9 +1735,10 @@ public class AndroidMethodCarver implements MethodCarver {
         if (!methodFound) {
             Set<MethodInvocation> methodInvocationsReturningTheObject = dataDependencyGraph
                     .getMethodInvocationsWhichReturn(objectInstanceToCarve);
-            Set<MethodInvocation> factoryPattern = MethodInvocationMatcher
-                    .filterBy(MethodInvocationMatcher.staticCall(), methodInvocationsReturningTheObject);
-            factoryPattern = MethodInvocationMatcher.filterBy(MethodInvocationMatcher.before(context), factoryPattern);
+            Set<MethodInvocation> factoryPattern = MethodInvocationMatcher.getMethodInvocationsMatchedBy(
+                    MethodInvocationMatcher.staticCall(), methodInvocationsReturningTheObject);
+            factoryPattern = MethodInvocationMatcher
+                    .getMethodInvocationsMatchedBy(MethodInvocationMatcher.before(context), factoryPattern);
 
             /*
              * Order them by ID and take the last one. This might be not
@@ -1610,7 +1781,8 @@ public class AndroidMethodCarver implements MethodCarver {
                 includeTheContext);
 
         MethodInvocationMatcher externalCall = MethodInvocationMatcher.libCall();
-        potentiallyStateChangingMethods.addAll(MethodInvocationMatcher.filterBy(externalCall, methodInvocationsBefore));
+        potentiallyStateChangingMethods
+                .addAll(MethodInvocationMatcher.getMethodInvocationsMatchedBy(externalCall, methodInvocationsBefore));
 
         return potentiallyStateChangingMethods;
     }
