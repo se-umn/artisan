@@ -1,6 +1,7 @@
 package de.unipassau.abc.generation;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -25,7 +26,13 @@ public class AndroidActivityTestGenerationTest {
 
     private List<String> getTheFiles(File rootDirectory) {
         List<String> files = new ArrayList<>();
-        File[] subdirs = rootDirectory.listFiles();
+        File[] subdirs = rootDirectory.listFiles(new FilenameFilter() {
+            
+            @Override
+            public boolean accept(File dir, String name) {
+                return name.matches(".*_\\d\\d*");
+            }
+        });
         for (File subdir : subdirs) {
             if (subdir.isDirectory()) {
                 files.addAll(getTheFiles(subdir));
