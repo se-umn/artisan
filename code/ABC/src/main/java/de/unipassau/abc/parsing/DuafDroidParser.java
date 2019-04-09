@@ -12,9 +12,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.robolectric.android.controller.ActivityController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +35,6 @@ import de.unipassau.abc.tracing.Trace;
 import de.unipassau.abc.utils.JimpleUtils;
 import edu.emory.mathcs.backport.java.util.Arrays;
 import soot.G;
-import soot.Main;
 import soot.Scene;
 import soot.SootClass;
 import soot.SootMethod;
@@ -117,7 +116,8 @@ public class DuafDroidParser {
     // protected final SootClass scSupportFragmentTransaction =
     // Scene.v().getSootClassUnsafe("android.support.v4.app.FragmentTransaction");
     protected final SootClass scSupportFragment = Scene.v().getSootClassUnsafe("android.support.v4.app.Fragment");
-    protected final SootClass scSupportActivity = Scene.v().getSootClassUnsafe("android.support.v7.app.AppCompatActivity");
+    protected final SootClass scSupportActivity = Scene.v()
+            .getSootClassUnsafe("android.support.v7.app.AppCompatActivity");
 
     /**
      * Parse the traceFilePath and generates the required DataStructures
@@ -208,7 +208,6 @@ public class DuafDroidParser {
                 methodInvocation.setLibraryCall(openingToken.equals(Trace.LIB_METHOD_START_TOKEN));
                 methodInvocation.setSyntheticMethod(openingToken.equals(Trace.SYNTHETIC_METHOD_START_TOKEN));
                 methodInvocation.setPrivate(openingToken.equals(Trace.PRIVATE_METHOD_START_TOKEN));
-                
 
                 SootClass sootClass = Scene.v().getSootClass(JimpleUtils.getClassNameForMethod(methodSignature));
                 SootMethod sootMethod = getSootMethodFor(methodSignature);
@@ -376,15 +375,15 @@ public class DuafDroidParser {
     }
 
     private boolean isFragment(SootClass sootClass) {
-        return Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scFragment) ||
-                Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scSupportFragment );
+        return Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scFragment)
+                || Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scSupportFragment);
     }
 
     private SootMethod getSootMethodFor(String methodSignature) {
         try {
             return Scene.v().getMethod(methodSignature);
         } catch (Throwable e) {
-//            logger.error("Cannot find method " + methodSignature);
+            // logger.error("Cannot find method " + methodSignature);
             // SootClass sootClass = Scene.v().getSootClass(
             // JimpleUtils.getClassNameForMethod(methodSignature));
             // System.out.println("DuafDroidParser.getSootMethodFor() Methods
@@ -406,6 +405,13 @@ public class DuafDroidParser {
         try {
             ParserCLI cli = CliFactory.parseArguments(ParserCLI.class, args);
 
+            File outputArtifactTo = cli.getOutputDir();
+
+            if (!outputArtifactTo.isDirectory()) {
+                throw new CarvingException("Wrong input: " + outputArtifactTo.getAbsolutePath()
+                        + " is a file, but should be a directory instead");
+            }
+
             DuafDroidParser.setupSoot(cli.getAndroidJar(), cli.getApk());
 
             Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTraceFiles = new HashMap<>();
@@ -420,17 +426,25 @@ public class DuafDroidParser {
                 }
             }
 
-            // Serialize the parsed graphs to file so maybe we can avoid
-            // re-parsing the trace over and over...
+            /*
+             * Serialize the parsed graphs to file so maybe we can avoid
+             * re-parsing the trace over and over...
+             */
 
-            File outputArtifactTo = cli.getOutputDir();
             if (!outputArtifactTo.exists()) {
-                Files.createDirectories(outputArtifactTo.getParentFile().toPath(), new FileAttribute[] {});
+                Files.createDirectories(outputArtifactTo.toPath(), new FileAttribute[] {});
             }
 
-            try (OutputStream writer = new FileOutputStream(outputArtifactTo)) {
-                XStream xStream = new XStream();
-                xStream.toXML(parsedTraceFiles, writer);
+            for (Entry<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsed : parsedTraceFiles
+                    .entrySet()) {
+                String fileName = new File(parsed.getKey()).getName();
+                fileName += ".parsed.xml";
+                File storeTo = new File(outputArtifactTo, fileName);
+                try (OutputStream writer = new FileOutputStream(storeTo)) {
+                    System.out.println("DuafDroidParser.main() Storing : " + parsed.getValue() + " to: " + storeTo.getAbsolutePath());
+                    XStream xStream = new XStream();
+                    xStream.toXML(parsed.getValue(), writer);
+                }
             }
         } catch (Throwable e) {
             e.printStackTrace();

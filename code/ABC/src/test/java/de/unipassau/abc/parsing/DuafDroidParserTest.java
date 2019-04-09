@@ -1,9 +1,9 @@
 package de.unipassau.abc.parsing;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.junit.Assert;
@@ -31,7 +31,7 @@ public class DuafDroidParserTest {
     @Test
     public void mainTest() throws IOException {
 
-        File outputTo = new File("src/test/resources/android-28-traces/parsed.xml"); // tempFolder.newFile("parsed.xml");
+        File outputTo = new File("src/test/resources/android-28-traces/"); // tempFolder.newFile("parsed.xml");
         String trace = new File("src/test/resources/android-28-traces/trace.log").getAbsolutePath();
 
         // TODO Include classes to SOOT to compute details about the classe
@@ -46,15 +46,20 @@ public class DuafDroidParserTest {
         // Check that this is actually happening
         XStream xStream = new XStream();
 
-        Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTraceFiles = (Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>) xStream
-                .fromXML(outputTo);
-
+        // Read all the files from the folder
+        Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTraceFiles = new HashMap<>();
+        for( File file  : outputTo.listFiles(new FilenameFilter() {
+            
+            @Override
+            public boolean accept(File dir, String name) {
+                return name.endsWith(".parsed.xml");
+            }
+        })){
+            System.out.println("DuafDroidParserTest.mainTest() Reading from " + file);
+            parsedTraceFiles.put(file.getAbsolutePath(),
+                    (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>) xStream.fromXML(file));
+        }
         Assert.assertEquals(1, parsedTraceFiles.size());
-
-        System.out.println("DuafDroidParserTest.mainTest() " + parsedTraceFiles.entrySet().iterator().next().getKey());
-        System.out
-                .println("DuafDroidParserTest.mainTest() " + parsedTraceFiles.entrySet().iterator().next().getValue());
-
     }
 
 }
