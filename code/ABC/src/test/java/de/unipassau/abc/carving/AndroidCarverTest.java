@@ -23,8 +23,11 @@ public class AndroidCarverTest {
 
     @Test
     public void testMain() throws IOException, InterruptedException, URISyntaxException, CarvingException {
-        String parsedTrace = new File("src/test/resources/android-28-traces/parsed.xml").getAbsolutePath();
 
+        String apk = "/Users/gambi/MyDroidFax/apks/Notepad-Alessio.apk";
+        String androidJar = "/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar";
+        
+        String parsedTrace = new File("src/test/resources/android-28-traces/trace.log.parsed.xml").getAbsolutePath();
         File outputTo = new File("src/test/resources/android-28-carved-tests");
         // tempFolder.newFolder("carved-tests");
 
@@ -51,10 +54,15 @@ public class AndroidCarverTest {
 //         String methodInvocation = "<com.farmerbb.notepad.activity.MainActivity: void onBackPressed()>_1525";
         // "<com.farmerbb.notepad.activity.MainActivity: void hideFab()>_1391";
 
-        String[] args = new String[] { "--parsed-traces", parsedTrace, //
+
+        // If no carving directive is provided we carve all the Activity classes of the project
+        String[] args = new String[] {
+                "--apk", apk, "--android-jar", androidJar , //
+                "--parsed-traces", parsedTrace, //
                 "--output-carved-tests-to", outputTo.getAbsolutePath(), //
 //                 "--method-invocation-to-carve", methodInvocation };
-                "--class-to-carve", classToCarve };
+//                "--class-to-carve", classToCarve 
+                };
 
         AndroidCarver.main(args);
 

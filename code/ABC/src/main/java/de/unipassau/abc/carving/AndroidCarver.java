@@ -5,10 +5,14 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.lang3.SystemUtils;
+import org.robolectric.android.controller.ActivityController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,13 +21,11 @@ import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
 import com.thoughtworks.xstream.XStream;
 
-import de.unipassau.abc.ABCUtils;
 import de.unipassau.abc.carving.carvers.AndroidMethodCarver;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.utils.JimpleUtils;
-import edu.emory.mathcs.backport.java.util.Arrays;
 import soot.G;
 import soot.Scene;
 import soot.options.Options;
@@ -40,15 +42,19 @@ import soot.options.Options;
 public class AndroidCarver {
 
     private static final Logger logger = LoggerFactory.getLogger(AndroidCarver.class);
-    public static final String MOCKITO_JAR = "/Users/gambi/.m2/repository/org/mockito/mockito-core/1.10.19/mockito-core-1.10.19.jar";
+    // public static final String MOCKITO_JAR =
+    // "/Users/gambi/.m2/repository/org/mockito/mockito-core/1.10.19/mockito-core-1.10.19.jar";
 
     public interface CarverCLI {
 
         @Option(longName = "parsed-traces")
-        File getParsedTracesFile();
+        List<File> getParsedTraceFiles();
 
-        // @Option(longName = "project-jar")
-        // List<File> getProjectJar();
+        @Option(longName = "apk")
+        File getAPK();
+
+        @Option(longName = "android-jar")
+        File getAndroidJar();
 
         @Option(longName = "output-carved-tests-to")
         File getOutputDir();
@@ -89,44 +95,56 @@ public class AndroidCarver {
         long startTime = System.nanoTime();
 
         CarverCLI cli = CliFactory.parseArguments(CarverCLI.class, args);
-        File parsedTracesFile = cli.getParsedTracesFile();
+        List<File> parsedTracesFiles = cli.getParsedTraceFiles();
         File storeCarvedTestsTo = cli.getOutputDir();
 
         // Validate the input
         MethodInvocationMatcher carveBy = null;
-        
+
         String classToCarve = cli.getClassToCarve();
-        if (classToCarve == null || ( classToCarve != null && classToCarve.isEmpty())){
+        if (classToCarve == null || (classToCarve != null && classToCarve.isEmpty())) {
             String methodInvocationToCarve = cli.getMethodInvocationToCarve();
-            
-            if (methodInvocationToCarve != null && ! methodInvocationToCarve.isEmpty()){
+
+            if (methodInvocationToCarve != null && !methodInvocationToCarve.isEmpty()) {
                 carveBy = MethodInvocationMatcher.byMethodInvocation(methodInvocationToCarve);
             }
         } else {
             carveBy = MethodInvocationMatcher.byClass(classToCarve);
         }
 
-        if( carveBy == null ){
-            throw new CarvingException("Wrong carve by criterion");
-        }
-        
-        
+        setupSoot(cli.getAndroidJar(), cli.getAPK());
+
         // Not sure what this is used...
         List<MethodInvocationMatcher> excludeBy = new ArrayList<>();
         // We cannot carve static initializers
         excludeBy.add(MethodInvocationMatcher.clinit());
 
         // Load the parsed traces
+        Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTraces = new HashMap<>();
         XStream xStream = new XStream();
-        Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTraces = (Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>) xStream
-                .fromXML(parsedTracesFile);
+        for (File parsedTrace : parsedTracesFiles) {
+            try {
+                parsedTraces.put(parsedTrace.getAbsolutePath(),
+                        (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>) xStream.fromXML(parsedTrace));
+            } catch (Exception e) {
+                logger.error("Cannot parse " + parsedTrace);
+            }
+        }
 
-        List<File> projectJars = new ArrayList<>();
-        projectJars.add( new File(MOCKITO_JAR));
-        setupSoot(projectJars);
+        logger.info("Start carving of " + parsedTraces.size() + " traces ");
+
+        if (carveBy == null) {
+            carveBy = generateMethodInvocationMatcherForAllTheActivities(parsedTraces);
+        }
+
+        if (carveBy == null) {
+            // By default we look for the Activity classes in the APK and carve
+            // them all...
+
+            throw new CarvingException("Wrong carve by criterion");
+        }
         
-        logger.info("Start carving of " + parsedTraces.size() + " traces " );
-
+        
         /*
          * At this level of abstraction carved tests are simply a number of
          * method invocations
@@ -137,27 +155,27 @@ public class AndroidCarver {
 
         int methodInvocationCount = 0;
         for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace : parsedTraces.values()) {
-            // TODO Possibly at this level we can also select the most appropriate method carver ?
+            // TODO Possibly at this level we can also select the most
+            // appropriate method carver ?
 
-            List<MethodInvocation> methodsInvocationsToCarve = new ArrayList<>(parsedTrace.getFirst().getMethodInvocationsFor(carveBy, excludeBy.toArray(new MethodInvocationMatcher[] {})));
-            
-            
+            List<MethodInvocation> methodsInvocationsToCarve = new ArrayList<>(parsedTrace.getFirst()
+                    .getMethodInvocationsFor(carveBy, excludeBy.toArray(new MethodInvocationMatcher[] {})));
+
             // Remove the synthetic methods
             MethodInvocationMatcher.filterByInPlace(MethodInvocationMatcher.isSynthetic(), methodsInvocationsToCarve);
-            
+
             methodInvocationCount += methodsInvocationsToCarve.size();
-            
+
             /*
              * There might be different stragegies for Carving. We use the
              * Level_0 carving, which does not inspect the implementations of
              * the CUT. This aims to generate test cases which contains only
              * "callable" (i.e., public) methods of the CUTs
              */
-            AndroidMethodCarver testCarver = new AndroidMethodCarver(
-                    parsedTrace.getFirst(), // 
+            AndroidMethodCarver testCarver = new AndroidMethodCarver(parsedTrace.getFirst(), //
                     parsedTrace.getSecond(), //
                     parsedTrace.getThird());
-            
+
             carvedTests.addAll(testCarver.carve(methodsInvocationsToCarve));
         }
 
@@ -165,9 +183,10 @@ public class AndroidCarver {
         /*
          * Simplify ? Shorten ?
          */
-        
+
         /*
-         * Remove duplicates. A duplicate is code clone were the method under test is the same and the parameters
+         * Remove duplicates. A duplicate is code clone were the method under
+         * test is the same and the parameters
          */
 
         carvingTime = System.currentTimeMillis() - carvingTime;
@@ -195,65 +214,61 @@ public class AndroidCarver {
         return;
     }
 
-    /*
-     * This is global anyway. Public for testing. Note that this loads all the
-     * classes in my classpath !
-     */
-    public static void setupSoot(List<File> projectJars) {
-        G.reset();
-        //
+    private static MethodInvocationMatcher generateMethodInvocationMatcherForAllTheActivities(
+            Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTraces) {
+        Set<String> activities = new HashSet<>();
+        for( Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace : parsedTraces.values()){
+            DataDependencyGraph dataDependencyGraph = parsedTrace.getSecond();
+            for(ObjectInstance objectInstance : dataDependencyGraph.getObjectInstances() ){
+                if( objectInstance.isAndroidActivity() ){
+                    activities.add( objectInstance.getType() );
+                }
+            }
+        }
+        logger.info("Found the following activities in the application: \n" + activities );
+        List<MethodInvocationMatcher> matchers = new ArrayList<>();
+        for(String activityType : activities ){
+            matchers.add( MethodInvocationMatcher.byClass( activityType ) );
+        }
+        
+        if( matchers.isEmpty() ){
+            return null;
+        } else if( matchers.size() == 1 ){
+            return matchers.get( 0 );
+        } else {
+            return MethodInvocationMatcher.or( //
+                    matchers.get(0),
+                    matchers.get(1), 
+                    matchers.subList(2, matchers.size()).toArray( new MethodInvocationMatcher[]{}));
+        }
+    }
 
-        // System Settings Begin
+    private static void setupSoot(File androidJar, File apk) {
+        G.reset();
         Options.v().set_allow_phantom_refs(true);
         Options.v().set_whole_program(true);
 
-        // String junit4Jar = null;
-        // String hamcrestCoreJar = null;
-        //
-        // for (String cpEntry :
-        // SystemUtils.JAVA_CLASS_PATH.split(File.pathSeparator)) {
-        // if (cpEntry.contains("junit-4")) {
-        // junit4Jar = cpEntry;
-        // } else if (cpEntry.contains("hamcrest-core")) {
-        // hamcrestCoreJar = cpEntry;
-        // }
-        // }
-        //
-        // String traceJar = ABCUtils.getTraceJar();
-        // String systemRulesJar = ABCUtils.getSystemRulesJar();
-        // List<File> xStreamJars = ABCUtils.getXStreamJars();
-
-        System.out.println("Carver.setupSoot() Project Jars: ");
+        // Not sure this will work with the APK
         ArrayList<String> necessaryJar = new ArrayList<String>();
-        // Include here JUnit and Hamcrest
-        for (File projectLib : projectJars) {
-            System.out.println("- " + projectLib);
-            necessaryJar.add(projectLib.getAbsolutePath());
+        // Include here entries from the classpath
+        for (String cpEntry : SystemUtils.JAVA_CLASS_PATH.split(File.pathSeparator)) {
+            if (cpEntry.contains("mockito-core-1.10.19.jar")) {
+                necessaryJar.add(cpEntry);
+            }
         }
-        // necessaryJar.add(junit4Jar);
-        // necessaryJar.add(hamcrestCoreJar);
-        // necessaryJar.add(traceJar);
-        //
-        // necessaryJar.add(systemRulesJar);
-        //
-        // for (File projectLib : xStreamJars) {
-        // necessaryJar.add(projectLib.getAbsolutePath());
-        // }
+        necessaryJar.add(apk.getAbsolutePath());
 
-        /*
-         * To process a JAR file, just use the same option but provide a path to
-         * a JAR instead of a directory.
-         */
+        Options.v().set_soot_classpath(androidJar.getAbsolutePath());
         Options.v().set_process_dir(necessaryJar);
+        Options.v().set_src_prec(soot.options.Options.src_prec_apk);
 
         // Soot has problems in working on mac.
         String osName = System.getProperty("os.name");
         System.setProperty("os.name", "Whatever");
         Scene.v().loadNecessaryClasses();
         System.setProperty("os.name", osName);
-        //
-        // p = Paths.get(file.getAbsolutePath());
-        // System.out.println("P = " + p);
+        // This is mostlty to check
+        Scene.v().loadClassAndSupport(ActivityController.class.getName());
 
     }
 }
