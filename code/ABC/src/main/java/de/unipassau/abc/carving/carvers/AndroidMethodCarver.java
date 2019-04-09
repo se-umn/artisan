@@ -9,9 +9,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import org.mockito.Mockito;
 import org.mockito.stubbing.OngoingStubbing;
@@ -23,7 +20,6 @@ import de.unipassau.abc.carving.DataDependencyGraph;
 import de.unipassau.abc.carving.DataNode;
 import de.unipassau.abc.carving.DataNodeFactory;
 import de.unipassau.abc.carving.ExecutionFlowGraph;
-import de.unipassau.abc.carving.GraphNode;
 import de.unipassau.abc.carving.MethodCarver;
 import de.unipassau.abc.carving.MethodInvocation;
 import de.unipassau.abc.carving.MethodInvocationMatcher;
@@ -34,12 +30,10 @@ import de.unipassau.abc.carving.ObjectInstanceFactory;
 import de.unipassau.abc.carving.PrimitiveNodeFactory;
 import de.unipassau.abc.carving.ValueNode;
 import de.unipassau.abc.carving.exceptions.CarvingException;
-import de.unipassau.abc.carving.steps.CarvingNode;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.utils.JimpleUtils;
 import edu.emory.mathcs.backport.java.util.Arrays;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
-import no.systek.dataflow.StepExecutor;
 import soot.RefType;
 import soot.Scene;
 import soot.SootClass;
@@ -217,243 +211,6 @@ public class AndroidMethodCarver implements MethodCarver {
 
         // Check if methodInvocationUnderTest belongs to that set
         return subsumedByOwnerBefore.contains(methodInvocationUnderTest);
-    }
-
-    private ExecutorService executorService;
-    protected StepExecutor stepExecutor;
-
-    /**
-     * With this method I tried to use a data-flow driven execution style to
-     * parallelize speed up the computation but turns out that that framework
-     * cannot handle large graphs. So I reverted back to the recursiveCall
-     * one...
-     * 
-     * @param methodInvocationToCarve
-     * @return
-     * @throws CarvingException
-     */
-    private Pair<ExecutionFlowGraph, DataDependencyGraph> carveTheMethodInvocation(
-            MethodInvocation methodInvocationToCarve) throws CarvingException {
-        /*
-         * Build a graph of carving tasks first, and let it run later. Keep a
-         * reference to the various tasks to avoid repeating them.
-         * 
-         * Eventually there will be a CarvingNode for each GraphNode
-         * 
-         * The Pair identifies the carving target in its context (for objects)
-         */
-        Map<Pair<GraphNode, MethodInvocation>, CarvingNode> workList = new HashMap<>();
-
-        // Create the CarvingNode and then set its dependencies
-        CarvingNode carvingNode = new CarvingNode(methodInvocationToCarve);
-        // Register the node in the worklist - context is null since a method
-        // invocation is unique
-        workList.put(new Pair<GraphNode, MethodInvocation>(methodInvocationToCarve, null), carvingNode);
-        logger.debug("Added CarvingNode for " + methodInvocationToCarve);
-        // Discover the CarvingNode dependencies
-        includeMethodDependencies(methodInvocationToCarve, carvingNode, workList);
-
-        executorService = Executors.newFixedThreadPool(50);
-
-        // TODO I have no idea what's doing here ....
-        stepExecutor = new StepExecutor(executorService, s -> {
-        }, () -> null, 50, 30, TimeUnit.SECONDS);
-
-        // Start the execution with only empty data structures for input nodes
-        // if any
-        Pair<ExecutionFlowGraph, DataDependencyGraph> empty = new Pair<ExecutionFlowGraph, DataDependencyGraph>(
-                new ExecutionFlowGraph(), new DataDependencyGraph());
-
-        Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest = carvingNode.executeWith(stepExecutor);
-
-        executorService.shutdown();
-        executorService = null;
-        stepExecutor = null;
-
-        logger.debug("Carved test: \n" + prettyPrint(carvedTest.getFirst()));
-
-        // Do POST PROCESSING HERE
-
-        return carvedTest;
-
-    }
-
-    /*
-     * This method finds the necessary dependencies of the method and attach
-     * them to the corresponding CarvingNode, hence the carving node MUST be
-     * there already.
-     * 
-     * Adopt a breath-first stile to easy understanding
-     */
-    private void includeMethodDependencies(MethodInvocation methodInvocationToCarve, CarvingNode dependentNode,
-            Map<Pair<GraphNode, MethodInvocation>, CarvingNode> workList) throws CarvingException {
-
-        logger.debug("Computing Dependencie for " + methodInvocationToCarve);
-
-        int dataDependenciesCount = methodInvocationToCarve.getActualParameterInstances().size()
-                + ((!methodInvocationToCarve.isStatic() || !methodInvocationToCarve.isConstructor()) ? 1 : 0);
-
-        /*
-         * If the method is an instance method but not a constructor attach its
-         * owner as dependency
-         */
-        List<ObjectInstance> toExplore = new ArrayList<>();
-
-        if (!methodInvocationToCarve.isStatic() && !methodInvocationToCarve.isConstructor()) {
-
-            Pair<GraphNode, MethodInvocation> ownerTask = new Pair<GraphNode, MethodInvocation>(
-                    methodInvocationToCarve.getOwner(), methodInvocationToCarve);
-
-            // Check if this owner in the same context was already used
-            // otherwise create a new one
-            CarvingNode ownerDependency = null;
-            if (!workList.containsKey(ownerTask)) {
-                ownerDependency = new CarvingNode(methodInvocationToCarve.getOwner(), methodInvocationToCarve);
-                workList.put(ownerTask, ownerDependency);
-                logger.debug("Added CarvingNode for method owner " + methodInvocationToCarve.getOwner());
-
-                // Since the owner is an Object we will need to look for its
-                // dependencies as well
-                // TODO Unless we already did it ?!
-                toExplore.add(methodInvocationToCarve.getOwner());
-            } else {
-                ownerDependency = workList.get(ownerTask);
-            }
-
-            logger.debug("\t Declare dependency between " + methodInvocationToCarve + " and its owner "
-                    + methodInvocationToCarve.getOwner());
-            //
-            dependentNode.acceptAsOwner(ownerDependency);
-        }
-
-        /*
-         * Include dependencies on parameters. Keep the position into account.
-         */
-        for (int position = 0; position < methodInvocationToCarve.getActualParameterInstances().size(); position++) {
-
-            DataNode actualParameterToCarve = methodInvocationToCarve.getActualParameterInstances().get(position);
-
-            Pair<GraphNode, MethodInvocation> parameterTask = new Pair<GraphNode, MethodInvocation>(
-                    actualParameterToCarve, methodInvocationToCarve);
-
-            CarvingNode parameterDependency = null;
-            if (workList.containsKey(parameterTask)) {
-                parameterDependency = workList.get(parameterTask);
-            } else {
-                parameterDependency = new CarvingNode(actualParameterToCarve, methodInvocationToCarve);
-                workList.put(parameterTask, parameterDependency);
-                logger.debug("Added CarvingNode for parameter " + actualParameterToCarve + " in position " + position);
-
-                if ((actualParameterToCarve instanceof ObjectInstance)
-                        && !(actualParameterToCarve instanceof NullInstance)) {
-                    // Since the owner is an non null Object we will need to
-                    // look for its dependencies as well
-                    // TODO Unless we already did it ?!
-                    toExplore.add((ObjectInstance) actualParameterToCarve);
-                }
-            }
-
-            logger.debug("\t Declare dependency between " + methodInvocationToCarve + " and its parameter "
-                    + actualParameterToCarve + " in position " + position);
-            //
-            dependentNode.acceptAsParameterInPosition(parameterDependency, position);
-        }
-
-        if (toExplore.isEmpty()) {
-            logger.debug("There's nothing left to explore for " + methodInvocationToCarve);
-        } else {
-            // Trigger dependency collection for the carving nodes
-            for (ObjectInstance objectInstance : toExplore) {
-                Pair<GraphNode, MethodInvocation> objectTask = new Pair<GraphNode, MethodInvocation>(objectInstance,
-                        methodInvocationToCarve);
-                // This cannot be null...
-                CarvingNode objectCarvingNode = workList.get(objectTask);
-                //
-                includeObjectInstanceDependency(objectInstance, methodInvocationToCarve, objectCarvingNode, workList);
-            }
-        }
-    }
-
-    /**
-     * Find the methods which "possibly" contribute to setting the state of this
-     * object and carve them. Those are methods that we called
-     * <strong>before</strong> the context:
-     * <ul>
-     * <li>on that object</li>
-     * <li>on aliases of that object</li>
-     * <li>In case the object or aliases are not "ours", all the methods that do
-     * not belong to the app code, which we receive that object as
-     * parameter</li>
-     * </ul>
-     * 
-     * TODO: NOTE: Direct access to object fields (because they are public) will
-     * not be considered in this analysis !!!
-     */
-    private void includeObjectInstanceDependency(ObjectInstance objectInstanceToCarve, MethodInvocation context, //
-            CarvingNode dependentNode, //
-            Map<Pair<GraphNode, MethodInvocation>, CarvingNode> workList) throws CarvingException {
-
-        logger.debug("Collecting method dependencies for object " + objectInstanceToCarve + " in context " + context);
-
-        /*
-         * Collect all the method invocations on that object.
-         */
-        Collection<MethodInvocation> potentiallyStateSettingMethods = findPotentiallyInternalStateChangingMethodsFor(
-                objectInstanceToCarve, context);
-
-        /*
-         * Include the methods on that alias -> Honestly I have no idea how is
-         * this possible... maybe the system id is tricky ?!
-         */
-        for (ObjectInstance alias : this.dataDependencyGraph.getAliasesOf(objectInstanceToCarve)) {
-            potentiallyStateSettingMethods.addAll(findPotentiallyInternalStateChangingMethodsFor(alias, context));
-        }
-
-        /*
-         * Consider only the state changing methods BEFORE the context. We need
-         * to redo this operation sinde aliases might have introduced additional
-         * method calls AFTER context
-         */
-
-        MethodInvocationMatcher.filterByInPlace(MethodInvocationMatcher.after(context), potentiallyStateSettingMethods);
-
-        List<MethodInvocation> toExplore = new ArrayList<>();
-
-        for (MethodInvocation methodInvocationToCarve : potentiallyStateSettingMethods) {
-            Pair<GraphNode, MethodInvocation> methodToCarveTask = new Pair<GraphNode, MethodInvocation>(
-                    methodInvocationToCarve, null);
-
-            CarvingNode methodDependency = null;
-            if (workList.containsKey(methodToCarveTask)) {
-                methodDependency = workList.get(methodToCarveTask);
-            } else {
-                methodDependency = new CarvingNode(methodInvocationToCarve);
-                workList.put(methodToCarveTask, methodDependency);
-                //
-                logger.debug("Added CarvingNode for " + methodInvocationToCarve);
-                // Since this is a method invocation we might need to further
-                // explore it
-                toExplore.add(methodInvocationToCarve);
-            }
-
-            logger.debug("\t Declare dependency between " + objectInstanceToCarve + " and " + methodInvocationToCarve);
-            dependentNode.acceptAsStateChangingMethod(methodDependency);
-        }
-
-        if (toExplore.isEmpty()) {
-            logger.debug("There's nothing left to explore for " + objectInstanceToCarve + " in the context " + context);
-        } else {
-            // Trigger dependency collection for the state changing nodes
-            for (MethodInvocation methodInvocation : potentiallyStateSettingMethods) {
-                Pair<GraphNode, MethodInvocation> methodInvocationTask = new Pair<GraphNode, MethodInvocation>(
-                        methodInvocation, null);
-                CarvingNode methodInvocationDependency = workList.get(methodInvocationTask);
-
-                includeMethodDependencies(methodInvocation, //
-                        methodInvocationDependency, //
-                        workList);
-            }
-        }
     }
 
     /**

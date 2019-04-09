@@ -56,14 +56,13 @@
 							<id>carve</id>
 						</program>
 						<program>
-                            <mainClass>de.unipassau.abc.generation.AndroidActivityTestGenerator</mainClass>
-                            <id>generate</id>
-                        </program>
-						
+							<mainClass>de.unipassau.abc.generation.AndroidActivityTestGenerator</mainClass>
+							<id>generate</id>
+						</program>
+
 					</programs>
-					<configurationDirectory>libs</configurationDirectory>
-					<configurationSourceDirectory>libs</configurationSourceDirectory>
-					<copyConfigurationDirectory>true</copyConfigurationDirectory>
+					<!-- <configurationDirectory>libs</configurationDirectory> <configurationSourceDirectory>libs</configurationSourceDirectory> 
+						<copyConfigurationDirectory>true</copyConfigurationDirectory> -->
 				</configuration>
 			</plugin>
 		</plugins>
@@ -71,22 +70,6 @@
 	</build>
 
 	<dependencies>
-		<!-- Installed from source -->
-		<dependency>
-			<groupId>org.df4j</groupId>
-			<artifactId>df4j-core</artifactId>
-			<version>6.3</version>
-		</dependency>
-
-		<!-- Basic Data-Driven execution scheduler: This is not optimized and when 
-			the carving graph becomes bigger it cannot handle it -->
-		<dependency>
-			<groupId>no.systek.dataflow</groupId>
-			<artifactId>dataflow</artifactId>
-			<version>0.3-SNAPSHOT</version>
-		</dependency>
-
-
 		<!-- Plain Java Code Generation: https://github.com/square/javapoet -->
 		<dependency>
 			<groupId>com.squareup</groupId>
