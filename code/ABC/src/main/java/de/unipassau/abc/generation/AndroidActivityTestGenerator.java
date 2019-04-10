@@ -20,6 +20,7 @@ import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.android.controller.ActivityController;
+import org.robolectric.util.Logger;
 
 import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
@@ -485,7 +486,7 @@ public class AndroidActivityTestGenerator {
                     && firstUseOf(methodInvocation.getReturnValue())) {
                 String type = getVariableFor(methodInvocation.getReturnValue()).getFirst();
                 returnValue = getVariableFor(methodInvocation.getReturnValue()).getSecond();
-                methodBuilder.addStatement(type + " " + returnValue + " = " 
+                methodBuilder.addStatement(type + " " + returnValue + " = "
                         + JimpleUtils.getFullyQualifiedMethodName(methodInvocation.getMethodSignature()) + "("
                         + parameters.toString() + ")");
             } else {
@@ -500,9 +501,9 @@ public class AndroidActivityTestGenerator {
                     && firstUseOf(methodInvocation.getReturnValue())) {
                 String type = getVariableFor(methodInvocation.getReturnValue()).getFirst();
                 returnValue = getVariableFor(methodInvocation.getReturnValue()).getSecond();
-                methodBuilder
-                        .addStatement(type + " " + returnValue  + " = " + getVariableFor(methodInvocation.getOwner()).getSecond()
-                                + "." + JimpleUtils.getMethodName(methodInvocation.getMethodSignature()) + "("
+                methodBuilder.addStatement(
+                        type + " " + returnValue + " = " + getVariableFor(methodInvocation.getOwner()).getSecond() + "."
+                                + JimpleUtils.getMethodName(methodInvocation.getMethodSignature()) + "("
                                 + parameters.toString() + ")");
             } else {
                 methodBuilder.addStatement(returnValue + getVariableFor(methodInvocation.getOwner()).getSecond() + "."
@@ -530,8 +531,15 @@ public class AndroidActivityTestGenerator {
         }
 
         String returnValue = "";
+
         if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())) {
-            returnValue = getVariableFor(methodInvocation.getReturnValue()).getSecond() + " = ";
+
+            if (firstUseOf(methodInvocation.getReturnValue())) {
+                String type = getVariableFor(methodInvocation.getReturnValue()).getFirst();
+                returnValue = type + " " + getVariableFor(methodInvocation.getReturnValue()).getSecond() + " = ";
+            } else {
+                returnValue = getVariableFor(methodInvocation.getReturnValue()).getSecond() + " = ";
+            }
         }
 
         ObjectInstance owner = methodInvocation.getOwner();
@@ -647,20 +655,31 @@ public class AndroidActivityTestGenerator {
      * This methods looks up into the hierarchy to get the reference to the
      * methods of the controller class
      */
+    private final static Map<String, String> activityMethocToActivityControllerMapping = new HashMap<>();
+    static{
+        activityMethocToActivityControllerMapping.put("onCreate", "create");
+        activityMethocToActivityControllerMapping.put("onAttach", "attach");
+        activityMethocToActivityControllerMapping.put("onDestroy", "destroy");
+        activityMethocToActivityControllerMapping.put("onPause", "pause");
+        activityMethocToActivityControllerMapping.put("onPostCreate", "postCreate");
+        activityMethocToActivityControllerMapping.put("onPostResume", "postResume");
+        activityMethocToActivityControllerMapping.put("onRestart", "restart");
+        activityMethocToActivityControllerMapping.put("onRestoreInstanceState", "restoreInstanceState");
+        activityMethocToActivityControllerMapping.put("onResume", "resume");
+        activityMethocToActivityControllerMapping.put("onSaveInstanceState", "saveInstanceState");
+        activityMethocToActivityControllerMapping.put("onStart", "start");
+        activityMethocToActivityControllerMapping.put("onStop", "stop");
+    }
+    
     private String getCorrespondingMethodCall(MethodInvocation methodInvocation) {
-        String eventName = JimpleUtils.getMethodName(methodInvocation.getMethodSignature()).replaceAll("on", "");
-
-        SootClass controller = Scene.v().getSootClass(ActivityController.class.getName());
-
-        for (SootClass sootClass : Scene.v().getActiveHierarchy().getSuperclassesOfIncluding(controller)) {
-            for (SootMethod method : sootClass.getMethods()) {
-                if (eventName.equalsIgnoreCase(method.getName())) {
-                    return method.getName();
-                }
-            }
-
+        
+        String methodName = JimpleUtils.getMethodName(methodInvocation.getMethodSignature());
+        if( activityMethocToActivityControllerMapping.containsKey( methodName )) {
+            return activityMethocToActivityControllerMapping.get( methodName);
+        }else{
+           System.out.println("ActivityController does not provide a method corresponding to: " + methodName);
+            return null;
         }
-        return null;
     }
 
     /**

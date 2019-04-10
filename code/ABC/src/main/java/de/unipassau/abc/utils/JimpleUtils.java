@@ -242,17 +242,11 @@ public class JimpleUtils {
         return type.split("@")[0].endsWith("[]");
     }
 
-    // Those are copied from android.support.v7.app.AppCompatActivity, there might be
-    // more ?
+    // Those are taken from ActivityController from Robolectrics
     private static final List<String> interestingAndroidLifecycleCallbacks = Arrays.asList(new String[] {
-            "onConfigurationChanged", "onContentChanged", "onCreate", "onCreateSupportNavigateUpTaskStack", "onDestroy",
-            "onPanelClosed", "onPostCreate", "onPostResume", "onPrepareSupportNavigateUpTaskStack",
-            "onSaveInstanceState", "onStart", "onStop", "onSupportActionModeFinished", "onSupportActionModeStarted",
-            "onSupportContentChanged", "onTitleChanged",
-            // "onCreate", "onDestroy", "onPause", "onPostCreate", "onRestart",
-            // "onRestoreInstanceState",
-            // "onFreeze", "onResume", "onSaveInstanceState", "onStart",
-            // "onStop", "onUserLeaving"
+            "onAttach", "onCreate", "onDestroy", "onPause", "onPostCreate", "onPostResume",   
+            "onRestart", "onRestoreInstanceState", "onResume", "onSaveInstanceState",
+            "onStart", "onStop", "onUserLeaving"
     });
 
     // Those are copied from android.support.v4.app.Fragment, there might be

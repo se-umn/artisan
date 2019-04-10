@@ -31,14 +31,18 @@ public class DuafDroidParserTest {
     @Test
     public void mainTest() throws IOException {
 
-        File outputTo = new File("src/test/resources/android-28-traces/"); // tempFolder.newFile("parsed.xml");
-        String trace = new File("src/test/resources/android-28-traces/trace.log").getAbsolutePath();
-
-        // TODO Include classes to SOOT to compute details about the classe
-        // like, activity, fragments, activity lifecycle, superinterfaces, etcc
+        File outputTo = new File("src/test/resources/android-28-traces/Notepad-Alessio"); // tempFolder.newFile("parsed.xml");
+        outputTo.mkdirs();
+        File traceFile = new File("src/test/resources/android-28-traces/Notepad-Alessio/trace.log");
         String apk = "/Users/gambi/MyDroidFax/apks/Notepad-Alessio.apk";
         String androidJar = "/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar";
-        String[] args = new String[] { "--trace-files", trace, "--store-artifacts-to", outputTo.getAbsolutePath(),
+        
+//        File outputTo = new File("src/test/resources/android-28-traces/");
+//        File traceFile = new File("src/test/resources/android-28-traces/org.asteroidos.sync.log");
+//        String apk = "/Users/gambi/MyDroidFax/apks/org.asteroidos.sync_11.apk";
+//        String androidJar = "/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar";
+        
+        String[] args = new String[] { "--trace-files", traceFile.getAbsolutePath(), "--store-artifacts-to", outputTo.getAbsolutePath(),
                 "--apk", apk, "--android-jar", androidJar };
 
         DuafDroidParser.main(args);
@@ -52,7 +56,7 @@ public class DuafDroidParserTest {
             
             @Override
             public boolean accept(File dir, String name) {
-                return name.endsWith(".parsed.xml");
+                return name.startsWith( traceFile.getName()) && name.endsWith(".parsed.xml");
             }
         })){
             System.out.println("DuafDroidParserTest.mainTest() Reading from " + file);

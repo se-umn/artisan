@@ -361,10 +361,6 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
         this.isAndroidFragmentCallback = isAndroidFragmentCallback;
     }
 
-    // The list is incomplete !
-    final static List<String> activityLifecycleCallbacks = new ArrayList<>(
-            Arrays.asList("onCreate", "onStart", "onResume", "onPause", "onStop", "onDestroy", "onPostCreate"));
-
     private boolean isSynthetic = false;
 
     private boolean isPublic;

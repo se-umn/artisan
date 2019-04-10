@@ -43,28 +43,44 @@ public class AndroidActivityTestGenerationTest {
         return files;
     }
 
+    
+    // /Users/gambi/Documents/Passau/Research/action-based-test-carving/code/ABC/
     @Test
-    public void testMain() throws IOException, InterruptedException, URISyntaxException, CarvingException {
-
-        // String carvedTestFile =
-        // "src/test/resources/android-28-carved-tests/com.farmerbb.notepad.activity.MainActivity.onCreate_4";
-        File carvedTestDirectory = new File("src/test/resources/android-28-carved-tests/");
-        List<String> carvedTests = new ArrayList();
-        carvedTests.addAll(getTheFiles(carvedTestDirectory));
+    public void testMainWithSingleTest() throws IOException, InterruptedException, URISyntaxException, CarvingException {
+        String theTest = new File("src/test/resources/android-28-carved-tests/Notepad-Alessio/com.farmerbb.notepad.activity.MainActivity.deleteNotes_1373").getAbsolutePath();
         
-//        String fileName ="com.farmerbb.notepad.activity.MainActivity.isShareIntent_516";
-//        carvedTests.add( new File(carvedTestDirectory, fileName).getAbsolutePath() );
-        
-        
-        System.out.println("AndroidActivityTestGenerationTest.testMain() " + carvedTests );
-        
-        String outputfolder = "src/test/resources/android-28-generated-tests";
+        File outputfolder = new File("/Users/gambi/MyDroidFax/apks-sources/Notepad/app/src/test/java/com/farmerbb/notepad/activity");
         String apk = "/Users/gambi/MyDroidFax/apks/Notepad-Alessio.apk";
         String androidJar = "/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar";
 
         List<String> args = new ArrayList(
                 Arrays.asList( 
-                        new String[]{"--store-tests", outputfolder, "--android-jar", androidJar, "--apk", apk, "--carve-test-files",})) ;
+                        new String[]{"--store-tests", outputfolder.getAbsolutePath(), "--android-jar", androidJar, "--apk", apk, "--carve-test-files", theTest})) ;
+        
+        AndroidActivityTestGenerator.main(args.toArray(new String[]{}));
+
+    }
+    @Test
+    public void testMain() throws IOException, InterruptedException, URISyntaxException, CarvingException {
+
+        File carvedTestDirectory = new File("src/test/resources/android-28-carved-tests/Notepad-Alessio");
+        List<String> carvedTests = new ArrayList();
+        carvedTests.addAll(getTheFiles(carvedTestDirectory));
+        File outputfolder = new File("/Users/gambi/MyDroidFax/apks-sources/Notepad/app/src/test/java/com/farmerbb/notepad/activity");
+        String apk = "/Users/gambi/MyDroidFax/apks/Notepad-Alessio.apk";
+        String androidJar = "/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar";
+        
+//        File carvedTestDirectory = new File("src/test/resources/android-28-carved-tests/org.asteroidos.sync");
+//        List<String> carvedTests = new ArrayList();
+//        carvedTests.addAll(getTheFiles(carvedTestDirectory));
+//        File outputfolder = new File("src/test/resources/android-28-generated-tests/org.asteroidos.sync");
+//        outputfolder.mkdirs();
+//        String apk = "/Users/gambi/MyDroidFax/apks/org.asteroidos.sync_11.apk";
+//        String androidJar = "/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar";
+
+        List<String> args = new ArrayList(
+                Arrays.asList( 
+                        new String[]{"--store-tests", outputfolder.getAbsolutePath(), "--android-jar", androidJar, "--apk", apk, "--carve-test-files",})) ;
         // Include the list of files as argument
         args.addAll( carvedTests );
         
