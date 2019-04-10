@@ -232,17 +232,30 @@ public class ExecutionFlowGraph {
         return getMethodInvocationsBefore(methodInvocation, includeTheGivenMethodInvocation);
     }
 
+    public int getPositionOf(MethodInvocation methodInvocation) {
+        return getOrderedMethodInvocations().indexOf(methodInvocation);
+    }
+
     public Set<MethodInvocation> getMethodInvocationsBefore(MethodInvocation methodInvocation, boolean inclusive) {
         // This creates a copy
         int fromIndex = 0;
-        int toIndex = (inclusive) ? methodInvocation.getInvocationCount() : methodInvocation.getInvocationCount() - 1;
+
+        // This shold use the position in the sequence of those methods not
+        // their count !
+        int toIndex = (inclusive) ? getPositionOf(methodInvocation) : getPositionOf(methodInvocation) - 1;
+        // In case the method is not there...
+        if (toIndex < fromIndex) {
+            return new HashSet<>();
+        }
+
         List<MethodInvocation> orderedInvocationsBefore = getOrderedMethodInvocations().subList(fromIndex, toIndex);
         // This might not be necessary for removing the duplicates...
         return new HashSet<>(orderedInvocationsBefore);
     }
 
     /**
-     * Returns an ordered list of invocations registered BEFORE (inclusive) the given one...
+     * Returns an ordered list of invocations registered BEFORE (inclusive) the
+     * given one...
      * 
      * @param methodInvocation
      * @return
@@ -254,11 +267,12 @@ public class ExecutionFlowGraph {
         Collections.sort(orderedMethodInvocationsBefore);
         // Find the position of the given mi
         int position = orderedMethodInvocationsBefore.indexOf(methodInvocation);
-        // now remove all the elements that are after that position. Since the resulting list should should include the given mi
-
-        orderedMethodInvocationsBefore.removeAll(orderedMethodInvocationsBefore.subList(position, orderedMethodInvocationsBefore.size() - 1));
+        // now remove all the elements that are after that position. Since the
+        // resulting list should should include the given mi
+        // NOTE that sublist is exclusive for toIndex !
+        orderedMethodInvocationsBefore.subList(position, orderedMethodInvocationsBefore.size()).clear();
         // We need to ensure the given mi is there, as last invocation
-//        orderedMethodInvocationsBefore.add(methodInvocation);
+        // orderedMethodInvocationsBefore.add(methodInvocation);
         return orderedMethodInvocationsBefore;
 
         // if (!graph.containsVertex(methodInvocation)) {
@@ -399,7 +413,8 @@ public class ExecutionFlowGraph {
         for (MethodInvocation node : graph.getVertices()) {
 
             if (!requiredMethodInvocations.contains(node)) {
-//                logger.trace("ExecutionFlowGraph.refine() Remove " + node + " as not required");
+                // logger.trace("ExecutionFlowGraph.refine() Remove " + node + "
+                // as not required");
                 unconnected.add(node);
             }
 
@@ -420,7 +435,8 @@ public class ExecutionFlowGraph {
                     // At least one element (actually, only one)
                     firstMethodInvocation = successors.iterator().next();
                 }
-//                logger.trace("ExecutionFlowGraph.refine() Updated firstMethodInvocation to " + firstMethodInvocation);
+                // logger.trace("ExecutionFlowGraph.refine() Updated
+                // firstMethodInvocation to " + firstMethodInvocation);
             }
 
             if (successors == null || successors.isEmpty()) {
@@ -432,7 +448,8 @@ public class ExecutionFlowGraph {
                     // At least one element (actually, only one)
                     lastMethodInvocation = predecessors.iterator().next();
                 }
-//                logger.trace("ExecutionFlowGraph.refine() Updated lastMethodInvocation to " + lastMethodInvocation);
+                // logger.trace("ExecutionFlowGraph.refine() Updated
+                // lastMethodInvocation to " + lastMethodInvocation);
 
             }
 
@@ -443,7 +460,8 @@ public class ExecutionFlowGraph {
             flowEdges.addAll(graph.getOutEdges(mi));
 
             for (String flowEdge : flowEdges) {
-//                logger.trace("ExecutionFlowGraph.refine() Removing Edge " + flowEdge);
+                // logger.trace("ExecutionFlowGraph.refine() Removing Edge " +
+                // flowEdge);
                 graph.removeEdge(flowEdge);
             }
             // Really its just one
@@ -452,13 +470,14 @@ public class ExecutionFlowGraph {
                     int edgeID = id.getAndIncrement();
                     String edgeLabel = "ExecutionDependency-" + edgeID;
                     boolean added = graph.addEdge(edgeLabel, predecessor, successor, EdgeType.DIRECTED);
-//                    logger.trace("ExecutionFlowGraph.refine() Introducing replacemente edge "
-//                            + graph.getEndpoints(edgeLabel) + " added  " + added);
+                    // logger.trace("ExecutionFlowGraph.refine() Introducing
+                    // replacemente edge "
+                    // + graph.getEndpoints(edgeLabel) + " added " + added);
                 }
             }
 
             graph.removeVertex(mi);
-//            logger.trace("ExecutionFlowGraph.refine() Removed " + mi);
+            // logger.trace("ExecutionFlowGraph.refine() Removed " + mi);
         }
     }
 
@@ -603,47 +622,48 @@ public class ExecutionFlowGraph {
     }
 
     /*
-     * Remove from the graph all the subsumed calls. Will this update also the relations between method invocations
+     * Remove from the graph all the subsumed calls. Will this update also the
+     * relations between method invocations
      */
     public void summarize(CallGraph callGraph) {
         Set<MethodInvocation> unecessaryMethodInvocations = new HashSet<>();
         for (MethodInvocation subsumingCall : getOrderedMethodInvocations()) {
             for (MethodInvocation subsumedCall : callGraph.getMethodInvocationsSubsumedBy(subsumingCall)) {
-                if (graph.containsVertex(subsumedCall) && ! unecessaryMethodInvocations.contains( subsumedCall )) {
+                if (graph.containsVertex(subsumedCall) && !unecessaryMethodInvocations.contains(subsumedCall)) {
                     logger.trace("> " + subsumedCall + " as this is subsumed by " + subsumingCall);
                     unecessaryMethodInvocations.add(subsumedCall);
                 }
-                
+
             }
         }
 
         Set<MethodInvocation> necessaryMethodInvocations = new HashSet<>();
-        necessaryMethodInvocations.addAll( getOrderedMethodInvocations());
-        necessaryMethodInvocations.removeAll( unecessaryMethodInvocations );
-        
-        this.refine( necessaryMethodInvocations );
+        necessaryMethodInvocations.addAll(getOrderedMethodInvocations());
+        necessaryMethodInvocations.removeAll(unecessaryMethodInvocations);
+
+        this.refine(necessaryMethodInvocations);
     }
 
     public void dequeue(MethodInvocation toDrop) {
         // Remove the last method invocation
-        if( lastMethodInvocation.equals( toDrop ) ){
-            List<MethodInvocation> before = getOrderedMethodInvocationsBefore( toDrop );
+        if (lastMethodInvocation.equals(toDrop)) {
+            List<MethodInvocation> before = getOrderedMethodInvocationsBefore(toDrop);
             // remove itself from the list if is there...
-            before.remove( toDrop );
+            before.remove(toDrop);
             //
-            boolean removed = graph.removeVertex( toDrop );
-            if( ! removed ){
-                logger.warn("Cannot dequeue " + toDrop  );
+            boolean removed = graph.removeVertex(toDrop);
+            if (!removed) {
+                logger.warn("Cannot dequeue " + toDrop);
                 return;
             }
             // Probably will fail for size == 1;
             // Not sure why remove does not really remove it...
-            lastMethodInvocation = before.get( before.size() - 1 );
-            
+            lastMethodInvocation = before.get(before.size() - 1);
+
         } else {
-            logger.warn("Cannot dequeue " + toDrop  + " as this is not the last invocation " + lastMethodInvocation );
+            logger.warn("Cannot dequeue " + toDrop + " as this is not the last invocation " + lastMethodInvocation);
         }
-        
+
     }
 
 }

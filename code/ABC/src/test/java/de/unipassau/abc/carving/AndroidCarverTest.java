@@ -19,17 +19,22 @@ public class AndroidCarverTest {
     public TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Rule
-    public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
+    public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
     @Test
     public void testMain() throws IOException, InterruptedException, URISyntaxException, CarvingException {
 
         String apk = "/Users/gambi/MyDroidFax/apks/Notepad-Alessio.apk";
         String androidJar = "/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar";
-        
-        String parsedTrace = new File("src/test/resources/android-28-traces/trace.log.parsed.xml").getAbsolutePath();
-        File outputTo = new File("src/test/resources/android-28-carved-tests");
-        // tempFolder.newFolder("carved-tests");
+        String parsedTrace = new File("src/test/resources/android-28-traces/Notepad-Alessio/trace.log.parsed.xml").getAbsolutePath();
+        File outputTo = new File("src/test/resources/android-28-carved-tests/Notepad-Alessio");
+        outputTo.mkdirs();
+
+//        String apk = "/Users/gambi/MyDroidFax/apks/org.asteroidos.sync_11.apk";
+//        String androidJar = "/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar";
+//        String parsedTrace = new File("src/test/resources/android-28-traces/org.asteroidos.sync.log.parsed.xml").getAbsolutePath();
+//        File outputTo = new File("src/test/resources/android-28-carved-tests/org.asteroidos.sync");
+//        outputTo.mkdirs();
 
         /*
          * Util classes
@@ -37,22 +42,9 @@ public class AndroidCarverTest {
         // String classToCarve = "com.farmerbb.notepad.util.NoteListItem";
         // String classToCarve = "com.farmerbb.notepad.util.ScrollPositions";
 
-        /*
-         * Activity class.
-         */
-        // String classToCarve = "com.farmerbb.notepad.activity.MainActivity";
-        // String classToCarve =
-        // "com.farmerbb.notepad.activity.NoteEditActivity";
-        // String classToCarve =
-        // "com.farmerbb.notepad.activity.SettingsActivity";
         String classToCarve = "com.farmerbb.notepad.activity.MainActivity";
-
-        // String methodInvocation =
-        // "<com.farmerbb.notepad.activity.MainActivity: java.util.ArrayList
-        // getCabArray()>_210";
-//        String methodInvocation = "<com.farmerbb.notepad.activity.MainActivity: boolean isShareIntent()>_451";
-//         String methodInvocation = "<com.farmerbb.notepad.activity.MainActivity: void onBackPressed()>_1525";
-        // "<com.farmerbb.notepad.activity.MainActivity: void hideFab()>_1391";
+        
+        String methodInvocation = "<com.farmerbb.notepad.activity.MainActivity: void deleteNotes()>_1373";
 
 
         // If no carving directive is provided we carve all the Activity classes of the project
@@ -60,7 +52,7 @@ public class AndroidCarverTest {
                 "--apk", apk, "--android-jar", androidJar , //
                 "--parsed-traces", parsedTrace, //
                 "--output-carved-tests-to", outputTo.getAbsolutePath(), //
-//                 "--method-invocation-to-carve", methodInvocation };
+                 "--method-invocation-to-carve", methodInvocation
 //                "--class-to-carve", classToCarve 
                 };
 

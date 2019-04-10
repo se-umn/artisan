@@ -344,6 +344,24 @@ public class MethodInvocationMatcher {
             }
         }
     }
+    
+    /**
+     * Keep in the collection only the matching elements.
+     * 
+     * @param filter
+     * @param methodInvocationsToBeFiltered
+     */
+    public static void keepMatchingInPlace(MethodInvocationMatcher filter,
+            Collection<MethodInvocation> methodInvocationsToBeFiltered) {
+
+        for (Iterator<MethodInvocation> iterator = methodInvocationsToBeFiltered.iterator(); iterator.hasNext();) {
+            MethodInvocation methodInvocation = iterator.next();
+            if (! filter.matches(methodInvocation)) {
+                iterator.remove();
+            }
+        }
+    }
+
 
     static class CLInitMethodInvocationMatcher extends MethodInvocationMatcher {
 
@@ -566,6 +584,28 @@ public class MethodInvocationMatcher {
             @Override
             public boolean matches(MethodInvocation methodInvocation) {
                 return methodInvocation.isAndroidFragmentCallback();
+            }
+        };
+    }
+
+    public static MethodInvocationMatcher methodNameIsOneOf(final Set<String> initialactivitycallbacks) {
+        return new MethodInvocationMatcher() {
+            @Override
+            public boolean matches(MethodInvocation methodInvocation) {
+                // Extract method name from methodInvocation
+                String methodName = JimpleUtils.getMethodName(methodInvocation.getMethodSignature());
+                return initialactivitycallbacks.contains( methodName );
+            }
+        };
+    }
+
+    public static MethodInvocationMatcher withSameMethodName(final String methodName) {
+        return new MethodInvocationMatcher() {
+            @Override
+            public boolean matches(MethodInvocation methodInvocation) {
+                // Extract method name from methodInvocation
+                String _methodName = JimpleUtils.getMethodName(methodInvocation.getMethodSignature());
+                return _methodName.equals(methodName);
             }
         };
     }

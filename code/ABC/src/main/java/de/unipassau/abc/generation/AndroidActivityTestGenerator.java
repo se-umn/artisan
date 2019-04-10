@@ -35,6 +35,7 @@ import de.unipassau.abc.carving.DataNode;
 import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodCallLiteralValue;
 import de.unipassau.abc.carving.MethodInvocation;
+import de.unipassau.abc.carving.NullInstance;
 import de.unipassau.abc.carving.ObjectInstance;
 import de.unipassau.abc.carving.PrimitiveValue;
 import de.unipassau.abc.data.Pair;
@@ -479,13 +480,14 @@ public class AndroidActivityTestGenerator {
         } else if (methodInvocation.isStatic()) {
 
             String returnValue = "";
-            
-            if ( !JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature()) && firstUseOf(methodInvocation.getReturnValue())) {
-                String type = getVariableFor( methodInvocation.getReturnValue() ).getFirst();
-                returnValue = getVariableFor( methodInvocation.getReturnValue() ).getSecond();
-                methodBuilder.addStatement(
-                        type + " " + returnValue + JimpleUtils.getFullyQualifiedMethodName(methodInvocation.getMethodSignature())
-                                + "(" + parameters.toString() + ")");
+
+            if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())
+                    && firstUseOf(methodInvocation.getReturnValue())) {
+                String type = getVariableFor(methodInvocation.getReturnValue()).getFirst();
+                returnValue = getVariableFor(methodInvocation.getReturnValue()).getSecond();
+                methodBuilder.addStatement(type + " " + returnValue + " = " 
+                        + JimpleUtils.getFullyQualifiedMethodName(methodInvocation.getMethodSignature()) + "("
+                        + parameters.toString() + ")");
             } else {
                 methodBuilder.addStatement(
                         returnValue + JimpleUtils.getFullyQualifiedMethodName(methodInvocation.getMethodSignature())
@@ -493,13 +495,15 @@ public class AndroidActivityTestGenerator {
             }
         } else {
             String returnValue = "";
-            
-            if ( ! JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature()) && firstUseOf(methodInvocation.getReturnValue())) {
-                String type = getVariableFor( methodInvocation.getReturnValue() ).getFirst();
-                returnValue = getVariableFor( methodInvocation.getReturnValue() ).getSecond();
-                methodBuilder.addStatement(type + " " + returnValue + getVariableFor(methodInvocation.getOwner()).getSecond() + "."
-                        + JimpleUtils.getMethodName(methodInvocation.getMethodSignature()) + "(" + parameters.toString()
-                        + ")");
+
+            if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())
+                    && firstUseOf(methodInvocation.getReturnValue())) {
+                String type = getVariableFor(methodInvocation.getReturnValue()).getFirst();
+                returnValue = getVariableFor(methodInvocation.getReturnValue()).getSecond();
+                methodBuilder
+                        .addStatement(type + " " + returnValue  + " = " + getVariableFor(methodInvocation.getOwner()).getSecond()
+                                + "." + JimpleUtils.getMethodName(methodInvocation.getMethodSignature()) + "("
+                                + parameters.toString() + ")");
             } else {
                 methodBuilder.addStatement(returnValue + getVariableFor(methodInvocation.getOwner()).getSecond() + "."
                         + JimpleUtils.getMethodName(methodInvocation.getMethodSignature()) + "(" + parameters.toString()
@@ -547,7 +551,8 @@ public class AndroidActivityTestGenerator {
                     /*
                      * Assign the reference of the activity to its variable
                      */
-                    .addStatement("$L $L = activityController.get()", getVariableFor(owner).getFirst(), getVariableFor(owner).getSecond());
+                    .addStatement("$L $L = activityController.get()", getVariableFor(owner).getFirst(),
+                            getVariableFor(owner).getSecond());
 
         } else if (methodInvocation.isAndroidActivityCallback()) {
             String androidLifeCycleEventName = getCorrespondingMethodCall(methodInvocation);
@@ -680,6 +685,8 @@ public class AndroidActivityTestGenerator {
             // THIS IS TO DO
             String parameterList = "";
             return mockedObject + "." + methodToInvoke + "(" + parameterList + ")";
+        } else if (dataNode instanceof NullInstance) {
+            return "null";
         } else {
             return getVariableFor(dataNode).getSecond();
         }
