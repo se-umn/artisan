@@ -19,7 +19,7 @@ public class AndroidCarverTest {
     public TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Rule
-    public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
+    public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
 
     @Test
     public void testMain() throws IOException, InterruptedException, URISyntaxException, CarvingException {
@@ -52,7 +52,7 @@ public class AndroidCarverTest {
                 "--apk", apk, "--android-jar", androidJar , //
                 "--parsed-traces", parsedTrace, //
                 "--output-carved-tests-to", outputTo.getAbsolutePath(), //
-                 "--method-invocation-to-carve", methodInvocation
+//                 "--method-invocation-to-carve", methodInvocation
 //                "--class-to-carve", classToCarve 
                 };
 

@@ -46,17 +46,35 @@ public class Trace {
 
     /**
      * Ensures to have 4 elements in the returning String[] or fail with an exception
+     * 
      * TODO Probably we should define some ParsingException
+     * 
      * @param line "A valid line", not including the opening statement "---- STARTING TRACING for ... ----" 
      * @return
      * @throws CarvingException 
      */
     public static String[] parseLine(String line) throws CarvingException {
         
-        String[] tokens = line.split( Trace.DELIMITER );
+        String[] tokens = new String[4];
 
-        if( tokens.length != 4 ){
-            throw new CarvingException("Cannot parse line " + line + " got " +tokens.length +" instead of 4");
+        String[] _tokens = line.split( Trace.DELIMITER );
+        
+        if( _tokens.length != 4 ){
+            // Does the line contains an array as OWNER ?! I guess in the end arrays can have method calls ...
+            // [>>];[Lorg.ametro.catalog.entities.TransportType;@71559508;<java.lang.Object: java.lang.Object clone()>;(); got 5 instead of 4
+            if( _tokens[1].startsWith("[") && _tokens[2].startsWith("@") ){
+                tokens[0] = _tokens[0];
+                tokens[2] = _tokens[3];
+                tokens[3] = _tokens[4];
+                // Convert the array owner to the expected form
+               
+                tokens[1] = JimpleUtils.getBaseArrayType( _tokens[1] )+"[]"+_tokens[2];
+                        
+            } else {
+                throw new CarvingException("Cannot parse line " + line + " got " + _tokens.length +" instead of 4");
+            }
+        } else {
+            tokens = _tokens;
         }
         
         // Flag the call as library or user

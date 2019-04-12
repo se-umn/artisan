@@ -353,9 +353,28 @@ public class AndroidActivityTestGenerator {
                 continue;
             }
 
-            System.out.println("AndroidActivityTestGenerator.generateTest() Declaring variable for " + dataNode);
-            // Pair<String, String> variable =
-            declareVariableFor(dataNode, dataDependencyGraph);
+            /*
+             * Simplify the generation: if a datanode is ONLY a return type,
+             * that is, is defined by never used, we do not declare a variable
+             * for it ! The problem here is to chose the type to assign,
+             * implementation? super class? some interface? the formal return
+             * value of the method?
+             */
+            boolean requiresVariable = ! dataDependencyGraph.getMethodInvocationsWhichUse(dataNode).isEmpty();
+            
+            if( dataNode instanceof ObjectInstance ){
+                requiresVariable = requiresVariable || 
+                        ! dataDependencyGraph.getMethodInvocationsForOwner( (ObjectInstance) dataNode).isEmpty();
+            }
+            
+            if (requiresVariable) {
+                System.out.println("AndroidActivityTestGenerator.generateTest() Declaring variable for " + dataNode);
+                declareVariableFor(dataNode, dataDependencyGraph);
+            } else {
+                System.out.println("AndroidActivityTestGenerator.generateTest() " + dataNode
+                        + " never used (parameter and owner). Do not declare a variable for it");
+            }
+            
         }
 
         /*
@@ -372,29 +391,6 @@ public class AndroidActivityTestGenerator {
              */
             methodBuilder.addComment("$L", methodInvocation);// .toString().replaceAll("\\$",
                                                              // ".") );
-            // Create the code here. Distingui
-            // Check if the variables have
-            // if (variable == null) {
-            // System.out.println("AndroidActivityTestGenerator.generateTest()
-            // Variable already declared " + dataNode);
-            // // Variable is already declared
-            // continue;
-            // }
-            // if (dataNode instanceof ObjectInstance) {
-            //
-            // /*
-            // * Activities are managed objects, we cannot instantiate them
-            // * directly, but we need to declare them anyway
-            // */
-            // methodBuilder.addStatement(variable.getFirst() + " " +
-            // variable.getSecond() + " = null");
-            // } else {
-            // methodBuilder.addStatement(variable.getFirst() + " " +
-            // variable.getSecond());
-            // }
-
-            // ATM We handle Robolectrics here:
-
             if (belongsToAndroidActivity(methodInvocation)) {
                 generateCodeForAndroidActivity(methodBuilder, methodInvocation, activityClassName);
             } else {
@@ -456,6 +452,8 @@ public class AndroidActivityTestGenerator {
             // type = type.substring(type.lastIndexOf(".") + 1,
             // type.length());
 
+            // TODO Do we ever call constructors for the fun of it ?!
+            
             String name = getVariableFor(methodInvocation.getOwner()).getSecond();
             if (firstUseOf(methodInvocation.getOwner())) {
                 methodBuilder.addStatement(type + " " + name + " = new " + type + "(" + parameters.toString() + ")");
@@ -483,7 +481,8 @@ public class AndroidActivityTestGenerator {
             String returnValue = "";
 
             if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())
-                    && firstUseOf(methodInvocation.getReturnValue())) {
+                    && firstUseOf(methodInvocation.getReturnValue())
+                    && isVariableDeclared(methodInvocation.getReturnValue())) {
                 String type = getVariableFor(methodInvocation.getReturnValue()).getFirst();
                 returnValue = getVariableFor(methodInvocation.getReturnValue()).getSecond();
                 methodBuilder.addStatement(type + " " + returnValue + " = "
@@ -498,7 +497,8 @@ public class AndroidActivityTestGenerator {
             String returnValue = "";
 
             if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())
-                    && firstUseOf(methodInvocation.getReturnValue())) {
+                    && firstUseOf(methodInvocation.getReturnValue())
+                    && isVariableDeclared(methodInvocation.getReturnValue())) {
                 String type = getVariableFor(methodInvocation.getReturnValue()).getFirst();
                 returnValue = getVariableFor(methodInvocation.getReturnValue()).getSecond();
                 methodBuilder.addStatement(
@@ -532,8 +532,8 @@ public class AndroidActivityTestGenerator {
 
         String returnValue = "";
 
-        if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())) {
-
+        if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature()) &&
+                isVariableDeclared(methodInvocation.getReturnValue())) {
             if (firstUseOf(methodInvocation.getReturnValue())) {
                 String type = getVariableFor(methodInvocation.getReturnValue()).getFirst();
                 returnValue = type + " " + getVariableFor(methodInvocation.getReturnValue()).getSecond() + " = ";
@@ -549,6 +549,11 @@ public class AndroidActivityTestGenerator {
          */
         if (methodInvocation.isConstructor()) {
 
+            // If this activity is of the same type of the previuos ones, and the previous ones was destroyed we recreate it with recreate?
+         // <com.farmerbb.notepad.activity.MainActivity: void <init>()>_981
+//          ActivityController<MainActivity> activityController = Robolectric.buildActivity(MainActivity.class);
+//          activityController.recreate();
+            
             // Instantiate the ActivityController ?
             // TODO How to check this is the Activity Under Test ->
             // owner of last method invocation? Maybe an explicit
@@ -576,6 +581,10 @@ public class AndroidActivityTestGenerator {
                     + ")");
         }
 
+    }
+
+    private boolean isVariableDeclared(DataNode returnValue) {
+        return declaredVariables.containsKey(returnValue);
     }
 
     private boolean belongsToAndroidActivity(MethodInvocation methodInvocation) {
@@ -656,7 +665,7 @@ public class AndroidActivityTestGenerator {
      * methods of the controller class
      */
     private final static Map<String, String> activityMethocToActivityControllerMapping = new HashMap<>();
-    static{
+    static {
         activityMethocToActivityControllerMapping.put("onCreate", "create");
         activityMethocToActivityControllerMapping.put("onAttach", "attach");
         activityMethocToActivityControllerMapping.put("onDestroy", "destroy");
@@ -670,14 +679,14 @@ public class AndroidActivityTestGenerator {
         activityMethocToActivityControllerMapping.put("onStart", "start");
         activityMethocToActivityControllerMapping.put("onStop", "stop");
     }
-    
+
     private String getCorrespondingMethodCall(MethodInvocation methodInvocation) {
-        
+
         String methodName = JimpleUtils.getMethodName(methodInvocation.getMethodSignature());
-        if( activityMethocToActivityControllerMapping.containsKey( methodName )) {
-            return activityMethocToActivityControllerMapping.get( methodName);
-        }else{
-           System.out.println("ActivityController does not provide a method corresponding to: " + methodName);
+        if (activityMethocToActivityControllerMapping.containsKey(methodName)) {
+            return activityMethocToActivityControllerMapping.get(methodName);
+        } else {
+            System.out.println("ActivityController does not provide a method corresponding to: " + methodName);
             return null;
         }
     }

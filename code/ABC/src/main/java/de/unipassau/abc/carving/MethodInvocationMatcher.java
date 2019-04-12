@@ -327,7 +327,7 @@ public class MethodInvocationMatcher {
         }
         return matching;
     }
-    
+
     /**
      * Remove from the collection the matching elements.
      * 
@@ -344,7 +344,7 @@ public class MethodInvocationMatcher {
             }
         }
     }
-    
+
     /**
      * Keep in the collection only the matching elements.
      * 
@@ -356,12 +356,11 @@ public class MethodInvocationMatcher {
 
         for (Iterator<MethodInvocation> iterator = methodInvocationsToBeFiltered.iterator(); iterator.hasNext();) {
             MethodInvocation methodInvocation = iterator.next();
-            if (! filter.matches(methodInvocation)) {
+            if (!filter.matches(methodInvocation)) {
                 iterator.remove();
             }
         }
     }
-
 
     static class CLInitMethodInvocationMatcher extends MethodInvocationMatcher {
 
@@ -452,6 +451,7 @@ public class MethodInvocationMatcher {
             }
         };
     }
+
     public static MethodInvocationMatcher or(final MethodInvocationMatcher first, final MethodInvocationMatcher second,
             final MethodInvocationMatcher... others) {
         return new MethodInvocationMatcher() {
@@ -472,7 +472,7 @@ public class MethodInvocationMatcher {
             }
         };
     }
-    
+
     public static MethodInvocationMatcher and(final MethodInvocationMatcher first, final MethodInvocationMatcher second,
             final MethodInvocationMatcher... others) {
 
@@ -531,10 +531,11 @@ public class MethodInvocationMatcher {
         return new MethodInvocationMatcher() {
             @Override
             public boolean matches(MethodInvocation methodInvocation) {
-//                if( methodInvocation.isPrivate() ){
-//                    System.out.println(
-//                            "MethodInvocationMatcher.visibilityPrivate() " + methodInvocation + " is private ");
-//                }
+                // if( methodInvocation.isPrivate() ){
+                // System.out.println(
+                // "MethodInvocationMatcher.visibilityPrivate() " +
+                // methodInvocation + " is private ");
+                // }
                 return methodInvocation.isPrivate();
             }
         };
@@ -547,7 +548,8 @@ public class MethodInvocationMatcher {
         return new MethodInvocationMatcher() {
             @Override
             public boolean matches(MethodInvocation methodInvocation) {
-                return methodInvocation.isPublic() || JimpleUtils.getPackage(methodInvocation.getMethodSignature()).equals(packageName);
+                return methodInvocation.isPublic()
+                        || JimpleUtils.getPackage(methodInvocation.getMethodSignature()).equals(packageName);
             }
         };
     }
@@ -578,7 +580,7 @@ public class MethodInvocationMatcher {
             }
         };
     }
-    
+
     public static MethodInvocationMatcher isFragmentLifeCycle() {
         return new MethodInvocationMatcher() {
             @Override
@@ -594,7 +596,7 @@ public class MethodInvocationMatcher {
             public boolean matches(MethodInvocation methodInvocation) {
                 // Extract method name from methodInvocation
                 String methodName = JimpleUtils.getMethodName(methodInvocation.getMethodSignature());
-                return initialactivitycallbacks.contains( methodName );
+                return initialactivitycallbacks.contains(methodName);
             }
         };
     }
@@ -610,5 +612,61 @@ public class MethodInvocationMatcher {
         };
     }
 
+    public static MethodInvocationMatcher byReturnValue(final DataNode returnValue) {
+        return new MethodInvocationMatcher() {
+            @Override
+            public boolean matches(MethodInvocation methodInvocation) {
+                if (methodInvocation.getReturnValue() != null) {
+                    return methodInvocation.getReturnValue().equals(returnValue);
+                } else {
+                    return false;
+                }
+            }
+        };
+    }
+
+    public static MethodInvocationMatcher ownedByAnAndroidActivity() {
+        return new MethodInvocationMatcher() {
+            @Override
+            public boolean matches(MethodInvocation methodInvocation) {
+                return !methodInvocation.isStatic() && methodInvocation.getOwner() != null
+                        && methodInvocation.getOwner().isAndroidActivity();
+            }
+        };
+    }
+
+    public static MethodInvocationMatcher isSubsumedByAnotherAndroidActivityMethod(final CallGraph callGraph) {
+        return new MethodInvocationMatcher() {
+            @Override
+            public boolean matches(MethodInvocation methodInvocation) {
+                // Get the method subsumed by
+                List<MethodInvocation> subsumingMethodInvocations = callGraph
+                        .getOrderedSubsumingMethodInvocationsFor(methodInvocation);
+                // Remove the methods owned by this very object
+                /*
+                 * If I leave the following code I cannot rid off the methods of
+                 * super, since they are invoked on the same owner
+                 */
+                // MethodInvocationMatcher.filterByInPlace(
+                // MethodInvocationMatcher.byOwner(
+                // methodInvocation.getOwner()),
+                // subsumingMethodInvocations);
+                // Keep the methods owned by other activities
+                MethodInvocationMatcher.keepMatchingInPlace(MethodInvocationMatcher.ownedByAnAndroidActivity(),
+                        subsumingMethodInvocations);
+                //
+                return !subsumingMethodInvocations.isEmpty();
+            }
+        };
+    }
+
+    public static MethodInvocationMatcher byType(final String classNameForMethod) {
+        return new MethodInvocationMatcher() {
+            @Override
+            public boolean matches(MethodInvocation methodInvocation) {
+                return JimpleUtils.getClassNameForMethod( methodInvocation.getMethodSignature()).equals(classNameForMethod);
+            }
+        };
+    }
 
 }

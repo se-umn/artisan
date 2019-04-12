@@ -1067,11 +1067,11 @@ public class DataDependencyGraph {
      * @param objectInstance
      * @return
      */
-    public Set<MethodInvocation> getMethodInvocationsWhichUse(ObjectInstance objectInstance) {
+    public Set<MethodInvocation> getMethodInvocationsWhichUse(DataNode dataNode) {
         Set<MethodInvocation> methodInvocations = new HashSet<>();
-        for (String edge : getOutgoingEgdes(objectInstance)) {
+        for (String edge : getOutgoingEgdes(dataNode)) {
             if (edge.startsWith(DATA_DEPENDENCY_PREFIX)) {
-                methodInvocations.add((MethodInvocation) graph.getOpposite(objectInstance, edge));
+                methodInvocations.add((MethodInvocation) graph.getOpposite(dataNode, edge));
             }
         }
         return methodInvocations;

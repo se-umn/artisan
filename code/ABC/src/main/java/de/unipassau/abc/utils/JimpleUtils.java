@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import de.unipassau.abc.carving.MethodInvocation;
+import de.unipassau.abc.carving.exceptions.CarvingException;
 import soot.Body;
 import soot.Local;
 import soot.Scene;
@@ -21,6 +22,13 @@ import soot.Unit;
 public class JimpleUtils {
 
     private final static Logger logger = LoggerFactory.getLogger(JimpleUtils.class);
+    
+    // Class constants
+    public static final String ACTIVITY_CLASS = "android.app.Activity";
+    public static final String FRAGMENT_CLASS = "android.app.Fragment";
+    public static final String SUPPORT_FRAGMENT_CLASS = "android.support.v4.app.Fragment";
+    public static final String SUPPORT_ACTIVITY_CLASS = "android.support.v7.app.AppCompatActivity";
+    
     /**
      * Return parameter type names
      * 
@@ -118,7 +126,13 @@ public class JimpleUtils {
     }
 
     public static String getMethodName(String jimpleMethod) {
-        return jimpleMethod.replaceFirst("<", "").split(" ")[2].split("\\(")[0];
+        /*
+         * For some methods, Soot report the method name between "'" like this:
+         * <android.view.LayoutInflater: android.view.LayoutInflater
+         * 'from'(android.content.Context)>
+         */
+
+        return jimpleMethod.replaceFirst("<", "").split(" ")[2].split("\\(")[0].replaceAll("'", "");
     }
 
     // For static calls
@@ -243,11 +257,11 @@ public class JimpleUtils {
     }
 
     // Those are taken from ActivityController from Robolectrics
-    private static final List<String> interestingAndroidLifecycleCallbacks = Arrays.asList(new String[] {
-            "onAttach", "onCreate", "onDestroy", "onPause", "onPostCreate", "onPostResume",   
-            "onRestart", "onRestoreInstanceState", "onResume", "onSaveInstanceState",
-            "onStart", "onStop", "onUserLeaving"
-    });
+    private static final List<String> interestingAndroidLifecycleCallbacks = Arrays.asList(new String[] { "onAttach",
+            "onCreate", "onDestroy", "onPause", "onPostCreate", "onPostResume", "onRestart", "onRestoreInstanceState",
+            "onResume", "onSaveInstanceState", "onStart", "onStop", "onUserLeaving",//
+            // "onActivityResult" -> This one should require not explicit threatment since they are data dependent on Intent?
+            });
 
     // Those are copied from android.support.v4.app.Fragment, there might be
     // more ?
@@ -271,5 +285,48 @@ public class JimpleUtils {
         String packageName = JimpleUtils.getClassNameForMethod(methodSignature);
         packageName = packageName.substring(0, packageName.lastIndexOf('.'));
         return packageName;
+    }
+
+    // This is the toString for an array [TYPE_LETTER
+    public static String getBaseArrayType(String string) {
+        char typeLetter = string.charAt(1);
+        String type = null;
+        switch (typeLetter) {
+        case 'B':
+            type = "byte";
+            break;
+        case 'C':
+            type = "char";
+            break;
+        case 'D':
+            type = "double";
+            break;
+        case 'F':
+            type = "float";
+            break;
+        case 'I':
+            type = "int";
+            break;
+        case 'J':
+            type = "long";
+            break;
+        case 'S':
+            type = "short";
+            break;
+        case 'Z':
+            type = "boolean";
+            break;
+        case 'L':
+            type = string.substring(2, string.length());
+            break;
+        default:
+            throw new RuntimeException("Cannot get type for array " + string);
+        }
+        /*
+         * TODO Multi-dimensional array: [ - one [ for every dimension of the
+         * array
+         *
+         */
+        return type;
     }
 }

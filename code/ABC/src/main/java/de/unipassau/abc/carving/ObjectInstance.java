@@ -41,6 +41,8 @@ public class ObjectInstance implements DataNode {
     // This is for boxed primitives...
     private String stringValue;
 
+    private boolean isAndroidFragment;
+
     // Maybe a subclass for handling boxed primitives?
     public ObjectInstance(String objectId) {
         if (objectId == null)
@@ -98,13 +100,19 @@ public class ObjectInstance implements DataNode {
     }
 
     public boolean isAndroidActivity() {
-        // TODO SUPER HACKY STUFF ONLY FOR TESTING !!!
-        return getType().endsWith("Activity");
-        // return isAndroidActivity;
+        return isAndroidActivity;
     }
 
     public void setAndroidActivity(boolean isAndroidActivity) {
         this.isAndroidActivity = isAndroidActivity;
+    }
+    
+    public boolean isAndroidFragment() {
+        return isAndroidFragment;
+    }
+
+    public void setAndroidFragment(boolean isAndroidFragment) {
+        this.isAndroidFragment = isAndroidFragment;
     }
 
     @Override

@@ -17,6 +17,7 @@ import com.thoughtworks.xstream.XStream;
 import de.unipassau.abc.carving.CallGraph;
 import de.unipassau.abc.carving.DataDependencyGraph;
 import de.unipassau.abc.carving.ExecutionFlowGraph;
+import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 
@@ -29,7 +30,7 @@ public class DuafDroidParserTest {
     public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
     @Test
-    public void mainTest() throws IOException {
+    public void mainTest() throws IOException, CarvingException {
 
         File outputTo = new File("src/test/resources/android-28-traces/Notepad-Alessio"); // tempFolder.newFile("parsed.xml");
         outputTo.mkdirs();

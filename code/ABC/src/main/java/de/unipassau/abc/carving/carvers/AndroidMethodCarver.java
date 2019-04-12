@@ -13,7 +13,6 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 
-import org.jacoco.core.analysis.IBundleCoverage;
 import org.mockito.Mockito;
 import org.mockito.stubbing.OngoingStubbing;
 import org.slf4j.Logger;
@@ -43,7 +42,6 @@ import soot.Scene;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.Type;
-import soot.baf.internal.BJSRInst;
 
 /**
  * Challenge 1: choosing the right way to setup a preconditions
@@ -142,8 +140,7 @@ public class AndroidMethodCarver implements MethodCarver {
                         + "====================================================");
                 // Explain why this is trivially uncarvable
                 logger.info("The following method subsumes " + methodInvocationUnderTest + ":"
-                        + callGraph.getOrderedSubsumingMethodInvocationsFor(methodInvocationUnderTest).toString()
-                                .replace("[", "\n\t").replace("]", "").replaceAll(",", "\n\t"));
+                        + prettyPrint(callGraph.getOrderedSubsumingMethodInvocationsFor(methodInvocationUnderTest)));
                 continue;
 
             }
@@ -182,6 +179,14 @@ public class AndroidMethodCarver implements MethodCarver {
         return carvedTests;
     }
 
+    private String prettyPrint(Collection<MethodInvocation> methodInvocations) {
+        StringBuffer stringBuffer = new StringBuffer();
+        for (MethodInvocation methodInvocation : methodInvocations) {
+            stringBuffer.append(methodInvocation.toString()).append("\n");
+        }
+        return stringBuffer.toString();
+    }
+
     /**
      * A method invocation is trivially uncarvable if is subsumed by another
      * method from the same owner
@@ -217,6 +222,9 @@ public class AndroidMethodCarver implements MethodCarver {
         // Check if methodInvocationUnderTest belongs to that set
         return subsumedByOwnerBefore.contains(methodInvocationUnderTest);
     }
+
+    private final static List<String> forbiddenTypes = Arrays.asList(
+            new String[] { "android.support.v4.app.FragmentManagerImpl", "android.support.v4.app.BackStackRecord" });
 
     /**
      * Carving is a recursive activity -> carving methods and carving "data".
@@ -257,47 +265,51 @@ public class AndroidMethodCarver implements MethodCarver {
         /*
          * Let's do some android specific carving.
          */
-        
+
         /*
-         * Life-cycle fragment events are related to UI changes, since we do not care about them, we can remove them from the equation.
-         * Including their subsumed methods...
+         * Life-cycle fragment events are related to UI changes, since we do not
+         * care about them, we can remove them from the equation. Including
+         * their subsumed methods...
          */
-        // TODO Include fragments transactions ? 
-        logger.debug("Removing all the method invocations subsumed by any fragment lifecycle events");
-        
-        List<MethodInvocation> fragmentLifeCycleEvents = this.executionFlowGraph.getOrderedMethodInvocationsBefore(methodInvocationToCarve);
+        logger.debug("Removing all the method invocations subsumed by fragment lifecycle events");
+
+        List<MethodInvocation> fragmentLifeCycleEvents = this.executionFlowGraph
+                .getOrderedMethodInvocationsBefore(methodInvocationToCarve);
 
         /*
          * Keep only the fragment lifecycle events
          */
-        MethodInvocationMatcher
-                .keepMatchingInPlace(MethodInvocationMatcher.isFragmentLifeCycle(),
-                        fragmentLifeCycleEvents);
+        MethodInvocationMatcher.keepMatchingInPlace(MethodInvocationMatcher.isFragmentLifeCycle(),
+                fragmentLifeCycleEvents);
 
         /*
-         * Identify all the method invocations subsumed by observed fragmentLifeCycleEvents.
-         * Include the fragmentLifeCycleEvents themselves 
+         * Identify all the method invocations subsumed by observed
+         * fragmentLifeCycleEvents. Include the fragmentLifeCycleEvents
+         * themselves
          */
-        
+
         Set<MethodInvocation> fragmentLifeCycleEventsSubsumedMethodCalls = new HashSet<>();
-        for( MethodInvocation fragmentLifeCycleEvent : fragmentLifeCycleEvents ){
-            fragmentLifeCycleEventsSubsumedMethodCalls.addAll( this.callGraph.getMethodInvocationsSubsumedBy( fragmentLifeCycleEvent ));
-            fragmentLifeCycleEventsSubsumedMethodCalls.add( fragmentLifeCycleEvent );
+        for (MethodInvocation fragmentLifeCycleEvent : fragmentLifeCycleEvents) {
+            fragmentLifeCycleEventsSubsumedMethodCalls
+                    .addAll(this.callGraph.getMethodInvocationsSubsumedBy(fragmentLifeCycleEvent));
+            fragmentLifeCycleEventsSubsumedMethodCalls.add(fragmentLifeCycleEvent);
         }
 
         /*
          * Remove from the execution traces all those methods
          */
         Set<MethodInvocation> requiredMethodInvocations = new HashSet<>();
-        requiredMethodInvocations.addAll( executionFlowGraph.getOrderedMethodInvocations());
-        
+        requiredMethodInvocations.addAll(executionFlowGraph.getOrderedMethodInvocations());
+
         for (Iterator<MethodInvocation> iterator = requiredMethodInvocations.iterator(); iterator.hasNext();) {
             MethodInvocation methodInvocation = iterator.next();
-            if( fragmentLifeCycleEventsSubsumedMethodCalls.contains( methodInvocation ) ){
-                if( methodInvocation.isAndroidFragmentCallback() ){
+            if (fragmentLifeCycleEventsSubsumedMethodCalls.contains(methodInvocation)) {
+                if (methodInvocation.isAndroidFragmentCallback()) {
                     logger.debug("Removing methodInvocation " + methodInvocation + " or it is a Fragment life cycle ");
-                }else {
-                    logger.debug("Removing methodInvocation " + methodInvocation + " as it is subsumed by a Fragment life cycle " + this.callGraph.getOrderedSubsumingMethodInvocationsFor(methodInvocation));
+                } else {
+                    logger.debug("Removing methodInvocation " + methodInvocation
+                            + " as it is subsumed by a Fragment life cycle "
+                            + this.callGraph.getOrderedSubsumingMethodInvocationsFor(methodInvocation));
                 }
                 iterator.remove();
             }
@@ -309,7 +321,41 @@ public class AndroidMethodCarver implements MethodCarver {
         executionFlowGraph.refine(requiredMethodInvocations);
         dataDependencyGraph.summarize(executionFlowGraph);
 
-        logger.debug("Carved Test after removing Fragments related method invocations: \n" + prettyPrint(executionFlowGraph));
+        /*
+         * Remove all the method invocations related to elements which cannot be
+         * invoked directly:
+         */
+        requiredMethodInvocations.clear();
+        //
+        requiredMethodInvocations = new HashSet<>();
+        requiredMethodInvocations.addAll(executionFlowGraph.getOrderedMethodInvocations());
+
+        logger.debug("Removing all the method invocations related to forbidden objects");
+
+        for (ObjectInstance objectInstance : dataDependencyGraph.getObjectInstances()) {
+            if (forbiddenTypes.contains(objectInstance.getType())) {
+                // Remove all the invocations on forbidden objects
+                MethodInvocationMatcher.filterByInPlace(MethodInvocationMatcher.byOwner(objectInstance),
+                        requiredMethodInvocations);
+                // Remove all the invocations to methods which require forbidden
+                // objects as parameters
+                MethodInvocationMatcher.filterByInPlace(MethodInvocationMatcher.asParameter(objectInstance),
+                        requiredMethodInvocations);
+                // Remove all the invocations to methods which return instances
+                // of forbidden objects
+                MethodInvocationMatcher.filterByInPlace(MethodInvocationMatcher.byReturnValue(objectInstance),
+                        requiredMethodInvocations);
+            }
+        }
+
+        /*
+         * Keep only the invocations that can be found in the provided set
+         */
+        executionFlowGraph.refine(requiredMethodInvocations);
+        dataDependencyGraph.summarize(executionFlowGraph);
+
+        logger.debug("Carved Test after removing Fragments related method invocations: \n"
+                + prettyPrint(executionFlowGraph));
 
         /*
          * Check if the MUT was already subsumed by a lifecycle event
@@ -323,53 +369,68 @@ public class AndroidMethodCarver implements MethodCarver {
         }
 
         /*
-         * Fix visibility of methods regarding activity lifecycle by including calls of app-level activity which subsumes non-callable methods of alias (e.g., calls to super class) 
+         * Fix visibility of methods regarding activity lifecycle by including
+         * calls of app-level activity which subsumes non-callable methods of
+         * alias (e.g., calls to super class)
          */
-        
+
         logger.debug("Fixing Activity lifecycle method invocations");
 
         Set<MethodInvocation> activityLifecycleMethodInvocations = new HashSet<>();
-        activityLifecycleMethodInvocations.addAll( executionFlowGraph.getOrderedMethodInvocations() );
+        activityLifecycleMethodInvocations.addAll(executionFlowGraph.getOrderedMethodInvocations());
         // Keep only activity life cycle method invocations
-        MethodInvocationMatcher.keepMatchingInPlace( MethodInvocationMatcher.isActivityLifeCycle(), activityLifecycleMethodInvocations);
-        // Include same activity life cycle events of their aliases (this includes both super and sub classes)
+        MethodInvocationMatcher.keepMatchingInPlace(MethodInvocationMatcher.isActivityLifeCycle(),
+                activityLifecycleMethodInvocations);
+        // Include same activity life cycle events of their aliases (this
+        // includes both super and sub classes)
         Set<MethodInvocation> allActivityLifecycleMethodInvocations = new HashSet<>();
-        for( MethodInvocation activityLifecycleMethodInvocation : activityLifecycleMethodInvocations ){
-            // TODO Not sure if this will contains the activityLifecycleMethodInvocation 
-            allActivityLifecycleMethodInvocations.addAll( getSameMethodInvocationFromAliases(activityLifecycleMethodInvocation ) );
-            allActivityLifecycleMethodInvocations.add( activityLifecycleMethodInvocation );
+        for (MethodInvocation activityLifecycleMethodInvocation : activityLifecycleMethodInvocations) {
+            // TODO Not sure if this will contains the
+            // activityLifecycleMethodInvocation
+            allActivityLifecycleMethodInvocations
+                    .addAll(getSameMethodInvocationFromAliases(activityLifecycleMethodInvocation));
+            allActivityLifecycleMethodInvocations.add(activityLifecycleMethodInvocation);
         }
-        
-        // Build a temporary executionFlowGraph to host the new method invocations:
+
+        // Build a temporary executionFlowGraph to host the new method
+        // invocations:
         ExecutionFlowGraph acitivityLifecycleExecutionFlowGraph = new ExecutionFlowGraph();
         // Fill the graph by enqueueing the calls, this requires a sorted list
         List<MethodInvocation> sorted = new ArrayList<>();
         sorted.addAll(allActivityLifecycleMethodInvocations);
-        Collections.sort( sorted );
-        
-        for(MethodInvocation methodInvocation : sorted ){
-            logger.trace("AndroidMethodCarver.carveTheMethodInvocationRecursive() Including LIFECYCLE : " + methodInvocation );
+        Collections.sort(sorted);
+
+        for (MethodInvocation methodInvocation : sorted) {
+            logger.trace("AndroidMethodCarver.carveTheMethodInvocationRecursive() Including LIFECYCLE : "
+                    + methodInvocation);
             acitivityLifecycleExecutionFlowGraph.enqueueMethodInvocations(methodInvocation);
         }
-        DataDependencyGraph acitivityLifecycleDataDependecyGraph = this.dataDependencyGraph.getSubGraph(acitivityLifecycleExecutionFlowGraph);
-        
-        executionFlowGraph.include( acitivityLifecycleExecutionFlowGraph );
-        dataDependencyGraph.include( acitivityLifecycleDataDependecyGraph );
-        
-        logger.debug("Carved Test after fixing Activity lifecycle method invocations: \n" + prettyPrint(executionFlowGraph));
-        
-        // Generate a data dep grapsh which contains the required data deps for the acitivityLifecycleExecutionFlowGraph
-//        /*
-//         * At this point, i.e., after having considered the lifecycle of
-//         * activity and fragments, we need to remove all the remaining calls to
-//         * synthetic methods Since those methods do not really exist (ABC
-//         * dynamically generated them), hence they trivially cannot be invoked.
-//         */
-//        requiredMethodInvocations = executionFlowGraph.getOrderedMethodInvocations();
-//        MethodInvocationMatcher.filterByInPlace(MethodInvocationMatcher.isSynthetic(), requiredMethodInvocations);
-//
-//        executionFlowGraph.refine(new HashSet<>(requiredMethodInvocations));
-//        dataDependencyGraph.summarize(executionFlowGraph);
+        DataDependencyGraph acitivityLifecycleDataDependecyGraph = this.dataDependencyGraph
+                .getSubGraph(acitivityLifecycleExecutionFlowGraph);
+
+        executionFlowGraph.include(acitivityLifecycleExecutionFlowGraph);
+        dataDependencyGraph.include(acitivityLifecycleDataDependecyGraph);
+
+        logger.debug(
+                "Carved Test after fixing Activity lifecycle method invocations: \n" + prettyPrint(executionFlowGraph));
+
+        // Generate a data dep grapsh which contains the required data deps for
+        // the acitivityLifecycleExecutionFlowGraph
+        // /*
+        // * At this point, i.e., after having considered the lifecycle of
+        // * activity and fragments, we need to remove all the remaining calls
+        // to
+        // * synthetic methods Since those methods do not really exist (ABC
+        // * dynamically generated them), hence they trivially cannot be
+        // invoked.
+        // */
+        // requiredMethodInvocations =
+        // executionFlowGraph.getOrderedMethodInvocations();
+        // MethodInvocationMatcher.filterByInPlace(MethodInvocationMatcher.isSynthetic(),
+        // requiredMethodInvocations);
+        //
+        // executionFlowGraph.refine(new HashSet<>(requiredMethodInvocations));
+        // dataDependencyGraph.summarize(executionFlowGraph);
 
         /*
          * Remove any duplicated method invocation
@@ -400,12 +461,15 @@ public class AndroidMethodCarver implements MethodCarver {
         /*
          * ATM we cannot handle ICC/multi-activity tests
          */
-        if (thereIsMoreThanOneActivity(dataDependencyGraph)) {
-            logger.warn("Carved test contains more than one activity. We cannot handle this at the moment.");
-            throw new CarvingException("More than one activity !");
+        Set<String> activityTypes = getUserActivityTypes(callGraph, executionFlowGraph, dataDependencyGraph);
+
+        if (activityTypes.size() > 1) {
+            logger.warn("Carved test contains more than one activity type. We cannot handle this at the moment.");
+            logger.warn("Activity in the carved test: " + activityTypes);
+            throw new CarvingException("More than one activity type in the same carved test!");
         }
 
-        if (isLifeCycleOfActivityComplete(executionFlowGraph, dataDependencyGraph)) {
+        if (!isLifeCycleOfSameActivityTypeComplete(executionFlowGraph, dataDependencyGraph)) {
             logger.warn(
                     "Carved test contains more instances of the same activity but activities do not complete their lifecycle");
             throw new CarvingException("Inconsistent activity lifecycle !");
@@ -589,33 +653,40 @@ public class AndroidMethodCarver implements MethodCarver {
     private Set<MethodInvocation> getSameMethodInvocationFromAliases(
             MethodInvocation activityLifecycleMethodInvocation) {
         Set<MethodInvocation> result = new HashSet<>();
-        if( activityLifecycleMethodInvocation.isStatic() )
+        if (activityLifecycleMethodInvocation.isStatic())
             return result;
-        
-        Set<MethodInvocation> subsumedMethodInvocations = this.callGraph.getMethodInvocationsSubsumedBy(activityLifecycleMethodInvocation);
-        Set<MethodInvocation> subsumingMethodInvocations = new HashSet(this.callGraph.getOrderedSubsumingMethodInvocationsFor(activityLifecycleMethodInvocation));
-        
-        Set<ObjectInstance> ownerAndAliases = this.dataDependencyGraph.getAliasesOf( activityLifecycleMethodInvocation.getOwner());
-        ownerAndAliases.add( activityLifecycleMethodInvocation.getOwner() );
-        
-        for( ObjectInstance alias : ownerAndAliases ){
-            // Get all the methods of the alias. We cannot use before/after because we do not if this call takes place before or after the activityLifecycleMethodInvocation
-            // Include all the methods of the alias which are subsumed AND have the same name of this method
-            result.addAll(MethodInvocationMatcher.getMethodInvocationsMatchedBy(
-                    MethodInvocationMatcher.and(
-                            MethodInvocationMatcher.byOwner( alias ),
-                            MethodInvocationMatcher.withSameMethodName( JimpleUtils.getMethodName( activityLifecycleMethodInvocation.getMethodSignature()))
-                            ),
-                    subsumedMethodInvocations)
-            );
-         // Include all the methods by alias which subsumed this method AND have the same method name
-            result.addAll(MethodInvocationMatcher.getMethodInvocationsMatchedBy(
-                    MethodInvocationMatcher.and(
-                            MethodInvocationMatcher.byOwner( alias ),
-                            MethodInvocationMatcher.withSameMethodName( JimpleUtils.getMethodName( activityLifecycleMethodInvocation.getMethodSignature()))
-                            ),
-                    subsumingMethodInvocations)
-            );
+
+        Set<MethodInvocation> subsumedMethodInvocations = this.callGraph
+                .getMethodInvocationsSubsumedBy(activityLifecycleMethodInvocation);
+        Set<MethodInvocation> subsumingMethodInvocations = new HashSet(
+                this.callGraph.getOrderedSubsumingMethodInvocationsFor(activityLifecycleMethodInvocation));
+
+        Set<ObjectInstance> ownerAndAliases = this.dataDependencyGraph
+                .getAliasesOf(activityLifecycleMethodInvocation.getOwner());
+        ownerAndAliases.add(activityLifecycleMethodInvocation.getOwner());
+
+        for (ObjectInstance alias : ownerAndAliases) {
+            // Get all the methods of the alias. We cannot use before/after
+            // because we do not if this call takes place before or after the
+            // activityLifecycleMethodInvocation
+            // Include all the methods of the alias which are subsumed AND have
+            // the same name of this method
+            result.addAll(
+                    MethodInvocationMatcher
+                            .getMethodInvocationsMatchedBy(
+                                    MethodInvocationMatcher.and(MethodInvocationMatcher.byOwner(alias),
+                                            MethodInvocationMatcher.withSameMethodName(JimpleUtils.getMethodName(
+                                                    activityLifecycleMethodInvocation.getMethodSignature()))),
+                                    subsumedMethodInvocations));
+            // Include all the methods by alias which subsumed this method AND
+            // have the same method name
+            result.addAll(
+                    MethodInvocationMatcher
+                            .getMethodInvocationsMatchedBy(
+                                    MethodInvocationMatcher.and(MethodInvocationMatcher.byOwner(alias),
+                                            MethodInvocationMatcher.withSameMethodName(JimpleUtils.getMethodName(
+                                                    activityLifecycleMethodInvocation.getMethodSignature()))),
+                                    subsumingMethodInvocations));
         }
         return result;
     }
@@ -634,7 +705,7 @@ public class AndroidMethodCarver implements MethodCarver {
      * @param dataDependencyGraph
      * @return
      */
-    private boolean isLifeCycleOfActivityComplete(ExecutionFlowGraph executionFlowGraph,
+    private boolean isLifeCycleOfSameActivityTypeComplete(ExecutionFlowGraph executionFlowGraph,
             DataDependencyGraph dataDependencyGraph) {
         List<MethodInvocation> androidActivitiesConstructors = new ArrayList<>();
         for (ObjectInstance objectInstance : dataDependencyGraph.getObjectInstances()) {
@@ -704,20 +775,40 @@ public class AndroidMethodCarver implements MethodCarver {
     }
 
     /*
-     * Check if there's more than one activity type, not instances. This enable
-     * to test activity restart cases.
+     * Find the User Activity Classes. Pay attention to super/subclasses and
+     * their actual use: We need to find all the activity whose methods are not
+     * subsumed by another activity.
      */
-    private boolean thereIsMoreThanOneActivity(DataDependencyGraph dataDependencyGraph) {
-        Set<String> androidActivities = new HashSet<>();
-        for (ObjectInstance objectInstance : dataDependencyGraph.getObjectInstances()) {
+    private Set<String> getUserActivityTypes(CallGraph callGraph, ExecutionFlowGraph executionFlowGraph,
+            DataDependencyGraph dataDependencyGraph) {
+        Set<String> androidActivityTypes = new HashSet<>();
+        List<MethodInvocation> allActivityMethodInvocations = executionFlowGraph.getOrderedMethodInvocations();
+
+        // Keep only the methods owned by android activities
+        MethodInvocationMatcher.keepMatchingInPlace(MethodInvocationMatcher.ownedByAnAndroidActivity(),
+                allActivityMethodInvocations);
+
+        /*
+         * Remove the methods subsumed by a different activity
+         */
+        MethodInvocationMatcher.filterByInPlace(
+                MethodInvocationMatcher.isSubsumedByAnotherAndroidActivityMethod(callGraph),
+                allActivityMethodInvocations);
+
+        // Somehow the following survive: <android.app.Activity:
+        // android.app.Application getApplication()>
+
+        for (MethodInvocation methodInvocation : allActivityMethodInvocations) {
+            ObjectInstance objectInstance = methodInvocation.getOwner();
+            // Filter away abstract and standard android classes
             if (objectInstance.isAndroidActivity()) {
-                androidActivities.add(objectInstance.getType());
+                androidActivityTypes.add(objectInstance.getType());
             }
         }
-        if (androidActivities.size() != 1) {
-            logger.info("Found the following activities in the carved test: " + androidActivities);
-        }
-        return androidActivities.size() > 1;
+
+        // At this point I cannot see <android.app.Activity:
+        // android.app.Application getApplication()> anymore...
+        return androidActivityTypes;
     }
 
     /**
@@ -1172,9 +1263,8 @@ public class AndroidMethodCarver implements MethodCarver {
         int position = 1;
 
         for (MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations()) {
-            testContent.append(((mi.isSynthetic() ) ? "ABC" : "") + "\t" +  
-                    + position + "\t" + mi.getInvocationCount() + " " + mi.getOwner() + "::"
-                    + mi.getMethodSignature() + "(");
+            testContent.append(((mi.isSynthetic()) ? "ABC" : "") + "\t" + +position + "\t" + mi.getInvocationCount()
+                    + " " + mi.getOwner() + "::" + mi.getMethodSignature() + "(");
             for (DataNode actualParameterInstance : mi.getActualParameterInstances()) {
                 testContent.append(prettyPrint(actualParameterInstance));
                 if (mi.getActualParameterInstances()
@@ -1272,9 +1362,19 @@ public class AndroidMethodCarver implements MethodCarver {
                     + actualParameterToCarve);
         }
 
-        MethodInvocation previousActivitySyncMethod = null; 
+        MethodInvocation previousActivitySyncMethod = null;
 
-        if (methodInvocationToCarve.isAndroidActivityCallback()) {
+        /**
+         * We need to include the method invocations from other activities,
+         * however, we should do so ONLY for lifecycle of USER-provided
+         * activities, and not the super types they implement....
+         * 
+         * Not that there are cases that, despite there's other activities
+         * before this one, methodInvocationToCarve does not depend on them. For
+         * example, A1.onPause depends solely on A1, if A1 put itself on pause
+         * (via startAnother Activity)
+         */
+        if (doesMethodInvocationRequirePreviousActivity(methodInvocationToCarve)) {
             ObjectInstance currentActivity = methodInvocationToCarve.getOwner();
             logger.debug("\t Method" + methodInvocationToCarve + " is an Activity CallBack for " + currentActivity);
             /*
@@ -1307,13 +1407,15 @@ public class AndroidMethodCarver implements MethodCarver {
             } else {
                 ObjectInstance previousActivity = otherActivitiesBefore.get(0).getOwner();
                 /**
-                 * The order of life-cycle events is not guaranteed, the only guarantee is given by "sync" points.
-                 * TODO Note that this might return the invocation of a method of the super class... 
+                 * The order of life-cycle events is not guaranteed, the only
+                 * guarantee is given by "sync" points. TODO Note that this
+                 * might return the invocation of a method of the super class...
+                 * 
                  */
                 previousActivitySyncMethod = getPreviousActivitySyncMethod(methodInvocationToCarve, previousActivity);
-                
+
                 logger.trace("\t Method " + methodInvocationToCarve.toString() + " depends on previous activity "
-                        + previousActivity + " lifecycle method " + previousActivitySyncMethod );
+                        + previousActivity + " lifecycle method " + previousActivitySyncMethod);
             }
         }
 
@@ -1411,15 +1513,16 @@ public class AndroidMethodCarver implements MethodCarver {
         }
 
         /*
-         * Schedule carving of the previous activity by carving it's last method !
+         * Schedule carving of the previous activity by carving it's last method
+         * !
          */
         if (previousActivitySyncMethod != null) {
 
+            if (!workList.contains(new Pair<MethodInvocation, MethodInvocation>(previousActivitySyncMethod,
+                    previousActivitySyncMethod))) {
 
-            
-            if (!workList.contains(new Pair<MethodInvocation, MethodInvocation>(previousActivitySyncMethod, previousActivitySyncMethod))) {
-
-                workList.add(new Pair<MethodInvocation, MethodInvocation>(previousActivitySyncMethod, previousActivitySyncMethod));
+                workList.add(new Pair<MethodInvocation, MethodInvocation>(previousActivitySyncMethod,
+                        previousActivitySyncMethod));
 
                 Pair<ExecutionFlowGraph, DataDependencyGraph> carvingResultFromPreviousActivitySyncMethod = carveMethod(
                         previousActivitySyncMethod, workList, alreadyCarvedMethods, alreadyCarvedObjects);
@@ -1427,32 +1530,34 @@ public class AndroidMethodCarver implements MethodCarver {
                 executionFlowGraph.include(carvingResultFromPreviousActivitySyncMethod.getFirst());
                 dataDependencyGraph.include(carvingResultFromPreviousActivitySyncMethod.getSecond());
             }
-            
-            
-//            
-//            
-//            
-//            if (!workList.contains(new Pair<MethodInvocation, DataNode>(context, previousActivity))) {
-//
-//                // Add to the work list and execute it
-//                workList.add(new Pair<MethodInvocation, DataNode>(context, previousActivity));
-//
-//                /**
-//                 * Do the carving on the previousActivity.
-//                 */
-//                Pair<ExecutionFlowGraph, DataDependencyGraph> partialCarvingResult = carvePreviousActivity(
-//                        previousActivity, context, //
-//                        workList, alreadyCarvedMethods, alreadyCarvedObjects);
-//                /*
-//                 * Include the required actions to get to the previous activity
-//                 * in the right state. Note that the data dependency graphs
-//                 * might be disjoint as the two activities communicate only
-//                 * indirectly
-//                 */
-//                executionFlowGraph.include(partialCarvingResult.getFirst());
-//                dataDependencyGraph.include(partialCarvingResult.getSecond());
-//
-//            }
+
+            //
+            //
+            //
+            // if (!workList.contains(new Pair<MethodInvocation,
+            // DataNode>(context, previousActivity))) {
+            //
+            // // Add to the work list and execute it
+            // workList.add(new Pair<MethodInvocation, DataNode>(context,
+            // previousActivity));
+            //
+            // /**
+            // * Do the carving on the previousActivity.
+            // */
+            // Pair<ExecutionFlowGraph, DataDependencyGraph>
+            // partialCarvingResult = carvePreviousActivity(
+            // previousActivity, context, //
+            // workList, alreadyCarvedMethods, alreadyCarvedObjects);
+            // /*
+            // * Include the required actions to get to the previous activity
+            // * in the right state. Note that the data dependency graphs
+            // * might be disjoint as the two activities communicate only
+            // * indirectly
+            // */
+            // executionFlowGraph.include(partialCarvingResult.getFirst());
+            // dataDependencyGraph.include(partialCarvingResult.getSecond());
+            //
+            // }
         }
 
         /*
@@ -1494,6 +1599,104 @@ public class AndroidMethodCarver implements MethodCarver {
         return carvingResult;
     }
 
+    private final static Set<String> selfDistructingMethods;
+    static {
+        selfDistructingMethods = new HashSet<>();
+        selfDistructingMethods.add("startActivityForResult");
+        selfDistructingMethods.add("startActivity");
+        selfDistructingMethods.add("finish");
+        // List is not complete...
+    }
+
+    private boolean doesMethodInvocationRequirePreviousActivity(MethodInvocation methodInvocationToCarve) {
+        /*
+         * Check corner cases: A1.onPause depends solely on A1, if A1 put itself
+         * on pause (via startAnother Activity)
+         */
+        if (methodInvocationToCarve.isAndroidActivityCallback() &&
+        //
+                isAnUserActivityType(JimpleUtils.getClassNameForMethod(methodInvocationToCarve.getMethodSignature())) &&
+                // Some event lifecycle comes always after others (of the same
+                // activity)
+                initialActivityCallbacks
+                        .contains(JimpleUtils.getMethodName(methodInvocationToCarve.getMethodSignature()))) {
+
+            /*
+             * Check if the activity put itself to sleep or it destroys itself.
+             * In those cases, the activity does not really dependents on
+             * previous activities if the last method called before this one
+             * from the same activity subsumes: for example, startActivity,
+             * startActivityForResult cause the currect activity to go in pause,
+             * <android.app.Activity: void finish()> calls the onDestroy method
+             * which is common if the activity was started by another activity,
+             * and it has finished its job (after setting the Result object); on
+             * pause
+             */
+            List<MethodInvocation> allMethodsBeforeSameOwner = this.executionFlowGraph
+                    .getOrderedMethodInvocationsBefore(methodInvocationToCarve);
+            // Ensure we do not include: methodInvocationToCarve
+            allMethodsBeforeSameOwner.remove(methodInvocationToCarve);
+
+            // Filter by owner
+            MethodInvocationMatcher.keepMatchingInPlace(
+                    MethodInvocationMatcher.byOwner(methodInvocationToCarve.getOwner()), allMethodsBeforeSameOwner);
+            // Filter by Formal Type to rule out super/subclasses
+            MethodInvocationMatcher.keepMatchingInPlace(
+                    MethodInvocationMatcher
+                            .byType(JimpleUtils.getClassNameForMethod(methodInvocationToCarve.getMethodSignature())),
+                    allMethodsBeforeSameOwner);
+
+            if (allMethodsBeforeSameOwner.isEmpty()) {
+                // Not sure, but if there's nothing here, it might be the case
+                // this activity depends on another activity
+                return true;
+            }
+
+            /*
+             * At this point we should have the ordered list of method on this
+             * owner for this class The last one is the one we should look at:
+             * TODO Unsate for size == 0
+             */
+            MethodInvocation lastByOwner = allMethodsBeforeSameOwner.get(allMethodsBeforeSameOwner.size() - 1);
+
+            // Check if lastByOwner subsume the startActivity* methods
+            for (MethodInvocation subsumed : this.callGraph.getMethodInvocationsSubsumedBy(lastByOwner)) {
+                // TODO Can be made more robust by checking the subsignature:
+                // <android.support.v4.app.FragmentActivity: void
+                // startActivityForResult(android.content.Intent,int)>
+                // Or by including soot objects in the data structure
+                if (selfDistructingMethods.contains(JimpleUtils.getMethodName(subsumed.getMethodSignature()))) {
+                    logger.debug(lastByOwner + " is subsumed by the self-destructing method " + subsumed);
+                    // Since the activity puts itseld on pause we do not require
+                    // other activities
+                    return false;
+                }
+            }
+
+            return true;
+
+        }
+        return false;
+    }
+
+    private boolean isAlwaysPreceededByAnotherLifecycleEvent(String methodName) {
+        // TODO Auto-generated method stub
+        return false;
+    }
+
+    private Set<String> allUserActivityTypesObservedInTheTrace = null;
+
+    private boolean isAnUserActivityType(String type) {
+        if (allUserActivityTypesObservedInTheTrace == null) {
+            logger.warn("Recreating allUserActivityTypesObservedInTheTrace Set ! ");
+            // Build it once for all the carvable tests
+            allUserActivityTypesObservedInTheTrace = new HashSet<>();
+            allUserActivityTypesObservedInTheTrace
+                    .addAll(getUserActivityTypes(this.callGraph, this.executionFlowGraph, this.dataDependencyGraph));
+        }
+        return allUserActivityTypesObservedInTheTrace.contains(type);
+    }
+
     /**
      * Returns the lifecycle method of previous activity which must be ensured
      * to run BEFORE methodInvocationToCarve. We need to compute this because
@@ -1518,6 +1721,8 @@ public class AndroidMethodCarver implements MethodCarver {
     static {
         initialActivityCallbacks
                 .addAll(Arrays.asList(new String[] { "onCreate", "onPause", "onRestart", "onDestroy" }));
+        // onActivityResult
+
         syncActivityCallbacks.put("onCreate",
                 new HashSet<>(Arrays.asList(new String[] { "onResume", "onSavedInstanceState", "onDestroy" })));
         syncActivityCallbacks.put("onPause",
@@ -1557,8 +1762,9 @@ public class AndroidMethodCarver implements MethodCarver {
         // initial call back of the activity
         MethodInvocation initialCallBackOfThisActivity = thisActivityMethodInvocations.get(0);
 
-//        logger.debug("LAST INITIAL CALL BACK FOR " + methodInvocationToCarve.getOwner() + " is "
-//                + initialCallBackOfThisActivity);
+        // logger.debug("LAST INITIAL CALL BACK FOR " +
+        // methodInvocationToCarve.getOwner() + " is "
+        // + initialCallBackOfThisActivity);
 
         // Leverage the predefined mappings for looking for the corresponding
         // SYNC method invocations of the previous activity
@@ -1570,16 +1776,26 @@ public class AndroidMethodCarver implements MethodCarver {
         Collections.reverse(previousActivityMethodInvocations);
         // Filter the ordered method invocations: keep only the ones which
         // belong to the previousActivity and are lifecycle callbacks
+        MethodInvocationMatcher.keepMatchingInPlace(MethodInvocationMatcher
+                .and(MethodInvocationMatcher.byOwner(previousActivity), MethodInvocationMatcher.isActivityLifeCycle()),
+                previousActivityMethodInvocations);
+        // At this point filter by corresponding synch activity events to the
+        // (methodName) of initialCallBackOfThisActivity
         MethodInvocationMatcher.keepMatchingInPlace(
-                MethodInvocationMatcher.and(MethodInvocationMatcher.byOwner(previousActivity),
-                        MethodInvocationMatcher.isActivityLifeCycle()),
+                MethodInvocationMatcher.methodNameIsOneOf(syncActivityCallbacks
+                        .get(JimpleUtils.getMethodName(initialCallBackOfThisActivity.getMethodSignature()))),
                 previousActivityMethodInvocations);
-        // At this point filter by corresponding synch activity events to the (methodName) of initialCallBackOfThisActivity
-        MethodInvocationMatcher.keepMatchingInPlace(MethodInvocationMatcher.methodNameIsOneOf(syncActivityCallbacks.get(
-                    JimpleUtils.getMethodName(initialCallBackOfThisActivity.getMethodSignature()))),
-                previousActivityMethodInvocations);
-        
-        assert !previousActivityMethodInvocations.isEmpty() : "Cannot find an synch activity callback for " + previousActivity;
+
+        /*
+         * We need to rule out few cases. If activity1 starts activity2 and
+         * expect results, we observe activity1 onPause, but this on pause does
+         * not depend on any previous activity !
+         */
+
+        assert !previousActivityMethodInvocations
+                .isEmpty() : "Cannot find an synch activity callback for previous activity: " + previousActivity
+                        + " while carving " + methodInvocationToCarve + " of this activity: "
+                        + methodInvocationToCarve.getOwner();
 
         // The first element in the list corresponds to the last in time
         MethodInvocation syncCallBackOfPreviousActivity = previousActivityMethodInvocations.get(0);
