@@ -1,6 +1,6 @@
 package de.unipassau.abc;
 
-import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -26,6 +26,48 @@ public class VariousTest {
         @Override
         public String toString() {
             return "this is B";
+        }
+    }
+    
+    private void logMe(int log){
+        int a = log * 2;
+    }
+
+    private boolean anotherMethodToWrap(){
+        // This should prevent the method to return
+        methodRaisingException();
+        return true;
+    }
+
+    private void methodRaisingException(){
+        try{
+            throw new IOException("Test Exception");
+        } catch ( IOException e ){
+            Throwable cause = e.getCause();
+            int a = 10;
+        }
+        throw new RuntimeException("Test Exception");
+    }
+    
+    @Test
+    public void tryCatchFinally(){
+        try{
+            Object o = new Object();
+            o.toString();
+            anotherMethodToWrap();
+            Object anotherObject = new Object();
+            o.hashCode();
+        } catch ( Throwable t ){
+            StringBuffer sb = new StringBuffer();
+            sb.append(t.getMessage());
+            if( t instanceof  RuntimeException ){
+                logMe(1);
+            } else {
+                logMe(2);
+            }
+        } finally {
+            // How to distinguish finally at 
+            Object fin = new Object();
         }
     }
 
@@ -91,8 +133,14 @@ public class VariousTest {
 
     @Test
     public void convertBytesToString() {
-        byte[] stringContent = new byte[] { 100, 105, 114, 101, 99, 116, 95, 101, 100, 105, 116 };
-        String s = new String(stringContent);
+        
+//        byte[] stringContent = new byte[] { 100, 105, 114, 101, 99, 116, 95, 101, 100, 105, 116 };
+        
+        
+        String s = new String(new byte[] {77, 65, 80, 95, 80, 65, 84, 72});
+        System.out.println("VariousTest.convertBytesToString() " + s);
+        
+        s = new String(new byte[] {66, 117, 101, 110, 111, 115, 45, 65, 105, 114, 101, 115, 46, 122, 105, 112});
         System.out.println("VariousTest.convertBytesToString() " + s);
     }
 

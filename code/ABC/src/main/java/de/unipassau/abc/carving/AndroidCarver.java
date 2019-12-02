@@ -5,14 +5,12 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.SystemUtils;
-import org.robolectric.android.controller.ActivityController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,10 +19,11 @@ import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
 import com.thoughtworks.xstream.XStream;
 
-import de.unipassau.abc.carving.carvers.AndroidMethodCarver;
+import de.unipassau.abc.carving.carvers.AndroidActivityCarver;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
+import de.unipassau.abc.parsing.ParsedTrace;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.G;
 import soot.Scene;
@@ -95,6 +94,10 @@ public class AndroidCarver {
         long startTime = System.nanoTime();
 
         CarverCLI cli = CliFactory.parseArguments(CarverCLI.class, args);
+        /*
+         * This is tricky now. If the passed file is a directory for multiple
+         * threads we need to load all the files. But consider them as one
+         */
         List<File> parsedTracesFiles = cli.getParsedTraceFiles();
         File storeCarvedTestsTo = cli.getOutputDir();
 
@@ -119,22 +122,59 @@ public class AndroidCarver {
         // We cannot carve static initializers
         excludeBy.add(MethodInvocationMatcher.clinit());
 
-        // Load the parsed traces
-        Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTraces = new HashMap<>();
-        XStream xStream = new XStream();
-        for (File parsedTrace : parsedTracesFiles) {
-            try {
-                parsedTraces.put(parsedTrace.getAbsolutePath(),
-                        (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>) xStream.fromXML(parsedTrace));
-            } catch (Exception e) {
-                logger.error("Cannot parse " + parsedTrace);
-            }
+        // Load the parsed traces.
+        
+        List<ParsedTrace> theParsedTraces = new ArrayList<>();
+        for (File parsedTraceFile : parsedTracesFiles) {
+            // TODO this will not work if parsedTraceFile is file...
+            theParsedTraces.add( ParsedTrace.loadFromDirectory( parsedTraceFile ));
         }
+//        Map<String, // Files/Directories -> SystemTest
+//                Map<String, // Thread
+//                        Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>> parsedTraces = new HashMap<>();
+//
+//        XStream xStream = new XStream();
+//
+//        for (File parsedTraceFile : parsedTracesFiles) {
+//
+//            // Create the entry for this system test
+//            Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTrace = new HashMap<>();
+//            parsedTraces.put(parsedTraceFile.getName(), parsedTrace);
+//
+//            if (parsedTraceFile.isDirectory()) {
+//                for (File file : parsedTraceFile.listFiles(new FilenameFilter() {
+//                    @Override
+//                    public boolean accept(File dir, String name) {
+//                        return name.endsWith(".parsed.xml");
+//                    }
+//                })) {
+//                    // TODO This should be the thread name instead ...
+//                    logger.info("Loading parsed trace from " + parsedTraceFile + " for " + file.getName());
+//                    parsedTrace.put(file.getName(),
+//                            (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>) xStream.fromXML(file));
+//                }
+//
+//            } else {
+//                try {
+//                    logger.info("Loading parsed trace from " + parsedTraceFile + " for " + parsedTraceFile.getName());
+//                    parsedTrace.put(parsedTraceFile.getName(),
+//                            (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>) xStream
+//                                    .fromXML(parsedTraceFile));
+//                } catch (Exception e) {
+//                    logger.error("Cannot parse " + parsedTrace);
+//                }
+//            }
+//        }
 
-        logger.info("Start carving of " + parsedTraces.size() + " traces ");
+        // TODO We make the simplifying ASSUMPTION that we elaborate one system
+        // test at the time - refactoring needed
+
+        logger.info("Start carving of " + theParsedTraces.size() + " traces ");
+        // TODO Load this from the files. Order does not matter
+        
 
         if (carveBy == null) {
-            carveBy = generateMethodInvocationMatcherForAllTheActivities(parsedTraces);
+            carveBy = generateMethodInvocationMatcherForAllTheActivities(theParsedTraces);
         }
 
         if (carveBy == null) {
@@ -143,8 +183,7 @@ public class AndroidCarver {
 
             throw new CarvingException("Wrong carve by criterion");
         }
-        
-        
+
         /*
          * At this level of abstraction carved tests are simply a number of
          * method invocations
@@ -154,12 +193,17 @@ public class AndroidCarver {
         long carvingTime = System.currentTimeMillis();
 
         int methodInvocationCount = 0;
-        for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace : parsedTraces.values()) {
-            // TODO Possibly at this level we can also select the most
-            // appropriate method carver ?
-
-            List<MethodInvocation> methodsInvocationsToCarve = new ArrayList<>(parsedTrace.getFirst()
-                    .getMethodInvocationsFor(carveBy, excludeBy.toArray(new MethodInvocationMatcher[] {})));
+        for (ParsedTrace parsedTrace : theParsedTraces) {
+            /*
+             *  The AndroidCarving is focused on Activities, so we only care about methods that are in the main thread.
+             *  The methods inside the other threads will be reached later and are never the target for carving.
+             */
+            
+            Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> mainThreadParsedTrace = parsedTrace.getUIThreadParsedTrace(); 
+            
+            List<MethodInvocation> methodsInvocationsToCarve = new ArrayList<>(
+                    // WOW 3 layers, long live Demetra !!
+                    mainThreadParsedTrace.getFirst().getMethodInvocationsFor(carveBy, excludeBy.toArray(new MethodInvocationMatcher[] {})));
 
             // Remove the synthetic methods
             MethodInvocationMatcher.filterByInPlace(MethodInvocationMatcher.isSynthetic(), methodsInvocationsToCarve);
@@ -167,14 +211,9 @@ public class AndroidCarver {
             methodInvocationCount += methodsInvocationsToCarve.size();
 
             /*
-             * There might be different stragegies for Carving. We use the
-             * Level_0 carving, which does not inspect the implementations of
-             * the CUT. This aims to generate test cases which contains only
-             * "callable" (i.e., public) methods of the CUTs
+             * There might be different strategies for Carving. We use the Activity carving one.
              */
-            AndroidMethodCarver testCarver = new AndroidMethodCarver(parsedTrace.getFirst(), //
-                    parsedTrace.getSecond(), //
-                    parsedTrace.getThird());
+            AndroidActivityCarver testCarver = new AndroidActivityCarver(parsedTrace);
 
             carvedTests.addAll(testCarver.carve(methodsInvocationsToCarve));
         }
@@ -197,6 +236,7 @@ public class AndroidCarver {
 
         logger.debug("Storing carved tests to : " + storeCarvedTestsTo.getAbsolutePath());
 
+        XStream xStream = new XStream();
         // TODO Store carved tests to storeCarvedTestsTo
         for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
             MethodInvocation carvedMethodInvocation = carvedTest.getFirst().getLastMethodInvocation();
@@ -215,50 +255,68 @@ public class AndroidCarver {
     }
 
     private static MethodInvocationMatcher generateMethodInvocationMatcherForAllTheActivities(
-            Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedTraces) {
+            List<ParsedTrace> parsedTraces) {
+        // Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph,
+        // CallGraph>> parsedTraces) {
         Set<String> activities = new HashSet<>();
-        for( Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTrace : parsedTraces.values()){
-            DataDependencyGraph dataDependencyGraph = parsedTrace.getSecond();
-            for(ObjectInstance objectInstance : dataDependencyGraph.getObjectInstances() ){
-                if( objectInstance.isAndroidActivity() ){
-                    activities.add( objectInstance.getType() );
+        for (ParsedTrace parsedTrace : parsedTraces) {
+            // We care ONLY about the activities, and activities are handled only inside UI/Main Thread
+            Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> mainThreadParsedTrace = parsedTrace
+                    .getUIThreadParsedTrace();
+            DataDependencyGraph dataDependencyGraph = mainThreadParsedTrace.getSecond();
+            for (ObjectInstance objectInstance : dataDependencyGraph.getObjectInstances()) {
+                if (objectInstance.isAndroidActivity()) {
+                    activities.add(objectInstance.getType());
                 }
             }
         }
-        logger.info("Found the following activities in the application: \n" + activities );
+
+        logger.info("Found the following activities in the application: \n" + activities);
         List<MethodInvocationMatcher> matchers = new ArrayList<>();
-        for(String activityType : activities ){
-            matchers.add( MethodInvocationMatcher.byClass( activityType ) );
+        for (String activityType : activities) {
+            matchers.add(MethodInvocationMatcher.byClass(Pattern.quote(activityType)));
         }
-        
-        if( matchers.isEmpty() ){
+
+        if (matchers.isEmpty()) {
             return null;
-        } else if( matchers.size() == 1 ){
-            return matchers.get( 0 );
+        } else if (matchers.size() == 1) {
+            return matchers.get(0);
         } else {
             return MethodInvocationMatcher.or( //
-                    matchers.get(0),
-                    matchers.get(1), 
-                    matchers.subList(2, matchers.size()).toArray( new MethodInvocationMatcher[]{}));
+                    matchers.get(0), matchers.get(1),
+                    matchers.subList(2, matchers.size()).toArray(new MethodInvocationMatcher[] {}));
         }
     }
 
-    private static void setupSoot(File androidJar, File apk) {
+    public static void setupSoot(File androidJar, File apk) {
         G.reset();
         Options.v().set_allow_phantom_refs(true);
         Options.v().set_whole_program(true);
 
         // Not sure this will work with the APK
         ArrayList<String> necessaryJar = new ArrayList<String>();
+
         // Include here entries from the classpath
+        StringBuffer sootClassPath = new StringBuffer();
+        sootClassPath.append(androidJar.getAbsolutePath());
+
         for (String cpEntry : SystemUtils.JAVA_CLASS_PATH.split(File.pathSeparator)) {
             if (cpEntry.contains("mockito-core-1.10.19.jar")) {
+                necessaryJar.add(cpEntry);
+            }
+            if (cpEntry.contains("robolectric-4.2.jar")) {
+                necessaryJar.add(cpEntry);
+            }
+            // if( cpEntry.contains("shadowapi-4.2.jar") ){
+            // necessaryJar.add(cpEntry);
+            // }
+            if (cpEntry.contains("shadows-framework-4.2.jar")) {
                 necessaryJar.add(cpEntry);
             }
         }
         necessaryJar.add(apk.getAbsolutePath());
 
-        Options.v().set_soot_classpath(androidJar.getAbsolutePath());
+        Options.v().set_soot_classpath(sootClassPath.toString());
         Options.v().set_process_dir(necessaryJar);
         Options.v().set_src_prec(soot.options.Options.src_prec_apk);
 
@@ -267,8 +325,5 @@ public class AndroidCarver {
         System.setProperty("os.name", "Whatever");
         Scene.v().loadNecessaryClasses();
         System.setProperty("os.name", osName);
-        // This is mostlty to check
-        Scene.v().loadClassAndSupport(ActivityController.class.getName());
-
     }
 }

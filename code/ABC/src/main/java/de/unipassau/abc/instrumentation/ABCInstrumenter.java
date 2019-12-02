@@ -91,7 +91,7 @@ public class ABCInstrumenter {
 				// Sure ? Why not?
 				throw new RuntimeException("Cannot have a null returnValue at this point " + methodSignature);
 			} else {
-				tmpReturnValueAndInstructions = UtilInstrumenter.generateReturnValue(returnValue, body);
+				tmpReturnValueAndInstructions = UtilInstrumenter2.generateReturnValue(returnValue, body);
 			}
 
 			// Append to the array the possibly Boxed return value
@@ -131,7 +131,7 @@ public class ABCInstrumenter {
 		// Returns a Pair which contains the array and the instructions to
 		// create it
 
-		Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter
+		Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter2
 				.generateParameterArray(RefType.v("java.lang.Object"), parameterList, body);
 
 		// Append the array to the parameters for the trace start

@@ -67,7 +67,7 @@ public class CaptureReturnValueBodyTransformer extends BodyTransformer {
 					if (invokeExpr.getMethod().getReturnType() instanceof VoidType) {
 						return;
 					} else {
-						Local returnValue = UtilInstrumenter.generateFreshLocal(body,
+						Local returnValue = UtilInstrumenter2.generateFreshLocal(body,
 								invokeExpr.getMethod().getReturnType());
 						Unit capturingAssignStmt = Jimple.v().newAssignStmt(returnValue, invokeExpr);
 						units.insertBefore(capturingAssignStmt, stmt);

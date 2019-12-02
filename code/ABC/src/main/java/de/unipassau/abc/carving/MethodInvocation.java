@@ -182,8 +182,11 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
     }
 
     public void setPrivate(boolean isPrivate) {
-        // System.out.println( toString() + " isPrivate ? " + isPrivate );
         this.isPrivate = isPrivate;
+        if (this.isPrivate) {
+            this.isPublic = false;
+            this.isProtected = false;
+        }
     }
 
     public boolean isPrivate() {
@@ -377,6 +380,10 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
     public void setPublic(boolean isPublic) {
         this.isPublic = isPublic;
+        if (this.isPublic) {
+            this.isPrivate = false;
+            this.isProtected = false;
+        }
     }
 
     public boolean isPublic() {
@@ -385,6 +392,10 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
     public void setProtected(boolean isProtected) {
         this.isProtected = isProtected;
+        if (this.isProtected) {
+            this.isPrivate = false;
+            this.isPublic = false;
+        }
     }
 
     public boolean isProtected() {

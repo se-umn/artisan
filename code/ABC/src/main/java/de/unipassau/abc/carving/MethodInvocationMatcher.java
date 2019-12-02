@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.Scene;
 import soot.SootClass;
+import soot.jimple.toolkits.annotation.tags.OneByteCodeTag;
 
 public class MethodInvocationMatcher {
 
@@ -321,6 +322,8 @@ public class MethodInvocationMatcher {
 
         Set<MethodInvocation> matching = new HashSet<>();
         for (MethodInvocation methodInvocation : methodInvocationsToBeFiltered) {
+            @SuppressWarnings("unused")
+            ObjectInstance owner = methodInvocation.getOwner();
             if (filter.matches(methodInvocation)) {
                 matching.add(methodInvocation);
             }
@@ -499,7 +502,12 @@ public class MethodInvocationMatcher {
         return new MethodInvocationMatcher() {
             @Override
             public boolean matches(MethodInvocation methodInvocation) {
-                return objectInstance != null && objectInstance.equals(methodInvocation.getOwner());
+                boolean match = objectInstance != null && objectInstance.equals(methodInvocation.getOwner());
+                // if( objectInstance.getType().contains("Intent")){
+                // System.out.println(objectInstance + ( match ? " matches" :
+                // "does not match") + " with " + methodInvocation.getOwner() );
+                // }
+                return match;
             }
         };
     }
@@ -664,9 +672,43 @@ public class MethodInvocationMatcher {
         return new MethodInvocationMatcher() {
             @Override
             public boolean matches(MethodInvocation methodInvocation) {
-                return JimpleUtils.getClassNameForMethod( methodInvocation.getMethodSignature()).equals(classNameForMethod);
+                return JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature())
+                        .equals(classNameForMethod);
             }
         };
+    }
+
+    public static MethodInvocationMatcher isSubsumedBy(final MethodInvocation subsumingMethodInvocation,
+            final CallGraph callGraph) {
+        return new MethodInvocationMatcher() {
+            @Override
+            public boolean matches(MethodInvocation methodInvocation) {
+                return callGraph.getMethodInvocationsSubsumedBy(subsumingMethodInvocation).contains(methodInvocation);
+            }
+        };
+    }
+
+    public static MethodInvocationMatcher byAnotherActivity(ObjectInstance first) {
+        return new MethodInvocationMatcher() {
+            @Override
+            public boolean matches(MethodInvocation methodInvocation) {
+                if (methodInvocation.isStatic())
+                    return false;
+                if (!methodInvocation.getOwner().isAndroidActivity())
+                    return false;
+
+                return !first.equals(methodInvocation.getOwner());
+            }
+        };
+    }
+
+    public static MethodInvocationMatcher isConstructor() {
+        return new MethodInvocationMatcher(){
+            @Override
+            public boolean matches(MethodInvocation methodInvocation) {
+                return methodInvocation.isConstructor();
+                }
+            };
     }
 
 }

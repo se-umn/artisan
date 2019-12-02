@@ -94,7 +94,7 @@ public class PrepareInvocationParameters extends BodyTransformer {
 						parameterType = originalParameter.getType();
 					}
 					// Some arguments are null !
-					Local parameterLocal = UtilInstrumenter.generateFreshLocal(body, parameterType);
+					Local parameterLocal = UtilInstrumenter2.generateFreshLocal(body, parameterType);
 					// Note that THIS might not work for ArrayRef, FieldRef and
 					// such... in that case add code to extract those !
 					AssignStmt assignParameters = Jimple.v().newAssignStmt(parameterLocal, originalParameter);

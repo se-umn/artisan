@@ -43,7 +43,7 @@ public class ObjectInstance implements DataNode {
 
     private boolean isAndroidFragment;
 
-    // Maybe a subclass for handling boxed primitives?
+    // Maybe a subclass for handling boxed primitives and classes ?
     public ObjectInstance(String objectId) {
         if (objectId == null)
             throw new IllegalArgumentException("ObjectInstance cannot have null objectId");

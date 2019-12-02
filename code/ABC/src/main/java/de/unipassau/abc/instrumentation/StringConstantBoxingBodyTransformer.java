@@ -71,7 +71,7 @@ public class StringConstantBoxingBodyTransformer extends BodyTransformer {
 							if (invokeExpr.getArg(i) instanceof StringConstant) {
 								System.out.println("StringConstantBoxingBodyTransformer FOUND STRING CONST in position "
 										+ i + " as PARAMETER FOR " + stmt + " inside " + containerMethod);
-								Local l = UtilInstrumenter.generateFreshLocal(body, RefType.v("java.lang.String"));
+								Local l = UtilInstrumenter2.generateFreshLocal(body, RefType.v("java.lang.String"));
 								extractedStrings.put(new Integer(i), l);
 								toInsert.add(Jimple.v().newAssignStmt(l, invokeExpr.getArg(i)));
 							}
@@ -95,7 +95,7 @@ public class StringConstantBoxingBodyTransformer extends BodyTransformer {
 							ArrayRef cell = (ArrayRef) stmt.getLeftOp();
 							List<Unit> toInsert = new ArrayList<Unit>();
 							System.out.println("StringConstantBoxingBodyTransformer FOUDN STRING CONST assigned to ARRAY element  " + cell.getBase() + "["+cell.getIndex()+"]"); 
-							Local l = UtilInstrumenter.generateFreshLocal(body, RefType.v("java.lang.String"));
+							Local l = UtilInstrumenter2.generateFreshLocal(body, RefType.v("java.lang.String"));
 							// Assign the constant to the new local:
 							toInsert.add(Jimple.v().newAssignStmt(l, stmt.getRightOp()));
 							
@@ -126,7 +126,7 @@ public class StringConstantBoxingBodyTransformer extends BodyTransformer {
 						if (invokeExpr.getArg(i) instanceof StringConstant) {
 							System.out.println("StringConstantBoxingBodyTransformer FOUND STRING CONST in position "
 									+ i + " as PARAMETER FOR " + stmt + " inside " + containerMethod);
-							Local l = UtilInstrumenter.generateFreshLocal(body, RefType.v("java.lang.String"));
+							Local l = UtilInstrumenter2.generateFreshLocal(body, RefType.v("java.lang.String"));
 							extractedStrings.put(new Integer(i), l);
 							toInsert.add(Jimple.v().newAssignStmt(l, invokeExpr.getArg(i)));
 						}

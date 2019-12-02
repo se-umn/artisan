@@ -17,7 +17,7 @@ import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
 import de.unipassau.abc.carving.MethodInvocationMatcher;
 import de.unipassau.abc.data.Triplette;
-import de.unipassau.abc.instrumentation.UtilInstrumenter;
+import de.unipassau.abc.instrumentation.UtilInstrumenter2;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.Body;
 import soot.DoubleType;
@@ -228,7 +228,7 @@ public class AssertionGenerator {
 			}
 
 			private void generateValidationForReturnValue(Value value) {
-				Value wrappedValue = UtilInstrumenter.generateCorrectObject(body, value, validationUnits);
+				Value wrappedValue = UtilInstrumenter2.generateCorrectObject(body, value, validationUnits);
 				if (JimpleUtils.isPrimitive(value.getType())) {
 					generateValidationForPrimitiveValue(wrappedValue, primitiveReturnValue, validationUnits);
 				} else {
@@ -308,7 +308,7 @@ public class AssertionGenerator {
 
 		//
 		if (getters.size() > 0) {
-			final Local expectedValueForOwner = UtilInstrumenter.generateExpectedValueForOwner(mut, body,
+			final Local expectedValueForOwner = UtilInstrumenter2.generateExpectedValueForOwner(mut, body,
 					validationUnits);
 			// Why value and not Local ?
 			final Local actualValueForOwner = (Local) carvedTestCase.getSecond().getObjectLocalFor(mut);
@@ -325,7 +325,7 @@ public class AssertionGenerator {
 				 */
 
 				// Call getter and store locally
-				Local expectedValue = UtilInstrumenter.generateFreshLocal(body, sootMethod.getReturnType());
+				Local expectedValue = UtilInstrumenter2.generateFreshLocal(body, sootMethod.getReturnType());
 				// TODO Probably a case statement here ? I have not idea
 				// which
 				// one should I call... and HOW to get this information
@@ -333,7 +333,7 @@ public class AssertionGenerator {
 				validationUnits.add(Jimple.v().newAssignStmt(expectedValue,
 						Jimple.v().newVirtualInvokeExpr(expectedValueForOwner, sootMethod.makeRef())));
 
-				Local actualValue = UtilInstrumenter.generateFreshLocal(body, sootMethod.getReturnType());
+				Local actualValue = UtilInstrumenter2.generateFreshLocal(body, sootMethod.getReturnType());
 				// TODO Probably a case statement here ? I have not idea
 				// which
 				// one should I call... and HOW to get this information
@@ -377,7 +377,7 @@ public class AssertionGenerator {
 				gerenateRegressionAssertionOnReturnValue(body, validationUnits, //
 						// Are we sure those are ok ?! I suspect that the
 						// following two are actually THE SAME !
-						UtilInstrumenter.generateExpectedValueForReturn(mut, body, validationUnits), //
+						UtilInstrumenter2.generateExpectedValueForReturn(mut, body, validationUnits), //
 						// carvedTestCase.getSecond().getReturnObjectLocalFor(mut)
 						// ??
 						returnValue);
@@ -462,8 +462,8 @@ public class AssertionGenerator {
 						.newInvokeStmt(Jimple.v().newStaticInvokeExpr(assertFalse.makeRef(), assertParameters)));
 			}
 		} else {
-			Value boxedExpected = UtilInstrumenter.generateCorrectObject(body, expectedValue, validationUnits);
-			Value boxedActual = UtilInstrumenter.generateCorrectObject(body, actualValue, validationUnits);
+			Value boxedExpected = UtilInstrumenter2.generateCorrectObject(body, expectedValue, validationUnits);
+			Value boxedActual = UtilInstrumenter2.generateCorrectObject(body, actualValue, validationUnits);
 
 			// We cannot use tpye,since that would be a primitive !
 			System.out.println(
@@ -565,8 +565,8 @@ public class AssertionGenerator {
 		List<Value> assertParameters = new ArrayList<Value>();
 		List<Unit> generated = new ArrayList<>();
 
-		Local boxedExpected = (Local) UtilInstrumenter.generateCorrectObject(body, expectedValue, generated);
-		Local boxedActual = (Local) UtilInstrumenter.generateCorrectObject(body, actualValue, generated);
+		Local boxedExpected = (Local) UtilInstrumenter2.generateCorrectObject(body, expectedValue, generated);
+		Local boxedActual = (Local) UtilInstrumenter2.generateCorrectObject(body, actualValue, generated);
 
 		SootMethod assertEquals = null;
 		switch (type.toString()) {
@@ -602,7 +602,7 @@ public class AssertionGenerator {
 			// Jimple.v().newCastExpr(boxedActual,
 			// RefType.v("java.lang.Long"))));
 
-			Local expectedValueLong = UtilInstrumenter.generateFreshLocal(body, RefType.v("long"));
+			Local expectedValueLong = UtilInstrumenter2.generateFreshLocal(body, RefType.v("long"));
 
 			// Integer has longValue as well !
 			SootMethod longValueMethod = Scene.v()
@@ -610,7 +610,7 @@ public class AssertionGenerator {
 			generated.add(Jimple.v().newAssignStmt(expectedValueLong,
 					Jimple.v().newVirtualInvokeExpr(boxedExpected, longValueMethod.makeRef())));
 
-			Local actualValueLong = UtilInstrumenter.generateFreshLocal(body, RefType.v("long"));
+			Local actualValueLong = UtilInstrumenter2.generateFreshLocal(body, RefType.v("long"));
 			generated.add(Jimple.v().newAssignStmt(actualValueLong,
 					Jimple.v().newVirtualInvokeExpr(boxedActual, longValueMethod.makeRef())));
 
@@ -624,11 +624,11 @@ public class AssertionGenerator {
 			break;
 		case "double":
 		case "float":
-			Local expectedValueCastedToDouble = UtilInstrumenter.generateFreshLocal(body, DoubleType.v());
+			Local expectedValueCastedToDouble = UtilInstrumenter2.generateFreshLocal(body, DoubleType.v());
 			generated.add(Jimple.v().newAssignStmt(expectedValueCastedToDouble,
 					Jimple.v().newCastExpr(expectedValue, DoubleType.v())));
 
-			Local actualValueCastedToDouble = UtilInstrumenter.generateFreshLocal(body, DoubleType.v());
+			Local actualValueCastedToDouble = UtilInstrumenter2.generateFreshLocal(body, DoubleType.v());
 			generated.add(Jimple.v().newAssignStmt(actualValueCastedToDouble,
 					Jimple.v().newCastExpr(actualValue, DoubleType.v())));
 

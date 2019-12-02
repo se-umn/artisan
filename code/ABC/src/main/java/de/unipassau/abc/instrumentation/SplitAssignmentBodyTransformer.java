@@ -105,7 +105,7 @@ public class SplitAssignmentBodyTransformer extends BodyTransformer {
 						
 						
 						// Introduce the new Local and update the assignment
-						Local split = UtilInstrumenter.generateFreshLocal(body, localType);
+						Local split = UtilInstrumenter2.generateFreshLocal(body, localType);
 						stmt.setLeftOp(split);
 						logger.info("Swap " + leftOp + " with " + split);
 

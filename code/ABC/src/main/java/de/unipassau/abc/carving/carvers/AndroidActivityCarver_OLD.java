@@ -18,6 +18,7 @@ import org.mockito.stubbing.OngoingStubbing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de.unipassau.abc.carving.ActivityGraph;
 import de.unipassau.abc.carving.CallGraph;
 import de.unipassau.abc.carving.DataDependencyGraph;
 import de.unipassau.abc.carving.DataNode;
@@ -52,9 +53,9 @@ import soot.Type;
  * @author gambi
  *
  */
-public class AndroidMethodCarver implements MethodCarver {
+public class AndroidActivityCarver_OLD implements MethodCarver {
 
-    private final Logger logger = LoggerFactory.getLogger(AndroidMethodCarver.class);
+    private final Logger logger = LoggerFactory.getLogger(AndroidActivityCarver_OLD.class);
 
     private ExecutionFlowGraph executionFlowGraph;
     // TODO How this is not used
@@ -68,7 +69,7 @@ public class AndroidMethodCarver implements MethodCarver {
      * @param dataDependencyGraph
      * @param callGraph
      */
-    public AndroidMethodCarver(ExecutionFlowGraph executionFlowGraph, //
+    public AndroidActivityCarver_OLD(ExecutionFlowGraph executionFlowGraph, //
             DataDependencyGraph dataDependencyGraph, //
             CallGraph callGraph) {
         super();
@@ -101,9 +102,10 @@ public class AndroidMethodCarver implements MethodCarver {
      * 
      * @param carveBy
      * @return
+     * @throws CarvingException
      */
     public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carve(
-            List<MethodInvocation> orderedMethodsInvocationsToCarve) {
+            List<MethodInvocation> orderedMethodsInvocationsToCarve) throws CarvingException {
 
         List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
 
@@ -129,6 +131,14 @@ public class AndroidMethodCarver implements MethodCarver {
              */
             if (methodInvocationUnderTest.isSynthetic()) {
                 logger.info("We do not carve synthetic methods " + methodInvocationUnderTest);
+                continue;
+            }
+            
+            /*
+             * Skip activity constructors as those should never be there/implemented
+             */
+            if (methodInvocationUnderTest.isConstructor()) {
+                logger.info("We do not carve Activity constructors " + methodInvocationUnderTest);
                 continue;
             }
 
@@ -167,6 +177,12 @@ public class AndroidMethodCarver implements MethodCarver {
                 logger.warn("\n\n====================================================\n" //
                         + "Cannot carve test for " + methodInvocationUnderTest + " :: " + e.getMessage() + "\n"
                         + "====================================================");
+
+                // DEBUG/DEVELOPMENT
+                // if( e.getMessage().contains("More than one activity type")){
+                // throw e;
+                // }
+
             } catch (Throwable e) {
                 // THIS IS UNEXPECTED
                 e.printStackTrace();
@@ -457,24 +473,196 @@ public class AndroidMethodCarver implements MethodCarver {
             logger.warn("Method under test was removed after summarization");
             throw new CarvingException("No more method under test !");
         }
+        // TODO Do we need a navigation graph ? A1 startWithResult -> A2 -> A3
+        // -> etc. ?
 
         /*
-         * ATM we cannot handle ICC/multi-activity tests
+         * Get the list of activities executed before the current one. This
+         * includes any activity instance which is different than the current
+         * one. There are different cases:
+         * 
+         * A: Lifecycle. User navigates away and comes back to the SAME activity
+         * (but possibly another instance if the previous one was destroyed).
+         * How to discriminate? One or more instances of the same type of
+         * activity but not other activities with different type in between
+         * 
+         * It's semantically the same activity, but the activity was killed by
+         * Android -> No intent is present here, it was just a lifecycle thingy.
+         * Hence the lifecycle events must match (onDestroy -> init)
+         * 
+         * B: Invocation/Navigation. User navigates to another activity, the
+         * current activity get's paused. - Tests: 1 . Second activity starts
+         * (from First activity POV) 2 . Second activity starts with intent
+         * (form Second activity POV).
+         * 
+         * In case there are instances of the same activity, this is
+         * semantically a different activity (see #2). Started via
+         * broadcast/startActivity
+         * 
+         * there must be an startActivity method with an intent which points to
+         * this activity, i.e., the target class has the same type of the
+         * current activity.
+         * 
+         * This is a simplification which does not account for activities" of
+         * the app which are started from the outside while the app is under
+         * execution. We do not also consider the case in which the app uses a
+         * broadcast message, and the app iteself it is choosen to handle the
+         * message.
+         * 
+         * C: Return from another activity. Users returns to previous activity
+         * (with or without result). - Tests: 1.A: First activity setup and
+         * starts second activity, away results, test build the results and send
+         * intent back 1.B: First activity setup and starts second activity, do
+         * not await results, test should setup the state (VERY DIFFICULT OR
+         * IMPOSSIBLE!) How to discriminate ? In the scope of currentActivity we
+         * see the onActivityResult() -> we look for the corresponding (last)
+         * startActivity One or more instances of the same type of activity but
+         * other activities with different type in between There must be a
+         * startActivity with Intent of given class in between
+         * 
+         * This is a simplification which does not account for activities" of
+         * the app which are started from the outside while the app is under
+         * execution. We do not also consider the case in which the app uses a
+         * broadcast message, and the app iteself it is choosen to handle the
+         * message.
+         * 
          */
-        Set<String> activityTypes = getUserActivityTypes(callGraph, executionFlowGraph, dataDependencyGraph);
 
-        if (activityTypes.size() > 1) {
-            logger.warn("Carved test contains more than one activity type. We cannot handle this at the moment.");
-            logger.warn("Activity in the carved test: " + activityTypes);
-            throw new CarvingException("More than one activity type in the same carved test!");
+        /*
+         * In case of multi activities the carved execution already contains all
+         * of them and their relative lifecycle events. This returns the
+         * reference (in order of appearance) of the various activity instances
+         * and a context (methodInvocations) of the transition. We need this in
+         * case the user ping-pongs between two activities...
+         * 
+         * We need to create some call graph between activities to match their
+         * invocations and carve away the rest. The final test should FOCUS only
+         * on a SINGLE LOGICAL activity.
+         */
+
+        /*
+         * TODO If we build the activity graph at the beginning we might
+         * considerably speed-up the carving process since we narrow it down to
+         * specific regions of the trace instead of carving everything for
+         * discard this later??
+         */
+
+        ActivityGraph activityGraph = buildActivityGraph(executionFlowGraph, dataDependencyGraph);
+
+        if (activityGraph.isEmpty()) {
+            logger.warn("Carved test contains no activities!");
+            throw new CarvingException("Carved test contains no activities!");
+        } else if (activityGraph.getActivityCount() == 1) {
+            logger.info("Found only one activity (with context) ");
+        } else {
+            logger.info("Found the following activities (with context) " + activityGraph.getActivities());
+
+            // We need to locate the MUT: Activity (AUT)
+            // This return the node which containts the MUT
+            Pair<ObjectInstance, Pair<MethodInvocation, MethodInvocation>> location = activityGraph.locate(methodInvocationToCarve);
+
+            if (activityGraph.isStartingOfActivity(location)) {
+                logger.info(methodInvocationToCarve + " belongs to the start of activity" + location);
+                // To carve a method in this location we need.
+                // 1. The starting intent (unless location points to the
+                // main/root activity)
+                Pair<ExecutionFlowGraph, DataDependencyGraph> intentCarving = null;
+                Pair<ExecutionFlowGraph, DataDependencyGraph> externalStateChanging = null;
+
+                Pair<ObjectInstance, MethodInvocation> requestIntentWithContext = activityGraph
+                        .getRequestIntentWithContextForActivity(location);
+                if (requestIntentWithContext != null) {
+                    logger.debug("Carving Intent " + requestIntentWithContext.getFirst() + " with context "
+                            + requestIntentWithContext.getSecond());
+
+                    // TODO: This is a special type of carving: treat parameters
+                    // of constructor as primitives/references, basically, do
+                    // not propagate the carving to the "this/context" parameter
+                    // otherwise we will include the activity
+                    // which has started the Intent in the first place !
+
+                    intentCarving = carveTheIntent(requestIntentWithContext.getFirst(), requestIntentWithContext.getSecond(),
+                            // Those should be already empty
+                            workList,
+                            //
+                            alreadyCarvedMethods, alreadyCarvedObjects);
+                }
+
+                /*
+                 * 2. Remove all the calls which belong to a different activity
+                 */
+                List<MethodInvocation> methodsOwnedByTheActivity = executionFlowGraph.getOrderedMethodInvocations();
+                MethodInvocationMatcher.filterByInPlace(
+                        MethodInvocationMatcher.byAnotherActivity(location.getFirst()),
+                        methodsOwnedByTheActivity);
+                executionFlowGraph.refine(new HashSet<>(methodsOwnedByTheActivity));
+                dataDependencyGraph.summarize(executionFlowGraph);
+
+                /*
+                 * 3. Calls to external libraries from previous method calls but
+                 * without considering the left over
+                 */
+                externalStateChanging = carvePotentiallyExternalStateChangingMethods(methodInvocationToCarve,
+                        activityGraph, location);
+
+                if (intentCarving != null) {
+                    executionFlowGraph.include(intentCarving.getFirst());
+                    dataDependencyGraph.include(intentCarving.getSecond());
+                }
+
+                executionFlowGraph.include(externalStateChanging.getFirst());
+                dataDependencyGraph.include(externalStateChanging.getSecond());
+
+            } else if (activityGraph.isLeftOverFromStartingOfActivity(location)) {
+                logger.info(methodInvocationToCarve + "is the left over after a Start of activity" + location);
+            } else if (activityGraph.isReturnFromActivity(location)) {
+                logger.info(methodInvocationToCarve + " is the return of activity" + location);
+            } else if (activityGraph.isLeftOverFromReturnFromActivity(location)) {
+                logger.info(methodInvocationToCarve + " is the left over after a Return of activity" + location);
+            } else {
+                // NULL ?
+                logger.warn("Cannot identify location" + location + " not an interesting life-cycle event");
+            }
+
+            // Do we need to carve the START, RETURN or LEFT-OVER, of AUT?
+
+            // START: Intent that started AUT (Intent, bundle, etc.) + setup
+            // from previous invocations (files, db, etc.)
+
+            // RETURN: Intent that AUT used to start the activity which
+            // returned, Intent generated by the activity which returned + setup
+            // of the previous invocations (including AUT before going "down")
+
+            // LEFT-OVER: Carve LEFT OVER and START or RETURN depending which
+            // one is the closest
+
         }
 
-        if (!isLifeCycleOfSameActivityTypeComplete(executionFlowGraph, dataDependencyGraph)) {
-            logger.warn(
-                    "Carved test contains more instances of the same activity but activities do not complete their lifecycle");
-            throw new CarvingException("Inconsistent activity lifecycle !");
-        }
+        /*
+         * Remove any duplicated method invocation
+         * 
+         * Summarize carved method invocations: If an invocation is subsumed by
+         * another invocation, we can remove it.
+         */
+        logger.trace("Before Summarization: \n " + prettyPrint(executionFlowGraph));
 
+        executionFlowGraph.summarize(callGraph);
+        dataDependencyGraph.summarize(executionFlowGraph);
+
+        logger.trace("After Summarization: \n " + prettyPrint(executionFlowGraph));
+
+        // At this point having multiple instances of activities is most likely
+        // an error...mult
+        activityGraph = buildActivityGraph(executionFlowGraph, dataDependencyGraph);
+
+        if (activityGraph.isEmpty()) {
+            logger.warn("Carved test contains no activities!");
+            throw new CarvingException("Carved test contains no activities!");
+        }
+        if (activityGraph.getActivityCount() > 1) {
+            logger.warn("Carved test contains more than one activity!");
+            throw new CarvingException("Carved test contains more than one activity!");
+        }
         /*
          * The test cannot directly call non-visible methods or class
          * definitions. We assume that the carved test is in the same package of
@@ -524,27 +712,27 @@ public class AndroidMethodCarver implements MethodCarver {
              * aliases... Otherwise we need to choose the class for the aliases
              * (i.e., the one deepest in the hierarchy?)
              */
-            for (Iterator<ObjectInstance> objectInstanceIterator = dataDependencyGraph.getDanglingObjects()
-                    .iterator(); objectInstanceIterator.hasNext();) {
+            for (Iterator<ObjectInstance> objectInstanceIterator = dataDependencyGraph.getDanglingObjects().iterator(); objectInstanceIterator.hasNext();) {
                 // Why I cannot put this inside the for statement?
                 ObjectInstance objectInstance = objectInstanceIterator.next();
                 // Check if this objectInstance is ever used by any method in
                 // the carved test
-                boolean used = false;
+                MethodInvocation objectUsageContext = null;
                 for (MethodInvocation methodInvocation : executionFlowGraph.getOrderedMethodInvocations()) {
                     if (objectInstance.equals(methodInvocation.getOwner())
                             || methodInvocation.getActualParameterInstances().contains(objectInstance)) {
-                        used = true;
+                        objectUsageContext = methodInvocation;
                         break;
                     }
                 }
-                if (!used) {
+                if (objectUsageContext == null) {
+                    // The object was never used
                     objectInstanceIterator.remove();
                 } else {
                     // The context for the dangling objects is the method to
                     // carve
                     danglingObjectWithContext
-                            .add(new Pair<ObjectInstance, MethodInvocation>(objectInstance, methodInvocationToCarve));
+                            .add(new Pair<ObjectInstance, MethodInvocation>(objectInstance, objectUsageContext));
                 }
             }
 
@@ -648,6 +836,202 @@ public class AndroidMethodCarver implements MethodCarver {
          */
 
         return carvedTest;
+    }
+
+    private Pair<ExecutionFlowGraph, DataDependencyGraph> carveTheIntent(
+            ObjectInstance intentToCarve, MethodInvocation context,
+            //
+            Set<Object> workList,
+            Map<Pair<MethodInvocation, MethodInvocation>, Pair<ExecutionFlowGraph, DataDependencyGraph>> alreadyCarvedMethods,
+            Map<Pair<MethodInvocation, ObjectInstance>, Pair<ExecutionFlowGraph, DataDependencyGraph>> alreadyCarvedObjects)
+            throws CarvingException {
+
+        /*
+         * Output dependencies of this owner before elaborating them
+         */
+        List<MethodInvocation> potentiallyStateSettingMethods = new ArrayList<>();
+        /*
+         * Collect all the method invocations on that object. No need for alias
+         */
+        potentiallyStateSettingMethods.addAll(findPotentiallyInternalStateChangingMethodsFor(intentToCarve, context));
+
+        Collections.sort(potentiallyStateSettingMethods);
+        Collections.reverse(potentiallyStateSettingMethods);
+
+        for (MethodInvocation methodInvocationToCarve : potentiallyStateSettingMethods) {
+            logger.trace("\t Intent " + intentToCarve + " depends on method " + methodInvocationToCarve);
+        }
+
+        if (alreadyCarvedObjects.containsKey(new Pair<MethodInvocation, ObjectInstance>(context, intentToCarve))) {
+            logger.trace("Returning Carving results for " + intentToCarve + " from cache");
+            return alreadyCarvedObjects.get(new Pair<MethodInvocation, ObjectInstance>(context, intentToCarve));
+        }
+
+        ExecutionFlowGraph executionFlowGraph = new ExecutionFlowGraph();
+        DataDependencyGraph dataDependencyGraph = new DataDependencyGraph();
+
+        /**
+         * Find the methods which "possibly" contribute to setting the state of
+         * this object and carve them, with the catch that the Context parameter
+         * of the constructor shall not be carved. I.e., only the reference
+         * should be there, since there's no need for the full state of that
+         * object.
+         */
+
+        boolean followsActivities = false;
+
+        for (MethodInvocation methodInvocationToCarve : potentiallyStateSettingMethods) {
+
+            if (!workList.contains(new Pair<MethodInvocation, MethodInvocation>(context, methodInvocationToCarve))) {
+
+                workList.add(new Pair<MethodInvocation, MethodInvocation>(context, methodInvocationToCarve));
+
+                Pair<ExecutionFlowGraph, DataDependencyGraph> carvingResultFromCarveMethod = null;
+
+                if (methodInvocationToCarve.isConstructor()) {
+                    // Shallow carving: include the call, the return value, and
+                    // the parameters as they are
+                    ExecutionFlowGraph shallowExecutionFlowGraph = new ExecutionFlowGraph();
+                    DataDependencyGraph shallowDataDependencyGraph = new DataDependencyGraph();
+
+                    carvingResultFromCarveMethod= new Pair<ExecutionFlowGraph, DataDependencyGraph>(shallowExecutionFlowGraph, shallowDataDependencyGraph);
+                    executionFlowGraph.enqueueMethodInvocations(methodInvocationToCarve);
+                    dataDependencyGraph.addMethodInvocationWithoutAnyDependency(methodInvocationToCarve);
+
+                    /*
+                     * Include the return value of the carved call if any.
+                     */
+                    if (!JimpleUtils.hasVoidReturnType(methodInvocationToCarve.getMethodSignature())) {
+                        dataDependencyGraph.addDataDependencyOnReturn(methodInvocationToCarve,
+                                methodInvocationToCarve.getReturnValue());
+                    }
+
+                    /*
+                     * Include the ownership
+                     */
+                    dataDependencyGraph.addDataDependencyOnOwner(methodInvocationToCarve,
+                            methodInvocationToCarve.getOwner());
+
+                    /*
+                     * Include the parameters
+                     */
+                    for (DataNode actualParameterToCarve : methodInvocationToCarve.getActualParameterInstances()) {
+                        dataDependencyGraph.addDataDependencyOnActualParameter(methodInvocationToCarve,
+                                actualParameterToCarve, //
+                                methodInvocationToCarve.getActualParameterInstances().indexOf(actualParameterToCarve));
+                    }
+
+                } else {
+                    // Do regular carving here... in the hope this does not link
+                    // other activities...
+                    carvingResultFromCarveMethod = carveMethod(methodInvocationToCarve, workList, alreadyCarvedMethods,
+                            alreadyCarvedObjects, followsActivities);
+                }
+
+                executionFlowGraph.include(carvingResultFromCarveMethod.getFirst());
+                dataDependencyGraph.include(carvingResultFromCarveMethod.getSecond());
+            }
+        }
+
+        // Add the result of carving into the cache before returning it
+        Pair<ExecutionFlowGraph, DataDependencyGraph> carvingResult = new Pair<ExecutionFlowGraph, DataDependencyGraph>(
+                executionFlowGraph, dataDependencyGraph);
+
+        alreadyCarvedObjects.put(new Pair<MethodInvocation, ObjectInstance>(context, intentToCarve), carvingResult);
+
+        return carvingResult;
+    }
+
+    /*
+     * Go back from location to begin collects potential state changing method
+     * calls, i.e., calls to external libs like database, files, and networks
+     * (list is given), which do NOT belong to left over states
+     */
+    private Pair<ExecutionFlowGraph, DataDependencyGraph> carvePotentiallyExternalStateChangingMethods(
+            MethodInvocation methodInvocationToCarve, ActivityGraph activityGraph,
+            Pair<ObjectInstance, Pair<MethodInvocation, MethodInvocation>> location) throws CarvingException {
+
+        // Get ALL the method invocations before
+        List<MethodInvocation> potentiallyExternalStateChangingMethods = this.executionFlowGraph
+                .getOrderedMethodInvocationsBefore(methodInvocationToCarve);
+        // Keep only the method invocations which belong to "External"
+        // interfaces: java.io.File, java.io.Files, etc.
+        // TODO we start with files only and add as we go...
+        MethodInvocationMatcher.keepMatchingInPlace(
+                MethodInvocationMatcher.or(MethodInvocationMatcher.byPackage("java.io"),
+                        MethodInvocationMatcher.byPackage("java.nio")),
+                // TODO Add more ...
+                potentiallyExternalStateChangingMethods);
+
+        // Remove those method invocations which belongs to left-over
+        // Get left-over of activities before location
+        Set<MethodInvocation> subsumingMethodInvocations = new HashSet<>();
+        for (Pair<ObjectInstance, Pair<MethodInvocation, MethodInvocation>> activityBefore : activityGraph
+                .getActivitiesBefore(location)) {
+            Pair<ObjectInstance, Pair<MethodInvocation, MethodInvocation>> leftOver = activityGraph
+                    .getLeftOverFor(activityBefore);
+            if (leftOver != null) {
+                subsumingMethodInvocations.addAll(getAllLeftOverMethodsFrom(leftOver));
+            }
+        }
+        // Remove all the method invocations subsumed by left-over methods.
+        // NOTE THAT THIS IS INCOMPLETE SINCE LIFECYCLE EVENTS PROPAGATE TO
+        // FRAGMENTS !!
+        //
+        for (MethodInvocation methodInvocation : subsumingMethodInvocations) {
+            MethodInvocationMatcher.filterByInPlace(
+                    MethodInvocationMatcher.isSubsumedBy(methodInvocation, this.callGraph),
+                    potentiallyExternalStateChangingMethods);
+        }
+
+        ExecutionFlowGraph executionFlowGraph = new ExecutionFlowGraph();
+        DataDependencyGraph dataDependencyGraph = new DataDependencyGraph();
+        Pair<ExecutionFlowGraph, DataDependencyGraph> carvedResult = new Pair<ExecutionFlowGraph, DataDependencyGraph>(
+                executionFlowGraph, dataDependencyGraph);
+
+        boolean followActivities = false;
+
+        Map<Pair<MethodInvocation, MethodInvocation>, Pair<ExecutionFlowGraph, DataDependencyGraph>> alreadyCarvedMethods = new HashMap<>();
+        Map<Pair<MethodInvocation, ObjectInstance>, Pair<ExecutionFlowGraph, DataDependencyGraph>> alreadyCarvedObjects = new HashMap<>();
+        Set<Object> workList = new HashSet<>();
+
+        for (MethodInvocation methodInvocation : potentiallyExternalStateChangingMethods) {
+            Pair<ExecutionFlowGraph, DataDependencyGraph> partial = carveMethod(methodInvocation, workList,
+                    alreadyCarvedMethods, alreadyCarvedObjects, followActivities);
+            executionFlowGraph.include(partial.getFirst());
+            dataDependencyGraph.include(partial.getSecond());
+        }
+
+        return carvedResult;
+    }
+
+    private Set<MethodInvocation> getAllLeftOverMethodsFrom(
+            Pair<ObjectInstance, Pair<MethodInvocation, MethodInvocation>> leftOver) {
+        // The all the methods before second, including second
+        Set<MethodInvocation> result = this.executionFlowGraph
+                .getMethodInvocationsBefore(leftOver.getSecond().getSecond());
+        result.add(leftOver.getSecond().getSecond());
+        // Remove all the methods before first to obtain all the methods in
+        // between
+        MethodInvocationMatcher.filterByInPlace(MethodInvocationMatcher.before(leftOver.getSecond().getFirst()),
+                result);
+        // Keep only the methods which belong to the activity
+        MethodInvocationMatcher.keepMatchingInPlace(MethodInvocationMatcher.byInstance(leftOver.getFirst()), result);
+        // Keep only valid lifecycle events
+        MethodInvocationMatcher.keepMatchingInPlace(MethodInvocationMatcher.isActivityLifeCycle(), result);
+        // Simplify by keeping only root/user-level methods
+        MethodInvocationMatcher.isSubsumedByAnotherAndroidActivityMethod(this.callGraph);
+        //
+        return result;
+    }
+
+    private String prettyPrintActivityWithContext(
+            Collection<Pair<ObjectInstance, MethodInvocation>> activitiesWithContext) {
+        StringBuffer testContent = new StringBuffer();
+        for (Pair<ObjectInstance, MethodInvocation> activityWithContext : activitiesWithContext) {
+            testContent.append(activityWithContext.getFirst() + " at " + activityWithContext.getSecond());
+        }
+        return testContent.toString();
     }
 
     private Set<MethodInvocation> getSameMethodInvocationFromAliases(
@@ -774,14 +1158,47 @@ public class AndroidMethodCarver implements MethodCarver {
         }
     }
 
+    private ActivityGraph buildActivityGraph(ExecutionFlowGraph executionFlowGraph,
+            DataDependencyGraph dataDependencyGraph) throws CarvingException {
+        ActivityGraph activityGraph = new ActivityGraph(this.callGraph, this.executionFlowGraph,
+                this.dataDependencyGraph);
+
+        List<MethodInvocation> allActivityMethodInvocations = executionFlowGraph.getOrderedMethodInvocations();
+        // Keep only the methods owned by android activities
+        MethodInvocationMatcher.keepMatchingInPlace(MethodInvocationMatcher.ownedByAnAndroidActivity(),
+                allActivityMethodInvocations);
+        /*
+         * Remove the methods subsumed by a different activity. This removes
+         * super/subclasses activities
+         */
+        MethodInvocationMatcher.filterByInPlace(
+                MethodInvocationMatcher.isSubsumedByAnotherAndroidActivityMethod(this.callGraph),
+                allActivityMethodInvocations);
+        /*
+         * Collect in order the appearing of all the activities, and call the
+         * activityGraph
+         */
+        for (MethodInvocation methodInvocation : allActivityMethodInvocations) {
+            ObjectInstance objectInstance = methodInvocation.getOwner();
+            if (objectInstance.isAndroidActivity()) {
+                activityGraph.add(objectInstance, methodInvocation);
+            }
+        }
+
+        return activityGraph;
+    }
+
     /*
-     * Find the User Activity Classes. Pay attention to super/subclasses and
-     * their actual use: We need to find all the activity whose methods are not
-     * subsumed by another activity.
+     * List all the activities that were executed in this carved execution
      */
-    private Set<String> getUserActivityTypes(CallGraph callGraph, ExecutionFlowGraph executionFlowGraph,
+    private List<Pair<ObjectInstance, MethodInvocation>> getActivitiesWithContext(ExecutionFlowGraph executionFlowGraph,
             DataDependencyGraph dataDependencyGraph) {
-        Set<String> androidActivityTypes = new HashSet<>();
+
+        List<Pair<ObjectInstance, MethodInvocation>> androidActivitiesWithContext = new ArrayList<>();
+
+        List<Pair<ObjectInstance, MethodInvocation>> androidActivities = new ArrayList<>();
+
+        //
         List<MethodInvocation> allActivityMethodInvocations = executionFlowGraph.getOrderedMethodInvocations();
 
         // Keep only the methods owned by android activities
@@ -789,26 +1206,72 @@ public class AndroidMethodCarver implements MethodCarver {
                 allActivityMethodInvocations);
 
         /*
-         * Remove the methods subsumed by a different activity
+         * Remove the methods subsumed by a different activity. This removes
+         * super/subclasses activities
          */
         MethodInvocationMatcher.filterByInPlace(
-                MethodInvocationMatcher.isSubsumedByAnotherAndroidActivityMethod(callGraph),
+                MethodInvocationMatcher.isSubsumedByAnotherAndroidActivityMethod(this.callGraph),
                 allActivityMethodInvocations);
 
-        // Somehow the following survive: <android.app.Activity:
-        // android.app.Application getApplication()>
-
+        /*
+         * Collect in order the appearing of all the activities. This contains
+         * for each activity the relative method invocation. We do not need a
+         * precise lifecycle analysis here because we just need to narrow down a
+         * context. For this we assume that no startActivity method are invoked
+         * during onPause/onDestroy or such ...
+         */
         for (MethodInvocation methodInvocation : allActivityMethodInvocations) {
             ObjectInstance objectInstance = methodInvocation.getOwner();
-            // Filter away abstract and standard android classes
             if (objectInstance.isAndroidActivity()) {
-                androidActivityTypes.add(objectInstance.getType());
+                androidActivities.add(new Pair<ObjectInstance, MethodInvocation>(objectInstance, methodInvocation));
+            }
+        }
+        /*
+         * Simplify the list, i.e., consecutive repetitions of the same instance
+         * are "merged" together by keeping ONLY the latest method invocation
+         */
+        Pair<ObjectInstance, MethodInvocation> lastActivityWithContext = null;
+        // androidActivitiesWithContext
+        for (Iterator<Pair<ObjectInstance, MethodInvocation>> activityPairIterator = androidActivities
+                .iterator(); activityPairIterator.hasNext();) {
+            Pair<ObjectInstance, MethodInvocation> currentActivity = activityPairIterator.next();
+
+            if (lastActivityWithContext == null) {
+                lastActivityWithContext = currentActivity;
+                continue;
+            }
+
+            if (currentActivity.getFirst().equals(lastActivityWithContext.getFirst())) {
+                /*
+                 * Same instance, update the lastActivityWithContext
+                 */
+                lastActivityWithContext = currentActivity;
+            } else {
+                /*
+                 * Different instances. lastActivityWithContext is the last
+                 * method observed on the "previous" activity so we store in
+                 * into the result
+                 */
+                androidActivitiesWithContext.add(lastActivityWithContext);
+                /*
+                 * Update the lastActivityWithContext
+                 */
+                lastActivityWithContext = currentActivity;
             }
         }
 
-        // At this point I cannot see <android.app.Activity:
-        // android.app.Application getApplication()> anymore...
-        return androidActivityTypes;
+        if (lastActivityWithContext == null) {
+            // Not sure why this might happen, but just in case
+            return androidActivitiesWithContext;
+        }
+
+        // At the end we store the last element if not there yet. This should
+        // always be the case...
+        if (!androidActivitiesWithContext.contains(lastActivityWithContext)) {
+            androidActivitiesWithContext.add(lastActivityWithContext);
+
+        }
+        return androidActivitiesWithContext;
     }
 
     /**
@@ -1156,6 +1619,7 @@ public class AndroidMethodCarver implements MethodCarver {
     }
 
     private static final AtomicInteger generatedId = new AtomicInteger(1);
+    private static final AtomicInteger mockedCallsId = new AtomicInteger(-100);
 
     private void createMockeryFor(ObjectInstance objectInstanceToMock, ExecutionFlowGraph executionFlowGraph,
             DataDependencyGraph dataDependencyGraph) {
@@ -1163,14 +1627,14 @@ public class AndroidMethodCarver implements MethodCarver {
         /*
          * Create a special node here to host the value of ".class"
          */
-        DataNode classToMock = PrimitiveNodeFactory.createPrimitiveClassNode(objectInstanceToMock.getType());
+        DataNode classToMock = PrimitiveNodeFactory.createClassLiteralFor(objectInstanceToMock);
 
         /*
          * The mockery gets the class of the instance to mockMethod, and
          * generate the expected instance. Ensures this is called before
          * anything else !
          */
-        MethodInvocation mockeryCreation = new MethodInvocation(-100, mockMethod.getSignature());
+        MethodInvocation mockeryCreation = new MethodInvocation( mockedCallsId.incrementAndGet(), mockMethod.getSignature());
         mockeryCreation.setStatic(true);
 
         mockeryCreation.setActualParameterInstances(Arrays.asList(new DataNode[] { classToMock }));
@@ -1321,11 +1785,24 @@ public class AndroidMethodCarver implements MethodCarver {
      * @return
      * @throws CarvingException
      */
+    @Deprecated
     private Pair<ExecutionFlowGraph, DataDependencyGraph> carveMethod(MethodInvocation methodInvocationToCarve,
             Set<Object> workList,
             Map<Pair<MethodInvocation, MethodInvocation>, Pair<ExecutionFlowGraph, DataDependencyGraph>> alreadyCarvedMethods,
             Map<Pair<MethodInvocation, ObjectInstance>, Pair<ExecutionFlowGraph, DataDependencyGraph>> alreadyCarvedObjects)
             throws CarvingException {
+        // Flag to decide if we want to consider previous activities in the
+        // carve... This will likely leave the place for something else...
+        boolean followActivities = true;
+        return carveMethod(methodInvocationToCarve, workList, alreadyCarvedMethods, alreadyCarvedObjects,
+                followActivities);
+    }
+
+    private Pair<ExecutionFlowGraph, DataDependencyGraph> carveMethod(MethodInvocation methodInvocationToCarve,
+            Set<Object> workList,
+            Map<Pair<MethodInvocation, MethodInvocation>, Pair<ExecutionFlowGraph, DataDependencyGraph>> alreadyCarvedMethods,
+            Map<Pair<MethodInvocation, ObjectInstance>, Pair<ExecutionFlowGraph, DataDependencyGraph>> alreadyCarvedObjects, //
+            boolean followActivities) throws CarvingException {
 
         logger.trace("> Carve Method " + methodInvocationToCarve.toString());
 
@@ -1374,7 +1851,8 @@ public class AndroidMethodCarver implements MethodCarver {
          * example, A1.onPause depends solely on A1, if A1 put itself on pause
          * (via startAnother Activity)
          */
-        if (doesMethodInvocationRequirePreviousActivity(methodInvocationToCarve)) {
+        if (doesMethodInvocationRequirePreviousActivity(methodInvocationToCarve) && //
+                followActivities) {
             ObjectInstance currentActivity = methodInvocationToCarve.getOwner();
             logger.debug("\t Method" + methodInvocationToCarve + " is an Activity CallBack for " + currentActivity);
             /*
@@ -1679,22 +2157,33 @@ public class AndroidMethodCarver implements MethodCarver {
         return false;
     }
 
-    private boolean isAlwaysPreceededByAnotherLifecycleEvent(String methodName) {
-        // TODO Auto-generated method stub
-        return false;
-    }
-
     private Set<String> allUserActivityTypesObservedInTheTrace = null;
 
     private boolean isAnUserActivityType(String type) {
         if (allUserActivityTypesObservedInTheTrace == null) {
-            logger.warn("Recreating allUserActivityTypesObservedInTheTrace Set ! ");
             // Build it once for all the carvable tests
             allUserActivityTypesObservedInTheTrace = new HashSet<>();
-            allUserActivityTypesObservedInTheTrace
-                    .addAll(getUserActivityTypes(this.callGraph, this.executionFlowGraph, this.dataDependencyGraph));
+            allUserActivityTypesObservedInTheTrace.addAll(getUserActivityTypes());
+            logger.warn("Recreating allUserActivityTypesObservedInTheTrace Set : "
+                    + allUserActivityTypesObservedInTheTrace);
+
         }
         return allUserActivityTypesObservedInTheTrace.contains(type);
+    }
+
+    private Set<String> getUserActivityTypes() {
+        /*
+         * Get all the types of all the user activity in the parsed trace. Those
+         * are instances whose methods are not subsumed by other activities
+         * methods
+         */
+        Set<String> activityTypes = new HashSet<>();
+        for (ObjectInstance objectInstance : this.dataDependencyGraph.getObjectInstances()) {
+            if (objectInstance.isAndroidActivity()) {
+                activityTypes.add(objectInstance.getType());
+            }
+        }
+        return activityTypes;
     }
 
     /**
@@ -1714,8 +2203,8 @@ public class AndroidMethodCarver implements MethodCarver {
      * @param previousActivity
      * @return
      */
-    private final static Set<String> initialActivityCallbacks = new HashSet<>();
-    private final static Map<String, Set<String>> syncActivityCallbacks = new HashMap<>();
+    public final static Set<String> initialActivityCallbacks = new HashSet<>();
+    public final static Map<String, Set<String>> syncActivityCallbacks = new HashMap<>();
     // Mappings do not consider SINGLE activities, that is SAME INSTANCE of the
     // SAME ACTIVITY
     static {
@@ -1880,6 +2369,29 @@ public class AndroidMethodCarver implements MethodCarver {
         }
     }
 
+    @Deprecated
+    private Pair<ExecutionFlowGraph, DataDependencyGraph> carveObjectInstance(ObjectInstance objectInstanceToCarve,
+            MethodInvocation context, // We need this to track down where the
+                                      // objectInstanceToCarve was needed
+            boolean isOwner, //
+            Set<Object> workList, //
+            Map<Pair<MethodInvocation, MethodInvocation>, Pair<ExecutionFlowGraph, DataDependencyGraph>> alreadyCarvedMethods,
+            Map<Pair<MethodInvocation, ObjectInstance>, Pair<ExecutionFlowGraph, DataDependencyGraph>> alreadyCarvedObjects)
+            throws CarvingException {
+
+        boolean followsActivities = true;
+        return carveObjectInstance(objectInstanceToCarve, context, // We need
+                                                                   // this to
+                                                                   // track down
+                                                                   // where the
+                // objectInstanceToCarve was needed
+                isOwner, //
+                workList, //
+                alreadyCarvedMethods, alreadyCarvedObjects, //
+                followsActivities);
+
+    }
+
     /**
      * 
      * @param objectInstanceToCarve
@@ -1894,11 +2406,11 @@ public class AndroidMethodCarver implements MethodCarver {
     private Pair<ExecutionFlowGraph, DataDependencyGraph> carveObjectInstance(ObjectInstance objectInstanceToCarve,
             MethodInvocation context, // We need this to track down where the
                                       // objectInstanceToCarve was needed
-            boolean isOwner, // TODO Where is this used?
+            boolean isOwner, //
             Set<Object> workList, //
             Map<Pair<MethodInvocation, MethodInvocation>, Pair<ExecutionFlowGraph, DataDependencyGraph>> alreadyCarvedMethods,
-            Map<Pair<MethodInvocation, ObjectInstance>, Pair<ExecutionFlowGraph, DataDependencyGraph>> alreadyCarvedObjects)
-            throws CarvingException {
+            Map<Pair<MethodInvocation, ObjectInstance>, Pair<ExecutionFlowGraph, DataDependencyGraph>> alreadyCarvedObjects, //
+            boolean followsActivities) throws CarvingException {
 
         /*
          * Output dependencies of this owner before elaborating them
@@ -1959,7 +2471,8 @@ public class AndroidMethodCarver implements MethodCarver {
                 workList.add(new Pair<MethodInvocation, MethodInvocation>(context, methodInvocationToCarve));
 
                 Pair<ExecutionFlowGraph, DataDependencyGraph> carvingResultFromCarveMethod = carveMethod(
-                        methodInvocationToCarve, workList, alreadyCarvedMethods, alreadyCarvedObjects);
+                        methodInvocationToCarve, workList, alreadyCarvedMethods, alreadyCarvedObjects,
+                        followsActivities);
 
                 executionFlowGraph.include(carvingResultFromCarveMethod.getFirst());
                 dataDependencyGraph.include(carvingResultFromCarveMethod.getSecond());
@@ -2016,15 +2529,19 @@ public class AndroidMethodCarver implements MethodCarver {
          */
         Set<MethodInvocation> potentiallyStateChangingMethods = new HashSet<>();
 
-        boolean includeTheContext = false;
         // Take all the invocations before the method to carve
-        Set<MethodInvocation> methodInvocationsBefore = executionFlowGraph.getMethodInvocationsBefore(context,
-                includeTheContext);
+        List<MethodInvocation> methodInvocationsBefore = executionFlowGraph.getOrderedMethodInvocationsBefore(context);
+
+        // if (objectInstanceToCarve.getType().contains("Intent")) {
+        // System.out.println("AndroidMethodCarver.findPotentiallyInternalStateChangingMethodsFor():::");
+        // System.out.println(prettyPrint(methodInvocationsBefore));
+        // }
 
         MethodInvocation constructor = dataDependencyGraph.getConstructorOf(objectInstanceToCarve).orElse(null);
 
         // Take all the calls in this set which were invoked on the method owner
-        MethodInvocationMatcher ownership = MethodInvocationMatcher.byInstance(objectInstanceToCarve);
+        // - TODO What's the difference with byInstance ?
+        MethodInvocationMatcher ownership = MethodInvocationMatcher.byOwner(objectInstanceToCarve);
         potentiallyStateChangingMethods
                 .addAll(MethodInvocationMatcher.getMethodInvocationsMatchedBy(ownership, methodInvocationsBefore));
 
@@ -2104,28 +2621,12 @@ public class AndroidMethodCarver implements MethodCarver {
         return potentiallyStateChangingMethods;
     }
 
-    /**
-     * 
-     * @param objectInstanceToCarve
-     * @return
-     */
-    private Collection<MethodInvocation> findPotentiallyExternalStateChangingMethodsFor(MethodInvocation context) {
-        /*
-         * Get the methods which are invoked on the objectInstance BEFORE the
-         * use of the instance
-         */
-        Set<MethodInvocation> potentiallyStateChangingMethods = new HashSet<>();
-
-        boolean includeTheContext = false;
-        // Take all the invocations before the method to carve
-        Set<MethodInvocation> methodInvocationsBefore = executionFlowGraph.getMethodInvocationsBefore(context,
-                includeTheContext);
-
-        MethodInvocationMatcher externalCall = MethodInvocationMatcher.libCall();
-        potentiallyStateChangingMethods
-                .addAll(MethodInvocationMatcher.getMethodInvocationsMatchedBy(externalCall, methodInvocationsBefore));
-
-        return potentiallyStateChangingMethods;
+    // Find the method activities which are in between the context, and belongs
+    // to the objects (and are lifecyle event?)
+    public Set<MethodInvocation> getLifeCycleEventsFor(
+            Pair<ObjectInstance, Pair<MethodInvocation, MethodInvocation>> location) {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }

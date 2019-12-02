@@ -20,7 +20,6 @@ import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.android.controller.ActivityController;
-import org.robolectric.util.Logger;
 
 import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
@@ -43,8 +42,6 @@ import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.G;
 import soot.Scene;
-import soot.SootClass;
-import soot.SootMethod;
 import soot.options.Options;
 
 /**
@@ -218,20 +215,6 @@ public class AndroidActivityTestGenerator {
 
             setupSoot(cli.getAndroidJar(), cli.getAPK());
 
-            // /*
-            // * Hackinsh -- include the use provided jars to the classloader
-            // * using reflection
-            // */
-            // System.out.println("AndroidActivityTestGenerator.main() Adding "
-            // + cli.getAndroidJar() + " to CP");
-            // loadFile(cli.getAndroidJar());
-            //
-            // for (File cpEntry : cli.getApplicationClassPath()) {
-            // System.out.println("AndroidActivityTestGenerator.main() Adding "
-            // + cpEntry + " to CP");
-            // loadFile(cpEntry);
-            // }
-
             /*
              * Start the test generation. At the moment we generate one test
              * class for each carved test.
@@ -339,17 +322,21 @@ public class AndroidActivityTestGenerator {
          */
 
         /*
-         * Resolve alias
+         * Resolve alias. TODO Is this still needed ?
          */
-
         resolveAliases(dataDependencyGraph);
-        //
 
+        prettyPrint(dataDependencyGraph.getDataNodes());
+        
+        
         // Declaring all the variables before using them. Note we do not
         // generate code at this point.
         for (DataNode dataNode : dataDependencyGraph.getDataNodes()) {
+            
+            
 
             if (dataNode instanceof MethodCallLiteralValue) {
+                System.out.println("AndroidActivityTestGenerator.generateTest() Do not declare variable for " + dataNode);
                 continue;
             }
 
@@ -368,7 +355,7 @@ public class AndroidActivityTestGenerator {
             }
             
             if (requiresVariable) {
-                System.out.println("AndroidActivityTestGenerator.generateTest() Declaring variable for " + dataNode);
+                System.out.println("AndroidActivityTestGenerator.generateTest() Declaring variable for " + dataNode + " used by " +  dataDependencyGraph.getMethodInvocationsWhichUse(dataNode));
                 declareVariableFor(dataNode, dataDependencyGraph);
             } else {
                 System.out.println("AndroidActivityTestGenerator.generateTest() " + dataNode
@@ -384,27 +371,25 @@ public class AndroidActivityTestGenerator {
          */
         for (MethodInvocation methodInvocation : executionFlowGraph.getOrderedMethodInvocations()) {
             System.out.println("AndroidActivityTestGenerator.generateTest() - " + methodInvocation);
-
+            
             /*
              * Include a comment in the code pointing to the original method
              * invocation.
              */
             methodBuilder.addComment("$L", methodInvocation);// .toString().replaceAll("\\$",
                                                              // ".") );
-            if (belongsToAndroidActivity(methodInvocation)) {
-                generateCodeForAndroidActivity(methodBuilder, methodInvocation, activityClassName);
-            } else {
+//            if (belongsToAndroidActivity(methodInvocation)) {
+//                generateCodeForAndroidActivity(methodBuilder, methodInvocation, activityClassName);
+//            } else {
                 generateCode(methodBuilder, methodInvocation);
-            }
+//            }
         }
 
         // TODO Include assertions on state and behavior
-        // Assertions shall be provided as well...
-        // methodBuilder.addStatement("$T.assertNotNull( " +
-        // getVariableFor(owner).getSecond() + " )", Assert.class);
 
         MethodSpec testMethod = methodBuilder.build();
 
+        // Annotate the method with RobolectricRunner
         TypeSpec testCase = TypeSpec.classBuilder(carvedTestName)//
                 .addAnnotation(AnnotationSpec.builder(RunWith.class)//
                         .addMember("value", "$T.class", RobolectricTestRunner.class)//
@@ -417,6 +402,14 @@ public class AndroidActivityTestGenerator {
         javaFile.writeTo(System.out);
 
         return javaFile.toString();
+    }
+
+    private void prettyPrint(Set<DataNode> dataNodes) {
+        System.out.println("AndroidActivityTestGenerator.prettyPrint() DATA NODES: ");
+        for( DataNode d : dataNodes ){
+            System.out.println("\t- " + d);
+        }
+        
     }
 
     private void generateCode(Builder methodBuilder, MethodInvocation methodInvocation) {
@@ -514,82 +507,83 @@ public class AndroidActivityTestGenerator {
 
     }
 
-    private void generateCodeForAndroidActivity(Builder methodBuilder, MethodInvocation methodInvocation,
-            String activityClassName) {
-        /*
-         * Android activity objects shall be handled (init, onCreate, etc..) via
-         * an ActivityController
-         */
-        StringBuilder parameters = new StringBuilder();
-        for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
-
-            parameters.append(getParameterFor(parameter));
-            if (methodInvocation.getActualParameterInstances()
-                    .indexOf(parameter) < methodInvocation.getActualParameterInstances().size() - 1) {
-                parameters.append(",");
-            }
-        }
-
-        String returnValue = "";
-
-        if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature()) &&
-                isVariableDeclared(methodInvocation.getReturnValue())) {
-            if (firstUseOf(methodInvocation.getReturnValue())) {
-                String type = getVariableFor(methodInvocation.getReturnValue()).getFirst();
-                returnValue = type + " " + getVariableFor(methodInvocation.getReturnValue()).getSecond() + " = ";
-            } else {
-                returnValue = getVariableFor(methodInvocation.getReturnValue()).getSecond() + " = ";
-            }
-        }
-
-        ObjectInstance owner = methodInvocation.getOwner();
-
-        /*
-         * Configure the activityController to handle activity lifecycle events
-         */
-        if (methodInvocation.isConstructor()) {
-
-            // If this activity is of the same type of the previuos ones, and the previous ones was destroyed we recreate it with recreate?
-         // <com.farmerbb.notepad.activity.MainActivity: void <init>()>_981
-//          ActivityController<MainActivity> activityController = Robolectric.buildActivity(MainActivity.class);
-//          activityController.recreate();
-            
-            // Instantiate the ActivityController ?
-            // TODO How to check this is the Activity Under Test ->
-            // owner of last method invocation? Maybe an explicit
-            // reference -> create a CarvedTest object
-            methodBuilder
-                    .addStatement("$T<$L> activityController = $T.buildActivity($L.class)", //
-                            ActivityController.class, activityClassName, Robolectric.class, activityClassName) //
-                    /*
-                     * Assign the reference of the activity to its variable
-                     */
-                    .addStatement("$L $L = activityController.get()", getVariableFor(owner).getFirst(),
-                            getVariableFor(owner).getSecond());
-
-        } else if (methodInvocation.isAndroidActivityCallback()) {
-            String androidLifeCycleEventName = getCorrespondingMethodCall(methodInvocation);
-            methodBuilder.addStatement("activityController." + androidLifeCycleEventName + "(" + parameters + ")"); //
-
-        } else {
-            /*
-             * This is a method which the class implements but is not related to
-             * activity lifecycle. So we invoke it like plain java method.
-             */
-            methodBuilder.addStatement(returnValue + getVariableFor(owner).getSecond() + "."
-                    + JimpleUtils.getMethodName(methodInvocation.getMethodSignature()) + "(" + parameters.toString()
-                    + ")");
-        }
-
-    }
+//    private void generateCodeForAndroidActivity(Builder methodBuilder, MethodInvocation methodInvocation,
+//            String activityClassName) {
+//        /*
+//         * Android activity objects shall be handled (init, onCreate, etc..) via
+//         * an ActivityController
+//         */
+//        StringBuilder parameters = new StringBuilder();
+//        for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
+//
+//            parameters.append(getParameterFor(parameter));
+//            if (methodInvocation.getActualParameterInstances()
+//                    .indexOf(parameter) < methodInvocation.getActualParameterInstances().size() - 1) {
+//                parameters.append(",");
+//            }
+//        }
+//
+//        String returnValue = "";
+//
+//        if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature()) &&
+//                isVariableDeclared(methodInvocation.getReturnValue())) {
+//            if (firstUseOf(methodInvocation.getReturnValue())) {
+//                String type = getVariableFor(methodInvocation.getReturnValue()).getFirst();
+//                returnValue = type + " " + getVariableFor(methodInvocation.getReturnValue()).getSecond() + " = ";
+//            } else {
+//                returnValue = getVariableFor(methodInvocation.getReturnValue()).getSecond() + " = ";
+//            }
+//        }
+//
+//        ObjectInstance owner = methodInvocation.getOwner();
+//
+//        /*
+//         * Configure the activityController to handle activity lifecycle events
+//         */
+//        if (methodInvocation.isConstructor()) {
+//
+//            // If this activity is of the same type of the previuos ones, and the previous ones was destroyed we recreate it with recreate?
+//         // <com.farmerbb.notepad.activity.MainActivity: void <init>()>_981
+////          ActivityController<MainActivity> activityController = Robolectric.buildActivity(MainActivity.class);
+////          activityController.recreate();
+//            
+//            // Instantiate the ActivityController ?
+//            // TODO How to check this is the Activity Under Test ->
+//            // owner of last method invocation? Maybe an explicit
+//            // reference -> create a CarvedTest object
+//            methodBuilder
+//                    .addStatement("$T<$L> activityController = $T.buildActivity($L.class)", //
+//                            ActivityController.class, activityClassName, Robolectric.class, activityClassName) //
+//                    /*
+//                     * Assign the reference of the activity to its variable
+//                     */
+//                    .addStatement("$L $L = activityController.get()", getVariableFor(owner).getFirst(),
+//                            getVariableFor(owner).getSecond());
+//
+//        } else if (methodInvocation.isAndroidActivityCallback()) {
+//            String androidLifeCycleEventName = getCorrespondingMethodCall(methodInvocation);
+//            methodBuilder.addStatement("activityController." + androidLifeCycleEventName + "(" + parameters + ")"); //
+//
+//        } else {
+//            /*
+//             * This is a method which the class implements but is not related to
+//             * activity lifecycle. So we invoke it like plain java method.
+//             */
+//            methodBuilder.addStatement(returnValue + getVariableFor(owner).getSecond() + "."
+//                    + JimpleUtils.getMethodName(methodInvocation.getMethodSignature()) + "(" + parameters.toString()
+//                    + ")");
+//        }
+//
+//    }
+    
 
     private boolean isVariableDeclared(DataNode returnValue) {
         return declaredVariables.containsKey(returnValue);
     }
 
-    private boolean belongsToAndroidActivity(MethodInvocation methodInvocation) {
-        return methodInvocation.getOwner() != null && methodInvocation.getOwner().isAndroidActivity();
-    }
+//    private boolean belongsToAndroidActivity(MethodInvocation methodInvocation) {
+//        return methodInvocation.getOwner() != null && methodInvocation.getOwner().isAndroidActivity();
+//    }
 
     /*
      * Retype all the aliases and break
@@ -664,32 +658,32 @@ public class AndroidActivityTestGenerator {
      * This methods looks up into the hierarchy to get the reference to the
      * methods of the controller class
      */
-    private final static Map<String, String> activityMethocToActivityControllerMapping = new HashMap<>();
-    static {
-        activityMethocToActivityControllerMapping.put("onCreate", "create");
-        activityMethocToActivityControllerMapping.put("onAttach", "attach");
-        activityMethocToActivityControllerMapping.put("onDestroy", "destroy");
-        activityMethocToActivityControllerMapping.put("onPause", "pause");
-        activityMethocToActivityControllerMapping.put("onPostCreate", "postCreate");
-        activityMethocToActivityControllerMapping.put("onPostResume", "postResume");
-        activityMethocToActivityControllerMapping.put("onRestart", "restart");
-        activityMethocToActivityControllerMapping.put("onRestoreInstanceState", "restoreInstanceState");
-        activityMethocToActivityControllerMapping.put("onResume", "resume");
-        activityMethocToActivityControllerMapping.put("onSaveInstanceState", "saveInstanceState");
-        activityMethocToActivityControllerMapping.put("onStart", "start");
-        activityMethocToActivityControllerMapping.put("onStop", "stop");
-    }
+//    private final static Map<String, String> activityMethocToActivityControllerMapping = new HashMap<>();
+//    static {
+//        activityMethocToActivityControllerMapping.put("onCreate", "create");
+//        activityMethocToActivityControllerMapping.put("onAttach", "attach");
+//        activityMethocToActivityControllerMapping.put("onDestroy", "destroy");
+//        activityMethocToActivityControllerMapping.put("onPause", "pause");
+//        activityMethocToActivityControllerMapping.put("onPostCreate", "postCreate");
+//        activityMethocToActivityControllerMapping.put("onPostResume", "postResume");
+//        activityMethocToActivityControllerMapping.put("onRestart", "restart");
+//        activityMethocToActivityControllerMapping.put("onRestoreInstanceState", "restoreInstanceState");
+//        activityMethocToActivityControllerMapping.put("onResume", "resume");
+//        activityMethocToActivityControllerMapping.put("onSaveInstanceState", "saveInstanceState");
+//        activityMethocToActivityControllerMapping.put("onStart", "start");
+//        activityMethocToActivityControllerMapping.put("onStop", "stop");
+//    }
 
-    private String getCorrespondingMethodCall(MethodInvocation methodInvocation) {
-
-        String methodName = JimpleUtils.getMethodName(methodInvocation.getMethodSignature());
-        if (activityMethocToActivityControllerMapping.containsKey(methodName)) {
-            return activityMethocToActivityControllerMapping.get(methodName);
-        } else {
-            System.out.println("ActivityController does not provide a method corresponding to: " + methodName);
-            return null;
-        }
-    }
+//    private String getCorrespondingMethodCall(MethodInvocation methodInvocation) {
+//
+//        String methodName = JimpleUtils.getMethodName(methodInvocation.getMethodSignature());
+//        if (activityMethocToActivityControllerMapping.containsKey(methodName)) {
+//            return activityMethocToActivityControllerMapping.get(methodName);
+//        } else {
+//            System.out.println("ActivityController does not provide a method corresponding to: " + methodName);
+//            return null;
+//        }
+//    }
 
     /**
      * Either return the variable corresponding to the parameter or the value of
@@ -700,11 +694,16 @@ public class AndroidActivityTestGenerator {
      */
     private String getParameterFor(DataNode dataNode) {
         if (dataNode instanceof PrimitiveValue) {
+            
+            if( Class.class.getName().equals(((PrimitiveValue) dataNode).getType())){
+                return ((PrimitiveValue) dataNode).getStringValue();
+            }else {
             /*
              * We use toString() instead of getStringValue() to wrap strings
              * which have two different representations.
              */
             return ((PrimitiveValue) dataNode).toString();
+            }
         } else if (dataNode instanceof MethodCallLiteralValue) {
             MethodCallLiteralValue methodCall = (MethodCallLiteralValue) dataNode;
             // This is to get the reference to the mocked object

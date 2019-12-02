@@ -357,6 +357,12 @@ public class ExecutionFlowGraph {
         return (Collection<MethodInvocation>) (successors != null ? successors : new HashSet<>());
     }
 
+    /*
+     * Enable fast computation of boundaries when looking up for previous/last calls.
+     */
+    public MethodInvocation getFirstMethodInvocation(){
+        return firstMethodInvocation;
+    }
     public MethodInvocation getLastMethodInvocation() {
         return lastMethodInvocation;
 
@@ -664,6 +670,25 @@ public class ExecutionFlowGraph {
             logger.warn("Cannot dequeue " + toDrop + " as this is not the last invocation " + lastMethodInvocation);
         }
 
+    }
+
+    public String prettyPrint() {
+        StringBuffer sb = new StringBuffer();
+        for( MethodInvocation m : getOrderedMethodInvocations()){
+            sb.append( m ).append("\n");
+        }
+        return sb.toString();
+    }
+
+    public void removeMethodInvocation(MethodInvocation toDrop) {
+        List<MethodInvocation> requiredMethodInvocations= new ArrayList<MethodInvocation>();
+        requiredMethodInvocations.addAll( getOrderedMethodInvocations() );
+        if( requiredMethodInvocations.remove( toDrop ) ){
+            this.refine(new HashSet<MethodInvocation>(requiredMethodInvocations));
+        } else {
+            logger.warn("Cannot removeMethodInvocation " + toDrop );
+
+        }
     }
 
 }

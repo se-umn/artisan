@@ -20,7 +20,7 @@ import de.unipassau.abc.carving.MethodInvocation;
 import de.unipassau.abc.carving.MethodInvocationMatcher;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
-import de.unipassau.abc.instrumentation.UtilInstrumenter;
+import de.unipassau.abc.instrumentation.UtilInstrumenter2;
 import de.unipassau.abc.tracing.XMLDumper;
 import de.unipassau.abc.utils.JimpleUtils;
 import soot.Body;
@@ -119,7 +119,7 @@ public class MockingGenerator {
 			Body constructorBody = testClassInitializer.getActiveBody();
 			PatchingChain<Unit> units = constructorBody.getUnits();
 
-			Local local = UtilInstrumenter.generateFreshLocal(constructorBody,
+			Local local = UtilInstrumenter2.generateFreshLocal(constructorBody,
 					RefType.v("org.junit.contrib.java.lang.system.TextFromStandardInputStream"));
 			Unit newAssignStmt = Jimple.v().newAssignStmt(local,
 					Jimple.v()
@@ -191,7 +191,7 @@ public class MockingGenerator {
 			Body constructorBody = testClassInitializer.getActiveBody();
 			PatchingChain<Unit> units = constructorBody.getUnits();
 
-			Local local = UtilInstrumenter.generateFreshLocal(constructorBody,
+			Local local = UtilInstrumenter2.generateFreshLocal(constructorBody,
 					RefType.v("org.junit.contrib.java.lang.system.ExpectedSystemExit"));
 			Unit newAssignStmt = Jimple.v().newAssignStmt(local,
 					Jimple.v()
@@ -247,7 +247,7 @@ public class MockingGenerator {
 		SootMethod expectSystemExit = Scene.v().getMethod(
 				"<org.junit.contrib.java.lang.system.ExpectedSystemExit: void expectSystemExitWithStatus(int)>");
 
-		Local localRule = UtilInstrumenter.generateFreshLocal(body,
+		Local localRule = UtilInstrumenter2.generateFreshLocal(body,
 				RefType.v("org.junit.contrib.java.lang.system.ExpectedSystemExit"));
 
 		// Assign local to THIS.field
@@ -345,7 +345,7 @@ public class MockingGenerator {
 		// org.junit.contrib.java.lang.system.TextFromStandardInputStream.provideLines(
 		// java.lang.String[] ); to set up the input mocking
 		Body body = testMethod.getActiveBody();
-		Pair<Value, List<Unit>> parameterArrayAndInstructionsToCreateIt = UtilInstrumenter
+		Pair<Value, List<Unit>> parameterArrayAndInstructionsToCreateIt = UtilInstrumenter2
 				.generateStringArray(valuesReadFromInput, body);
 		// TODO Find the insertion point at the beginning of the method
 		List<Unit> generated = new ArrayList<>(parameterArrayAndInstructionsToCreateIt.getSecond());
@@ -353,7 +353,7 @@ public class MockingGenerator {
 				"<org.junit.contrib.java.lang.system.TextFromStandardInputStream: void provideLines(java.lang.String[])>");
 
 		// Generate a local ref
-		Local localRule = UtilInstrumenter.generateFreshLocal(body,
+		Local localRule = UtilInstrumenter2.generateFreshLocal(body,
 				RefType.v("org.junit.contrib.java.lang.system.TextFromStandardInputStream"));
 
 		// Assign local to THIS.field

@@ -55,7 +55,7 @@ import de.unipassau.abc.generation.SootTestCaseFactory;
 import de.unipassau.abc.generation.TestGenerator;
 import de.unipassau.abc.generation.TestSuiteExecutor;
 import de.unipassau.abc.generation.impl.EachTestAlone;
-import de.unipassau.abc.instrumentation.UtilInstrumenter;
+import de.unipassau.abc.instrumentation.UtilInstrumenter2;
 import de.unipassau.abc.utils.JimpleUtils;
 import edu.emory.mathcs.backport.java.util.Arrays;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicBoolean;
@@ -735,7 +735,7 @@ public class Carver {
 			}
 
 			private void generateValidationForReturnValue(Value value) {
-				Value wrappedValue = UtilInstrumenter.generateCorrectObject(body, value, validationUnits);
+				Value wrappedValue = UtilInstrumenter2.generateCorrectObject(body, value, validationUnits);
 				if (JimpleUtils.isPrimitive(value.getType())) {
 					generateValidationForPrimitiveValue(wrappedValue, primitiveReturnValue, validationUnits);
 				} else {

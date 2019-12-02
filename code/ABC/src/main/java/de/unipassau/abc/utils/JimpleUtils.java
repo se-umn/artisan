@@ -66,9 +66,13 @@ public class JimpleUtils {
     }
 
     public static boolean isString(String type) {
-        return type.equals("java.lang.String");
+        return type.equals(String.class.getName());
     }
 
+    public static boolean isClass(String type) {
+        return type.equals(Class.class.getName());
+    }
+    
     public static boolean isStringContent(String stringContent) {
         return stringContent != null && (stringContent.startsWith("[") && stringContent.endsWith("]"));
     }
@@ -102,6 +106,7 @@ public class JimpleUtils {
 
         Iterator<SootMethod> i = sClass.methodIterator();
         System.out.println("Class " + sClass.getName());
+        System.out.println(" Methods: " );
         while (i.hasNext()) {
             SootMethod m = i.next();
             System.out.println("\t" + m.getDeclaration());
@@ -329,4 +334,6 @@ public class JimpleUtils {
          */
         return type;
     }
+
+    
 }
