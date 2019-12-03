@@ -17,7 +17,6 @@ import soot.IntType;
 import soot.Local;
 import soot.LongType;
 import soot.NullType;
-import soot.PatchingChain;
 import soot.PrimType;
 import soot.RefType;
 import soot.Scene;
@@ -34,9 +33,14 @@ import soot.jimple.Jimple;
 import soot.jimple.NewArrayExpr;
 import soot.jimple.StaticInvokeExpr;
 import soot.jimple.StringConstant;
-import soot.util.Chain;
 
+/**
+ * This version was the one in use for the JAVA project
+ * @author gambi
+ *
+ */
 // Taken from FuzzDroid
+@Deprecated
 public class UtilInstrumenter2 {
 
 	/*
