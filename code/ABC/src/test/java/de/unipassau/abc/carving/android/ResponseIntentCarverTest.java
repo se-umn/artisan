@@ -9,13 +9,13 @@ import org.hamcrest.core.IsNot;
 import org.junit.Assert;
 import org.junit.Test;
 
-import de.unipassau.abc.carving.CallGraph;
-import de.unipassau.abc.carving.DataDependencyGraph;
-import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
-import de.unipassau.abc.carving.ObjectInstance;
 import de.unipassau.abc.carving.carvers.android.ResponseIntentCarver;
 import de.unipassau.abc.carving.exceptions.CarvingException;
+import de.unipassau.abc.data.CallGraph;
+import de.unipassau.abc.data.DataDependencyGraph;
+import de.unipassau.abc.data.ExecutionFlowGraph;
+import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.parsing.DuafDroidParser;

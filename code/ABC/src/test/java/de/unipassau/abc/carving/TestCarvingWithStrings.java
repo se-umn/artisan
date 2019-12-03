@@ -12,6 +12,9 @@ import org.slf4j.event.Level;
 
 import com.google.common.io.Files;
 
+import de.unipassau.abc.data.CallGraph;
+import de.unipassau.abc.data.DataDependencyGraph;
+import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 

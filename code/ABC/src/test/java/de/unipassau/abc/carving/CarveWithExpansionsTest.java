@@ -20,12 +20,16 @@ import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
 import de.unipassau.abc.carving.carvers.Level_0_MethodCarver;
+import de.unipassau.abc.data.CallGraph;
+import de.unipassau.abc.data.DataDependencyGraph;
+import de.unipassau.abc.data.ExecutionFlowGraph;
+import de.unipassau.abc.data.MethodInvocationMatcher;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.generation.TestGenerator;
 import de.unipassau.abc.generation.impl.AllTestTogether;
+import de.unipassau.abc.instrumentation.JimpleUtils;
 import de.unipassau.abc.utils.ABCTestUtils;
-import de.unipassau.abc.utils.JimpleUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import soot.SootClass;
 import soot.SootMethod;

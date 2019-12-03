@@ -16,7 +16,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
-import de.unipassau.abc.ABCUtils;
+import de.unipassau.abc.data.ABCUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 import de.unipassau.abc.utils.SystemTest;
 

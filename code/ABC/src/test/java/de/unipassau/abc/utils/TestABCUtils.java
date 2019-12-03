@@ -5,7 +5,7 @@ import java.io.File;
 import org.junit.Assert;
 import org.junit.Test;
 
-import de.unipassau.abc.ABCUtils;
+import de.unipassau.abc.data.ABCUtils;
 
 public class TestABCUtils {
 

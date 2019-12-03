@@ -5,8 +5,8 @@ import static org.junit.Assert.*;
 import org.junit.Test;
 
 import de.unipassau.abc.carving.MethodInvocation;
-import de.unipassau.abc.carving.MethodInvocationMatcher;
-import de.unipassau.abc.carving.ObjectInstance;
+import de.unipassau.abc.data.MethodInvocationMatcher;
+import de.unipassau.abc.data.ObjectInstance;
 
 public class MethodInvocationMatcherTest {
 

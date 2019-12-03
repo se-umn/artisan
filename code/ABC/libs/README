@@ -1,4 +1,0 @@
-This folder will host the trace.jar file needed for soot to include the Trace class.
-
-create this file with the following command:
-mvn clean package -DskipTests -Ptrace

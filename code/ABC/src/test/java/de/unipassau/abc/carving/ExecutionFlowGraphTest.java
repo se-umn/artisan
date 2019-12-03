@@ -4,8 +4,8 @@ import static org.junit.Assert.*;
 
 import org.junit.Test;
 
-import de.unipassau.abc.carving.ExecutionFlowGraph;
 import de.unipassau.abc.carving.MethodInvocation;
+import de.unipassau.abc.data.ExecutionFlowGraph;
 
 public class ExecutionFlowGraphTest {
 

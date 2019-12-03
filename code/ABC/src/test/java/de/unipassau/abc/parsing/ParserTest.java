@@ -13,13 +13,13 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.event.Level;
 
-import de.unipassau.abc.carving.CallGraph;
 import de.unipassau.abc.carving.Carver;
-import de.unipassau.abc.carving.DataDependencyGraph;
-import de.unipassau.abc.carving.ExecutionFlowGraph;
-import de.unipassau.abc.carving.MethodInvocationMatcher;
-import de.unipassau.abc.carving.ObjectInstance;
 import de.unipassau.abc.carving.StackImplementation;
+import de.unipassau.abc.data.CallGraph;
+import de.unipassau.abc.data.DataDependencyGraph;
+import de.unipassau.abc.data.ExecutionFlowGraph;
+import de.unipassau.abc.data.MethodInvocationMatcher;
+import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.utils.ABCTestUtils;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;

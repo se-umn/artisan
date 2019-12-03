@@ -17,9 +17,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.Assert;
 
-import de.unipassau.abc.carving.CallGraph;
-import de.unipassau.abc.carving.DataDependencyGraph;
-import de.unipassau.abc.carving.ExecutionFlowGraph;
+import de.unipassau.abc.data.CallGraph;
+import de.unipassau.abc.data.DataDependencyGraph;
+import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
 

@@ -8,7 +8,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import de.unipassau.abc.utils.JimpleUtils;
+import de.unipassau.abc.instrumentation.JimpleUtils;
 import soot.Scene;
 import soot.SootClass;
 

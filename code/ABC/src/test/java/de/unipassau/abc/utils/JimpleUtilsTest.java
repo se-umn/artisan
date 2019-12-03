@@ -4,7 +4,7 @@ import static org.junit.Assert.*;
 
 import org.junit.Test;
 
-import de.unipassau.abc.utils.JimpleUtils;
+import de.unipassau.abc.instrumentation.JimpleUtils;
 
 public class JimpleUtilsTest {
 

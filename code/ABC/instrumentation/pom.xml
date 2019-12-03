@@ -1,0 +1,104 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>de.unipassau.abc</groupId>
+		<artifactId>abc-parent</artifactId>
+		<version>1.0-SNAPSHOT</version>
+	</parent>
+
+	<artifactId>instrumentation</artifactId>
+	<packaging>jar</packaging>
+
+	<name>Soot based instrumentation of Android apps of the ABC Framework for Action-Based Test Carving</name>
+
+	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.codehaus.mojo</groupId>
+					<artifactId>appassembler-maven-plugin</artifactId>
+					<version>1.10</version>
+					<configuration>
+						<programs>
+							<program>
+								<mainClass>de.unipassau.abc.instrumentation.SceneInstrumenterWithMethodParameters</mainClass>
+								<id>instrument</id>
+							</program>
+						</programs>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+
+	<dependencies>
+		<dependency>
+			<groupId>de.unipassau.abc</groupId>
+			<artifactId>common</artifactId>
+			<version>1.0-SNAPSHOT</version>
+		</dependency>
+
+		<!-- Need quite some clean up ! -->
+		<dependency>
+			<groupId>tmp</groupId>
+			<artifactId>duafdroid</artifactId>
+			<version>unkown</version>
+		</dependency>
+		<dependency>
+			<groupId>tmp</groupId>
+			<artifactId>soot-infoflow</artifactId>
+			<version>unkown</version>
+		</dependency>
+		<dependency>
+			<groupId>tmp</groupId>
+			<artifactId>soot-infoflow-android</artifactId>
+			<version>unkown</version>
+		</dependency>
+		<dependency>
+			<groupId>tmp</groupId>
+			<artifactId>util-2.0.7-dev</artifactId>
+			<version>unkown</version>
+		</dependency>
+		<dependency>
+			<groupId>tmp</groupId>
+			<artifactId>xmlpull_1_0_5</artifactId>
+			<version>unkown</version>
+		</dependency>
+		<dependency>
+			<groupId>de.upb.cs.swt</groupId>
+			<artifactId>axml</artifactId>
+			<version>2.0.0</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-cli</groupId>
+			<artifactId>commons-cli</artifactId>
+			<version>1.3.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jgrapht</groupId>
+			<artifactId>jgrapht-ext</artifactId>
+			<version>0.9.2</version>
+		</dependency>
+		<dependency>
+			<groupId>com.jcraft</groupId>
+			<artifactId>jsch</artifactId>
+			<version>0.1.53</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jgrapht</groupId>
+			<artifactId>jgrapht-ext</artifactId>
+			<version>0.9.2</version>
+			<classifier>uber</classifier>
+		</dependency>
+		<!-- Soot for Instrumentation, Static Analysis and Code Generation -->
+		<dependency>
+			<groupId>sable</groupId>
+			<artifactId>soot</artifactId>
+			<version>2.6.0-SNAPSHOT</version>
+		</dependency>
+	</dependencies>
+</project>

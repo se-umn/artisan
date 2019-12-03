@@ -7,8 +7,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import de.unipassau.abc.carving.exceptions.CarvingException;
+import de.unipassau.abc.instrumentation.JimpleUtils;
 import de.unipassau.abc.tracing.Trace;
-import de.unipassau.abc.utils.JimpleUtils;
 
 public class LineParsingTest {
 

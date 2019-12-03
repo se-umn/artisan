@@ -6,8 +6,8 @@ import org.junit.Test;
 
 import com.thoughtworks.xstream.XStream;
 
-import de.unipassau.abc.carving.DataDependencyGraph;
-import de.unipassau.abc.carving.ExecutionFlowGraph;
+import de.unipassau.abc.data.DataDependencyGraph;
+import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.Pair;
 
 public class VisualizeTest {
