@@ -69,11 +69,6 @@
 
 	<dependencies>
 		<!-- Common Logging Framework -->
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-			<version>1.7.20</version>
-		</dependency>
 		<!-- TODO Is this conflicting with Soot? -->
 		<dependency>
 			<groupId>org.slf4j</groupId>

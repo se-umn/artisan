@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.xmlpull.v1.XmlPullParserException;
@@ -24,9 +25,8 @@ import org.xmlpull.v1.XmlPullParserException;
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.Pair;
 //
-import dua.Extension;
-import dua.Forensics;
-import dua.global.ProgramFlowGraph;
+//import dua.Extension;
+//import dua.global.ProgramFlowGraph;
 //import dua.method.CFG;
 //import dua.method.CallSite;
 //import dynCG.Options;
@@ -38,6 +38,7 @@ import soot.Local;
 import soot.PatchingChain;
 import soot.RefType;
 import soot.Scene;
+import soot.SceneTransformer;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.Trap;
@@ -78,14 +79,7 @@ import soot.toolkits.graph.ExceptionalUnitGraph;
  * @author gambi
  *
  */
-public class SceneInstrumenterWithMethodParameters implements Extension {
-
-	/*
-	 * This is the class which implements the Trace/Monitoring interface. Since,
-	 * this is meta-programming we will get reference to the methods implemented by
-	 * this class and call them from the instrumentation code
-	 */
-	private static final String MONITOR_CLASS = Monitor.class.getName();
+public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 	// Class which is invoked dynamically from the inserted probes
 	protected SootClass clsMonitor;
@@ -107,8 +101,12 @@ public class SceneInstrumenterWithMethodParameters implements Extension {
 	//
 	protected SootMethod monitorOnReturnIntoFromException;
 
+	private List<SootClass> userClasses;
+
 	protected File fJimpleOrig = null;
 	protected File fJimpleInsted = null;
+
+	private String appPackageName;
 
 	protected static boolean bProgramStartInClinit = false;
 //	protected static Options opts = new Options();
@@ -116,72 +114,19 @@ public class SceneInstrumenterWithMethodParameters implements Extension {
 	// whether instrument in 3rd party code such as android.support.v$x
 	public static boolean g_instr3rdparty = false;
 
-	public static void main(String args[]) {
-//		args = preProcessArgs(opts, args);
-
-		SceneInstrumenterWithMethodParameters icgins = new SceneInstrumenterWithMethodParameters();
-		// examine catch blocks
-		dua.Options.ignoreCatchBlocks = false;
-
-		// DOES THIS GIVE USE THE ENTRY METHOD ?
-		// This model android life cycles and force the creation of a dummy main
-		// entry point which include all the lifecycle events
-		// for the app. Still not sure this is the right thing to get those
-		// life-cycle event methods.
-		// It takes a lot to start and collect all those data.
-		// TODO The goal is to properly instrument methods such as onCreate
-		// (since we capture it;s start, we might need to capture it's "end")
-		// using true also leads to an exception
-		dua.Options.modelAndroidLC = false;
-
-		// This disable creating the PCG which I am not 100% sure we need....
-		dua.Options.skipDUAAnalysis = false;
-		// This might simply indicate we are processing android apps
-		dua.Options.analyzeAndroid = true;
-
-		soot.options.Options.v().set_src_prec(soot.options.Options.src_prec_apk);
-
-		// output as APK, too//-f J
-		soot.options.Options.v().set_output_format(soot.options.Options.output_format_dex);
-		soot.options.Options.v().set_force_overwrite(true);
-
-		// TODO What's this?
-//		Scene.v().addBasicClass("com.ironsource.mobilcore.BaseFlowBasedAdUnit", SootClass.SIGNATURES);
-
-		// Tell Soot about our Monitor class
-		Scene.v().addBasicClass(MONITOR_CLASS);
-
-		// This is used also when monitorICC is disabled
-		Scene.v().addBasicClass("utils.logicClock");
-
-		// TODO This is the Duafdroid machiney we should get rid of
-		Forensics.registerExtension(icgins);
-		Forensics.main(args);
+	public SceneInstrumenterWithMethodParameters(String appPackageName) {
+		// At this moment, soot did not run so there's no class loaded into the Scene.v()
+		this.appPackageName = appPackageName;
 	}
-
-	// Most likely we need this additional arguments !
-//	protected static String[] preProcessArgs(Options _opts, String[] args) {
-//		opts = _opts;
-//		args = opts.process(args);
-//
-//		String[] argsForDuaF;
-//		int offset = 0;
-//
-//		argsForDuaF = new String[args.length + 2 - offset];
-//		System.arraycopy(args, offset, argsForDuaF, 0, args.length - offset);
-//		argsForDuaF[args.length + 1 - offset] = "-paramdefuses";
-//		argsForDuaF[args.length + 0 - offset] = "-keeprepbrs";
-//
-//		return argsForDuaF;
-//	}
 
 	/**
 	 * Descendants may want to use customized event monitors
 	 */
-	protected void init() {
+	protected void initMonitorClass() {
 		try {
-			clsMonitor = Scene.v().getSootClass(MONITOR_CLASS);
+			clsMonitor = Scene.v().getSootClass(utils.Constants.MONITOR_CLASS);
 			clsMonitor.setApplicationClass();
+
 			// TODO Not sure we are actually using any of those
 			Scene.v().getSootClass("utils.MethodEventComparator").setApplicationClass();
 
@@ -189,10 +134,6 @@ public class SceneInstrumenterWithMethodParameters implements Extension {
 			// load
 			// it into soot
 			Scene.v().getSootClass("utils.logicClock").setApplicationClass();
-
-//			if (opts.monitorEvents()) {
-//				Scene.v().getSootClass("eventTracker.Monitor").setApplicationClass();
-//			}
 
 			monitorInitialize = clsMonitor.getMethodByName("initialize");
 
@@ -234,10 +175,13 @@ public class SceneInstrumenterWithMethodParameters implements Extension {
 		}
 	}
 
+	
 	public void run() {
 		g_instr3rdparty = false;
 
-		init();
+		loadUserClasses();
+		
+		initMonitorClass();
 
 		try {
 			instrument();
@@ -270,26 +214,23 @@ public class SceneInstrumenterWithMethodParameters implements Extension {
 		Set<SootMethod> entryMethods = utils.utils.getEntryMethods(true);
 
 		List<SootClass> classesContainingTheEntryMethods = null;
-//		if (opts.sclinit()) {
 		classesContainingTheEntryMethods = new ArrayList<SootClass>();
 		for (SootMethod entryMethod : entryMethods) {
 			classesContainingTheEntryMethods.add(entryMethod.getDeclaringClass());
 		}
-//		}
-//		if (opts.debugOut()) {
 		System.out.println("\n ENTRY METHODS");
 		for (SootMethod entryMethod : entryMethods) {
 			System.out.println("\t " + entryMethod.getSignature());
 		}
-//		}
-		// TODO IN SOME PLACES REFLECTIVE CALLS ARE NOT HANDLED !
-
 		/*
 		 * Iterate over all the user classes. Those include any class which is generated
 		 * to fit android (i.e., 1 class 1 smali). TODO Do we really need this program
 		 * flow graph object?
 		 */
-		Iterator<SootClass> applicationClassesIterator = ProgramFlowGraph.inst().getUserClasses().iterator();
+		Iterator<SootClass> applicationClassesIterator = userClasses.iterator();
+		if( userClasses.size() == 0 ) {
+			System.out.println("\n\n NO USER CLASSES DEFINED !");
+		}
 		while (applicationClassesIterator.hasNext()) {
 			SootClass currentlyInstrumentedSootClass = (SootClass) applicationClassesIterator.next();
 
@@ -424,6 +365,23 @@ public class SceneInstrumenterWithMethodParameters implements Extension {
 					+ "the instrumented subject MUST thereafter run independently rather than via EARun!");
 		}
 	} // --
+
+	/**
+	 * Gets/creates collection of all classes defined in user code --- classes
+	 * having name prefix matching the package name of the APK
+	 */
+	// TAKEN FROM DROIDFAX/DUA
+	public void loadUserClasses() {
+		userClasses = new ArrayList<SootClass>();
+		for (Iterator itCls = Scene.v().getApplicationClasses().snapshotIterator(); itCls.hasNext();) {
+			// speculatively skip non-app classes
+			SootClass curcls = (SootClass) itCls.next();
+			if (!curcls.getName().contains(appPackageName)) {
+				continue;
+			}
+			userClasses.add(curcls);
+		}
+	}
 
 	/**
 	 * Ensure that we can log "interesting" life cycle event. We can log all the
@@ -685,10 +643,7 @@ public class SceneInstrumenterWithMethodParameters implements Extension {
 					SootMethod invokedMethod = invokeExpr.getMethod();
 					SootClass invokedClass = invokedMethod.getDeclaringClass();
 
-					/*
-					 * Avoid double instrumentation for methods in user classes
-					 */
-					if (ProgramFlowGraph.inst().getUserClasses().contains(invokedClass)) {
+					if (userClasses.contains(invokedClass)) {
 						return;
 					}
 
@@ -1786,6 +1741,14 @@ public class SceneInstrumenterWithMethodParameters implements Extension {
 		// TODO DO we need to tag traps ?!
 		Trap trap = Jimple.v().newTrap(sce, sFirstNonId, gtstmt, ids);
 		b.getTraps().add(trap);
+	}
+
+	@Override
+	protected void internalTransform(String arg0, Map<String, String> arg1) {
+		// TODO This might be improved:
+		System.out.println("SceneInstrumenterWithMethodParameters.internalTransform() RUNNING ");
+		this.run();
+
 	}
 
 } // -- public class icgInst
