@@ -50,8 +50,7 @@ public class Main {
 		G.reset();
 
 		Options.v().set_allow_phantom_refs(true);
-//		Options.v().set_whole_program(true);
-
+				
 		// Input is an APK
 		soot.options.Options.v().set_src_prec(soot.options.Options.src_prec_apk);
 		// Specifiy the APK
@@ -83,10 +82,10 @@ public class Main {
 		String sootCP = SystemUtils.JAVA_CLASS_PATH.concat("" + File.pathSeparatorChar)
 				.concat(cli.getAndroidJar().getAbsolutePath()).toString();
 
-		String[] sootArgs = new String[] { "-w", // No idea what's this
-				"-cp", sootCP, //
-				"-p", "cg", "verbose:false,implicit-entry:true", //
-				"-debug" // No idea what's this
+		String[] sootArgs = new String[] { //
+				"-w", // This should be the same as setting the "Whole program analysis" flag
+				"-cp", sootCP, // The classpath that Soot uses for its analysis
+				"-debug"
 		};
 
 		soot.Main.main(sootArgs);

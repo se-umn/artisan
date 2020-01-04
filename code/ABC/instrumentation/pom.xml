@@ -25,10 +25,16 @@
 					<configuration>
 						<programs>
 							<program>
-								<mainClass>de.unipassau.abc.instrumentation.SceneInstrumenterWithMethodParameters</mainClass>
-								<id>instrument</id>
+								<mainClass>de.unipassau.abc.instrumentation.Main</mainClass>
+								<id>instrument-apk</id>
+								<jvmSettings>
+									<initialMemorySize>200m</initialMemorySize>
+									<maxMemorySize>1g</maxMemorySize>
+									<maxStackSize>512m</maxStackSize>
+								</jvmSettings>
 							</program>
 						</programs>
+						<copyConfigurationDirectory>true</copyConfigurationDirectory>
 					</configuration>
 				</plugin>
 			</plugins>
@@ -105,17 +111,6 @@
 			<groupId>sable</groupId>
 			<artifactId>soot</artifactId>
 			<version>2.6.0-SNAPSHOT</version>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-simple</artifactId>
-			<version>1.7.20</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.slf4j</groupId>
-					<artifactId>slf4j-api</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 	</dependencies>
 </project>

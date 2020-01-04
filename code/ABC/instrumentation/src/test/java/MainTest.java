@@ -19,7 +19,7 @@ public class MainTest {
 		File outputDIR = temporaryFolder.newFolder();
 		
 		File theAPK = new File("src/test/resources/org.ametro_40.apk");
-		File androidJAR = new File("src/test/resources/soot-infoflow-android.jar");
+		File androidJAR = new File("src/test/resources/android-28.jar");
 		String[] args = new String[] { "--apk", theAPK.getAbsolutePath(),//
 				"--android-jar", androidJAR.getAbsolutePath(), //
 				"--output-to", outputDIR.getAbsolutePath()
