@@ -139,7 +139,7 @@ public class DuafDroidParser {
 	 * 
 	 * TODO HARD TO TEST !!!
 	 * 
-	 * @param traceFilePath
+	 * @param traceFile
 	 * @return A map (ThreadName, ParsedTrace)
 	 * @throws FileNotFoundException
 	 * @throws IOException
@@ -551,6 +551,10 @@ public class DuafDroidParser {
 		}
 		//
 		String threadData = currentLine.split(Trace.DELIMITER)[0];
+
+		// Get rid of the *ABC:: #line* prefix
+		threadData = threadData.substring(threadData.lastIndexOf(" ") + 1);
+
 		if (threadData.startsWith("[UI:")) {
 			currentLine = currentLine.replaceFirst(Pattern.quote(threadData + Trace.DELIMITER), "");
 			// Debug mostly
