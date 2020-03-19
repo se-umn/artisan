@@ -103,7 +103,13 @@ public class DataDependencyGraph {
 			node = actualParameter;
 		}
 
-		graph.addEdge(DATA_DEPENDENCY_PREFIX + "_" + position + "_" + id.getAndIncrement(), node, methodInvocation,
+		// There might be name collisions, therefore we look for the next free id
+		String edgeName;
+		do {
+			edgeName = DATA_DEPENDENCY_PREFIX + "_" + position + "_" + id.getAndIncrement();
+		} while (graph.containsEdge(edgeName));
+
+		graph.addEdge(edgeName, node, methodInvocation,
 				EdgeType.DIRECTED);
 	}
 
@@ -127,6 +133,7 @@ public class DataDependencyGraph {
 			node = returnValue;
 		}
 
+		// TODO do we have to check for collisions here?
 		graph.addEdge(RETURN_DEPENDENCY_PREFIX + id.getAndIncrement(), methodInvocation, node, EdgeType.DIRECTED);
 	}
 
