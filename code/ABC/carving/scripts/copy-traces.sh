@@ -20,6 +20,9 @@ fi
 mkdir -p tmp
 mkdir -p "$output_dir"
 
+# Restart daemon with root access in order to be able to access app data
+adb root
+
 # Apparently, adb cannot copy files using wildcards, hence, we copy the whole package temporarily
 adb pull "/data/data/$package_name" ./tmp
 
