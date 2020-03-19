@@ -1,4 +1,5 @@
 #!/bin/bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 1.8)
 
 # Predefined configurations
 ANDROID_JAR=$(realpath "../src/test/resources/android-28.jar")
@@ -9,7 +10,7 @@ KEYSTORE=$(realpath "./file.keystore")
 KEYALIAS=gambi
 
 # TODO I have no idea how I can make this configurable and ready for everybody
-APK_SIGNER="/Users/gambi/Library/Android/sdk/build-tools/28.0.3/apksigner"
+APK_SIGNER="$HOME/Library/Android/sdk/build-tools/28.0.3/apksigner"
 
 if [ $# -lt 1 ]; then 
     echo "Missing parameter. Need an APK";

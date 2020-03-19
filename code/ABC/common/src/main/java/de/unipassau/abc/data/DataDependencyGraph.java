@@ -136,7 +136,6 @@ public class DataDependencyGraph {
 	 * positionally !!!
 	 * 
 	 * @param methodInvocation
-	 * @param actualParameters
 	 */
 	@SuppressWarnings("unchecked")
 	public void addMethodInvocation(MethodInvocation methodInvocation) {
@@ -1061,7 +1060,7 @@ public class DataDependencyGraph {
 	/**
 	 * Return all the method calls which have the given object as parameter
 	 * 
-	 * @param objectInstance
+	 * @param dataNode
 	 * @return
 	 */
 	public Set<MethodInvocation> getMethodInvocationsWhichUse(DataNode dataNode) {
@@ -1220,7 +1219,7 @@ public class DataDependencyGraph {
 	 * 
 	 * TODO Check if the relations are then maintained ...
 	 * 
-	 * @param callGraph
+	 * @param executionFlowGraph
 	 */
 	public void summarize(ExecutionFlowGraph executionFlowGraph) {
 		// We do this in two step as removing method invocation will remove

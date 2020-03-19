@@ -7,7 +7,7 @@
  * 04/22/17		hcai		added instrumentation for tracking reflection-called method
  * 12/02/19		gambi		Reduce, clean up, update and remove all the un-necessary elements
  *
-*/
+ */
 package de.unipassau.abc.instrumentation;
 
 import java.io.BufferedWriter;
@@ -30,14 +30,14 @@ import android.os.Looper;
 import android.util.Log;
 import utils.logicClock;
 
-/* Monitoring method events in runtime upon 
+/* Monitoring method events in runtime upon
  * invocations by instrumented probes in the subject
  *
  * to faithfully reproduce the Execute-After algorithm, use two maps and a global counter
  * to track two kinds of events only: entrance (first event) and return-into (last event)
- * 
- * 
- * Note Alessio: This can be strongly simplified IMHO 
+ *
+ *
+ * Note Alessio: This can be strongly simplified IMHO
  */
 public class Monitor {
 
@@ -158,10 +158,10 @@ public class Monitor {
 	/**
 	 * Must ensure that the monitor is initialized no matter how this app is
 	 * started.
-	 * 
+	 *
 	 * Note: since getting the Context object from the app is tricky, we hardcode
 	 * the path using the packagename
-	 * 
+	 *
 	 * @throws Exception
 	 */
 	public static void initialize(String packageName) throws Exception {
@@ -313,7 +313,7 @@ public class Monitor {
 
 	/**
 	 * Same as enter but without package name...
-	 * 
+	 *
 	 * @param methodOwner
 	 * @param methodSignature
 	 * @param methodParameters
@@ -382,7 +382,7 @@ public class Monitor {
 	}
 
 	/*
-	 * 
+	 *
 	 */
 	private static void libCall_impl(//
 			Object methodOwner, //
@@ -463,7 +463,6 @@ public class Monitor {
 				traceFileOutputWriter.write(sb.toString());
 				traceFileOutputWriter.newLine();
 				traceFileOutputWriter.flush();
-
 			}
 		}
 
@@ -550,7 +549,7 @@ public class Monitor {
 			/** need permission to write files in android environment */
 			/*
 			 * serializeEvents();
-			 * 
+			 *
 			 * if (dumpCallmap) { dumpCallmap(); }
 			 */
 		} catch (Throwable t) {
@@ -619,12 +618,12 @@ public class Monitor {
 	/**
 	 * Return a string describing the current method, its formal parameters
 	 * (signature), and its actual parameters.
-	 * 
+	 *
 	 * TODO We do not TRACE calls to strings, strings are considered primitive types
 	 * For Boxed Types instead we treat the as Objects, but also report their string
 	 * representation... since for those there's not really need for complex
 	 * Mocking...
-	 * 
+	 *
 	 */
 	public static StringBuffer methodStart(String token, Object methodOwner, String method, String methodContext,
 			Object... objects) {
@@ -680,7 +679,7 @@ public class Monitor {
 			/*
 			 * The formal parameters might be different than the actual ones! Object ->
 			 * String
-			 * 
+			 *
 			 * So use the actual type for the trace !
 			 */
 			String[] formalParametersType = extractParameterTypes(method);
@@ -908,4 +907,3 @@ public class Monitor {
 	}
 }
 
-/* vim :set ts=4 tw=4 tws=4 */
