@@ -110,6 +110,7 @@ function beautify(){
 	( >&2 echo "Beautify ${trace_file} for thread ${thread_name} to ${beautified_file}")
 
 	cat ${trace_file} | \
+		sed 's|^ABC:: [0-9][0-9]* ||g' | \
 		grep "\[${thread_name}" | \
 		sed 's/\[.*\];\[/[/g' | \
 		awk 'BEGIN{state=0; level=-1} \
