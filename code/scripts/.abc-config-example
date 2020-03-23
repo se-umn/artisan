@@ -1,0 +1,2 @@
+EMULATOR_EXE="~/Library/Android/sdk/tools/emulator"
+IMAGE_NAME="Nexus_One_API_24"
