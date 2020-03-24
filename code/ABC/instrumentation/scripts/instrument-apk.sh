@@ -1,42 +1,58 @@
 #!/bin/bash
-export JAVA_HOME=$(/usr/libexec/java_home -v 1.8)
-
-# Predefined configurations
-ANDROID_JAR=$(realpath "../src/test/resources/android-28.jar")
-OUTPUT_DIR=$(realpath "../instrumented-apks")
-
-# keystore created using keytool for signing instrumented APKs.
-KEYSTORE=$(realpath "./file.keystore")
-KEYALIAS=gambi
 
 # TODO I have no idea how I can make this configurable and ready for everybody
-APK_SIGNER="$HOME/Library/Android/sdk/build-tools/28.0.3/apksigner"
+# This MUST BE PROVIDED somehow...
+# APK_SIGNER="$HOME/Library/Android/sdk/build-tools/28.0.3/apksigner"
+
+: ${APK_SIGNER:?Please provide a value for APK_SIGNER in $config_file}
+
+
+export JAVA_HOME=$(/usr/libexec/java_home -v 1.8)
+
+# This script location
+SCRIPT_LOCATION=$(dirname $(realpath $0))
+
+# Predefined configurations
+ANDROID_JAR=$(realpath "${SCRIPT_LOCATION}/../src/test/resources/android-28.jar")
+OUTPUT_DIR=$(realpath "${SCRIPT_LOCATION}/../instrumented-apks")
+
+# keystore created using keytool for signing instrumented APKs.
+KEYSTORE=$(realpath "${SCRIPT_LOCATION}/file.keystore")
+KEYALIAS=gambi
 
 if [ $# -lt 1 ]; then 
-    echo "Missing parameter. Need an APK";
+    ( >&2 echo "** Missing parameter. Need an APK" )
     exit 1
 fi
 
 APK=$(realpath $1)
 
+LOG_FILE=$(realpath ./instrumentation.log)
+
+( >&2 echo "** Log output to ${LOG_FILE}" )
+
 # Rebuild the project if necessary
-if [ ! -e "../target/appassembler/" ]; then
-    echo "Build the project and assemble it"
-    mvn clean compile package appassembler:assemble -DskipTests
+if [ ! -e "${SCRIPT_LOCATION}/../target/appassembler" ]; then
+    ( >&2 echo "** Build the project and assemble it" )
+    mvn clean compile package appassembler:assemble -DskipTests > ${LOG_FILE} 2>&1
 fi
 
-# Invoke the script to instrument the APK
-../target/appassembler/bin/instrument-apk \
+( >&2 echo "** Instrumenting ${APK}" )
+# Invoke the assembled script to instrument the APK. Do not tee on output
+${SCRIPT_LOCATION}/../target/appassembler/bin/instrument-apk \
             --apk ${APK} \
             --android-jar ${ANDROID_JAR} \
-            --output-to ${OUTPUT_DIR} | tee instrumentation.log
+            --output-to ${OUTPUT_DIR} > ${LOG_FILE} 2>&1
 
-INSTRUMENTED_APK_FILE=$(cat instrumentation.log | grep "Writing APK to" | awk '{print $NF}')
+INSTRUMENTED_APK_FILE=$(cat ${LOG_FILE} | grep "Writing APK to" | awk '{print $NF}')
 
 # Sign the APK ?
-echo "Sign the apk ${INSTRUMENTED_APK_FILE} using ${APK_SIGNER}"
+( >&2 echo "** Sign the apk ${INSTRUMENTED_APK_FILE} using ${APK_SIGNER}" | tee -a ${LOG_FILE} )
 
-${APK_SIGNER} sign --ks ${KEYSTORE} --ks-key-alias ${KEYALIAS} --ks-pass pass:123456 --key-pass pass:123456 ${INSTRUMENTED_APK_FILE} 
+${APK_SIGNER} sign --ks ${KEYSTORE} --ks-key-alias ${KEYALIAS} --ks-pass pass:123456 --key-pass pass:123456 ${INSTRUMENTED_APK_FILE} >> ${LOG_FILE} 2>&1
 
-echo "Verify the signature"
-jarsigner -verify -verbose -certs ${INSTRUMENTED_APK_FILE}
+( >&2 echo "** Verify the signature" | tee -a ${LOG_FILE} )
+jarsigner -verify -verbose -certs ${INSTRUMENTED_APK_FILE} >> ${LOG_FILE} 2>&1
+
+# Enable further processing
+echo "${INSTRUMENTED_APK_FILE}"
