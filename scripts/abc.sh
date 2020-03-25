@@ -32,15 +32,7 @@ ABC_CONFIG="${ABC_CONFIG:-.abc-config}"
 #   fi
 #}
 #
-#abc-instrument() {
-#   if [ "$#" -ne 1 ]; then
-#      echo "Missing parameter apk.file.name";
-#   else
-#      /Users/gambi/MyDroidFax/scripts/cgInstr.sh /Users/gambi/MyDroidFax/apks/$1 | tee instrumentation.log
-#   fi
-#}
-#
-#
+##
 # Use this when install fail for some reason but instrumentation was fine
 #abc-install() {
 #   if [ "$#" -ne 1 ]; then
@@ -150,6 +142,8 @@ function instrument_apk(){
 
 	# The instrumentation script also check if the project requires to be rebuild
 	# TODO. Maybe we need to move that script here? Maybe we need to use make ?
+	export APK_SIGNER=${APK_SIGNER}
+	
 	local instrumented_apk_file=$(${ABC_HOME}/instrumentation/scripts/instrument-apk.sh ${apk_file})
 	# THIS PRODUCES A LOG "HERE". TODO Shall we move the log the location of the instrumented apk ?
 	echo "Instrumented APK is ${instrumented_apk_file}"
