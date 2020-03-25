@@ -3,7 +3,6 @@
 
 ABC_CONFIG="${ABC_CONFIG:-.abc-config}"
 
-
 # OLD ALIASES/COMMANDS from Alessio
 
 # ABC Framework
@@ -72,7 +71,8 @@ function __private_load_env(){
     	exit 1
 	fi	
 
-	echo "* Loading configuration from ${ABC_CONFIG}"
+	# Annoying message
+	# ( >&2 echo "* Loading configuration from ${ABC_CONFIG}")
 
 	# Avoids the quirks of using "~" and load global readonly properties from the configuration file
 	while read -r NAME VALUE; do
@@ -81,8 +81,6 @@ function __private_load_env(){
 }
 
 function start-clean-emulator(){
-	__private_load_env
-
 	# Ensures the required variables are in place
 	: ${EMULATOR_EXE:?Please provide a value for EMULATOR_EXE in $config_file }
 	: ${IMAGE_NAME:?Please provide a value for EMULATOR_EXE in $config_file }
@@ -129,10 +127,58 @@ function beautify(){
 		awk '{printf "%-8d%-8s\n", NR, $0}' > ${beautified_file}
 }
 
+function build_instrument(){
+	# Ensures the required variables are in place
+	: ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+
+	# Store current folder in stack and cd to $ABC_HOME
+	# NOTE: ABC_HOME should not be between double quotes (")
+	pushd ${ABC_HOME}
+	cd instrumentation
+	mvn clean compile package appassembler:assemble -DskipTests
+	# Return to original folder
+	popd
+}
+
+function instrument_apk(){
+	# Ensures the required variables are in place
+	: ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+	# This sets the env variable required by "instrument-apk.sh"
+	: ${APK_SIGNER:?Please provide a value for APK_SIGNER in $config_file}
+
+	local apk_file="$1"
+
+	# The instrumentation script also check if the project requires to be rebuild
+	# TODO. Maybe we need to move that script here? Maybe we need to use make ?
+	local instrumented_apk_file=$(${ABC_HOME}/instrumentation/scripts/instrument-apk.sh ${apk_file})
+	# THIS PRODUCES A LOG "HERE". TODO Shall we move the log the location of the instrumented apk ?
+	echo "Instrumented APK is ${instrumented_apk_file}"
+}
+
+function edit_config(){
+	nano ${ABC_CONFIG}
+}
+
+function show_config(){
+	( >&2 echo "Config file contains:")
+	( >&2 echo "-------------------")
+	cat ${ABC_CONFIG}
+}
 
 function help(){
-	echo "AVAILABLE COMMANDS"
+	# We output the message to std but the command to std out to enable autocompletion
+	( >&2 echo "AVAILABLE COMMANDS")
 	cat $0 | grep function | grep -v "__private" | grep -v "\#" | sed -e '/^ /d' -e 's|function \(.*\)(){|\1|g'
+}
+
+function __private_autocomplete(){
+	local command_name=$1
+	if [ "${command_name}" == "beautify" ]; then
+		echo "requires_one_file"
+	fi
+	if [ "${command_name}" == "instrument_apk" ]; then
+		echo "requires_one_file"
+	fi
 }
 
 # Always load the environment
