@@ -117,7 +117,7 @@ def exit_gracefully(signum, frame):
 
 def main():
     outputDir = ""
-    sleeptime = 5.0
+    sleeptime = 3.0
     if len(sys.argv)==0:
           print "usage: <apk-path> <package-name> <optional: outputDir> <optional: pause-time(default is 5s)>"
           sys.exit(1)
@@ -162,7 +162,7 @@ def main():
     os.system("adb shell monkey -p "+app+" -c android.intent.category.LAUNCHER 1")
     os.system("adb logcat -d")
     print "Waiting for:"+app+": Output in:"+outputDir 
-    time.sleep(5)
+    time.sleep(sleeptime)
     device = MonkeyRunner.waitForConnection(10)
     if device is None:
            print "NULL DEVICE" 

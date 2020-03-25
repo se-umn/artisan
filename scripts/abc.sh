@@ -149,6 +149,24 @@ function instrument_apk(){
 	echo "Instrumented APK is ${instrumented_apk_file}"
 }
 
+function run_test(){
+	# Ensures the required variables are in place
+	: ${MONKEYRUNNER_EXE:?Please provide a value for MONKEYRUNNER_EXE in $ABC_CONFIG}
+
+	# Mandatory. The file that contains instructions to be run with monkeyrunner
+	local instructions_file="${1:?Missing instructions file}"
+	# Application directory
+	local apk_dir=${instructions_file%/*}
+	# Reads the package name of the application
+	local package_name=$(cat "$apk_dir"/.packagename)
+	# Gets the path of the droixbench playback script
+	local playback_script="$(dirname $(realpath $0))/../apks/droixbench/monkey_playback.py"
+
+	# TODO maybe make the output dir variable?
+	${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" ./output 
+	echo "Done!" 
+}
+
 function edit_config(){
 	nano ${ABC_CONFIG}
 }
@@ -171,6 +189,9 @@ function __private_autocomplete(){
 		echo "requires_one_file"
 	fi
 	if [ "${command_name}" == "instrument_apk" ]; then
+		echo "requires_one_file"
+	fi
+	if [ "${command_name}" == "run_test" ]; then
 		echo "requires_one_file"
 	fi
 }
