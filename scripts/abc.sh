@@ -159,6 +159,12 @@ function edit_config(){
 	nano ${ABC_CONFIG}
 }
 
+function show_config(){
+	( >&2 echo "Config file contains:")
+	( >&2 echo "-------------------")
+	cat ${ABC_CONFIG}
+}
+
 function help(){
 	# We output the message to std but the command to std out to enable autocompletion
 	( >&2 echo "AVAILABLE COMMANDS")
