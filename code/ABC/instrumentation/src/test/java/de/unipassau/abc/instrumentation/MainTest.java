@@ -1,3 +1,5 @@
+package de.unipassau.abc.instrumentation;
+
 import java.io.File;
 import java.io.IOException;
 
@@ -19,8 +21,8 @@ public class MainTest {
         File theAPK = new File("src/test/resources/org.ametro_40.apk");
         File androidJAR = new File("src/test/resources/android-28.jar");
         String[] args = new String[] { "--apk", theAPK.getAbsolutePath(), //
-                "--android-jar", androidJAR.getAbsolutePath(), //
-                "--output-to", outputDIR.getAbsolutePath() };
+            "--android-jar", androidJAR.getAbsolutePath(), //
+            "--output-to", outputDIR.getAbsolutePath() };
 
         Main m = new Main();
         m.main(args);
