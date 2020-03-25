@@ -78,7 +78,7 @@ function start-clean-emulator(){
 	: ${IMAGE_NAME:?Please provide a value for EMULATOR_EXE in $config_file }
 
 	# Run the command
-	"${EMULATOR_EXE}" -avd "${IMAGE_NAME}" -wipe-data
+	"${EMULATOR_EXE}" -avd ${IMAGE_NAME} -wipe-data
 }
 
 function beautify(){
