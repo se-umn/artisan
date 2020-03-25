@@ -8,7 +8,7 @@
  * 02/14/17		hcai		added the option of event tracking
  * 02/15/17		hcai		first working version with event tracking
  * 04/22/17		hcai		added instrumentation for tracking reflection-called method 
-*/
+ */
 package de.unipassau.abc.instrumentation;
 
 import java.io.File;
@@ -69,13 +69,13 @@ import soot.toolkits.graph.ExceptionalUnitGraph;
  * TODO Get rid of the "old" dua thingy if possible, in the end we are just
  * running our own instrumentation code and nothing more ! TODO Array
  * instantiation and access must be transformed into
- * 
+ *
  * TODO Replace: opts.debugOut() with a proper logger
- * 
+ *
  * ABC.array <init>(type, size) ABC.array Type get(position) ABC.array Type
  * set(position)
- * 
- * 
+ *
+ *
  * @author gambi
  *
  */
@@ -175,12 +175,12 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		}
 	}
 
-	
+
 	public void run() {
 		g_instr3rdparty = false;
 
 		loadUserClasses();
-		
+
 		initMonitorClass();
 
 		try {
@@ -199,7 +199,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 	 * <li>inject onReturnInfo after each invoked method</li>
 	 * <li>TODO Handle Exceptions</li>
 	 * </ul>
-	 * 
+	 *
 	 * @throws XmlPullParserException
 	 * @throws IOException
 	 */
@@ -327,7 +327,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 				 * can be actually invoked. So we resort going through the body of the method
 				 * and doing stuff manually, Probably we can get rid of this entire DuafDroid
 				 * thingy ...
-				 * 
+				 *
 				 */
 				// instrumentCallSites(currentlyInstrumentedMethod,
 				// currentlyInstrumentedMethodBody,
@@ -387,7 +387,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 	 * Ensure that we can log "interesting" life cycle event. We can log all the
 	 * events, but we limit ourselves to the one we can trigger during testing using
 	 * ActivityController by Robolectrics
-	 * 
+	 *
 	 * @param currentlyInstrumentedSootClass
 	 */
 	private static final List<String> interestingAndroidLifecycleCallbacks = Arrays.asList(
@@ -789,7 +789,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 					 * that to any local and we cannot read the return value directly. We replace
 					 * the invoke stmt with an assignment stmt to a local, and use that assigned
 					 * local to capture the return value (unless void)
-					 * 
+					 *
 					 * Unfortunately, this changes the CFG since the original invoke is removed
 					 * (otherwise it will be executed twice!). but we might not even use the CFG
 					 * anymore...
@@ -835,12 +835,8 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 				/**
 				 * Arrays do not have an INIT function, they are not objects, so we fake one the
 				 * moment we see newarray. We need to wrap the call to their constructor
-				 * 
-				 * @param body
-				 * @param units
-				 * @param currentUnit
-				 * @param array
-				 * @param arraySize
+				 *
+				 * @param stmt
 				 */
 				private void instrumentArrayInitExpression(AssignStmt stmt) {
 
@@ -914,7 +910,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 				/**
 				 * Simulate a call that returns an element of an array
-				 * 
+				 *
 				 * $r3 = $r2[$i0] -> $r3 = $r2.get($i0)
 				 */
 				private void instrumentArrayAccess(AssignStmt stmt) {
@@ -991,7 +987,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 				/**
 				 * Fake a call to a generic method STORE of the array. In JIMPLE those are
 				 * ALWAYS ? $r10[0] = $r0 -> void $r10.store( $r0, 0 )
-				 * 
+				 *
 				 */
 				private void instrumentArrayStore(AssignStmt stmt) {
 
@@ -1168,7 +1164,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		 * Collect the parameters for invoking "monitorOnEnter" ->
 		 * dynCG2.Monitor.enter(String apkName, Object methodOwnerOrNull, String
 		 * methodSignature, Object[] methodParameters)
-		 * 
+		 *
 		 * NOTE parameters must passed using Object[], so primitive types must be
 		 * suitably Boxed
 		 */
@@ -1266,7 +1262,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 	/**
 	 * Ensures we keep track of our instrumentation code by tagging it
-	 * 
+	 *
 	 * @param currentlyInstrumentedMethodBodyUnitChain
 	 * @param u
 	 * @param instrumentationCode
@@ -1284,10 +1280,10 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 	/**
 	 * Ensures we keep track of our instrumentation code by tagging it
-	 * 
+	 *
 	 * @param currentlyInstrumentedMethodBodyUnitChain
 	 * @param targetStmt
-	 * @param instrumentationCodeAfter
+	 * @param instrumentationCode
 	 */
 	private void instrumentAfterWithAndTag(PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain,
 			Stmt targetStmt, List<Unit> instrumentationCode) {
@@ -1316,17 +1312,17 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		return false;
 	}
 
-	private void instrumentMethodEnds(SootMethod currentlyInstrumentedSootMethod,
+	private void instrumentMethodEnds(final SootMethod currentlyInstrumentedSootMethod,
 			/*
 			 * Need to generate fresh locals and access other elements like "this.local" -
 			 * TODO Is this.local the method owner or the method itself?
 			 */
-			Body currentlyInstrumentedMethodBody,
+			final Body currentlyInstrumentedMethodBody,
 			/*
 			 * Need to inject the code inside the currentlyInstrumentedMethod - TODO Can't
 			 * we simply get a new instance of this or shall we pass it around ?
 			 */
-			PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain) {
+			final PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain) {
 
 		/*
 		 * To ensure that we log the method ends in the right place, including
@@ -1339,16 +1335,16 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		ExceptionalUnitGraph exceptionalUnitGraph = new ExceptionalUnitGraph(
 				currentlyInstrumentedSootMethod.getActiveBody());
 
-		String currentlyInstrumentedMethodSignature = currentlyInstrumentedSootMethod.getSignature();
+		final String currentlyInstrumentedMethodSignature = currentlyInstrumentedSootMethod.getSignature();
 		/*
 		 * Tails also includes throw stmt which will be captured by catch blocks/traps
 		 * inside the code. Those are not really method exit points so we need to rule
 		 * them out.
-		 * 
+		 *
 		 * For every ThrowInst or ThrowStmt Unit which may explicitly throw an exception
 		 * that would be caught by a Trap in the Body, there will be an edge from the
 		 * throw Unit to the Trap handler's first Unit.
-		 * 
+		 *
 		 * For every Unit which may implicitly throw an exception that could be caught
 		 * by a Trap in the Body, there will be an edge from each of the excepting
 		 * Unit's predecessors to the Trap handler's first Unit (since any of those
@@ -1751,4 +1747,3 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 } // -- public class icgInst
 
-/* vim :set ts=4 tw=4 tws=4 */

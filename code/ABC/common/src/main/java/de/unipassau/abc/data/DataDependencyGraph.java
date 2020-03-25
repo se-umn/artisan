@@ -103,7 +103,13 @@ public class DataDependencyGraph {
 			node = actualParameter;
 		}
 
-		graph.addEdge(DATA_DEPENDENCY_PREFIX + "_" + position + "_" + id.getAndIncrement(), node, methodInvocation,
+		// There might be name collisions, therefore we look for the next free id
+		String edgeName;
+		do {
+			edgeName = DATA_DEPENDENCY_PREFIX + "_" + position + "_" + id.getAndIncrement();
+		} while (graph.containsEdge(edgeName));
+
+		graph.addEdge(edgeName, node, methodInvocation,
 				EdgeType.DIRECTED);
 	}
 
@@ -127,6 +133,7 @@ public class DataDependencyGraph {
 			node = returnValue;
 		}
 
+		// TODO do we have to check for collisions here?
 		graph.addEdge(RETURN_DEPENDENCY_PREFIX + id.getAndIncrement(), methodInvocation, node, EdgeType.DIRECTED);
 	}
 
@@ -136,7 +143,6 @@ public class DataDependencyGraph {
 	 * positionally !!!
 	 * 
 	 * @param methodInvocation
-	 * @param actualParameters
 	 */
 	@SuppressWarnings("unchecked")
 	public void addMethodInvocation(MethodInvocation methodInvocation) {
@@ -1061,7 +1067,7 @@ public class DataDependencyGraph {
 	/**
 	 * Return all the method calls which have the given object as parameter
 	 * 
-	 * @param objectInstance
+	 * @param dataNode
 	 * @return
 	 */
 	public Set<MethodInvocation> getMethodInvocationsWhichUse(DataNode dataNode) {
@@ -1220,7 +1226,7 @@ public class DataDependencyGraph {
 	 * 
 	 * TODO Check if the relations are then maintained ...
 	 * 
-	 * @param callGraph
+	 * @param executionFlowGraph
 	 */
 	public void summarize(ExecutionFlowGraph executionFlowGraph) {
 		// We do this in two step as removing method invocation will remove

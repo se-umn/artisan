@@ -50,7 +50,7 @@ public class Main {
 		G.reset();
 
 		Options.v().set_allow_phantom_refs(true);
-				
+
 		// Input is an APK
 		soot.options.Options.v().set_src_prec(soot.options.Options.src_prec_apk);
 		// Specifiy the APK
@@ -80,7 +80,7 @@ public class Main {
 		Scene.v().addBasicClass("utils.logicClock");
 
 		String sootCP = SystemUtils.JAVA_CLASS_PATH.concat("" + File.pathSeparatorChar)
-				.concat(cli.getAndroidJar().getAbsolutePath()).toString();
+				.concat(cli.getAndroidJar().getAbsolutePath());
 
 		String[] sootArgs = new String[] { //
 				"-w", // This should be the same as setting the "Whole program analysis" flag

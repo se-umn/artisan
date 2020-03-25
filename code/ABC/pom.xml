@@ -84,7 +84,7 @@
 			<artifactId>android</artifactId>
 			<version>28</version>
 			<scope>system</scope>
-			<systemPath>/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar</systemPath>
+			<systemPath>${user.home}/Library/Android/sdk/platforms/android-28/android.jar</systemPath>
 		</dependency>
 
 		<!-- Command Line parsing -->

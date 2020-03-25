@@ -7,7 +7,7 @@
  * 04/22/17		hcai		added instrumentation for tracking reflection-called method
  * 12/02/19		gambi		Reduce, clean up, update and remove all the un-necessary elements
  *
-*/
+ */
 package de.unipassau.abc.instrumentation;
 
 import java.io.BufferedWriter;
@@ -30,14 +30,14 @@ import android.os.Looper;
 import android.util.Log;
 import utils.logicClock;
 
-/* Monitoring method events in runtime upon 
+/* Monitoring method events in runtime upon
  * invocations by instrumented probes in the subject
  *
  * to faithfully reproduce the Execute-After algorithm, use two maps and a global counter
  * to track two kinds of events only: entrance (first event) and return-into (last event)
- * 
- * 
- * Note Alessio: This can be strongly simplified IMHO 
+ *
+ *
+ * Note Alessio: This can be strongly simplified IMHO
  */
 public class Monitor {
 

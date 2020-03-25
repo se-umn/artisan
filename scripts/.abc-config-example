@@ -1,0 +1,7 @@
+#####
+# NOTE: Do not use double quotes for variables that correspond to paths or files
+#	OK : EMULATOR_EXE=~/Library/Android/sdk/tools/emulator
+#	BAD: EMULATOR_EXE="~/Library/Android/sdk/tools/emulator"
+#####
+EMULATOR_EXE=~/Library/Android/sdk/tools/emulator
+IMAGE_NAME="Nexus_One_API_24"
