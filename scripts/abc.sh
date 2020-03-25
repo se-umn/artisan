@@ -71,7 +71,8 @@ function __private_load_env(){
     	exit 1
 	fi	
 
-	echo "* Loading configuration from ${ABC_CONFIG}"
+	# Annoying message
+	# ( >&2 echo "* Loading configuration from ${ABC_CONFIG}")
 
 	# Avoids the quirks of using "~" and load global readonly properties from the configuration file
 	while read -r NAME VALUE; do
@@ -159,8 +160,19 @@ function edit_config(){
 }
 
 function help(){
-	echo "AVAILABLE COMMANDS"
+	# We output the message to std but the command to std out to enable autocompletion
+	( >&2 echo "AVAILABLE COMMANDS")
 	cat $0 | grep function | grep -v "__private" | grep -v "\#" | sed -e '/^ /d' -e 's|function \(.*\)(){|\1|g'
+}
+
+function __private_autocomplete(){
+	local command_name=$1
+	if [ "${command_name}" == "beautify" ]; then
+		echo "requires_one_file"
+	fi
+	if [ "${command_name}" == "instrument_apk" ]; then
+		echo "requires_one_file"
+	fi
 }
 
 # Always load the environment
