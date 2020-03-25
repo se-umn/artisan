@@ -1701,14 +1701,12 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		Local er1 = UtilInstrumenter.generateFreshLocal(b, RefType.v(sce));
 		Local er2 = UtilInstrumenter.generateFreshLocal(b, RefType.v(sce));
 
-		// Local er1 = utils.createUniqueLocal(b, "er1", RefType.v(sce));
-		// Local er2 = utils.createUniqueLocal(b, "$er2", RefType.v(sce));
-		// the ID statement
 		/*
 		 * We do not tag our code since it does not change the semantic, plus we should
 		 * not skip instrumenting it with returnInto calls
 		 */
 		Stmt ids = Jimple.v().newIdentityStmt(er2, Jimple.v().newCaughtExceptionRef());
+		//
 		// ids.addTag(ABCTag.TAG);
 		// the assignment statement assigning the object for the throw statement
 		Stmt ass = Jimple.v().newAssignStmt(er1, er2);
