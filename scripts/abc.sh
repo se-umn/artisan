@@ -168,7 +168,9 @@ function run_test(){
 	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file } 
 
 	# Mandatory. The file that contains instructions to be run with monkeyrunner
-	local instructions_file="${1:?Missing instructions file}"
+	local instructions_file="${1:?Missing an instructions file}"
+	local apk="${2:?Missing an APK file}"
+
 	# Application directory
 	local apk_dir=${instructions_file%/*}
 	# Reads the package name of the application
@@ -183,25 +185,15 @@ function run_test(){
 	# Watis until android booted completely
 	booted=$(${ANDROID_ADB_EXE} shell getprop sys.boot_completed | tr -d '\r')
 	while [ "$booted" != "1" ]; do
-        sleep 2
-        booted=$(${ANDROID_ADB_EXE} shell getprop sys.boot_completed | tr -d '\r')
+    	sleep 2
+    	booted=$(${ANDROID_ADB_EXE} shell getprop sys.boot_completed | tr -d '\r')
 	done
 
 	# Checks if app is installed. Assumes that the directory contains exactly one apk file		
 	if [ -z "$(${ANDROID_ADB_EXE} shell pm list packages $package_name)" ]; then 
-		n_apks=$(ls -1 "$apk_dir"/*.apk 2>/dev/null | wc -l)
-
-		if [ $n_apks -eq 1 ]; then
-			local apk_files=( "$apk_dir"/*.apk )
-			install-apk ${apk_files[0]}
-		elif [ $n_apks -gt 1 ]; then
-			( >&2 echo "Too many APKs in $apk_dir. Don't know which one to choose" ) && exit
-		else 
-			( >&2 echo "No APK file found in $apk_dir" ) && exit
-		fi
+		install-apk "$apk"
 	fi
 
-	# TODO maybe make the output dir variable? 
 	${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" "$ANDROID_ADB_EXE" ./output > run_test.log 
 	echo "Done!" 
 }
