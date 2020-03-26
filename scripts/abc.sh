@@ -194,7 +194,7 @@ function run_test(){
 		install-apk "$apk"
 	fi
 
-	${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" "$ANDROID_ADB_EXE" ./output > run_test.log 
+	${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" "$ANDROID_ADB_EXE" > run_test.log 
 
 	( >&2 echo "Test completed")
 
