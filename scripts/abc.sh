@@ -34,13 +34,6 @@ ABC_CONFIG="${ABC_CONFIG:-.abc-config}"
 #
 ##
 # Use this when install fail for some reason but instrumentation was fine
-#abc-install() {
-#   if [ "$#" -ne 1 ]; then
-#      echo "Missing parameter apk.file.name";
-#   else
-#      adb install /Users/gambi/MyDroidFax/scripts/cg.instrumented/$1
-#   fi
-#}
 #
 #abc-logcat-now(){
 #	#adb logcat -G 10M
@@ -77,8 +70,28 @@ function start-clean-emulator(){
 	: ${EMULATOR_EXE:?Please provide a value for EMULATOR_EXE in $config_file }
 	: ${IMAGE_NAME:?Please provide a value for EMULATOR_EXE in $config_file }
 
-	# Run the command
-	"${EMULATOR_EXE}" -avd ${IMAGE_NAME} -wipe-data
+	# Assume ONLY ONE emulator can be active at a time
+	if [ $(ps aux | grep -c "$(dirname ${EMULATOR_EXE})") -gt 1 ]; then
+		( >&2 echo "Emulator is already running")
+		return
+	fi
+
+	# Run the command in background
+	"${EMULATOR_EXE}" -avd ${IMAGE_NAME} -wipe-data &
+}
+
+function install-apk(){
+
+	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
+
+	local apk_file="${1:?Missing apk file to install}"
+
+	start-clean-emulator
+
+	${ANDROID_ADB_EXE} wait-for-device
+	
+	# We replace (-r) the app if it is already installed
+    ${ANDROID_ADB_EXE} install -r ${apk_file}
 }
 
 function beautify(){
@@ -138,7 +151,7 @@ function instrument_apk(){
 	# This sets the env variable required by "instrument-apk.sh"
 	: ${APK_SIGNER:?Please provide a value for APK_SIGNER in $config_file}
 
-	local apk_file="$1"
+	local apk_file="${1:?Missing apk file to instrument}"
 
 	# The instrumentation script also check if the project requires to be rebuild
 	# TODO. Maybe we need to move that script here? Maybe we need to use make ?
@@ -194,6 +207,10 @@ function __private_autocomplete(){
 	if [ "${command_name}" == "run_test" ]; then
 		echo "requires_one_file"
 	fi
+	if [ "${command_name}" == "install-apk" ]; then
+		echo "requires_one_file"
+	fi
+	
 }
 
 # Always load the environment
