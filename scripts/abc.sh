@@ -164,7 +164,8 @@ function instrument_apk(){
 
 function run_test(){
 	# Ensures the required variables are in place
-	: ${MONKEYRUNNER_EXE:?Please provide a value for MONKEYRUNNER_EXE in $ABC_CONFIG}
+	: ${MONKEYRUNNER_EXE:?Please provide a value for MONKEYRUNNER_EXE in $config_file}
+	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file } 
 
 	# Mandatory. The file that contains instructions to be run with monkeyrunner
 	local instructions_file="${1:?Missing instructions file}"
@@ -175,8 +176,33 @@ function run_test(){
 	# Gets the path of the droixbench playback script
 	local playback_script="$(dirname $(realpath $0))/../apks/automated-testing/monkey_playback.py"
 
+	start-clean-emulator
+
+	${ANDROID_ADB_EXE} wait-for-device
+
+	# Watis until android booted completely
+	booted=$(${ANDROID_ADB_EXE} shell getprop sys.boot_completed | tr -d '\r')
+	while [ "$booted" != "1" ]; do
+        sleep 2
+        booted=$(${ANDROID_ADB_EXE} shell getprop sys.boot_completed | tr -d '\r')
+	done
+
+	# Checks if app is installed. Assumes that the directory contains exactly one apk file		
+	if [ -z "$(${ANDROID_ADB_EXE} shell pm list packages $package_name)" ]; then 
+		n_apks=$(ls -1 "$apk_dir"/*.apk 2>/dev/null | wc -l)
+
+		if [ $n_apks -eq 1 ]; then
+			local apk_files=( "$apk_dir"/*.apk )
+			install-apk ${apk_files[0]}
+		elif [ $n_apks -gt 1 ]; then
+			( >&2 echo "Too many APKs in $apk_dir. Don't know which one to choose" ) && exit
+		else 
+			( >&2 echo "No APK file found in $apk_dir" ) && exit
+		fi
+	fi
+
 	# TODO maybe make the output dir variable? 
-	${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" ./output 
+	${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" "$ANDROID_ADB_EXE" ./output > run_test.log 
 	echo "Done!" 
 }
 
