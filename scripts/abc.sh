@@ -261,6 +261,9 @@ function __private_autocomplete(){
 	if [ "${command_name}" == "install-apk" ]; then
 		echo "requires_one_file"
 	fi
+	if [ "${command_name}" == "copy-traces" ]; then
+		echo "requires_one_file"
+	fi
 
 }
 
