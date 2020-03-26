@@ -160,9 +160,9 @@ function run_test(){
 	# Reads the package name of the application
 	local package_name=$(cat "$apk_dir"/.packagename)
 	# Gets the path of the droixbench playback script
-	local playback_script="$(dirname $(realpath $0))/../apks/droixbench/monkey_playback.py"
+	local playback_script="$(dirname $(realpath $0))/../apks/automated-testing/monkey_playback.py"
 
-	# TODO maybe make the output dir variable?
+	# TODO maybe make the output dir variable? 
 	${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" ./output 
 	echo "Done!" 
 }
