@@ -26,7 +26,7 @@
 		<repository>
 			<!-- Temporary repo to store soot -->
 			<id>project</id>
-			<url>file:///${basedir}/local-repo</url>
+			<url>file:///${maven.multiModuleProjectDirectory}/local-repo</url>
 		</repository>
 		<repository>
 			<id>google</id>
@@ -34,7 +34,7 @@
 		</repository>
 		<repository>
 			<id>central</id>
-			<url>http://central.maven.org/maven2/</url>
+			<url>https://repo1.maven.org/maven2/</url>
 		</repository>
 	</repositories>
 
@@ -135,10 +135,11 @@
 			<version>4.12</version>
 		</dependency>
 
+
 		<dependency>
 			<groupId>com.github.stefanbirkner</groupId>
 			<artifactId>system-rules</artifactId>
-			<version>1.17.0</version>
+			<version>1.19.0</version>
 			<scope>test</scope>
 		</dependency>
 		
