@@ -51,7 +51,7 @@ CMD_MAP = {
 
 # Process a single file for the specified device.
 def process_file(fp, device, app, outputDir, snapshot, insert_wait, sleeptime):
-    index=0 
+    index = 0
     snapshot = False
     data = {}
     data['views'] = []

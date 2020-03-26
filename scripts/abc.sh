@@ -195,7 +195,39 @@ function run_test(){
 	fi
 
 	${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" "$ANDROID_ADB_EXE" ./output > run_test.log 
-	echo "Done!" 
+
+	( >&2 echo "Test completed")
+
+	copy-traces "$package_name"
+}
+
+function copy-traces(){
+	# Ensures the required variables are in place
+	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file } 
+
+	local package_name="${1:?Missing package name}"
+	local output_dir="$ABC_HOME/carving/traces/$package_name"
+	local tmp_dir="./tmp"
+
+	mkdir -p "$tmp_dir"
+	mkdir -p "$output_dir"
+
+	# Restart daemon with root access in order to be able to access app data
+	${ANDROID_ADB_EXE} root
+	# Apparently, adb cannot copy files using wildcards, hence, we copy the whole package temporarily
+	${ANDROID_ADB_EXE} pull "/data/data/$package_name" "$tmp_dir"
+
+	# Iterate over trace files and copy them to the output dir
+	for filename in "$tmp_dir"/"$package_name"/Trace-*.txt; do
+  		file=$(basename "$filename")
+  		( >&2 echo "Copying $filename")
+  		cp "$filename" "$output_dir"/"$file"
+	done
+
+	# Remove temporary files
+	rm -r "$tmp_dir"
+
+	( >&2 echo "Traces were copied to $output_dir")
 }
 
 function edit_config(){
@@ -223,12 +255,13 @@ function __private_autocomplete(){
 		echo "requires_one_file"
 	fi
 	if [ "${command_name}" == "run_test" ]; then
+		# TODO actually requires two files
 		echo "requires_one_file"
 	fi
 	if [ "${command_name}" == "install-apk" ]; then
 		echo "requires_one_file"
 	fi
-	
+
 }
 
 # Always load the environment
