@@ -84,9 +84,9 @@ function start-clean-emulator(){
 	done
 
 	# Run the command in background
-	"${EMULATOR_EXE}" -avd ${IMAGE_NAME} -wipe-data &
+	"${EMULATOR_EXE}" -avd ${IMAGE_NAME} -wipe-data > /dev/null 2>&1 &
 
-	${ANDROID_ADB_EXE} wait-for-device
+	${ANDROID_ADB_EXE} wait-for-device > /dev/null 2>&1
 
 	( >&2 echo "Waiting until emulator has booted" )
 	# Waits until android booted completely
@@ -117,10 +117,10 @@ function install-apk(){
 
 	if [ $(${ANDROID_ADB_EXE} shell pm list packages | grep -c "${package_name}") -gt 0 ]; then
 		( >&2 echo "App ${package_name} already installed. Unistall it")
-		${ANDROID_ADB_EXE} uninstall ${package_name}
+		${ANDROID_ADB_EXE} uninstall ${package_name} > /dev/null 2>&1 &
 	fi
 
-    ${ANDROID_ADB_EXE} install ${apk_file}
+    ${ANDROID_ADB_EXE} install ${apk_file} > /dev/null 2>&1 &
 }
 
 function beautify(){
@@ -188,7 +188,9 @@ function instrument_apk(){
 	
 	local instrumented_apk_file=$(${ABC_HOME}/instrumentation/scripts/instrument-apk.sh ${apk_file})
 	# THIS PRODUCES A LOG "HERE". TODO Shall we move the log the location of the instrumented apk ?
-	echo "Instrumented APK is ${instrumented_apk_file}"
+
+	( >&2 echo "** Instrumented APK is:")
+	echo "${instrumented_apk_file}"
 }
 
 function run_test(){
@@ -215,7 +217,8 @@ function run_test(){
 	install-apk "$apk"
 	# fi
 
-	${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" "$ANDROID_ADB_EXE" > run_test.log 
+    ( >&2 echo "Running ${instructions_file}")
+	${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" "$ANDROID_ADB_EXE" > run_test.log 2>&1
 
 	( >&2 echo "Test completed")
 
