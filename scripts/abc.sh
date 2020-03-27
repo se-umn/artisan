@@ -97,17 +97,30 @@ function start-clean-emulator(){
 	done
 }
 
-function install-apk(){
+function __private_get_apk_name(){
+	: ${ANDROID_AAPT_EXE:?Please provide a value for ANDROID_AAPT_EXE in $config_file }
+
+	local apk_file="${1:?Missing apk file to install}"
+
+	${ANDROID_AAPT_EXE} dump badging ${apk_file} | grep "package: name" | awk '{print $2}' | sed -e "s|name=||" -e "s|'||g"
+
+}
+function install-apk(){	
 
 	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
 
 	local apk_file="${1:?Missing apk file to install}"
 
+	local package_name=$(__private_get_apk_name ${apk_file})
+
 	start-clean-emulator
 
-	
-	# We replace (-r) the app if it is already installed
-    ${ANDROID_ADB_EXE} install -r ${apk_file}
+	if [ $(${ANDROID_ADB_EXE} shell pm list packages | grep -c "${package_name}") -gt 0 ]; then
+		( >&2 echo "App ${package_name} already installed. Unistall it")
+		${ANDROID_ADB_EXE} uninstall ${package_name}
+	fi
+
+    ${ANDROID_ADB_EXE} install ${apk_file}
 }
 
 function beautify(){
@@ -148,7 +161,7 @@ function beautify(){
 		awk '{printf "%-8d%-8s\n", NR, $0}' > ${beautified_file}
 }
 
-function build_instrument(){
+function rebuild_instrument(){
 	# Ensures the required variables are in place
 	: ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
 
