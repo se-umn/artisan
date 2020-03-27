@@ -72,12 +72,29 @@ function start-clean-emulator(){
 
 	# Assume ONLY ONE emulator can be active at a time
 	if [ $(ps aux | grep -c "$(dirname ${EMULATOR_EXE})") -gt 1 ]; then
-		( >&2 echo "Emulator is already running")
+		( >&2 echo "Emulator is already running" )
 		return
 	fi
 
+	# Also ensure there is only one adb emulator running
+	running_devices=( $(${ANDROID_ADB_EXE} devices | sed '1d') )
+	for line in "${running_devices[@]}"
+	do
+		[[ $line = emulator* ]] && ( >&2 echo "Emulator is running: $(echo $line | cut -f1)" ) && return
+	done
+
 	# Run the command in background
 	"${EMULATOR_EXE}" -avd ${IMAGE_NAME} -wipe-data &
+
+	${ANDROID_ADB_EXE} wait-for-device
+
+	( >&2 echo "Waiting until emulator has booted" )
+	# Waits until android booted completely
+	booted=$(${ANDROID_ADB_EXE} shell getprop sys.boot_completed | tr -d '\r')
+	while [ "$booted" != "1" ]; do
+    	sleep 2
+    	booted=$(${ANDROID_ADB_EXE} shell getprop sys.boot_completed | tr -d '\r')
+	done
 }
 
 function install-apk(){
@@ -88,7 +105,6 @@ function install-apk(){
 
 	start-clean-emulator
 
-	${ANDROID_ADB_EXE} wait-for-device
 	
 	# We replace (-r) the app if it is already installed
     ${ANDROID_ADB_EXE} install -r ${apk_file}
@@ -179,15 +195,6 @@ function run_test(){
 	local playback_script="$(dirname $(realpath $0))/../apks/automated-testing/monkey_playback.py"
 
 	start-clean-emulator
-
-	${ANDROID_ADB_EXE} wait-for-device
-
-	# Watis until android booted completely
-	booted=$(${ANDROID_ADB_EXE} shell getprop sys.boot_completed | tr -d '\r')
-	while [ "$booted" != "1" ]; do
-    	sleep 2
-    	booted=$(${ANDROID_ADB_EXE} shell getprop sys.boot_completed | tr -d '\r')
-	done
 
 	# Checks if app is installed. Assumes that the directory contains exactly one apk file		
 	if [ -z "$(${ANDROID_ADB_EXE} shell pm list packages $package_name)" ]; then 
