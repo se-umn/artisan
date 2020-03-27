@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Some utility scripts for the Action Based Carving (ABC) Framework
 
 ABC_CONFIG="${ABC_CONFIG:-.abc-config}"
