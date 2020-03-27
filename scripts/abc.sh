@@ -190,9 +190,10 @@ function run_test(){
 	done
 
 	# Checks if app is installed. Assumes that the directory contains exactly one apk file		
-	if [ -z "$(${ANDROID_ADB_EXE} shell pm list packages $package_name)" ]; then 
-		install-apk "$apk"
-	fi
+	# if [ -z "$(${ANDROID_ADB_EXE} shell pm list packages $package_name)" ]; then 
+	( >&2 echo "(Re)Installing the APK")
+	install-apk "$apk"
+	# fi
 
 	${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" "$ANDROID_ADB_EXE" > run_test.log 
 
