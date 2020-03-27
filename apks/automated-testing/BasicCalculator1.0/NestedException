@@ -1,0 +1,4 @@
+TOUCH|{'x':500,'y':910,'type':'downAndUp',}
+TYPE|{'message':'abfdsd',}
+TOUCH|{'x':1000,'y':1725,'type':'downAndUp',}
+TOUCH|{'x':550,'y':1275,'type':'downAndUp',}

@@ -34,13 +34,6 @@ ABC_CONFIG="${ABC_CONFIG:-.abc-config}"
 #
 ##
 # Use this when install fail for some reason but instrumentation was fine
-#abc-install() {
-#   if [ "$#" -ne 1 ]; then
-#      echo "Missing parameter apk.file.name";
-#   else
-#      adb install /Users/gambi/MyDroidFax/scripts/cg.instrumented/$1
-#   fi
-#}
 #
 #abc-logcat-now(){
 #	#adb logcat -G 10M
@@ -77,8 +70,44 @@ function start-clean-emulator(){
 	: ${EMULATOR_EXE:?Please provide a value for EMULATOR_EXE in $config_file }
 	: ${IMAGE_NAME:?Please provide a value for EMULATOR_EXE in $config_file }
 
-	# Run the command
-	"${EMULATOR_EXE}" -avd ${IMAGE_NAME} -wipe-data
+	# Assume ONLY ONE emulator can be active at a time
+	if [ $(ps aux | grep -c "$(dirname ${EMULATOR_EXE})") -gt 1 ]; then
+		( >&2 echo "Emulator is already running" )
+		return
+	fi
+
+	# Also ensure there is only one adb emulator running
+	running_devices=( $(${ANDROID_ADB_EXE} devices | sed '1d') )
+	for line in "${running_devices[@]}"
+	do
+		[[ $line = emulator* ]] && ( >&2 echo "Emulator is running: $(echo $line | cut -f1)" ) && return
+	done
+
+	# Run the command in background
+	"${EMULATOR_EXE}" -avd ${IMAGE_NAME} -wipe-data &
+
+	${ANDROID_ADB_EXE} wait-for-device
+
+	( >&2 echo "Waiting until emulator has booted" )
+	# Waits until android booted completely
+	booted=$(${ANDROID_ADB_EXE} shell getprop sys.boot_completed | tr -d '\r')
+	while [ "$booted" != "1" ]; do
+    	sleep 2
+    	booted=$(${ANDROID_ADB_EXE} shell getprop sys.boot_completed | tr -d '\r')
+	done
+}
+
+function install-apk(){
+
+	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
+
+	local apk_file="${1:?Missing apk file to install}"
+
+	start-clean-emulator
+
+	
+	# We replace (-r) the app if it is already installed
+    ${ANDROID_ADB_EXE} install -r ${apk_file}
 }
 
 function beautify(){
@@ -138,7 +167,7 @@ function instrument_apk(){
 	# This sets the env variable required by "instrument-apk.sh"
 	: ${APK_SIGNER:?Please provide a value for APK_SIGNER in $config_file}
 
-	local apk_file="$1"
+	local apk_file="${1:?Missing apk file to instrument}"
 
 	# The instrumentation script also check if the project requires to be rebuild
 	# TODO. Maybe we need to move that script here? Maybe we need to use make ?
@@ -147,6 +176,66 @@ function instrument_apk(){
 	local instrumented_apk_file=$(${ABC_HOME}/instrumentation/scripts/instrument-apk.sh ${apk_file})
 	# THIS PRODUCES A LOG "HERE". TODO Shall we move the log the location of the instrumented apk ?
 	echo "Instrumented APK is ${instrumented_apk_file}"
+}
+
+function run_test(){
+	# Ensures the required variables are in place
+	: ${MONKEYRUNNER_EXE:?Please provide a value for MONKEYRUNNER_EXE in $config_file}
+	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file } 
+
+	# Mandatory. The file that contains instructions to be run with monkeyrunner
+	local instructions_file="${1:?Missing an instructions file}"
+	local apk="${2:?Missing an APK file}"
+
+	# Application directory
+	local apk_dir=${instructions_file%/*}
+	# Reads the package name of the application
+	local package_name=$(cat "$apk_dir"/.packagename)
+	# Gets the path of the droixbench playback script
+	local playback_script="$(dirname $(realpath $0))/../apks/automated-testing/monkey_playback.py"
+
+	start-clean-emulator
+
+	# Checks if app is installed. Assumes that the directory contains exactly one apk file		
+	# if [ -z "$(${ANDROID_ADB_EXE} shell pm list packages $package_name)" ]; then 
+	( >&2 echo "(Re)Installing the APK")
+	install-apk "$apk"
+	# fi
+
+	${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" "$ANDROID_ADB_EXE" > run_test.log 
+
+	( >&2 echo "Test completed")
+
+	copy-traces "$package_name"
+}
+
+function copy-traces(){
+	# Ensures the required variables are in place
+	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file } 
+
+	local package_name="${1:?Missing package name}"
+	local output_dir="$ABC_HOME/carving/traces/$package_name"
+	local tmp_dir="./tmp"
+
+	mkdir -p "$tmp_dir"
+	mkdir -p "$output_dir"
+
+	# Restart daemon with root access in order to be able to access app data
+	${ANDROID_ADB_EXE} root
+	# Apparently, adb cannot copy files using wildcards, hence, we copy the whole package temporarily
+	${ANDROID_ADB_EXE} pull "/data/data/$package_name" "$tmp_dir"
+
+	# Iterate over trace files and copy them to the output dir
+	for filename in "$tmp_dir"/"$package_name"/Trace-*.txt; do
+  		file=$(basename "$filename")
+  		( >&2 echo "Copying $filename")
+  		cp "$filename" "$output_dir"/"$file"
+	done
+
+	# Remove temporary files
+	rm -r "$tmp_dir"
+
+	( >&2 echo "Traces were copied to $output_dir")
 }
 
 function edit_config(){
@@ -173,6 +262,17 @@ function __private_autocomplete(){
 	if [ "${command_name}" == "instrument_apk" ]; then
 		echo "requires_one_file"
 	fi
+	if [ "${command_name}" == "run_test" ]; then
+		# TODO actually requires two files
+		echo "requires_one_file"
+	fi
+	if [ "${command_name}" == "install-apk" ]; then
+		echo "requires_one_file"
+	fi
+	if [ "${command_name}" == "copy-traces" ]; then
+		echo "requires_one_file"
+	fi
+
 }
 
 # Always load the environment

@@ -34,7 +34,10 @@ LOG_FILE=$(realpath ./instrumentation.log)
 # Rebuild the project if necessary
 if [ ! -e "${SCRIPT_LOCATION}/../target/appassembler" ]; then
     ( >&2 echo "** Build the project and assemble it" )
-    mvn clean compile package appassembler:assemble -DskipTests > ${LOG_FILE} 2>&1
+    
+    pushd "${SCRIPT_LOCATION}/.." > /dev/null 2>&1
+    mvn clean compile package appassembler:assemble -DskipTests >> ${LOG_FILE} 2>&1
+    popd > /dev/null 2>&1
 fi
 
 ( >&2 echo "** Instrumenting ${APK}" )
