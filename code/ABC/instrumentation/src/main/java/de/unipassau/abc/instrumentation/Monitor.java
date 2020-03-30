@@ -713,7 +713,11 @@ public class Monitor {
                     } else if (isArray(formalParametersType[i])) {
                         String arrayType = getArrayType(formalParametersType[i], formalParametersType[i]);
                         content.append(arrayType + "[]" + "@" + System.identityHashCode(objects[i]));
-                    }
+					} else {
+						// Use the formal type for null objects and @0 to indicate null value
+						content.append(
+								extractReturnType(method) + "@" + "0");
+					}
                 } else {
                     /*
                      * Non-null objects use their ACTUAL parameter but take car of Arrays ? TODO
