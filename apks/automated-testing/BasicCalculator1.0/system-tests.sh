@@ -6,7 +6,7 @@ ORIGINAL_APK="$(realpath $(dirname $0)/BasicCalculator.apk)"
 # echo "Original APK ${ORIGINAL_APK}"
 
 # abc rebuild_instrument
-INSTRUMENTED_APK=$(abc instrument_apk ${ORIGINAL_APK})
+INSTRUMENTED_APK=$(abc instrument-apk ${ORIGINAL_APK})
 
 # echo "Instrumented APK: ${INSTRUMENTED_APK}"
 
@@ -17,7 +17,7 @@ reset=`tput sgr0`
 for TEST in $(find "$(realpath $(dirname $0))" -type f -iname "*.test"); do 
     echo "Running Test: ${TEST}"
     # This might generate more traces? 
-    for TRACE in $(abc run_test "${TEST}" "${INSTRUMENTED_APK}" ); do
+    for TRACE in $(abc run-test "${TEST}" "${INSTRUMENTED_APK}" ); do
         if [ $((number%2)) -eq 0 ]
         then
             # https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux

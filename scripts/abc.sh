@@ -179,7 +179,7 @@ function beautify(){
 		awk '{printf "%-8d%-8s\n", NR, $0}' > ${beautified_file}
 }
 
-function rebuild_instrument(){
+function rebuild-instrument(){
 	# Ensures the required variables are in place
 	: ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
 
@@ -192,7 +192,7 @@ function rebuild_instrument(){
 	popd
 }
 
-function instrument_apk(){
+function instrument-apk(){
 	# Ensures the required variables are in place
 	: ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
 	# This sets the env variable required by "instrument-apk.sh"
@@ -211,7 +211,7 @@ function instrument_apk(){
 	echo "${instrumented_apk_file}"
 }
 
-function run_test(){
+function run-test(){
 	# Ensures the required variables are in place
 	: ${MONKEYRUNNER_EXE:?Please provide a value for MONKEYRUNNER_EXE in $config_file}
 	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file } 
@@ -238,7 +238,7 @@ function run_test(){
 	# fi
 
     ( >&2 echo "Running ${instructions_file}")
-	${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" "$ANDROID_ADB_EXE" > run_test.log 2>&1
+	${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" "$ANDROID_ADB_EXE" > run-test.log 2>&1
 
 	( >&2 echo "Test completed")
 
@@ -276,7 +276,7 @@ function copy-traces(){
 	( >&2 echo "Done Copying")
 }
 
-function edit_config(){
+function edit-config(){
 	nano ${ABC_CONFIG}
 }
 
@@ -288,7 +288,7 @@ function edit-abc(){
 	open -W ${0}
 }
 
-function show_config(){
+function show-config(){
 	( >&2 echo "Config file contains:")
 	( >&2 echo "-------------------")
 	cat ${ABC_CONFIG}
@@ -305,10 +305,10 @@ function __private_autocomplete(){
 	if [ "${command_name}" == "beautify" ]; then
 		echo "requires_one_file"
 	fi
-	if [ "${command_name}" == "instrument_apk" ]; then
+	if [ "${command_name}" == "instrument-apk" ]; then
 		echo "requires_one_file"
 	fi
-	if [ "${command_name}" == "run_test" ]; then
+	if [ "${command_name}" == "run-test" ]; then
 		# TODO actually requires two files
 		echo "requires_one_file"
 	fi
