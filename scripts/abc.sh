@@ -279,6 +279,14 @@ function edit_config(){
 	nano ${ABC_CONFIG}
 }
 
+function edit-abc(){
+	# This does not work
+	# local editor=${ABC_EDITOR:-nano}
+	# ${editor} $0
+	# TODO Temporary trick as I registered alredy my editor
+	open -W ${0}
+}
+
 function show_config(){
 	( >&2 echo "Config file contains:")
 	( >&2 echo "-------------------")
