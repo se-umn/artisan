@@ -407,6 +407,7 @@ public class DuafDroidParser {
 						break;
 					case Trace.METHOD_END_TOKEN:
 					case Trace.EXCEPTION_METHOD_END_TOKEN:
+					case Trace.DEBUG_EXCEPTION:
 						String returnValueAsString = parameterString.isEmpty() ? null : parameterString;
 						/*
 						 * Retrieve the last method invocation registered Check that this corresponds to
