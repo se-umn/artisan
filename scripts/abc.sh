@@ -115,7 +115,7 @@ function stop-emulator(){
 		done
 }
 
-function __private_get_apk_name(){
+function __private_get_package_name_from_apk_file(){
 	: ${ANDROID_AAPT_EXE:?Please provide a value for ANDROID_AAPT_EXE in $config_file }
 
 	local apk_file="${1:?Missing apk file to install}"
@@ -129,7 +129,7 @@ function install-apk(){
 
 	local apk_file="${1:?Missing apk file to install}"
 
-	local package_name=$(__private_get_apk_name ${apk_file})
+	local package_name=$(__private_get_package_name_from_apk_file ${apk_file})
 
 	start-clean-emulator
 
@@ -218,12 +218,14 @@ function run_test(){
 
 	# Mandatory. The file that contains instructions to be run with monkeyrunner
 	local instructions_file="${1:?Missing an instructions file}"
-	local apk="${2:?Missing an APK file}"
+	local apk_file="${2:?Missing an APK file}"
 
 	# Application directory
 	local apk_dir=${instructions_file%/*}
+
 	# Reads the package name of the application
-	local package_name=$(cat "$apk_dir"/.packagename)
+	local package_name=$(__private_get_package_name_from_apk_file ${apk_file})
+	
 	# Gets the path of the droixbench playback script
 	local playback_script="$(dirname $(realpath $0))/../apks/automated-testing/monkey_playback.py"
 
@@ -232,7 +234,7 @@ function run_test(){
 	# Checks if app is installed. Assumes that the directory contains exactly one apk file		
 	# if [ -z "$(${ANDROID_ADB_EXE} shell pm list packages $package_name)" ]; then 
 	( >&2 echo "(Re)Installing the APK")
-	install-apk "$apk"
+	install-apk "$apk_file"
 	# fi
 
     ( >&2 echo "Running ${instructions_file}")
@@ -250,9 +252,8 @@ function copy-traces(){
 	local package_name="${1:?Missing package name}"
 	# TODO ALESSIO: I do not really like this but leave it be for the moment
 	local output_dir="$ABC_HOME/carving/traces/$package_name"
-	local tmp_dir="./tmp"
+	local tmp_dir="$(mktemp -d)"
 
-	mkdir -p "$tmp_dir"
 	mkdir -p "$output_dir"
 
 	# Restart daemon with root access in order to be able to access app data
