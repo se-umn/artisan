@@ -135,10 +135,10 @@ function install-apk(){
 
 	if [ $(${ANDROID_ADB_EXE} shell pm list packages | grep -c "${package_name}") -gt 0 ]; then
 		( >&2 echo "App ${package_name} already installed. Unistall it")
-		${ANDROID_ADB_EXE} uninstall ${package_name} > /dev/null 2>&1 &
+		${ANDROID_ADB_EXE} uninstall ${package_name} > /dev/null 2>&1
 	fi
 
-    ${ANDROID_ADB_EXE} install ${apk_file} > /dev/null 2>&1 &
+    ${ANDROID_ADB_EXE} install ${apk_file} > /dev/null 2>&1
 }
 
 function beautify(){
@@ -256,9 +256,9 @@ function copy-traces(){
 	mkdir -p "$output_dir"
 
 	# Restart daemon with root access in order to be able to access app data
-	${ANDROID_ADB_EXE} root > /dev/null 2>&1 &
+	${ANDROID_ADB_EXE} root > /dev/null 2>&1
 	# Apparently, adb cannot copy files using wildcards, hence, we copy the whole package temporarily
-	${ANDROID_ADB_EXE} pull "/data/data/$package_name" "$tmp_dir" > /dev/null 2>&1 &
+	${ANDROID_ADB_EXE} pull "/data/data/$package_name" "$tmp_dir" > /dev/null 2>&1
 
 	# Iterate over trace files and copy them to the output dir
 	for filename in "$tmp_dir"/"$package_name"/Trace-*.txt; do
