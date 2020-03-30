@@ -6,7 +6,8 @@
 EMULATOR_EXE=~/Library/Android/sdk/tools/emulator
 IMAGE_NAME="Nexus_One_API_24"
 ABC_HOME=~/carving/code/ABC
-APK_SIGNER=~/Library/Android/sdk/build-tools/28.0.3/apksigner
+APK_SIGNER=~/Library/Android/sdk/build-tools/29.0.3/apksigner
 MONKEYRUNNER_EXE=~/Library/Android/sdk/tools/bin/monkeyrunner
 ANDROID_ADB_EXE=~/Library/Android/sdk/platform-tools/adb
+ANDROID_AAPT_EXE=~/Library/Android/sdk//build-tools/29.0.3/aapt
 
