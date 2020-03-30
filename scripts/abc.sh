@@ -248,6 +248,7 @@ function copy-traces(){
 	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file } 
 
 	local package_name="${1:?Missing package name}"
+	# TODO ALESSIO: I do not really like this but leave it be for the moment
 	local output_dir="$ABC_HOME/carving/traces/$package_name"
 	local tmp_dir="./tmp"
 
@@ -255,21 +256,23 @@ function copy-traces(){
 	mkdir -p "$output_dir"
 
 	# Restart daemon with root access in order to be able to access app data
-	${ANDROID_ADB_EXE} root
+	${ANDROID_ADB_EXE} root > /dev/null 2>&1 &
 	# Apparently, adb cannot copy files using wildcards, hence, we copy the whole package temporarily
-	${ANDROID_ADB_EXE} pull "/data/data/$package_name" "$tmp_dir"
+	${ANDROID_ADB_EXE} pull "/data/data/$package_name" "$tmp_dir" > /dev/null 2>&1 &
 
 	# Iterate over trace files and copy them to the output dir
 	for filename in "$tmp_dir"/"$package_name"/Trace-*.txt; do
   		file=$(basename "$filename")
-  		( >&2 echo "Copying $filename")
-  		cp "$filename" "$output_dir"/"$file"
+		local output_trace="${output_dir}/${file}"
+		( >&2 echo "Copying $filename to ${output_trace}")
+  		cp "$filename" "${output_trace}"
+		echo "${output_trace}"
 	done
 
 	# Remove temporary files
 	rm -r "$tmp_dir"
 
-	( >&2 echo "Traces were copied to $output_dir")
+	( >&2 echo "Done Copying")
 }
 
 function edit_config(){
