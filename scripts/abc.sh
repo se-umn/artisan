@@ -97,6 +97,24 @@ function start-clean-emulator(){
 	done
 }
 
+function list-running-emulators(){
+	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
+	${ANDROID_ADB_EXE} devices | grep emulator | cut -f1
+}
+
+function stop-emulator(){
+	# TODO This might be autocompleted with "list-running-emulators"
+	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
+	
+	local emulator_name=${1:?Missing emulator name. Run 'function list-running-emulators' to list the running emulators}
+	
+	# TODO This can be improved
+	${ANDROID_ADB_EXE} devices | grep emulator | cut -f1 | grep ${emulator_name} | \
+		while read line; do
+			${ANDROID_ADB_EXE} -s $line emu kill
+		done
+}
+
 function __private_get_apk_name(){
 	: ${ANDROID_AAPT_EXE:?Please provide a value for ANDROID_AAPT_EXE in $config_file }
 
