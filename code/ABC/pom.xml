@@ -40,6 +40,7 @@
 
 	<modules>
 		<module>common</module>
+		<module>test-utils</module>
 		<module>instrumentation</module>
 		<module>carving</module>
 		<module>synthesis</module>
@@ -66,9 +67,12 @@
 			</plugins>
 		</pluginManagement>
 	</build>
+	
+	<!-- https://dzone.com/articles/maven-multi-module-project-with-versioning -->
+	<dependencyManagement>
+	    <dependencies>      
+	<!-- Common Logging Framework -->
 
-	<dependencies>
-		<!-- Common Logging Framework -->
 		<!-- TODO Is this conflicting with Soot? -->
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -76,6 +80,18 @@
 			<version>1.7.20</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+		<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-api</artifactId>
+					<version>1.7.20</version>
+					</dependency>
+		
+		    </dependencies>      
+
+	</dependencyManagement>
+
+	<dependencies>
+		
 
 		<!-- From the old dyniac project -->
 		<!-- TODO This must be removed ! -->

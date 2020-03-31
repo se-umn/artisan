@@ -75,24 +75,78 @@ import soot.options.Options;
  */
 public class DuafDroidParser {
 
-	public final static File ANDROID_28 = new File("/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar");
-
-	private static final Logger logger = LoggerFactory.getLogger(DuafDroidParser.class);
-
 	public interface ParserCLI {
-		@Option(longName = "trace-files")
-		List<File> getTraceFiles();
+		@Option(longName = "android-jar")
+		File getAndroidJar();
 
 		@Option(longName = "apk")
 		File getApk();
 
-		@Option(longName = "android-jar")
-		File getAndroidJar();
-
 		@Option(longName = "store-artifacts-to", defaultValue = "./wip")
 		File getOutputDir();
 
+		@Option(longName = "trace-files")
+		List<File> getTraceFiles();
+
 		// TODO Ignore calls to
+	}
+
+	// TODO Replace this with something read from the ENV or passed from the command line
+	public final static File ANDROID_28 = new File("/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar");
+
+	private static final Logger logger = LoggerFactory.getLogger(DuafDroidParser.class);
+
+	// TODO Move this to common
+	public final static String UI_THREAD = "UI:MainThread";
+
+	
+	public static void main(String[] args) throws IOException, CarvingException {
+
+		long startTime = System.nanoTime();
+		ParserCLI cli = CliFactory.parseArguments(ParserCLI.class, args);
+
+		File outputArtifactTo = cli.getOutputDir();
+
+		if (!outputArtifactTo.isDirectory()) {
+			throw new CarvingException("Wrong input: " + outputArtifactTo.getAbsolutePath()
+					+ " is a file, but should be a directory instead");
+		}
+
+		// TODO Are those necessarily static methods?
+		DuafDroidParser.setupSoot(cli.getAndroidJar(), cli.getApk());
+
+//        Map<String, // TraceFile
+//                Map<String, // ThreadContext
+//                        Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> // ActualContent
+//        >> parsedTraceFiles = new HashMap<>();
+
+		DuafDroidParser parser = new DuafDroidParser();
+		// Start the parsing
+		List<ParsedTrace> theParsedTraces = new ArrayList<>();
+
+		for (File traceFile : cli.getTraceFiles()) {
+			try {
+				logger.debug("Parsing : " + traceFile);
+				theParsedTraces.add(parser.parseTrace(traceFile));
+			} catch (Throwable e) {
+				logger.error("Failed to parse " + traceFile, e);
+			}
+		}
+
+		/*
+		 * Serialize the parsed graphs to files so maybe we can avoid re-parsing the
+		 * trace over and over and we might be able to limit the memory footprint of the
+		 * process
+		 */
+
+		if (!outputArtifactTo.exists()) {
+			Files.createDirectories(outputArtifactTo.toPath(), new FileAttribute[] {});
+		}
+
+		for (ParsedTrace parsedTrace : theParsedTraces) {
+			parsedTrace.storeTo(outputArtifactTo);
+		}
+
 	}
 
 	/*
@@ -118,10 +172,40 @@ public class DuafDroidParser {
 
 	}
 
-	protected final SootClass scFragment = Scene.v().getSootClassUnsafe(JimpleUtils.FRAGMENT_CLASS);
-	protected final SootClass scSupportFragment = Scene.v().getSootClassUnsafe(JimpleUtils.SUPPORT_FRAGMENT_CLASS);
 	protected final SootClass scActivity = Scene.v().getSootClassUnsafe(JimpleUtils.ACTIVITY_CLASS);
+	protected final SootClass scFragment = Scene.v().getSootClassUnsafe(JimpleUtils.FRAGMENT_CLASS);
+
 	protected final SootClass scSupportActivity = Scene.v().getSootClassUnsafe(JimpleUtils.SUPPORT_ACTIVITY_CLASS);
+
+	protected final SootClass scSupportFragment = Scene.v().getSootClassUnsafe(JimpleUtils.SUPPORT_FRAGMENT_CLASS);
+
+	public String extractContextInformation(String currentLine) {
+		/*
+		 * It might be the case that traces do not have thread and context,
+		 */
+		if (currentLine.split(Trace.DELIMITER).length == 4) {
+			return UI_THREAD;
+		}
+		//
+		String threadData = currentLine.split(Trace.DELIMITER)[0];
+
+		// Get rid of the *ABC:: #line* prefix
+		threadData = threadData.substring(threadData.lastIndexOf(" ") + 1);
+
+		if (threadData.startsWith("[UI:")) {
+			currentLine = currentLine.replaceFirst(Pattern.quote(threadData + Trace.DELIMITER), "");
+			// Debug mostly
+			String context = currentLine.split(Trace.DELIMITER)[0];
+			currentLine = currentLine.replaceFirst(Pattern.quote(context + Trace.DELIMITER), "");
+			//
+			return UI_THREAD;
+		} else {
+			// Get the full thread name, e.g., [Async Thread #1];
+			// Let's assume that the thread name does not contain "]"
+			String threadName = currentLine.substring(0, currentLine.indexOf(']')).replace("[", "");
+			return threadName;
+		}
+	}
 
 	// TODO Maybe filtering should be app-specific ?
 	public boolean filter(String methodSignature) {
@@ -132,6 +216,44 @@ public class DuafDroidParser {
 		else {
 			return false;
 		}
+	}
+
+	private SootMethod getSootMethodFor(String methodSignature) {
+		if (isArrayMethod(methodSignature)) {
+			return null;
+		}
+
+		try {
+
+			return Scene.v().getMethod(methodSignature);
+		} catch (Throwable e) {
+			logger.warn("Cannot find method " + methodSignature);
+			// SootClass sootClass =
+			// Scene.v().getSootClass(JimpleUtils.getClassNameForMethod(methodSignature));
+			// System.out.println("DuafDroidParser.getSootMethodFor() Methods
+			// for class " + sootClass);
+			// for (SootMethod sootMethod : sootClass.getMethods()) {
+			// System.out.println("- " + sootMethod);
+			// }
+			return null;
+		}
+	}
+
+	private boolean isActivity(SootClass sootClass) {
+		return sootClass != null && !sootClass.isInterface() && ( //
+		Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scActivity)
+				|| Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scSupportActivity));
+	}
+
+	//
+	private boolean isArrayMethod(String methodSignature) {
+		return JimpleUtils.getClassNameForMethod(methodSignature).endsWith("[]");
+	}
+
+	private boolean isFragment(SootClass sootClass) {
+		return sootClass != null && !sootClass.isInterface() && ( //
+		Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scFragment)
+				|| Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scSupportFragment));
 	}
 
 	/**
@@ -507,11 +629,6 @@ public class DuafDroidParser {
 
 	}
 
-	//
-	private boolean isArrayMethod(String methodSignature) {
-		return JimpleUtils.getClassNameForMethod(methodSignature).endsWith("[]");
-	}
-
 	private String prettyPrint(List<MethodInvocation> subsumingMethods) {
 		StringBuffer stringBuffer = new StringBuffer();
 		for (MethodInvocation methodInvocation : subsumingMethods) {
@@ -538,117 +655,6 @@ public class DuafDroidParser {
 		String context = each.split(Trace.DELIMITER)[0];
 		each = each.replaceFirst(Pattern.quote(context + Trace.DELIMITER), "");
 		return each;
-	}
-
-	public final static String UI_THREAD = "UI:MainThread";
-
-	public String extractContextInformation(String currentLine) {
-		/*
-		 * It might be the case that traces do not have thread and context,
-		 */
-		if (currentLine.split(Trace.DELIMITER).length == 4) {
-			return UI_THREAD;
-		}
-		//
-		String threadData = currentLine.split(Trace.DELIMITER)[0];
-
-		// Get rid of the *ABC:: #line* prefix
-		threadData = threadData.substring(threadData.lastIndexOf(" ") + 1);
-
-		if (threadData.startsWith("[UI:")) {
-			currentLine = currentLine.replaceFirst(Pattern.quote(threadData + Trace.DELIMITER), "");
-			// Debug mostly
-			String context = currentLine.split(Trace.DELIMITER)[0];
-			currentLine = currentLine.replaceFirst(Pattern.quote(context + Trace.DELIMITER), "");
-			//
-			return UI_THREAD;
-		} else {
-			// Get the full thread name, e.g., [Async Thread #1];
-			// Let's assume that the thread name does not contain "]"
-			String threadName = currentLine.substring(0, currentLine.indexOf(']')).replace("[", "");
-			return threadName;
-		}
-	}
-
-	private boolean isActivity(SootClass sootClass) {
-		return sootClass != null && !sootClass.isInterface() && ( //
-		Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scActivity)
-				|| Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scSupportActivity));
-	}
-
-	private boolean isFragment(SootClass sootClass) {
-		return sootClass != null && !sootClass.isInterface() && ( //
-		Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scFragment)
-				|| Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scSupportFragment));
-	}
-
-	private SootMethod getSootMethodFor(String methodSignature) {
-		if (isArrayMethod(methodSignature)) {
-			return null;
-		}
-
-		try {
-
-			return Scene.v().getMethod(methodSignature);
-		} catch (Throwable e) {
-			logger.warn("Cannot find method " + methodSignature);
-			// SootClass sootClass =
-			// Scene.v().getSootClass(JimpleUtils.getClassNameForMethod(methodSignature));
-			// System.out.println("DuafDroidParser.getSootMethodFor() Methods
-			// for class " + sootClass);
-			// for (SootMethod sootMethod : sootClass.getMethods()) {
-			// System.out.println("- " + sootMethod);
-			// }
-			return null;
-		}
-	}
-
-	public static void main(String[] args) throws IOException, CarvingException {
-
-		long startTime = System.nanoTime();
-		ParserCLI cli = CliFactory.parseArguments(ParserCLI.class, args);
-
-		File outputArtifactTo = cli.getOutputDir();
-
-		if (!outputArtifactTo.isDirectory()) {
-			throw new CarvingException("Wrong input: " + outputArtifactTo.getAbsolutePath()
-					+ " is a file, but should be a directory instead");
-		}
-
-		DuafDroidParser.setupSoot(cli.getAndroidJar(), cli.getApk());
-
-//        Map<String, // TraceFile
-//                Map<String, // ThreadContext
-//                        Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> // ActualContent
-//        >> parsedTraceFiles = new HashMap<>();
-
-		DuafDroidParser parser = new DuafDroidParser();
-		// Start the parsing
-		List<ParsedTrace> theParsedTraces = new ArrayList<>();
-
-		for (File traceFile : cli.getTraceFiles()) {
-			try {
-				logger.debug("Parsing : " + traceFile);
-				theParsedTraces.add(parser.parseTrace(traceFile));
-			} catch (Throwable e) {
-				logger.error("Failed to parse " + traceFile, e);
-			}
-		}
-
-		/*
-		 * Serialize the parsed graphs to files so maybe we can avoid re-parsing the
-		 * trace over and over and we might be able to limit the memory footprint of the
-		 * process
-		 */
-
-		if (!outputArtifactTo.exists()) {
-			Files.createDirectories(outputArtifactTo.toPath(), new FileAttribute[] {});
-		}
-
-		for (ParsedTrace parsedTrace : theParsedTraces) {
-			parsedTrace.storeTo(outputArtifactTo);
-		}
-
 	}
 
 }

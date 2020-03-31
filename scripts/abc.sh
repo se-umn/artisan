@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Some utility scripts for the Action Based Carving (ABC) Framework
 
 ABC_CONFIG="${ABC_CONFIG:-.abc-config}"
@@ -84,9 +84,9 @@ function start-clean-emulator(){
 	done
 
 	# Run the command in background
-	"${EMULATOR_EXE}" -avd ${IMAGE_NAME} -wipe-data &
+	"${EMULATOR_EXE}" -avd ${IMAGE_NAME} -wipe-data > /dev/null 2>&1 &
 
-	${ANDROID_ADB_EXE} wait-for-device
+	${ANDROID_ADB_EXE} wait-for-device > /dev/null 2>&1
 
 	( >&2 echo "Waiting until emulator has booted" )
 	# Waits until android booted completely
@@ -97,17 +97,55 @@ function start-clean-emulator(){
 	done
 }
 
-function install-apk(){
+function list-running-emulators(){
+	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
+	${ANDROID_ADB_EXE} devices | grep emulator | cut -f1
+}
+
+function stop-emulator(){
+	# TODO This might be autocompleted with "list-running-emulators"
+	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
+	
+	# Check that at least one is defined?
+	local tmp=${1:?Missing emulator name. Run 'function list-running-emulators' to list the running emulators}
+	unset tmp
+
+	# TODO This can be improved
+	local running_emulators=($(list-running-emulators))
+	echo "Running emulators ${running_emulators[@]}?"
+	for emulator_name in "$@"; do
+		if [[ " ${running_emulators[@]} " =~ " ${emulator_name} " ]]; then
+    		# whatever you want to do when arr contains value
+			echo "KILLING ${emulator_name}?"
+			${ANDROID_ADB_EXE} -s ${emulator_name} emu kill
+		fi
+	done
+}
+
+function __private_get_package_name_from_apk_file(){
+	: ${ANDROID_AAPT_EXE:?Please provide a value for ANDROID_AAPT_EXE in $config_file }
+
+	local apk_file="${1:?Missing apk file to install}"
+
+	${ANDROID_AAPT_EXE} dump badging ${apk_file} | grep "package: name" | awk '{print $2}' | sed -e "s|name=||" -e "s|'||g"
+
+}
+function install-apk(){	
 
 	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
 
 	local apk_file="${1:?Missing apk file to install}"
 
+	local package_name=$(__private_get_package_name_from_apk_file ${apk_file})
+
 	start-clean-emulator
 
-	
-	# We replace (-r) the app if it is already installed
-    ${ANDROID_ADB_EXE} install -r ${apk_file}
+	if [ $(${ANDROID_ADB_EXE} shell pm list packages | grep -c "${package_name}") -gt 0 ]; then
+		( >&2 echo "App ${package_name} already installed. Unistall it")
+		${ANDROID_ADB_EXE} uninstall ${package_name} > /dev/null 2>&1
+	fi
+
+    ${ANDROID_ADB_EXE} install ${apk_file} > /dev/null 2>&1
 }
 
 function beautify(){
@@ -148,7 +186,7 @@ function beautify(){
 		awk '{printf "%-8d%-8s\n", NR, $0}' > ${beautified_file}
 }
 
-function build_instrument(){
+function rebuild-instrument(){
 	# Ensures the required variables are in place
 	: ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
 
@@ -161,7 +199,7 @@ function build_instrument(){
 	popd
 }
 
-function instrument_apk(){
+function instrument-apk(){
 	# Ensures the required variables are in place
 	: ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
 	# This sets the env variable required by "instrument-apk.sh"
@@ -175,22 +213,26 @@ function instrument_apk(){
 	
 	local instrumented_apk_file=$(${ABC_HOME}/instrumentation/scripts/instrument-apk.sh ${apk_file})
 	# THIS PRODUCES A LOG "HERE". TODO Shall we move the log the location of the instrumented apk ?
-	echo "Instrumented APK is ${instrumented_apk_file}"
+
+	( >&2 echo "** Instrumented APK is:")
+	echo "${instrumented_apk_file}"
 }
 
-function run_test(){
+function run-test(){
 	# Ensures the required variables are in place
 	: ${MONKEYRUNNER_EXE:?Please provide a value for MONKEYRUNNER_EXE in $config_file}
 	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file } 
 
 	# Mandatory. The file that contains instructions to be run with monkeyrunner
 	local instructions_file="${1:?Missing an instructions file}"
-	local apk="${2:?Missing an APK file}"
+	local apk_file="${2:?Missing an APK file}"
 
 	# Application directory
 	local apk_dir=${instructions_file%/*}
+
 	# Reads the package name of the application
-	local package_name=$(cat "$apk_dir"/.packagename)
+	local package_name=$(__private_get_package_name_from_apk_file ${apk_file})
+	
 	# Gets the path of the droixbench playback script
 	local playback_script="$(dirname $(realpath $0))/../apks/automated-testing/monkey_playback.py"
 
@@ -199,10 +241,11 @@ function run_test(){
 	# Checks if app is installed. Assumes that the directory contains exactly one apk file		
 	# if [ -z "$(${ANDROID_ADB_EXE} shell pm list packages $package_name)" ]; then 
 	( >&2 echo "(Re)Installing the APK")
-	install-apk "$apk"
+	install-apk "$apk_file"
 	# fi
 
-	${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" "$ANDROID_ADB_EXE" > run_test.log 
+    ( >&2 echo "Running ${instructions_file}")
+	${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" "$ANDROID_ADB_EXE" > run-test.log 2>&1
 
 	( >&2 echo "Test completed")
 
@@ -214,35 +257,45 @@ function copy-traces(){
 	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file } 
 
 	local package_name="${1:?Missing package name}"
+	# TODO ALESSIO: I do not really like this but leave it be for the moment
 	local output_dir="$ABC_HOME/carving/traces/$package_name"
-	local tmp_dir="./tmp"
+	local tmp_dir="$(mktemp -d)"
 
-	mkdir -p "$tmp_dir"
 	mkdir -p "$output_dir"
 
 	# Restart daemon with root access in order to be able to access app data
-	${ANDROID_ADB_EXE} root
+	${ANDROID_ADB_EXE} root > /dev/null 2>&1
 	# Apparently, adb cannot copy files using wildcards, hence, we copy the whole package temporarily
-	${ANDROID_ADB_EXE} pull "/data/data/$package_name" "$tmp_dir"
+	${ANDROID_ADB_EXE} pull "/data/data/$package_name" "$tmp_dir" > /dev/null 2>&1
 
 	# Iterate over trace files and copy them to the output dir
 	for filename in "$tmp_dir"/"$package_name"/Trace-*.txt; do
   		file=$(basename "$filename")
-  		( >&2 echo "Copying $filename")
-  		cp "$filename" "$output_dir"/"$file"
+		local output_trace="${output_dir}/${file}"
+		( >&2 echo "Copying $filename to ${output_trace}")
+  		cp "$filename" "${output_trace}"
+		echo "${output_trace}"
 	done
 
 	# Remove temporary files
 	rm -r "$tmp_dir"
 
-	( >&2 echo "Traces were copied to $output_dir")
+	( >&2 echo "Done Copying")
 }
 
-function edit_config(){
+function edit-config(){
 	nano ${ABC_CONFIG}
 }
 
-function show_config(){
+function edit-abc(){
+	# This does not work
+	# local editor=${ABC_EDITOR:-nano}
+	# ${editor} $0
+	# TODO Temporary trick as I registered alredy my editor
+	open -W ${0}
+}
+
+function show-config(){
 	( >&2 echo "Config file contains:")
 	( >&2 echo "-------------------")
 	cat ${ABC_CONFIG}
@@ -259,10 +312,10 @@ function __private_autocomplete(){
 	if [ "${command_name}" == "beautify" ]; then
 		echo "requires_one_file"
 	fi
-	if [ "${command_name}" == "instrument_apk" ]; then
+	if [ "${command_name}" == "instrument-apk" ]; then
 		echo "requires_one_file"
 	fi
-	if [ "${command_name}" == "run_test" ]; then
+	if [ "${command_name}" == "run-test" ]; then
 		# TODO actually requires two files
 		echo "requires_one_file"
 	fi

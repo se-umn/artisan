@@ -1,5 +1,6 @@
 package de.unipassau.abc.parsing;
 
+import com.thoughtworks.xstream.io.xml.StaxDriver;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -77,7 +78,7 @@ public class ParsedTrace {
         Map<String, // ThreadName
                 Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> content = new HashMap<>();
 
-        XStream xStream = new XStream();
+        XStream xStream = new XStream(new StaxDriver());
 
         ParsedTrace parsedTrace = null; 
 
