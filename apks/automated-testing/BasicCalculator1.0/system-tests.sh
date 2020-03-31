@@ -29,3 +29,8 @@ for TEST in $(find "$(realpath $(dirname $0))" -type f -iname "*.test"); do
     echo "Done Test: ${TEST}"
     echo "${VERDICT}"
 done
+
+# NOTE: For the moment we stop all the emulators
+abc stop-emulator $(abc list-running-emulators)
+
+
