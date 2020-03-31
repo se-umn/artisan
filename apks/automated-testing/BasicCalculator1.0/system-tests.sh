@@ -18,12 +18,18 @@ for TEST in $(find "$(realpath $(dirname $0))" -type f -iname "*.test"); do
     echo "Running Test: ${TEST}"
     # This might generate more traces? 
     for TRACE in $(abc run-test "${TEST}" "${INSTRUMENTED_APK}" ); do
-        if [ $((number%2)) -eq 0 ]
+        # Copy the trace in the test folder using the test name as template
+        cp -v ${TRACE} ${TEST}-trace
+        # Actually check that the number of lines in the trace are even
+        number_of_line=$(wc -l ${TRACE} | awk '{print $1}')
+        if [ $((number_of_line%2)) -eq 0 ]
         then
             # https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
             VERDICT="${green}PASS${reset}"
         else
-            VERDICT="${red}FAIL${reset}"
+            VERDICT="${red}FAIL${reset}: expected an Even number of lines but got ${number_of_line}"
+            # Exit at first error
+            break
         fi
     done
     echo "Done Test: ${TEST}"
