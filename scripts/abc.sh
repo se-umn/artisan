@@ -106,13 +106,20 @@ function stop-emulator(){
 	# TODO This might be autocompleted with "list-running-emulators"
 	: ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
 	
-	local emulator_name=${1:?Missing emulator name. Run 'function list-running-emulators' to list the running emulators}
-	
+	# Check that at least one is defined?
+	local tmp=${1:?Missing emulator name. Run 'function list-running-emulators' to list the running emulators}
+	unset tmp
+
 	# TODO This can be improved
-	${ANDROID_ADB_EXE} devices | grep emulator | cut -f1 | grep ${emulator_name} | \
-		while read line; do
-			${ANDROID_ADB_EXE} -s $line emu kill
-		done
+	local running_emulators=($(list-running-emulators))
+	echo "Running emulators ${running_emulators[@]}?"
+	for emulator_name in "$@"; do
+		if [[ " ${running_emulators[@]} " =~ " ${emulator_name} " ]]; then
+    		# whatever you want to do when arr contains value
+			echo "KILLING ${emulator_name}?"
+			${ANDROID_ADB_EXE} -s ${emulator_name} emu kill
+		fi
+	done
 }
 
 function __private_get_package_name_from_apk_file(){
