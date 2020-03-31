@@ -496,7 +496,7 @@ public class Monitor {
 				 */
 				returnInto_impl(ownerOfExceptionSource.remove(threadData), //
 						signatureOfExceptionSource.remove(threadData), contextOfExceptionSource.remove(threadData), //
-						exception, DEBUG_EXCEPTION);
+						exception, METHOD_END_TOKEN_FROM_EXCEPTION);
 			}
 
 			//
@@ -598,10 +598,6 @@ public class Monitor {
 	public final static String LIB_METHOD_START_TOKEN = "[>>]";
 	public final static String METHOD_END_TOKEN = "[<]";
 	public final static String METHOD_END_TOKEN_FROM_EXCEPTION = "[<E]";
-
-	public final static String DEBUG_EXCEPTION = "[<DE]";
-
-	// public final static String METHOD_OBJECT_TOKEN = "[||]" + DELIMITER;
 
 	private static String[] extractParameterTypes(String method) {
 		Pattern argsPattern = Pattern.compile("\\((.*?)\\)");
