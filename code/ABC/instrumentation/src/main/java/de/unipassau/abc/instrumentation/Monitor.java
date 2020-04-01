@@ -256,7 +256,7 @@ public class Monitor {
 			// active = false;
 			// }
 		} catch (Throwable t) {
-			android.util.Log.e(">> ABC::", "ERROR !", t);
+			android.util.Log.e(ABC_TAG, "ERROR !", t);
 			throw t;
 		} finally {
 			lock.unlock();
@@ -285,7 +285,7 @@ public class Monitor {
 			// active = false;
 			// }
 		} catch (Throwable t) {
-			android.util.Log.e(">> ABC::", "ERROR !", t);
+			android.util.Log.e(ABC_TAG, "ERROR !", t);
 			throw t;
 		} finally {
 			lock.unlock();
@@ -313,7 +313,7 @@ public class Monitor {
 			// active = false;
 			// }
 		} catch (Throwable t) {
-			android.util.Log.e(">> ABC::", "ERROR !", t);
+			android.util.Log.e(ABC_TAG, "ERROR !", t);
 			throw t;
 		} finally {
 			lock.unlock();
@@ -346,7 +346,7 @@ public class Monitor {
 		try {
 			libCall_impl(methodOwner, methodSignature, methodContext, methodParameters);
 		} catch (Throwable t) {
-			android.util.Log.e(">> ABC::", "ERROR !", t);
+			android.util.Log.e(ABC_TAG, "ERROR !", t);
 			throw t;
 		} finally {
 			lock.unlock();
@@ -371,7 +371,7 @@ public class Monitor {
 			returnInto_impl(methodOwner, methodSignature, methodContext, returnValue, METHOD_END_TOKEN);
 
 		} catch (Throwable t) {
-			android.util.Log.e(">> ABC::", "ERROR !", t);
+			android.util.Log.e(ABC_TAG, "ERROR !", t);
 			throw t;
 		} finally {
 			lock.unlock();
@@ -571,7 +571,7 @@ public class Monitor {
 			 * if (dumpCallmap) { dumpCallmap(); }
 			 */
 		} catch (Throwable t) {
-			android.util.Log.e(">> ABC::", "ERROR !", t);
+			android.util.Log.e(ABC_TAG, "ERROR !", t);
 			throw t;
 		} finally {
 			lock.unlock();
