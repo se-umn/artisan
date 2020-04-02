@@ -41,6 +41,8 @@ import utils.logicClock;
  */
 public class Monitor {
 
+	public static final String ABC_TAG = ">> ABC::";
+
 	private static ReentrantLock lock = new ReentrantLock();
 
 	// Store trace info inside the phone memory
@@ -254,7 +256,7 @@ public class Monitor {
 			// active = false;
 			// }
 		} catch (Throwable t) {
-			android.util.Log.e(">> ABC::", "ERROR !", t);
+			android.util.Log.e(ABC_TAG, "ERROR !", t);
 			throw t;
 		} finally {
 			lock.unlock();
@@ -283,7 +285,7 @@ public class Monitor {
 			// active = false;
 			// }
 		} catch (Throwable t) {
-			android.util.Log.e(">> ABC::", "ERROR !", t);
+			android.util.Log.e(ABC_TAG, "ERROR !", t);
 			throw t;
 		} finally {
 			lock.unlock();
@@ -311,7 +313,7 @@ public class Monitor {
 			// active = false;
 			// }
 		} catch (Throwable t) {
-			android.util.Log.e(">> ABC::", "ERROR !", t);
+			android.util.Log.e(ABC_TAG, "ERROR !", t);
 			throw t;
 		} finally {
 			lock.unlock();
@@ -344,7 +346,7 @@ public class Monitor {
 		try {
 			libCall_impl(methodOwner, methodSignature, methodContext, methodParameters);
 		} catch (Throwable t) {
-			android.util.Log.e(">> ABC::", "ERROR !", t);
+			android.util.Log.e(ABC_TAG, "ERROR !", t);
 			throw t;
 		} finally {
 			lock.unlock();
@@ -369,7 +371,7 @@ public class Monitor {
 			returnInto_impl(methodOwner, methodSignature, methodContext, returnValue, METHOD_END_TOKEN);
 
 		} catch (Throwable t) {
-			android.util.Log.e(">> ABC::", "ERROR !", t);
+			android.util.Log.e(ABC_TAG, "ERROR !", t);
 			throw t;
 		} finally {
 			lock.unlock();
@@ -499,10 +501,9 @@ public class Monitor {
 						exception, METHOD_END_TOKEN_FROM_EXCEPTION);
 			}
 
-			//
 			returnInto_impl(methodOwner, methodSignature, methodContext, exception, METHOD_END_TOKEN_FROM_EXCEPTION);
 		} catch (Throwable t) {
-			android.util.Log.e(">> ABC::", "ERROR !", t);
+			android.util.Log.e(ABC_TAG, "ERROR !", t);
 			throw t;
 		} finally {
 			lock.unlock();
@@ -570,7 +571,7 @@ public class Monitor {
 			 * if (dumpCallmap) { dumpCallmap(); }
 			 */
 		} catch (Throwable t) {
-			android.util.Log.e(">> ABC::", "ERROR !", t);
+			android.util.Log.e(ABC_TAG, "ERROR !", t);
 			throw t;
 		} finally {
 			lock.unlock();
@@ -686,6 +687,8 @@ public class Monitor {
 
 			// Owner can be an array
 
+		} else if (methodOwner == null && !isString(extractOwnerType(method))) {
+			content.append(extractOwnerType(method) + "@0");
 		}
 
 		// TODO NOT SURE WE NEED TO REPORT BOXED TYPE AS OWNER WITH THEIR VALUE.
@@ -874,6 +877,8 @@ public class Monitor {
 
 				// Owner can be an array
 
+			} else if (methodOwner == null && !isString(extractOwnerType(method))) {
+				content.append(extractOwnerType(method) + "@0");
 			}
 
 			content.append(DELIMITER);
