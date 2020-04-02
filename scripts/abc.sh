@@ -283,6 +283,38 @@ function copy-traces(){
 	( >&2 echo "Done Copying")
 }
 
+function parse(){
+    local trace_file=${1:?Missing trace file}
+    local stack=()
+
+    while IFS="" read -r line || [ -n "$line" ]
+    do
+        #( >&2 printf "%s\n" "$line")
+        IFS=';' read -r -a items <<< "$line"
+        local token="${items[2]}"
+        local method="${items[4]}"
+
+        if [[ "$token" == *">"* ]]; then
+            # Push method onto the stack
+            stack+=("$method")
+        elif [[ "$token" == *"<"* ]]; then
+            if [[ ${#stack[@]} -eq 0 ]]; then   
+                # Stack is empty
+                return 1
+            else
+                if [[ "$method" == "${stack[${#stack[@]} - 1]}" ]]; then
+                    # Method signatures are equal
+                    unset 'stack[${#stack[@]}-1]'
+                else
+                    # Method signatures do not match
+                    return 1
+                fi
+            fi
+        fi
+    done < "$trace_file"
+    return 0
+}
+
 function edit-config(){
 	nano ${ABC_CONFIG}
 }
