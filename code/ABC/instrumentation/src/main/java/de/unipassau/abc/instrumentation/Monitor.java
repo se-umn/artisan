@@ -43,6 +43,17 @@ public class Monitor {
 
 	public static final String ABC_TAG = ">> ABC::";
 
+	public final static char DELIMITER = ';';
+
+	public final static String METHOD_START_TOKEN = "[>]";
+	public final static String SYNTHETIC_METHOD_START_TOKEN = "[>s]";
+	public final static String PRIVATE_METHOD_START_TOKEN = "[>p]";
+
+	public final static String LIB_METHOD_START_TOKEN = "[>>]";
+	public final static String METHOD_END_TOKEN = "[<]";
+	public final static String METHOD_END_TOKEN_FROM_EXCEPTION = "[<E]";
+	public final static String METHOD_END_TOKEN_FROM_EXCEPTION_CAUGHT = "[<e]";
+
 	private static ReentrantLock lock = new ReentrantLock();
 
 	// Store trace info inside the phone memory
@@ -478,6 +489,44 @@ public class Monitor {
 
 	}
 
+	/**
+	 * Despite being an exceptional case, this is still something that the developer
+	 * expects so we can consider this like any other "returnInto." The difference
+	 * here is that we do not report on the methodContext but the last invocation
+	 * done.
+	 * 
+	 * @param methodOwner
+	 * @param methodSignature
+	 * @param methodContext
+	 * @param exception
+	 * @throws Throwable
+	 */
+	public static void returnIntoFromExceptionCaught(Object methodOwner, //
+			String methodSignature, //
+			String methodContext, //
+			Object exception) throws Throwable {
+		lock.lock();
+		try {
+
+			// If lastMethodContext is not empty, it means that a method previously invoked
+			// did not finished. Hence, the exception was thrown in there
+			// otherwise the exception was throw in the current method (using throw)
+			String threadData = getThreadData();
+			if (contextOfExceptionSource.containsKey(threadData)) {
+				// Clean Up the data just like we do for returnInto
+				returnInto_impl(ownerOfExceptionSource.remove(threadData),
+						signatureOfExceptionSource.remove(threadData), contextOfExceptionSource.remove(threadData),
+						exception, METHOD_END_TOKEN_FROM_EXCEPTION_CAUGHT);
+			}
+
+		} catch (Throwable t) {
+			android.util.Log.e(ABC_TAG, "ERROR !", t);
+			throw t;
+		} finally {
+			lock.unlock();
+		}
+	}
+
 	// Most likely we can see the exception bubbling and derive in which method
 	// this happened and was captured
 	public static void returnIntoFromException(Object methodOwner, //
@@ -583,22 +632,6 @@ public class Monitor {
 			android.util.Log.e("ABC:: " + g_counter, "Application Terminated at " + where);
 		}
 	}
-
-	/*
-	 * ===============================================
-	 * ===============================================
-	 * ===============================================
-	 * ===============================================
-	 */
-	public final static char DELIMITER = ';';
-
-	public final static String METHOD_START_TOKEN = "[>]";
-	public final static String SYNTHETIC_METHOD_START_TOKEN = "[>s]";
-	public final static String PRIVATE_METHOD_START_TOKEN = "[>p]";
-
-	public final static String LIB_METHOD_START_TOKEN = "[>>]";
-	public final static String METHOD_END_TOKEN = "[<]";
-	public final static String METHOD_END_TOKEN_FROM_EXCEPTION = "[<E]";
 
 	private static String[] extractParameterTypes(String method) {
 		Pattern argsPattern = Pattern.compile("\\((.*?)\\)");
