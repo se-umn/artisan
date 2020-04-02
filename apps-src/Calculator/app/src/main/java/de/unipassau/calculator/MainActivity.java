@@ -30,8 +30,6 @@ public class MainActivity extends Activity {
         EditText inputField = findViewById(R.id.input);
         String input = inputField.getText().toString();
 
-        String test = null;
-        boolean empty = test.isEmpty();
         Number number = eval(input);
         double result = number.doubleValue();
         intent.putExtra(RESULT_MESSAGE, result);
