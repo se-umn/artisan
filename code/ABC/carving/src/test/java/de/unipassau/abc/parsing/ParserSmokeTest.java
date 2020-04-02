@@ -32,7 +32,7 @@ public class ParserSmokeTest {
 
 	@Test
 	public void parseTrace() throws FileNotFoundException, IOException, ABCException {
-		File traceFile = new File("./traces/de.unipassau.calculator/Trace-1585570774429.txt");
+		File traceFile = new File("./traces/de.unipassau.calculator/Trace-1585866107653.txt");
 		DuafDroidParser parser = new DuafDroidParser();
 		ParsedTrace parsedTrace = parser.parseTrace(traceFile);
 
