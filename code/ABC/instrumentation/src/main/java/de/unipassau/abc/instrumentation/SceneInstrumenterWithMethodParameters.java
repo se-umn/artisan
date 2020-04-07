@@ -64,6 +64,7 @@ import soot.jimple.StringConstant;
 import soot.jimple.ThrowStmt;
 import soot.jimple.infoflow.android.manifest.ProcessManifest;
 import soot.toolkits.graph.ExceptionalUnitGraph;
+import soot.util.Chain;
 
 /**
  * TODO Get rid of the "old" dua thingy if possible, in the end we are just
@@ -100,6 +101,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 	protected SootMethod monitorOnTerminateApp;
 	//
 	protected SootMethod monitorOnReturnIntoFromException;
+	protected SootMethod monitorOnReturnIntoFromExceptionCaught;
 
 	private List<SootClass> userClasses;
 
@@ -115,7 +117,8 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 	public static boolean g_instr3rdparty = false;
 
 	public SceneInstrumenterWithMethodParameters(String appPackageName) {
-		// At this moment, soot did not run so there's no class loaded into the Scene.v()
+		// At this moment, soot did not run so there's no class loaded into the
+		// Scene.v()
 		this.appPackageName = appPackageName;
 	}
 
@@ -161,6 +164,9 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 			// An exception returned in a catch method of our application
 			monitorOnReturnIntoFromException = clsMonitor.getMethodByName("returnIntoFromException");
+			
+			monitorOnReturnIntoFromExceptionCaught = clsMonitor.getMethodByName("returnIntoFromExceptionCaught");
+			
 		} catch (Throwable t) {
 			t.printStackTrace();
 
@@ -174,7 +180,6 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 			throw t;
 		}
 	}
-
 
 	public void run() {
 		g_instr3rdparty = false;
@@ -228,7 +233,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		 * flow graph object?
 		 */
 		Iterator<SootClass> applicationClassesIterator = userClasses.iterator();
-		if( userClasses.size() == 0 ) {
+		if (userClasses.size() == 0) {
 			System.out.println("\n\n NO USER CLASSES DEFINED !");
 		}
 		while (applicationClassesIterator.hasNext()) {
@@ -274,22 +279,32 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 				}
 //				}
 
-				wrapTryCatchAllBlocks(currentlyInstrumentedMethod);
-
-//				if (opts.debugOut()) {
-				System.out.println("\t FORCE Try-Finally over the method:");
-				for (Unit u : currentlyInstrumentedMethodBody.getUnits()) {
-					System.out.println("\t\t " + u);
-				}
-//				}
-
 				/*
 				 * Global variables
 				 */
 				PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain = currentlyInstrumentedMethodBody
 						.getUnits();
 
-				// TODO
+				instrumentMethodTraps(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
+						currentlyInstrumentedMethodBodyUnitChain);
+
+				/*
+				 * Be sure that for every trap there's a call to returnFromException and the
+				 * other methods. Do it before wrapTryCatchAllBlocks and the other methods in
+				 * order to avoid logging the exception twice?
+				 */
+
+				// Wrap the entire method in a big try/catch/re-throw
+				wrapTryCatchAllBlocks(currentlyInstrumentedMethod);
+
+//				if (opts.debugOut()) {
+				System.out.println("\t FORCE Try-Finally over the method:");
+//				for (Unit u : currentlyInstrumentedMethodBody.getUnits()) {
+//					System.out.println("\t\t " + u);
+//				}
+
+				
+				// TODO - Instrument FINAL blocks?
 				// boolean hasFinally =
 				// getFinally(currentlyInstrumentedMethodBody.toString());
 
@@ -365,6 +380,97 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 					+ "the instrumented subject MUST thereafter run independently rather than via EARun!");
 		}
 	} // --
+
+	/**
+	 * For each trap (catch block) insert code which logs the exception as first
+	 * action in the trap
+	 * 
+	 * @param currentlyInstrumentedSootMethod
+	 */
+	private void instrumentMethodTraps(SootMethod currentlyInstrumentedSootMethod,
+			/*
+			 * Need to generate fresh locals and access other elements like "this.local" -
+			 * TODO Is this.local the method owner or the method itself?
+			 */
+			Body currentlyInstrumentedMethodBody,
+			/*
+			 * Need to inject the code inside the currentlyInstrumentedMethod - TODO Can't
+			 * we simply get a new instance of this or shall we pass it around ?
+			 */
+			PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain
+
+	) throws IOException, XmlPullParserException {
+
+
+		Chain<Trap> traps = currentlyInstrumentedMethodBody.getTraps();
+		for (Trap t : traps) {
+			System.out.println("---------------------------------------------");
+			System.out.println("Instrumenting TRAP " + t);
+			// TODO Is this the @Caught?
+//			System.out.println("First unit of trap is " + t.getBeginUnit());
+//			System.out.println("Last unit of trap is " + t.getEndUnit());
+
+			// This gives us the Class of the exception
+			System.out.println("Caught Exception is " + t.getException());
+			SootClass sce = t.getException();
+			
+			// Not sure this really needed
+			System.out.println("Handler Unit is " + t.getHandlerUnit());
+			// This is where we n
+			System.out.println("Unit after the handler " + currentlyInstrumentedMethodBodyUnitChain.getSuccOf( t.getHandlerUnit()) );
+			Unit unitAfterHandler = currentlyInstrumentedMethodBodyUnitChain.getSuccOf( t.getHandlerUnit());
+			System.out.println("---------------------------------------------");
+
+			
+
+			// Wrap the value to be returned into a new object
+			// local and pass it to the monitor
+			List<Unit> instrumentationCode = new ArrayList<>();
+			// Prepare the call to the monitor
+			List<Value> onReturnIntoFromExceptionArgs = new ArrayList<>();
+			// Method Owner
+			//
+			if (currentlyInstrumentedSootMethod.isStatic() || currentlyInstrumentedSootMethod.isConstructor()) {
+				onReturnIntoFromExceptionArgs.add(NullConstant.v());
+			} else {
+				onReturnIntoFromExceptionArgs.add(currentlyInstrumentedMethodBody.getThisLocal());
+			}
+			// Method Signature
+			final String currentlyInstrumentedMethodSignature = currentlyInstrumentedSootMethod.getSignature();
+			onReturnIntoFromExceptionArgs.add(StringConstant.v(currentlyInstrumentedMethodSignature));
+			// Method Context - TODO What's the difference ? Probably libCall have a different context ?
+			onReturnIntoFromExceptionArgs.add(StringConstant.v(currentlyInstrumentedMethodSignature));
+
+			// Pass the exception 
+			Value caughtExceptionInstance = ((IdentityStmt) t.getHandlerUnit()).getLeftOp();
+			
+			// Include this assignement in the instructions to excute before the instrumentation
+			// TODO Do we need to include this one as well ?
+			// TODO Maybe we need the Assignment after all ?
+//			instrumentationCode.add(e)
+			// This updates instrumentation code to include all the necessary wrapping code
+			onReturnIntoFromExceptionArgs.add(UtilInstrumenter
+					.generateCorrectObject(currentlyInstrumentedMethodBody, caughtExceptionInstance, instrumentationCode));
+
+			Stmt onReturnIntoCall = Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(
+					monitorOnReturnIntoFromExceptionCaught.makeRef(), onReturnIntoFromExceptionArgs));
+
+			instrumentationCode.add(onReturnIntoCall);
+
+			
+			instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, unitAfterHandler, instrumentationCode);
+			
+			
+			
+		}
+
+//		Trap t = trapsIt.next();
+//		Iterator<Unit> unitIt = units.iterator(t.getBeginUnit(), t.getEndUnit());
+//		   Trap newTrap = (Trap) t.clone();
+//		   t.setBeginUnit(rangeStart);
+//		   newTrap.setEndUnit(rangeStart);
+//		   traps.insertAfter(newTrap, t);	
+	}
 
 	/**
 	 * Gets/creates collection of all classes defined in user code --- classes
@@ -1746,4 +1852,3 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 	}
 
 } // -- public class icgInst
-
