@@ -1,3 +1,0 @@
-In order to replicate the crash, install the apk and run the command inside the droixbench directory:
-
-monkeyrunner ./monkey_playback.py ./Poet1.17.0/InstructionFile ca.rmen.android.poetassistant ./output
