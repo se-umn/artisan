@@ -161,7 +161,7 @@ function beautify(){
 	# Mandatory
 	local trace_file="${1:?Missing trace file to beautify}"
 	# Optional
-	local thread_name="${2:'UI:main'}"
+	local thread_name="${2:-UI:main}"
 	#
 	local beautified_file="${trace_file}-beautified"
 	( >&2 echo "Beautify ${trace_file} for thread ${thread_name} to ${beautified_file}")
