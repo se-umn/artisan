@@ -227,6 +227,17 @@ function run-test(){
 	local instructions_file="${1:?Missing an instructions file}"
 	local apk_file="${2:?Missing an APK file}"
 
+	if [ -e ${instructions_file} ]; then 
+		( >&2 echo "The provided test file ${instructions_file} does not exist." )
+		return -1
+	fi
+
+	if [ -e ${apk_file} ]; then 
+		( >&2 echo "The provided APK ${apk_file} does not exist." )
+		return -1
+	fi
+
+
 	# Application directory
 	local apk_dir=${instructions_file%/*}
 
