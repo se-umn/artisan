@@ -21,19 +21,19 @@ for TEST in $(find "$(realpath $(dirname $0))" -type f -iname "*.test"); do
         # Copy the trace in the test folder using the test name as template
         cp -v ${TRACE} ${TEST}-trace
 
-        # Actually check that the number of lines in the trace are even
-        number_of_line=$(wc -l ${TRACE} | awk '{print $1}')
-        if [ ! $((number_of_line%2)) -eq 0 ]; then
-            # https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
-            VERDICT="${red}FAIL${reset}: expected an even number of lines but got ${number_of_line}"
-        elif abc parse "$TRACE"; then
-            # Parse the sequence of method calls
-            VERDICT="${green}PASS${reset}"
-        else
-            VERDICT="${red}FAIL${reset}: method entries and returns do not match"
-            # Exit at first error
-            break
+        abc split-trace "$TRACE"
+        for SPLIT in "$TRACE"-split*; do
+             # Actually check that the number of lines in the trace are even
+            number_of_line=$(wc -l ${SPLIT} | awk '{print $1}')
+            if [ ! $((number_of_line%2)) -eq 0 ]; then
+                # https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
+                thread_name=$(echo "$SPLIT" | awk 'match($0, /(split\-)[a-zA-Z 0-9 \- _]+$/) {print substr($0, RSTART + 7, RLENGTH)}' | tr "_" " ")
+                VERDICT="${red}FAIL${reset}: expected an even number of lines in thread $thread_name but got ${number_of_line}"
+                break
+            else
+                VERDICT="${green}PASS${reset}"
         fi
+        done
     done
     echo "Done Test: ${TEST}"
     echo "${VERDICT}"
