@@ -148,6 +148,28 @@ function install-apk(){
     ${ANDROID_ADB_EXE} install ${apk_file} > /dev/null 2>&1
 }
 
+function split-trace(){
+	local trace_file="${1:?Missing trace file to beautify}"
+	if [ ! -e ${trace_file} ]; then
+		( >&2 echo "Trace file ${trace_file} does not exist.")
+		return -1
+	fi
+
+	# TODO I cannot store strings with spaces into thread_names so I replace spaces with underscore... hoping this will not break anything...
+	local thread_names=($(cat ${trace_file} | awk '{print $3,$4,$5}' | cut -f 1 -d';' | sort | uniq | tr " " "_"))
+
+	for thread_name in "${thread_names[@]}"; do
+		# Replace back the spaces
+		thread_name="$(echo -e ${thread_name} | tr "_" " ")"
+		( >&2 echo "Splitting for ${thread_name}.")
+		# Replace NON-alfanumeric chars to _ to ensure a valid name is created for the file
+		local file_pattern=$(echo -e "${thread_name}" | tr -c '[:alnum:]._-' '_')
+		cat ${trace_file} | grep -F "${thread_name}" > "${trace_file}-split-${file_pattern}"
+		
+	done
+	
+}
+
 function beautify(){
 	#
 	# This untility takes a trace, filters its entries by thread name using patter matching, and create a version of it which
@@ -161,7 +183,7 @@ function beautify(){
 	# Mandatory
 	local trace_file="${1:?Missing trace file to beautify}"
 	# Optional
-	local thread_name="${2:'UI:main'}"
+	local thread_name="${2:-UI:main}"
 	#
 	local beautified_file="${trace_file}-beautified"
 	( >&2 echo "Beautify ${trace_file} for thread ${thread_name} to ${beautified_file}")
@@ -365,7 +387,12 @@ function __private_autocomplete(){
 	if [ "${command_name}" == "install-apk" ]; then
 		echo "requires_one_file"
 	fi
+	
 	if [ "${command_name}" == "copy-traces" ]; then
+		echo "requires_one_file"
+	fi
+	
+	if [ "${command_name}" == "split-trace" ]; then
 		echo "requires_one_file"
 	fi
 
