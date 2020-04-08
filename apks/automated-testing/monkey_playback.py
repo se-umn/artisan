@@ -34,7 +34,7 @@ from com.android.monkeyrunner import MonkeyRunner, MonkeyDevice, MonkeyImage, Mo
 # Lookup table to map command strings to functions that implement that
 # command.
 
-CONNECTION_WAIT_DELAY = 10
+CONNECTION_WAIT_DELAY = 5
 ADB_EXE = ""
 
 CMD_MAP = {
@@ -110,7 +110,7 @@ def exit_gracefully(signum, frame):
 def main():
     global ADB_EXE
 
-    sleep_time = 2.0
+    sleep_time = 5.0
     if len(sys.argv) == 0:
         print "Usage: instructions-file package-name adb-exe-path [sleep time]"
         sys.exit(1)
