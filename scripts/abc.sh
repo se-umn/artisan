@@ -286,31 +286,62 @@ function copy-traces(){
 function parse(){
     local trace_file=${1:?Missing trace file}
     local stack=()
+    local size=0
 
+    line_n=1
     while IFS="" read -r line || [ -n "$line" ]
     do
         #( >&2 printf "%s\n" "$line")
         IFS=';' read -r -a items <<< "$line"
+        local thread=$( echo ${items[0]} | awk 'match($0, /\[UI:main\]|\[AsyncTask #[0-9]+\]/) {print substr($0,RSTART,RLENGTH)}' )
         local token="${items[2]}"
         local method="${items[4]}"
+        local identificator="$thread $method"
 
         if [[ "$token" == *">"* ]]; then
-            # Push method onto the stack
-            stack+=("$method")
+            # Method entry
+            stack+=("$identificator")
+            (( size++ ))
         elif [[ "$token" == *"<"* ]]; then
-            if [[ ${#stack[@]} -eq 0 ]]; then   
-                # Stack is empty
-                return 1
-            else
-                if [[ "$method" == "${stack[${#stack[@]} - 1]}" ]]; then
-                    # Method signatures are equal
-                    unset 'stack[${#stack[@]}-1]'
-                else
-                    # Method signatures do not match
-                    return 1
-                fi
-            fi
+        	# Method return
+
+        	# Iterate over the stack to find the last called method on this thread
+        	ok=1
+        	i=`expr $size - 1`
+
+        	while [[ i -ge 0 ]]; do
+        		if [[ -z ${stack[i]} ]]; then
+        			# Skip gap
+        			(( i-- ))
+        			continue
+        		fi
+
+        		local entry=${stack[i]}
+        		if [[ $entry == "$thread"* ]]; then
+        			# Correct thread, check method signature
+        			if [[ "$entry" == "$identificator" ]]; then
+        				# Remove element from array
+        				unset 'stack[i]'
+        				ok=0
+        				break
+        			else
+        				# Method signatures do not match
+        				( >&2 printf "Parsing error:\n\tUnexpected method return in line %d:\n\tExpected %s, but got %s\n" "$line_n" "$entry" "$identificator" )
+                    	return 1
+        			fi
+        		else 
+        			# Thread mismatch
+        			(( i-- ))
+        			continue
+        		fi
+        	done
+
+        	if [[ ok -eq 1 ]]; then
+        		( >&2 printf "Parsing error:\n\tUnexpected method return in line %d:\n\tGot %s, but the stack is empty\n" "$line_n" "$identificator" )
+        		return 1
+        	fi
         fi
+        (( line_n++ ))
     done < "$trace_file"
     return 0
 }
