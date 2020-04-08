@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
 
+import de.unipassau.abc.carving.TraceParser;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
@@ -29,6 +30,7 @@ import de.unipassau.abc.data.DataNodeFactory;
 import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
+import de.unipassau.abc.data.MethodInvocationMatcher;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
@@ -41,24 +43,15 @@ import soot.SootMethod;
 import soot.options.Options;
 
 /**
- * Parses the traces collected over android devices using the dyniac/duafdroid
- * code.
- * 
- * Each class is either an user class (for which we can generate carved tests),
- * or a library class. Library classes are either Android system Classes (also
- * Java lang) or 3rd party libraries, which we might invoke/mock but for which
- * we cannot generate tests.
- * 
  * Parser "only" parse one trace file at time, and generates the data structures
  * required for carving.
  * 
- * Parser consider the following heuristic: - Thread Name contains UI: this is
+ * Parser considers the following heuristic: - Thread Name contains UI: this is
  * the "main" thread of the android app - Thread Name contains Asynch/Task: this
- * is a background thread that execute a single task (and dies) - Anyother
+ * is a background thread that execute a single task (and dies) - Any other
  * thread name indicates some background service.
  * 
- * Library calls are identified by [>>] while user calls are identified by [>]
- * Synthetic calls are identified by [>s]
+ * Calls are intepreted using the tokens defined by {@link Monitor.class}
  * 
  * TODO To account for multiple thread, use the thread name as context and the
  * actual position in the file as id (they get interleaved but are still
@@ -73,7 +66,7 @@ import soot.options.Options;
  * @author gambi
  *
  */
-public class DuafDroidParser {
+public class TraceParserImpl implements TraceParser {
 
 	public interface ParserCLI {
 		@Option(longName = "android-jar")
@@ -82,24 +75,22 @@ public class DuafDroidParser {
 		@Option(longName = "apk")
 		File getApk();
 
-		@Option(longName = "store-artifacts-to", defaultValue = "./wip")
+		@Option(longName = "store-artifacts-to", defaultValue = ".")
 		File getOutputDir();
 
 		@Option(longName = "trace-files")
 		List<File> getTraceFiles();
-
-		// TODO Ignore calls to
 	}
 
-	// TODO Replace this with something read from the ENV or passed from the command line
+	// TODO Replace this with something read from the ENV or passed from the command
+	// line
 	public final static File ANDROID_28 = new File("/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar");
 
-	private static final Logger logger = LoggerFactory.getLogger(DuafDroidParser.class);
+	private static final Logger logger = LoggerFactory.getLogger(TraceParserImpl.class);
 
 	// TODO Move this to common
 	public final static String UI_THREAD = "UI:MainThread";
 
-	
 	public static void main(String[] args) throws IOException, CarvingException {
 
 		long startTime = System.nanoTime();
@@ -113,21 +104,21 @@ public class DuafDroidParser {
 		}
 
 		// TODO Are those necessarily static methods?
-		DuafDroidParser.setupSoot(cli.getAndroidJar(), cli.getApk());
+		TraceParserImpl.setupSoot(cli.getAndroidJar(), cli.getApk());
 
 //        Map<String, // TraceFile
 //                Map<String, // ThreadContext
 //                        Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> // ActualContent
 //        >> parsedTraceFiles = new HashMap<>();
 
-		DuafDroidParser parser = new DuafDroidParser();
+		TraceParserImpl parser = new TraceParserImpl();
 		// Start the parsing
 		List<ParsedTrace> theParsedTraces = new ArrayList<>();
 
 		for (File traceFile : cli.getTraceFiles()) {
 			try {
 				logger.debug("Parsing : " + traceFile);
-				theParsedTraces.add(parser.parseTrace(traceFile));
+				theParsedTraces.add(parser.parseFromTraceFile(traceFile));
 			} catch (Throwable e) {
 				logger.error("Failed to parse " + traceFile, e);
 			}
@@ -268,7 +259,7 @@ public class DuafDroidParser {
 	 * @throws CarvingException
 	 */
 //    public Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parseTrace(File traceFile)
-	public ParsedTrace parseTrace(File traceFile) throws FileNotFoundException, IOException, ABCException {
+	public ParsedTrace parseFromTraceFile(File traceFile) throws FileNotFoundException, IOException, ABCException {
 
 		ParsedTrace parsedTrace = new ParsedTrace(traceFile.getName());
 
@@ -656,6 +647,14 @@ public class DuafDroidParser {
 		String context = each.split(Trace.DELIMITER)[0];
 		each = each.replaceFirst(Pattern.quote(context + Trace.DELIMITER), "");
 		return each;
+	}
+
+	@Override
+	public Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parseTrace(String traceFilePath,
+			List<MethodInvocationMatcher> externalInterfaceMatchers)
+			throws FileNotFoundException, IOException, ABCException {
+		// TODO Auto-generated method stub
+		throw new RuntimeException("FIX ME. I am defined in an interface but this parser does not implement me...");
 	}
 
 }

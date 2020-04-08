@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.event.Level;
@@ -15,26 +14,34 @@ import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 public class ParserSmokeTest {
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 
-	// TODO Brittle, but cannot do otherwise for the moment. Maybe something from the ENV?
+	// TODO Brittle, but cannot do otherwise for the moment. Maybe something from
+	// the ENV?
 	// Or some known location inside the project (with symlink as well)
 	private final static File ANDROID_JAR = new File(
 			"/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar");
-	// Note there's no version number because this is a symlink
-	private final static File APK_FILE = new File("./src/test/resources/apks/BasicCalculator.apk");
-
-	@BeforeClass
-	public static void setupEnvironment() {
-		//
-		DuafDroidParser.setupSoot(ANDROID_JAR, APK_FILE);
-	}
 
 	@Test
 	public void parseTrace() throws FileNotFoundException, IOException, ABCException {
 		File traceFile = new File("./traces/de.unipassau.calculator/Trace-1585866107653.txt");
-		DuafDroidParser parser = new DuafDroidParser();
-		ParsedTrace parsedTrace = parser.parseTrace(traceFile);
+		File apk_file = new File("./src/test/resources/apks/BasicCalculator.apk");
+		
+		TraceParserImpl.setupSoot(ANDROID_JAR, apk_file);
+		
+		TraceParserImpl parser = new TraceParserImpl();
+		ParsedTrace parsedTrace = parser.parseFromTraceFile(traceFile);
+	}
 
+	@Test
+	public void parseTraceWithManyThreads() throws FileNotFoundException, IOException, ABCException {
+		File traceFile = new File("./traces/ca.rmen.android.poetassistant/Crash.test-trace");
+		File apk_file = new File("./src/test/resources/apks/Poet.apk");
+		
+		TraceParserImpl.setupSoot(ANDROID_JAR, apk_file);
+		
+		
+		TraceParserImpl parser = new TraceParserImpl();
+		ParsedTrace parsedTrace = parser.parseFromTraceFile(traceFile);
 	}
 }
