@@ -8,14 +8,17 @@ import java.nio.file.Files;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import de.unipassau.abc.data.JimpleUtils;
-import de.unipassau.abc.exceptions.ABCException;
-
 public class Trace {
+	public final static String ABC_TAG = "ABC::";
 
-	public final static String DELIMITER = ";";
+	// TODO Alternatively use | or * or $ but pay attention to the meaning of those
+	// inside RegEx
+	public final static String DELIMITER = ";"; // TODO Change this to % Using ; will create problems with String
+												// representation of arrays?
 
-	public final static String METHOD_START_TOKEN = "[>]";
+	public final static String METHOD_START_TOKEN = "[>]"; // TODO remove [ and ] from all the tokens and thread name
+															// and the like
+															// by DELIMITER
 	public final static String LIB_METHOD_START_TOKEN = "[>>]";
 	public final static String METHOD_END_TOKEN = "[<]";
 	public final static String EXCEPTION_METHOD_END_TOKEN = "[<E]";
@@ -49,65 +52,6 @@ public class Trace {
 	// This is tricky..
 	public final static Pattern objectInstancePatternWithGroup = Pattern.compile("([a-zA_Z_][\\.\\w]*@\\d+|)");
 
-	/**
-	 * Ensures to have 4 elements in the returning String[] or fail with an
-	 * exception
-	 * 
-	 * TODO Probably we should define some ParsingException
-	 * 
-	 * @param line "A valid line", not including the opening statement "----
-	 *             STARTING TRACING for ... ----"
-	 * @return
-	 * @throws CarvingException
-	 */
-	public static String[] parseLine(String line) throws ABCException {
-
-		String[] tokens = new String[4];
-
-		String[] _tokens = line.split(Trace.DELIMITER);
-
-		if (_tokens.length != 4) {
-			// Does the line contains an array as OWNER ?! I guess in the end arrays can
-			// have method calls ...
-			// [>>];[Lorg.ametro.catalog.entities.TransportType;@71559508;<java.lang.Object:
-			// java.lang.Object clone()>;(); got 5 instead of 4
-			if (_tokens[1].startsWith("[") && _tokens[2].startsWith("@")) {
-				tokens[0] = _tokens[0];
-				tokens[2] = _tokens[3];
-				tokens[3] = _tokens[4];
-				// Convert the array owner to the expected form
-
-				tokens[1] = JimpleUtils.getBaseArrayType(_tokens[1]) + "[]" + _tokens[2];
-
-			} else {
-				throw new ABCException("Cannot parse line " + line + " got " + _tokens.length + " instead of 4");
-			}
-		} else {
-			tokens = _tokens;
-		}
-
-		// Flag the call as library or user
-		String openingToken = tokens[0];
-
-		// Method owner if any or empty string otherwise
-		String methodOwner = tokens[1];
-
-		// Method Signature - a la JIMPLE
-		String methodSignature = tokens[2];
-
-		// Count formalParameters
-		String[] formalParameters = JimpleUtils.getParameterList(methodSignature);
-
-		// At this point take the remainder of the String and parse the
-		// parameters or the return value
-		String parameterString = tokens[3];
-
-		// Remove the opening ( and closing )
-		parameterString = parameterString.substring(1, parameterString.length() - 1);
-
-		return new String[] { openingToken, methodOwner, methodSignature, parameterString };
-	}
-
 	public final static Pattern methodSignaturePattern = Pattern.compile("<" // Opening
 			// Tag
 			+ "[a-zA_Z_][\\.\\w]*(\\[\\])?" // accept arrays as owners
@@ -121,8 +65,6 @@ public class Trace {
 			// list -> Does not match ARRAY !
 			+ ">"); // Closing Tag
 
-	//
-	private final static Pattern params = Pattern.compile("\\((.*?)\\)");
 
 	/*
 	 * This pattern matches using groups up to the actual parameters excluded.
@@ -136,19 +78,6 @@ public class Trace {
 					Trace.DELIMITER + //
 					"(" + Trace.methodSignaturePattern + ")" + // 3
 					Trace.DELIMITER);
-
-	public static String[] getFormalParameters(String jimpleMethod) {
-
-		Matcher matchPattern = params.matcher(jimpleMethod);
-		if (matchPattern.find()) {
-			String t = matchPattern.group(1);
-			if (t.length() == 0) {
-				return new String[] {};
-			}
-			return t.split(",");
-		}
-		return new String[] {};
-	}
 
 	static {
 		try {
@@ -481,64 +410,6 @@ public class Trace {
 
 			}
 		}
-	}
-
-	public static String[] getActualParameters(String methodSignature, String parameterString) {
-		String[] formalParameters = JimpleUtils.getParameterList(methodSignature);
-		String[] actualParametersOrReturnValue = new String[formalParameters.length];
-
-		if (formalParameters.length == 0) {
-			return actualParametersOrReturnValue;
-		}
-
-		String[] tokens = parameterString.split(",");
-		int pCount = 0; // formalParameters.length;
-		boolean accumulateStringContent = false;
-		String partialStringValue = null;
-
-		for (String token : tokens) {
-
-			// Empty String
-			if (token.equals("[]")) {
-				accumulateStringContent = false;
-			}
-			// Single Char Strings
-			else if (token.contains("[") && token.contains("]")) {
-				accumulateStringContent = false;
-			} else if (token.startsWith("[") && !token.contains("@")) { // Arrays have [Type form...
-				accumulateStringContent = true;
-				// Initialize the String
-				partialStringValue = "";
-			} else if (token.endsWith("]")) {
-				accumulateStringContent = false;
-				// Append the last token, without the delimiter
-				partialStringValue += token;
-			}
-
-			if (accumulateStringContent) {
-				// If the token reprensents a string-bytes, accumulate the
-				// elements
-				partialStringValue += token + ",";
-			} else {
-				if (partialStringValue == null) {
-					// Handle null at first position
-					if (token.isEmpty()) {
-						actualParametersOrReturnValue[pCount] = null;
-					} else {
-						actualParametersOrReturnValue[pCount] = token;
-					}
-				} else {
-					actualParametersOrReturnValue[pCount] = partialStringValue;
-				}
-				pCount++;
-				partialStringValue = null;
-			}
-		}
-
-		assert actualParametersOrReturnValue.length == formalParameters.length : "actual and formal parameters do not match";
-
-		return actualParametersOrReturnValue;
-
 	}
 
 }
