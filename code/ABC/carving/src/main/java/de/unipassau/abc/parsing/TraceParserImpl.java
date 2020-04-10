@@ -1,26 +1,7 @@
 package de.unipassau.abc.parsing;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.attribute.FileAttribute;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Pattern;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
-
 import de.unipassau.abc.carving.TraceParser;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.CallGraph;
@@ -36,6 +17,23 @@ import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.tracing.Trace;
 import edu.emory.mathcs.backport.java.util.Arrays;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.attribute.FileAttribute;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import soot.G;
 import soot.Scene;
 import soot.SootClass;
@@ -86,6 +84,7 @@ public class TraceParserImpl implements TraceParser {
 	// line
 	public final static File ANDROID_28 = new File("/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar");
 
+	public static final Pattern threadPattern = Pattern.compile("\\[((UI:main)|((Modern)?AsyncTask #[1-9][0-9]*))]");
 	private static final Logger logger = LoggerFactory.getLogger(TraceParserImpl.class);
 
 	// TODO Move this to common
@@ -180,8 +179,13 @@ public class TraceParserImpl implements TraceParser {
 		//
 		String threadData = currentLine.split(Trace.DELIMITER)[0];
 
-		// Get rid of the *ABC:: #line* prefix
-		threadData = threadData.substring(threadData.lastIndexOf(" ") + 1);
+		Matcher matcher = threadPattern.matcher(threadData);
+		if (!matcher.find()) {
+			// TODO should we break here?
+			logger.error("Could not find any thread information from " + currentLine);
+		}
+		threadData = matcher.group();
+		//threadData = threadData.substring(threadData.lastIndexOf(" ") + 1);
 
 		if (threadData.startsWith("[UI:")) {
 			currentLine = currentLine.replaceFirst(Pattern.quote(threadData + Trace.DELIMITER), "");
@@ -193,8 +197,7 @@ public class TraceParserImpl implements TraceParser {
 		} else {
 			// Get the full thread name, e.g., [Async Thread #1];
 			// Let's assume that the thread name does not contain "]"
-			String threadName = currentLine.substring(0, currentLine.indexOf(']')).replace("[", "");
-			return threadName;
+			return threadData.substring(0, threadData.indexOf(']')).replace("[", "");
 		}
 	}
 
