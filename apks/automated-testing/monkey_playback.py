@@ -72,6 +72,7 @@ def process_file(fp, device, app, insert_wait, sleeptime):
             time.sleep(sleeptime)
             continue
         (cmd, rest) = line.split('|')
+        rest = rest[:rest.find(" #")]
 
         try:
             # Parse the pydict

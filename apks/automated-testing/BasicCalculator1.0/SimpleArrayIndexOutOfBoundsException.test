@@ -1,4 +1,4 @@
 WAIT|{'seconds':1.0,}
 TOUCH|{'x':880,'y':840,'type':'downAndUp',} # focus input
-TYPE|{'message':'13',}
+TYPE|{'message':'(2,2)',}
 TOUCH|{'x':650,'y':1600,'type':'downAndUp',} # click equals

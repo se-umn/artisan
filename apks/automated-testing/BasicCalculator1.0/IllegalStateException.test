@@ -1,0 +1,5 @@
+WAIT|{'seconds':1.0,}
+TOUCH|{'x':880,'y':840,'type':'downAndUp',} # focus input
+TYPE|{'message':'2',}
+TOUCH|{'x':940,'y':960,'type':'downAndUp',} # erase
+TOUCH|{'x':940,'y':960,'type':'downAndUp',} # erase

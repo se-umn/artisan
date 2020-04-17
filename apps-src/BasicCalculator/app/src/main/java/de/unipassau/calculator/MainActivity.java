@@ -1,57 +1,81 @@
 package de.unipassau.calculator;
 
 
-import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
-import android.widget.EditText;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.bottomnavigation.BottomNavigationView.OnNavigationItemSelectedListener;
+import de.unipassau.calculator.fragments.CalculatorFragment;
+import de.unipassau.calculator.fragments.HistoryFragment;
+import de.unipassau.calculator.fragments.XmlClickable;
+import de.unipassau.calculator.viewmodel.CalculationViewModel;
 
-import net.objecthunter.exp4j.Expression;
-import net.objecthunter.exp4j.ExpressionBuilder;
-import net.objecthunter.exp4j.tokenizer.UnknownFunctionOrVariableException;
+public class MainActivity extends AppCompatActivity {
 
-public class MainActivity extends Activity {
-    public static final String RESULT_MESSAGE = "result";
-    public static final String ERRONEOUS_INPUT = "13";
+  private XmlClickable clickableFragment;
+  private BottomNavigationView bottomNavigation;
+  private CalculationViewModel model;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+  @Override
+  protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    setContentView(R.layout.activity_main);
+    bottomNavigation = findViewById(R.id.bottom_navigation);
+    bottomNavigation.setOnNavigationItemSelectedListener(navigationItemSelectedListener);
+
+    openFragment(CalculatorFragment.newInstance());
+  }
+
+  @Override
+  public boolean onCreateOptionsMenu(Menu menu) {
+    getMenuInflater().inflate(R.menu.toolbar_menu, menu);
+    return true;
+  }
+
+  @Override
+  public boolean onOptionsItemSelected(MenuItem item) {
+    int id = item.getItemId();
+
+    if (id == R.id.action_settings) {
+      Intent intent = new Intent(this, SettingsActivity.class);
+      startActivity(intent);
+      return true;
     }
 
-    public void sendResult(View view) {
-        if (view.getId() != R.id.calculateButton) {
-            return;
-        }
+    return super.onOptionsItemSelected(item);
+  }
 
-        Intent intent = new Intent(this, ResultActivity.class);
-        EditText inputField = findViewById(R.id.input);
-        String input = inputField.getText().toString();
-
-        Number number = eval(input);
-        double result = number.doubleValue();
-        intent.putExtra(RESULT_MESSAGE, result);
-        startActivity(intent);
+  public void openFragment(Fragment fragment) {
+    if (fragment instanceof XmlClickable) {
+      clickableFragment = (XmlClickable) fragment;
     }
 
-    private Number eval(String input) {
-        if (input.isEmpty()) {
-            return null;
-        } else if (input.equals(ERRONEOUS_INPUT)) {
-            throw new IllegalArgumentException("A simple exception");
-        }
+    FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+    transaction.replace(R.id.container, fragment);
+    transaction.addToBackStack(null);
+    transaction.commit();
+  }
 
-        Number result;
-        try {
-            Expression e = new ExpressionBuilder(input).build();
-            result = e.evaluate();
-        } catch (UnknownFunctionOrVariableException ufve) {
-            throw new IllegalArgumentException("Unknown function or variable", ufve);
-        }
+  public void click(View view) {
+    clickableFragment.click(view);
+  }
 
-        return result;
+  OnNavigationItemSelectedListener navigationItemSelectedListener = menuItem -> {
+    switch (menuItem.getItemId()) {
+      case R.id.navigation_calculator:
+        openFragment(CalculatorFragment.newInstance());
+        return true;
+      case R.id.navigation_history:
+        openFragment(HistoryFragment.newInstance());
+        return true;
+      default:
+        return false;
     }
-
+  };
 }

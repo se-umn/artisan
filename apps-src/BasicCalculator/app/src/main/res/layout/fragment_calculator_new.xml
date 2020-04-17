@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:app="http://schemas.android.com/apk/res-auto"
+  xmlns:tools="http://schemas.android.com/tools"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent">
+
+  <TableLayout
+    android:id="@+id/tableLayout"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:stretchColumns="*"
+    app:layout_constraintBottom_toTopOf="@id/buttonEquals"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toStartOf="parent">
+
+    <TableRow
+      android:layout_width="match_parent"
+      android:layout_height="match_parent">
+      <Button
+        android:id="@+id/button20"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+
+        android:text="@string/math_ac" />
+      <Button
+        android:id="@+id/button22"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+
+        android:text="@string/math_leftBracket" />
+      <Button
+        android:id="@+id/button21"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+
+        android:text="@string/math_rightBracket" />
+      <Button
+        android:id="@+id/button19"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+
+        android:text="@string/math_erase" />
+    </TableRow>
+    <TableRow
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="horizontal"
+      android:padding="0dp">
+      <Button
+        android:id="@+id/button3"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_margin="0dp"
+        android:text="@string/math_7"
+        android:onClick="click"
+        />
+      <Button
+        android:id="@+id/button2"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="0dp"
+        android:onClick="click"
+        android:text="@string/math_8" />
+      <Button
+        android:id="@+id/button"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:onClick="click"
+        android:text="@string/math_9" />
+      <Button
+        android:id="@+id/button4"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:onClick="click"
+
+        android:text="@string/math_mult" />
+    </TableRow>
+    <TableRow
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:onClick="click"
+
+      android:orientation="horizontal">
+      <Button
+        android:id="@+id/button8"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+
+        android:text="@string/math_4" />
+      <Button
+        android:id="@+id/button7"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+
+        android:text="@string/math_5" />
+      <Button
+        android:id="@+id/button5"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+
+        android:text="@string/math_6" />
+      <Button
+        android:id="@+id/button6"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+
+        android:text="@string/math_divide" />
+    </TableRow>
+    <TableRow
+      android:layout_width="match_parent"
+      android:layout_height="match_parent">
+      <Button
+        android:id="@+id/button13"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+
+        android:text="@string/math_1" />
+      <Button
+        android:id="@+id/button12"
+        android:layout_width="wrap_content"
+        android:onClick="click"
+
+        android:layout_height="wrap_content"
+        android:text="@string/math_2" />
+      <Button
+        android:id="@+id/button11"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+
+        android:text="@string/math_3" />
+      <Button
+        android:id="@+id/button10"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+
+        android:text="@string/math_sub" />
+    </TableRow>
+    <TableRow
+      android:layout_width="match_parent"
+      android:layout_height="match_parent">
+      <Button
+        android:id="@+id/button16"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+
+        android:text="@string/math_0" />
+      <Button
+        android:id="@+id/button15"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+
+        android:text="@string/math_dot" />
+      <Button
+        android:id="@+id/button17"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+
+        android:text="@string/math_comma" />
+      <Button
+        android:id="@+id/button14"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+
+        android:text="@string/math_add" />
+    </TableRow>
+  </TableLayout>
+  <Button
+    android:id="@+id/buttonEquals"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="@string/math_equals"
+    app:layout_constraintBottom_toBottomOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toStartOf="parent"
+    android:onClick="click"
+    />
+  <EditText
+    android:id="@+id/input"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="right"
+    android:textSize="18dp"
+    android:text=""
+    app:layout_constraintBottom_toTopOf="@+id/tableLayout"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toStartOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>
