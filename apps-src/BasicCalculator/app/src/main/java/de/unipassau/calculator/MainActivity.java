@@ -1,6 +1,5 @@
 package de.unipassau.calculator;
 
-
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
@@ -9,27 +8,21 @@ import android.view.View;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.google.android.material.bottomnavigation.BottomNavigationView.OnNavigationItemSelectedListener;
 import de.unipassau.calculator.fragments.CalculatorFragment;
 import de.unipassau.calculator.fragments.HistoryFragment;
 import de.unipassau.calculator.fragments.XmlClickable;
-import de.unipassau.calculator.viewmodel.CalculationViewModel;
 
 public class MainActivity extends AppCompatActivity {
 
   private XmlClickable clickableFragment;
-  private BottomNavigationView bottomNavigation;
-  private CalculationViewModel model;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.activity_main);
-    bottomNavigation = findViewById(R.id.bottom_navigation);
-    bottomNavigation.setOnNavigationItemSelectedListener(navigationItemSelectedListener);
 
-    openFragment(CalculatorFragment.newInstance());
+    openFragment(new CalculatorFragment(), R.id.bottomContainer);
+    openFragment(new HistoryFragment(), R.id.topContainer);
   }
 
   @Override
@@ -51,13 +44,13 @@ public class MainActivity extends AppCompatActivity {
     return super.onOptionsItemSelected(item);
   }
 
-  public void openFragment(Fragment fragment) {
+  public void openFragment(Fragment fragment, int id) {
     if (fragment instanceof XmlClickable) {
       clickableFragment = (XmlClickable) fragment;
     }
 
     FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
-    transaction.replace(R.id.container, fragment);
+    transaction.replace(id, fragment);
     transaction.addToBackStack(null);
     transaction.commit();
   }
@@ -66,16 +59,4 @@ public class MainActivity extends AppCompatActivity {
     clickableFragment.click(view);
   }
 
-  OnNavigationItemSelectedListener navigationItemSelectedListener = menuItem -> {
-    switch (menuItem.getItemId()) {
-      case R.id.navigation_calculator:
-        openFragment(CalculatorFragment.newInstance());
-        return true;
-      case R.id.navigation_history:
-        openFragment(HistoryFragment.newInstance());
-        return true;
-      default:
-        return false;
-    }
-  };
 }

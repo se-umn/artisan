@@ -2,7 +2,6 @@ package de.unipassau.calculator;
 
 import android.app.Application;
 import android.content.Context;
-import androidx.multidex.MultiDex;
 
 public class App extends Application {
 
@@ -17,9 +16,9 @@ public class App extends Application {
     appContext = getApplicationContext();
   }
 
-  @Override
+/*  @Override
   protected void attachBaseContext(Context base) {
     super.attachBaseContext(base);
     MultiDex.install(this);
-  }
+  }*/
 }

@@ -4,53 +4,225 @@
   xmlns:tools="http://schemas.android.com/tools"
   android:layout_width="match_parent"
   android:layout_height="match_parent">
+  <TableLayout
+    android:id="@+id/tableLayout"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:stretchColumns="*"
+    app:layout_constraintBottom_toTopOf="@id/buttonEquals"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toStartOf="parent">
 
+    <TableRow
+      android:layout_width="match_parent"
+      android:layout_height="match_parent">
+      <Button
+        android:id="@+id/button20"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:text="@string/math_ac" />
+      <Button
+        android:id="@+id/button22"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:text="@string/math_leftBracket" />
+      <Button
+        android:id="@+id/button21"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+        android:text="@string/math_rightBracket" />
+      <Button
+        android:id="@+id/button19"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:text="@string/math_erase" />
+    </TableRow>
+    <TableRow
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="horizontal"
+      android:padding="0dp">
+      <Button
+        android:id="@+id/button3"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_margin="0dp"
+        android:text="@string/math_7"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:onClick="click"
+        />
+      <Button
+        android:id="@+id/button2"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="0dp"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:text="@string/math_8" />
+      <Button
+        android:id="@+id/button"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:text="@string/math_9" />
+      <Button
+        android:id="@+id/button4"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:text="@string/math_mult" />
+    </TableRow>
+    <TableRow
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:onClick="click"
+
+      android:orientation="horizontal">
+      <Button
+        android:id="@+id/button8"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:text="@string/math_4" />
+      <Button
+        android:id="@+id/button7"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:text="@string/math_5" />
+      <Button
+        android:id="@+id/button5"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:text="@string/math_6" />
+      <Button
+        android:id="@+id/button6"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:text="@string/math_divide" />
+    </TableRow>
+    <TableRow
+      android:layout_width="match_parent"
+      android:layout_height="match_parent">
+      <Button
+        android:id="@+id/button13"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:text="@string/math_1" />
+      <Button
+        android:id="@+id/button12"
+        android:layout_width="wrap_content"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:layout_height="wrap_content"
+        android:text="@string/math_2" />
+      <Button
+        android:id="@+id/button11"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:text="@string/math_3" />
+      <Button
+        android:id="@+id/button10"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:text="@string/math_sub" />
+    </TableRow>
+    <TableRow
+      android:layout_width="match_parent"
+      android:layout_height="match_parent">
+      <Button
+        android:id="@+id/button16"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:text="@string/math_0" />
+      <Button
+        android:id="@+id/button15"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:text="@string/math_dot" />
+      <Button
+        android:id="@+id/button17"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:text="@string/math_comma" />
+      <Button
+        android:id="@+id/button14"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="click"
+        style="?android:attr/buttonBarButtonStyle"
+
+        android:text="@string/math_add" />
+    </TableRow>
+  </TableLayout>
   <Button
-    android:id="@+id/calculateButton"
-    android:layout_width="210dp"
-    android:layout_height="60dp"
-    android:text="@string/calculate_button"
+    android:id="@+id/buttonEquals"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="@string/math_equals"
     app:layout_constraintBottom_toBottomOf="parent"
     app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintHorizontal_bias="0.497"
     app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toTopOf="parent"
-    app:layout_constraintVertical_bias="0.299" />
+    android:onClick="click"
+    style="?android:attr/buttonBarButtonStyle"
+
+    />
   <EditText
     android:id="@+id/input"
-    android:layout_width="300dp"
-    android:layout_height="49dp"
-    android:ems="10"
-    android:hint="@string/enter_expression_to_evaluate"
-    android:inputType="textPersonName"
-    android:textSize="20sp"
-    app:layout_constraintBottom_toTopOf="@+id/calculateButton"
-    app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintHorizontal_bias="0.51"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toTopOf="parent"
-    app:layout_constraintVertical_bias="0.79" />
-  <RadioGroup
-    android:id="@+id/mode"
-    android:layout_width="wrap_content"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    app:layout_constraintBottom_toBottomOf="parent"
+    android:gravity="end"
+    android:textSize="22sp"
+    android:text=""
+    android:paddingRight="15dp"
+    android:paddingLeft="15dp"
+    app:layout_constraintBottom_toTopOf="@+id/tableLayout"
     app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintHorizontal_bias="0.5"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toBottomOf="@id/calculateButton"
-    app:layout_constraintVertical_bias="0.35">
-
-    <RadioButton
-      android:id="@+id/normalRadioButton"
-      android:layout_width="match_parent"
-      android:layout_height="wrap_content"
-      android:checked="true"
-      android:text="Normal" />
-    <RadioButton
-      android:id="@+id/currentRadioButton"
-      android:layout_width="match_parent"
-      android:layout_height="wrap_content"
-      android:text="Currency" />
-  </RadioGroup>
+    app:layout_constraintStart_toStartOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

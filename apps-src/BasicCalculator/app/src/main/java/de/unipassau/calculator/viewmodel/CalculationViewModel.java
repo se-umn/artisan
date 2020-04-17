@@ -4,7 +4,7 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 import de.unipassau.calculator.Calculation;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 public class CalculationViewModel extends ViewModel {
@@ -12,7 +12,7 @@ public class CalculationViewModel extends ViewModel {
 
   public CalculationViewModel() {
     history = new MutableLiveData<>();
-    history.setValue(new ArrayList<>());
+    history.setValue(new LinkedList<>());
   }
 
   public LiveData<List<Calculation>> getHistory() {
@@ -21,7 +21,13 @@ public class CalculationViewModel extends ViewModel {
 
   public void addCalculation(Calculation calculation) {
     // TODO check if list is null
-    history.getValue().add(calculation);
+    List<Calculation> calculations = history.getValue();
+    calculations.add(calculation);
+
+    if (calculations.size() > 5) {
+      calculations.remove(0);
+    }
+    history.setValue(calculations);
   }
 
 }

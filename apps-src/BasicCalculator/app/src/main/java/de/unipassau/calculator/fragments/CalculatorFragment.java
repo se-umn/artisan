@@ -48,17 +48,14 @@ public class CalculatorFragment extends Fragment implements XmlClickable {
   @Override
   public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
       @Nullable Bundle savedInstanceState) {
-    return inflater.inflate(R.layout.fragment_calculator_new, container, false);
+    return inflater.inflate(R.layout.fragment_calculator, container, false);
   }
 
   @Override
   public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
     super.onViewCreated(view, savedInstanceState);
-    getActivity().setTitle(R.string.calculator_menu);
     model = ViewModelProviders.of(requireActivity()).get(CalculationViewModel.class);
     inputField = view.findViewById(R.id.input);
-    //inputField.setKeyListener(null);
-    //inputField.setOnTouchListener((v, k) -> true);
     inputField.setRawInputType(InputType.TYPE_NULL);
     inputField.setFocusable(true);
     view.findViewById(R.id.buttonEquals).setOnClickListener(this::calculate);

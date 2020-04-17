@@ -17,10 +17,13 @@
       app:layout_constraintBottom_toBottomOf="parent"
       app:layout_constraintEnd_toEndOf="parent"
       app:layout_constraintStart_toStartOf="parent"
-      app:layout_constraintTop_toTopOf="parent" />
+      app:layout_constraintTop_toTopOf="parent"
+      android:scrollbars="vertical"
+      android:fadeScrollbars="true"
+      />
   </LinearLayout>
 
-  <com.google.android.material.floatingactionbutton.FloatingActionButton
+  <!--<com.google.android.material.floatingactionbutton.FloatingActionButton
     android:id="@+id/deleteFab"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
@@ -40,6 +43,6 @@
     android:contentDescription="@string/test"
     android:visibility="visible"
     app:backgroundTint="@color/colorPrimaryDark"
-    app:srcCompat="@drawable/ic_save_white" />
+    app:srcCompat="@drawable/ic_save_white" />-->
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
