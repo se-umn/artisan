@@ -365,6 +365,10 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
 	private boolean isProtected;
 
+	private boolean isExceptional;
+
+	private DataNode raisedException;
+
 	public void setSyntheticMethod(boolean synthetic) {
 		this.isSynthetic = synthetic;
 	}
@@ -395,5 +399,21 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
 	public boolean isProtected() {
 		return isProtected;
+	}
+
+	public void setExceptional(boolean b) {
+		this.isExceptional = b;
+	}
+
+	public boolean isExceptional() {
+		return isExceptional;
+	}
+
+	public void setRaisedException(DataNode exceptionValue) {
+		this.raisedException = exceptionValue;
+	}
+
+	public DataNode getRaisedException() {
+		return raisedException;
 	}
 }

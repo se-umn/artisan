@@ -8,6 +8,16 @@ public class DataNodeFactory {
 	private static final Logger logger = LoggerFactory.getLogger(DataNodeFactory.class);
 	// TODO Possibly build a cache ?
 
+	public static DataNode getFromException(String exceptionAsString) {
+		DataNode node = null;
+		if (exceptionAsString.split("@").length == 2) {
+			// TODO Consider to define an ExceptionInstanceFactory...
+			return ObjectInstanceFactory.get(exceptionAsString);
+		} else {
+			throw new RuntimeException("Cannot create a DataNote from Exception: " + exceptionAsString);
+		}
+	}
+
 	/**
 	 * This also takes care of Immutable/trivially parsable types like Strings,
 	 * Numeric/BoxedTypes, and Class objects
