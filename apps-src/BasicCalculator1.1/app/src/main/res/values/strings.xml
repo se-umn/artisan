@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">BasicCalculator</string>
+  <string name="history_menu">History</string>
+  <string name="calculator_menu">Calculator</string>
+  <string name="enter_expression_to_evaluate">Enter expression to evaluate</string>
+  <string name="calculate_button">Calculate</string>
+  <string name="equals_sign">=</string>
+  <string name="settings">Settings</string>
+  <string name="test">Test</string>
+  <string name="math_ac">AC</string>
+  <string name="math_leftBracket">(</string>
+  <string name="math_rightBracket">)</string>
+  <string name="math_erase">Erase</string>
+  <string name="math_7">7</string>
+  <string name="math_8">8</string>
+  <string name="math_9">9</string>
+  <string name="math_mult">*</string>
+  <string name="math_4">4</string>
+  <string name="math_5">5</string>
+  <string name="math_6">6</string>
+  <string name="math_divide">/</string>
+  <string name="math_1">1</string>
+  <string name="math_2">2</string>
+  <string name="math_3">3</string>
+  <string name="math_sub">-</string>
+  <string name="math_0">0</string>
+  <string name="math_dot">.</string>
+  <string name="math_comma">,</string>
+  <string name="math_add">+</string>
+  <string name="math_equals">=</string>
+</resources>

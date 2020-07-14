@@ -1,0 +1,13 @@
+WAIT|{'seconds':2.0,}
+TOUCH|{'x':880,'y':840,'type':'downAndUp',} # focus input
+TYPE|{'message':'((2,2),(3,4))*4',}
+TOUCH|{'x':650,'y':1600,'type':'downAndUp',} # click equals
+TOUCH|{'x':775,'y':1731,'type':'downAndUp',} # click history
+TOUCH|{'x':1010,'y':128,'type':'downAndUp',} # click dots
+TOUCH|{'x':734,'y':135,'type':'downAndUp',} # click settings
+TOUCH|{'x':734,'y':135,'type':'downAndUp',} # click settings
+TOUCH|{'x':68,'y':147,'type':'downAndUp',} # click back
+TOUCH|{'x':68,'y':147,'type':'downAndUp',} # click back
+TOUCH|{'x':880,'y':840,'type':'downAndUp',} # focus input
+TYPE|{'message':'2=2',}
+TOUCH|{'x':650,'y':1600,'type':'downAndUp',} # click equals
