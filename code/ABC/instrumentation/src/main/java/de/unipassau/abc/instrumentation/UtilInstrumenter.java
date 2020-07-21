@@ -1,7 +1,9 @@
 package de.unipassau.abc.instrumentation;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.Pair;
@@ -11,11 +13,13 @@ import soot.BooleanType;
 import soot.ByteType;
 import soot.CharType;
 import soot.DoubleType;
+import soot.EntryPoints;
 import soot.FloatType;
 import soot.IntType;
 import soot.Local;
 import soot.LongType;
 import soot.NullType;
+import soot.PatchingChain;
 import soot.PrimType;
 import soot.RefType;
 import soot.Scene;
@@ -31,9 +35,44 @@ import soot.jimple.IntConstant;
 import soot.jimple.Jimple;
 import soot.jimple.NewArrayExpr;
 import soot.jimple.StaticInvokeExpr;
+import soot.jimple.Stmt;
 
 // Taken from FuzzDroid
 public class UtilInstrumenter {
+
+	/**
+	 * Ensures we keep track of our instrumentation code by tagging it
+	 *
+	 * @param currentlyInstrumentedMethodBodyUnitChain
+	 * @param u
+	 * @param instrumentationCode
+	 */
+	public static void instrumentBeforeWithAndTag(PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain, Unit u,
+			List<Unit> instrumentationCode) {
+
+		for (Unit instrumentation : instrumentationCode) {
+			instrumentation.addTag(ABCTag.TAG);
+		}
+
+		currentlyInstrumentedMethodBodyUnitChain.insertBefore(instrumentationCode, u);
+
+	}
+
+	/**
+	 * Ensures we keep track of our instrumentation code by tagging it
+	 *
+	 * @param currentlyInstrumentedMethodBodyUnitChain
+	 * @param targetStmt
+	 * @param instrumentationCode
+	 */
+	public static void instrumentAfterWithAndTag(PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain,
+			Stmt targetStmt, List<Unit> instrumentationCode) {
+		for (Unit instrumentation : instrumentationCode) {
+			instrumentation.addTag(ABCTag.TAG);
+		}
+		currentlyInstrumentedMethodBodyUnitChain.insertAfter(instrumentationCode, targetStmt);
+
+	}
 
 	/**
 	 * Returns a Pair which contains the array to pass as parameter to
@@ -384,6 +423,43 @@ public class UtilInstrumenter {
 		return lg.generateLocal(type);
 	}
 
+	/**
+	 * TODO Taken from the old utils.utils class. Must be reimplemented
+	 * 
+	 * @return
+	 */
+
+	/**
+	 * create a local of the particular type <i>t</i> with a unique <i>name</i> as
+	 * specified in the given body <i>b</i> ensuring the uniqueness by suffixing,
+	 * with indefinitely number of trials, a random number
+	 * 
+	 * @param b    the body
+	 * @param name the name of the target local
+	 * @param t    the type of the target local
+	 * @return the Local created and added
+	 */
+	public static Local createUniqueLocal(Body b, String name, Type t) {
+		// TODO This should be reimplemented !
+
+//		String localName = name;
+//		final Random r = new Random();
+//		r.setSeed(System.currentTimeMillis());
+//		do {
+//			if (null == UtilInstrum.getLocal(b, localName)) {
+//				// unique name found
+//				break;
+//			}
+//			localName = name + r.nextInt();
+//		} while (true);
+//
+//		// create the local with the unique name and add it to tbe body
+//		Local v = Jimple.v().newLocal(localName, t);
+//		b.getLocals().add(v);
+//		return v;
+		return null;
+	}
+
 	public static Type getParameterArrayType() {
 		Type parameterArrayType = RefType.v("java.lang.Object");
 		Type parameterArray = ArrayType.v(parameterArrayType, 1);
@@ -406,47 +482,37 @@ public class UtilInstrumenter {
 		return new Pair<Value, List<Unit>>(returnValue, generated);
 	}
 
-	/**
-	 * Return the objected loaded from XML which has type "ownerType"
-	 * 
-	 * @param body
-	 * @param units
-	 * @param xmlFile
-	 * @param ownerType
-	 * @return
-	 */
-	// public static Local generateExpectedValueFor(Body body, List<Unit>
-	// validationUnits, String xmlFile,
-	// String ownerType) {
-	// // TODO Check if xmlFile exists
-	//
-	// // System.out.println("UtilInstrumenter.generateExpectedValueFor()
-	// // xmlFile is " + xmlFile );
-	// // TODO Check for nulls !
-	// List<Value> parameters = new ArrayList<>();
-	// parameters.add(StringConstant.v(xmlFile));
-	//
-	// // Make the call to load the object from memory as Object
-	// Local uncastedAndLoadedFromXml = generateFreshLocal(body,
-	// RefType.v("java.lang.Object"));
-	// Local expectedValue = generateFreshLocal(body, RefType.v(ownerType));
-	//
-	// SootMethod loadFromXml = Scene.v()
-	// .getMethod("<de.unipassau.abc.tracing.XMLDumper: java.lang.Object
-	// loadObject(java.lang.String)>");
-	//
-	// // Assign the uncasted to the return value of XMLDumper
-	//
-	// validationUnits.add(Jimple.v().newAssignStmt(uncastedAndLoadedFromXml,
-	// Jimple.v().newStaticInvokeExpr(loadFromXml.makeRef(), parameters)));
-	//
-	// // Create a second assignment which assign the result of casting the
-	// // uncasted to the target type
-	// validationUnits.add(Jimple.v().newAssignStmt(expectedValue,
-	// Jimple.v().newCastExpr(uncastedAndLoadedFromXml,
-	// expectedValue.getType())));
-	//
-	// return expectedValue;
-	// }
+	public static Stmt getFirstNonIdStmt(PatchingChain<Unit> pchain) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 
+	public static List<SootMethod> getAppMethods() {
+		return EntryPoints.v().methodsOfApplicationClasses();
+	}
+
+	public static boolean isAppConcreteMethod(SootMethod m) {
+		if (m.isAbstract())
+			return false;
+		if (!m.isConcrete())
+			return false;
+		// if (!Scene.v().getApplicationClasses().contains(m.getDeclaringClass()))
+		// return false;
+		if (!getAppMethods().contains(m))
+			return false;
+		return m.toString().indexOf(": java.lang.Class class$") == -1;
+	}
+
+	// This is from utils.utils.getEntryMethods()
+	public static Set<SootMethod> getEntryMethods(boolean appMethodOnly) {
+		Set<SootMethod> entryMethods = new LinkedHashSet<SootMethod>();
+		for (SootMethod m : EntryPoints.v().all()) {
+			if (appMethodOnly && !isAppConcreteMethod(m)) {
+				// search for application methods only
+				continue;
+			}
+			entryMethods.add(m);
+		}
+		return entryMethods;
+	}
 }

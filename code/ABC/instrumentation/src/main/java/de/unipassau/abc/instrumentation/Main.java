@@ -71,10 +71,11 @@ public class Main {
 		ProcessManifest processMan = new ProcessManifest(cli.getAPK().getAbsolutePath());
 		String appPackageName = processMan.getPackageName();
 
-		SceneInstrumenterWithMethodParameters icgins = new SceneInstrumenterWithMethodParameters(appPackageName);
-		PackManager.v().getPack("wjtp").add(new Transform("wjtp.mt", icgins));
+		// This is where the instrumentation takes place.
+		SceneInstrumenterWithMethodParameters abcInstrumentation = new SceneInstrumenterWithMethodParameters(appPackageName);
+		PackManager.v().getPack("wjtp").add(new Transform("wjtp.mt", abcInstrumentation));
 
-		// Tell Soot about the classes our instrumentation needs:
+		// Make sure Soot knows the classes our instrumentation will use:
 		Scene.v().addBasicClass(utils.Constants.MONITOR_CLASS);
 		// TODO Where is this really used?
 		Scene.v().addBasicClass("utils.logicClock");

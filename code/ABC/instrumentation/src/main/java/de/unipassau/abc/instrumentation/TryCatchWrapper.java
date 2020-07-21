@@ -13,8 +13,6 @@ package de.unipassau.abc.instrumentation;
 import java.util.ArrayList;
 import java.util.List;
 
-import profile.InstrumManager;
-import profile.UtilInstrum;
 import soot.Body;
 import soot.Local;
 import soot.PatchingChain;
@@ -32,6 +30,11 @@ import soot.jimple.Stmt;
 import soot.jimple.StringConstant;
 import soot.jimple.ThrowStmt;
 
+/**
+ * ALESSIO TODO Is this even used ??
+ * @author gambitemp
+ *
+ */
 public class TryCatchWrapper {
 	public static boolean logThrowableCauses = false;
 	public static boolean logStackTrace = true;
@@ -94,7 +97,7 @@ public class TryCatchWrapper {
 		PatchingChain<Unit> pchain = b.getUnits();
 
 		// it is only safe to insert probes after all ID statements
-		Stmt sFirstNonId = UtilInstrum.getFirstNonIdStmt(pchain);
+		Stmt sFirstNonId = UtilInstrumenter.getFirstNonIdStmt(pchain);
 		Stmt sLast = (Stmt) pchain.getLast();
 		if (sLast instanceof ThrowStmt && b.getTraps().size() >= 1) { // this happens when the whole body is nested in a
 																		// synchronized block
@@ -123,8 +126,8 @@ public class TryCatchWrapper {
 		tcProbes.add(gtstmt);
 
 		// two Locals of the Exception type to be inserted in the catch block
-		Local er1 = utils.utils.createUniqueLocal(b, "er1", RefType.v(sce));
-		Local er2 = utils.utils.createUniqueLocal(b, "$er2", RefType.v(sce));
+		Local er1 = UtilInstrumenter.createUniqueLocal(b, "er1", RefType.v(sce));
+		Local er2 = UtilInstrumenter.createUniqueLocal(b, "$er2", RefType.v(sce));
 		// the ID statement
 		Stmt ids = Jimple.v().newIdentityStmt(er2, Jimple.v().newCaughtExceptionRef());
 		// the assignment statement assigning the object for the throw statement
@@ -143,7 +146,7 @@ public class TryCatchWrapper {
 
 			// print out the basic record indicating that an uncaught exception is caught
 			// here within this hosting method
-			Local str1out = utils.utils.createUniqueLocal(b, "str1out", printStreamType);
+			Local str1out = UtilInstrumenter.createUniqueLocal(b, "str1out", printStreamType);
 			Stmt ssysout2str1out = Jimple.v().newAssignStmt(str1out, Jimple.v().newStaticFieldRef(fldSysOut.makeRef()));
 			tcProbes.add(ssysout2str1out);
 			List<StringConstant> sprintArgs = new ArrayList<StringConstant>();
@@ -158,8 +161,8 @@ public class TryCatchWrapper {
 			if (logThrowableCauses) {
 				SootClass clsString = Scene.v().getSootClass("java.lang.String");
 				Type strType = clsString.getType();
-				Local str1 = utils.utils.createUniqueLocal(b, "str1", strType);
-				Local tcause = utils.utils.createUniqueLocal(b, "tcause", RefType.v(sce));
+				Local str1 = UtilInstrumenter.createUniqueLocal(b, "str1", strType);
+				Local tcause = UtilInstrumenter.createUniqueLocal(b, "tcause", RefType.v(sce));
 				SootMethod mgetCause = sce.getMethod("java.lang.Throwable getCause()");
 				Stmt sgetcause2tcause = Jimple.v().newAssignStmt(tcause,
 						Jimple.v().newVirtualInvokeExpr(er1, mgetCause.makeRef()));
@@ -196,7 +199,8 @@ public class TryCatchWrapper {
 			 */
 			return 0;
 		} else {
-			InstrumManager.v().insertRightBeforeNoRedirect(pchain, tcProbes, sLast);
+			// TODO ALESSIO Must be implemented
+//			InstrumManager.v().insertRightBeforeNoRedirect(pchain, tcProbes, sLast);
 		}
 		// finally, we add the trap associated with the newly added catch block
 		Trap trap = Jimple.v().newTrap(sce, sFirstNonId, gtstmt, ids);
@@ -254,7 +258,7 @@ public class TryCatchWrapper {
 		PatchingChain<Unit> pchain = b.getUnits();
 
 		// it is only safe to insert probes after all ID statements
-		Stmt sFirstNonId = UtilInstrum.getFirstNonIdStmt(pchain);
+		Stmt sFirstNonId = UtilInstrumenter.getFirstNonIdStmt(pchain);
 		Stmt sLast = (Stmt) pchain.getLast();
 
 		// Empty method won't cause any exception so we don't need instrument at all
@@ -279,8 +283,8 @@ public class TryCatchWrapper {
 		tcProbes.add(gtstmt);
 
 		// two Locals of the Exception type to be inserted in the catch block
-		Local er1 = utils.utils.createUniqueLocal(b, "er1", RefType.v(sce));
-		Local er2 = utils.utils.createUniqueLocal(b, "$er2", RefType.v(sce));
+		Local er1 = UtilInstrumenter.createUniqueLocal(b, "er1", RefType.v(sce));
+		Local er2 = UtilInstrumenter.createUniqueLocal(b, "$er2", RefType.v(sce));
 		// the ID statement
 		Stmt ids = Jimple.v().newIdentityStmt(er2, Jimple.v().newCaughtExceptionRef());
 		// the assignment statement assigning the object for the throw statement
@@ -293,7 +297,9 @@ public class TryCatchWrapper {
 		tcProbes.add(ths);
 
 		// add the catch block to the patching chain of the given method's body
-		InstrumManager.v().insertRightBeforeNoRedirect(pchain, tcProbes, sLast);
+		// TODO Alessio must be implementred !
+		// TODO What's a Redirect, why do we care about it?
+		// InstrumManager.v().insertRightBeforeNoRedirect(pchain, tcProbes, sLast);
 
 		// finally, we add the trap associated with the newly added catch block
 		Trap trap = Jimple.v().newTrap(sce, sFirstNonId, gtstmt, ids);

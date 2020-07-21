@@ -6,6 +6,14 @@
 
 : ${APK_SIGNER:?Please provide a value for APK_SIGNER in $config_file}
 
+set -e
+trap 'catch $? $LINENO' EXIT
+catch() {
+  if [ "$1" != "0" ]; then
+    # error handling goes here
+    echo "Error $1 occurred on line $2"
+  fi
+}
 
 export JAVA_HOME=$(/usr/libexec/java_home -v 1.8)
 
@@ -40,19 +48,27 @@ if [ ! -e "${SCRIPT_LOCATION}/../target/appassembler" ]; then
     popd > /dev/null 2>&1
 fi
 
+
+
 ( >&2 echo "** Instrumenting ${APK}" )
 # Invoke the assembled script to instrument the APK. Do not tee on output
+
+# Setup the Script option here
+export JAVA_OPTS="-Dabc.output.instrumented.code"
+( >&2 echo "** Java options for instrumentation are ${JAVA_OPTS}")
+
 ${SCRIPT_LOCATION}/../target/appassembler/bin/instrument-apk \
             --apk ${APK} \
             --android-jar ${ANDROID_JAR} \
             --output-to ${OUTPUT_DIR} > ${LOG_FILE} 2>&1
 
-INSTRUMENTED_APK_FILE=$(cat ${LOG_FILE} | grep "Writing APK to" | awk '{print $NF}')
+# For some weird reason the output is changed and an additional '.' was printed by the end of the name?
+INSTRUMENTED_APK_FILE=$(cat ${LOG_FILE} | grep "Writing APK to" | awk '{print $NF}' | sed -e 's|"||' -e 's|".||g')
 
 # Sign the APK ?
 ( >&2 echo "** Sign the apk ${INSTRUMENTED_APK_FILE} using ${APK_SIGNER}" | tee -a ${LOG_FILE} )
 
-${APK_SIGNER} sign --ks ${KEYSTORE} --ks-key-alias ${KEYALIAS} --ks-pass pass:123456 --key-pass pass:123456 ${INSTRUMENTED_APK_FILE} >> ${LOG_FILE} 2>&1
+${APK_SIGNER} sign --ks ${KEYSTORE} --ks-key-alias ${KEYALIAS} --ks-pass pass:123456 --key-pass pass:123456 "${INSTRUMENTED_APK_FILE}" >> ${LOG_FILE} 2>&1
 
 ( >&2 echo "** Verify the signature" | tee -a ${LOG_FILE} )
 jarsigner -verify -verbose -certs ${INSTRUMENTED_APK_FILE} >> ${LOG_FILE} 2>&1

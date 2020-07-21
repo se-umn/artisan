@@ -167,7 +167,11 @@ function install-apk() {
     ${ANDROID_ADB_EXE} uninstall ${package_name} >/dev/null 2>&1
   fi
 
-  ${ANDROID_ADB_EXE} install ${apk_file} >/dev/null 2>&1
+  if [[ $VERBOSE -eq 1 ]]; then
+    (echo >&2 ${ANDROID_ADB_EXE} install ${apk_file})
+  else
+    ${ANDROID_ADB_EXE} install ${apk_file} >/dev/null 2>&1
+  fi
 }
 
 function split-trace() {
@@ -480,31 +484,24 @@ function show-config() {
 
 function help() {
   # We output the message to std but the command to std out to enable autocompletion
-  (echo >&2 "AVAILABLE COMMANDS")
-  cat $0 | grep function | grep -v "__private" | grep -v "\#" | sed -e '/^ /d' -e 's|function \(.*\)(){|\1|g'
+  (echo >&2 "AVAILABLE COMMANDS...")
+  cat $0 | grep function | grep -v "__" | grep -v "\#" | sed -e '/^ /d' -e 's|^function ||' -e 's|^\(.*\)().*|\1|g'
 }
 
 function __private_autocomplete() {
   local command_name=$1
   if [ "${command_name}" == "beautify" ]; then
     echo "requires_one_file"
-  fi
-  if [ "${command_name}" == "instrument-apk" ]; then
+  elif [ "${command_name}" == "instrument-apk" ]; then
     echo "requires_one_file"
-  fi
-  if [ "${command_name}" == "run-test" ]; then
+  elif [ "${command_name}" == "run-test" ]; then
     # TODO actually requires two files
     echo "requires_one_file"
-  fi
-  if [ "${command_name}" == "install-apk" ]; then
+  elif [ "${command_name}" == "install-apk" ]; then
     echo "requires_one_file"
-  fi
-
-  if [ "${command_name}" == "copy-traces" ]; then
+  elif [ "${command_name}" == "copy-traces" ]; then
     echo "requires_one_file"
-  fi
-
-  if [ "${command_name}" == "split-trace" ]; then
+  elif [ "${command_name}" == "split-trace" ]; then
     echo "requires_one_file"
   fi
 }
