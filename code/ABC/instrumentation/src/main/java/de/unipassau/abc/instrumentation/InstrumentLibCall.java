@@ -75,100 +75,99 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
 
 	@Override
 	public void caseAssignStmt(AssignStmt stmt) {
-		System.out.println("InstrumentLibCall.caseAssignStmt() " + stmt);
+//		System.out.println("InstrumentLibCall.caseAssignStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	}
 
 	// TODO: What's this?
 	@Override
 	public void caseBreakpointStmt(soot.jimple.BreakpointStmt stmt) {
-		System.out.println("InstrumentLibCall.caseBreakpointStmt() " + stmt);
+//		System.out.println("InstrumentLibCall.caseBreakpointStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	}
 
 	// TODO: What's this? synchronize block?
 	@Override
 	public void caseEnterMonitorStmt(EnterMonitorStmt stmt) {
-		System.out.println("InstrumentLibCall.caseEnterMonitorStmt() " + stmt);
+//		System.out.println("InstrumentLibCall.caseEnterMonitorStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	};
 
 	// TODO: What's this? synchronize block?
 	@Override
 	public void caseExitMonitorStmt(ExitMonitorStmt stmt) {
-		System.out.println("InstrumentLibCall.caseExitMonitorStmt() " + stmt);
+//		System.out.println("InstrumentLibCall.caseExitMonitorStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	};
 
 	// TODO: What's this?
 	@Override
 	public void caseGotoStmt(GotoStmt stmt) {
-		System.out.println("InstrumentLibCall.caseGotoStmt() " + stmt);
+//		System.out.println("InstrumentLibCall.caseGotoStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	};
 
 	// TODO: What's this? the initial "this", the implementation of self-referencing
 	@Override
 	public void caseIdentityStmt(IdentityStmt stmt) {
-		System.out.println("InstrumentLibCall.caseIdentityStmt() " + stmt);
+//		System.out.println("InstrumentLibCall.caseIdentityStmt() " + stmt);
 		super.caseIdentityStmt(stmt);
 	};
-
 
 	// TODO Is it possible that there's method calls at this point?
 	@Override
 	public void caseIfStmt(IfStmt stmt) {
-		System.out.println("InstrumentLibCall.caseIfStmt() " + stmt);
+//		System.out.println("InstrumentLibCall.caseIfStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	};
 
 	// TODO Why there's no instrumentation of this?
 	@Override
 	public void caseInvokeStmt(InvokeStmt stmt) {
-		System.out.println("InstrumentLibCall.caseInvokeStmt() " + stmt);
+//		System.out.println("InstrumentLibCall.caseInvokeStmt() " + stmt);
 		super.caseInvokeStmt(stmt);
 	}
 
 	@Override
 	public void caseLookupSwitchStmt(LookupSwitchStmt stmt) {
-		System.out.println("InstrumentLibCall.caseLookupSwitchStmt() " + stmt);
+//		System.out.println("InstrumentLibCall.caseLookupSwitchStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	}
 
 	@Override
 	public void caseNopStmt(NopStmt stmt) {
-		System.out.println("InstrumentLibCall.caseNopStmt() " + stmt);
+//		System.out.println("InstrumentLibCall.caseNopStmt() " + stmt);
 		super.caseNopStmt(stmt);
 	}
 
 	@Override
 	public void caseRetStmt(RetStmt stmt) {
-		System.out.println("InstrumentLibCall.caseRetStmt() " + stmt);
+//		System.out.println("InstrumentLibCall.caseRetStmt() " + stmt);
 		super.caseRetStmt(stmt);
 	}
 
 	@Override
 	public void caseReturnStmt(ReturnStmt stmt) {
-		System.out.println("InstrumentLibCall.caseReturnStmt() " + stmt);
+//		System.out.println("InstrumentLibCall.caseReturnStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 		super.caseReturnStmt(stmt);
 	}
 
 	@Override
 	public void caseReturnVoidStmt(ReturnVoidStmt stmt) {
-		System.out.println("InstrumentLibCall.caseReturnVoidStmt() " + stmt);
+//		System.out.println("InstrumentLibCall.caseReturnVoidStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	}
 
 	@Override
 	public void caseTableSwitchStmt(TableSwitchStmt stmt) {
-		System.out.println("InstrumentLibCall.caseTableSwitchStmt() " + stmt);
+//		System.out.println("InstrumentLibCall.caseTableSwitchStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	}
 
 	@Override
 	public void caseThrowStmt(ThrowStmt stmt) {
-		System.out.println("InstrumentLibCall.caseThrowStmt() " + stmt);
+//		System.out.println("InstrumentLibCall.caseThrowStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	}
 

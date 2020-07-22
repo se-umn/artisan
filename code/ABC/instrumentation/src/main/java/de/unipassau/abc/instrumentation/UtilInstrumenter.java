@@ -31,6 +31,7 @@ import soot.Unit;
 import soot.Value;
 import soot.javaToJimple.LocalGenerator;
 import soot.jimple.ArrayRef;
+import soot.jimple.IdentityStmt;
 import soot.jimple.IntConstant;
 import soot.jimple.Jimple;
 import soot.jimple.NewArrayExpr;
@@ -482,9 +483,22 @@ public class UtilInstrumenter {
 		return new Pair<Value, List<Unit>>(returnValue, generated);
 	}
 
+	/**
+	 * Return the first unit in the body which is NOT an ID statement
+	 * 
+	 * @param pchain
+	 * @return
+	 */
 	public static Stmt getFirstNonIdStmt(PatchingChain<Unit> pchain) {
-		// TODO Auto-generated method stub
-		return null;
+		return getFirstNonIdStmtFrom(pchain, (Stmt) pchain.getFirst());
+	}
+
+	public static Stmt getFirstNonIdStmtFrom(PatchingChain<Unit> pchain, Stmt sFrom) {
+		Stmt sFirstNonId = sFrom;
+		while (sFirstNonId instanceof IdentityStmt) {
+			sFirstNonId = (Stmt) pchain.getSuccOf(sFirstNonId);
+		}
+		return sFirstNonId;
 	}
 
 	public static List<SootMethod> getAppMethods() {
@@ -514,5 +528,19 @@ public class UtilInstrumenter {
 			entryMethods.add(m);
 		}
 		return entryMethods;
+	}
+
+	/*
+	 * Based on profile.InstrumManager.v().insertRightBeforeNoRedirect(pchain,
+	 * tcProbes,sLast);
+	 */
+	public static void instrumentBeforeNoRedirect(PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain,
+			List<Stmt> instrumentationCode, Stmt lastUnitOfCurrentlyInstrumentedBodyUnitChain) {
+		assert !(lastUnitOfCurrentlyInstrumentedBodyUnitChain instanceof IdentityStmt);
+		for (Object stmt : instrumentationCode) {
+			currentlyInstrumentedMethodBodyUnitChain.insertBeforeNoRedirect((Unit) stmt,
+					lastUnitOfCurrentlyInstrumentedBodyUnitChain);
+		}
+
 	}
 }

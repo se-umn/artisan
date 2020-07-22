@@ -490,24 +490,60 @@ public class Monitor {
 	}
 
 	/**
-	 * Despite being an exceptional case, this is still something that the developer
-	 * expects so we can consider this like any other "returnInto." The difference
-	 * here is that we do not report on the methodContext but the last invocation
-	 * done.
+	 * We need to keep track of methods that throw exceptions that later they
+	 * handle. Those corresponds to the ThrowStmt that are NOT exit points
 	 * 
-	 * @param methodOwner
-	 * @param methodSignature
-	 * @param methodContext
-	 * @param exception
+	 * @param methodOwner     The object owning the method raising this exception
+	 * @param methodSignature Method throwing the exception
+	 * @param methodContext   Method throwing the exception
+	 * @param exception       Exception being thrown and captured by themethod
 	 * @throws Throwable
 	 */
-	public static void returnIntoFromExceptionCaught(Object methodOwner, //
+	public static void throwCapturedException(Object methodOwner, //
 			String methodSignature, //
 			String methodContext, //
 			Object exception) throws Throwable {
 		lock.lock();
 		try {
+			// TODO This is just a temporary method to log something in the trace !
+			StringBuffer content = new StringBuffer();
+			content.append(">>> DEBUG... The exception ").append(exception).append("has been thrown by")
+					.append(methodSignature);
+//			traceFileOutputWriter.write("ABC:: " + g_counter + " ");
+			traceFileOutputWriter.write(content.toString());
+			traceFileOutputWriter.newLine();
+			traceFileOutputWriter.flush();
 
+		} catch (Throwable t) {
+			android.util.Log.e(ABC_TAG, "ERROR !", t);
+			throw t;
+		} finally {
+			lock.unlock();
+		}
+
+	}
+
+	/**
+	 * This method is triggered by a trap when an exception is handled by the
+	 * corresponding trap handler.
+	 * 
+	 * @param methodOwner     The object owning the method that contains this trap
+	 * @param methodSignature Method containing the trap handling the exception
+	 * @param methodContext   Method containing the trap handling the exception
+	 * @param exception       The Exception being captured by the trap handler
+	 * @throws Throwable
+	 */
+	public static void onExceptionCaptured(Object methodOwner, //
+			String methodSignature, //
+			String methodContext, //
+			Object exception) throws Throwable {
+		lock.lock();
+		try {
+			// TODO This logic must be updated: we need to pass the exceptions due to
+			// throwing and capturing the exception within a method but lookup for the
+			// "still open" libCalls
+			// TODO consider also the case the "last" method invocation is one method that
+			// belongs to the application!!
 			// If lastMethodContext is not empty, it means that a method previously invoked
 			// did not finished. Hence, the exception was thrown in there
 			// otherwise the exception was throw in the current method (using throw)

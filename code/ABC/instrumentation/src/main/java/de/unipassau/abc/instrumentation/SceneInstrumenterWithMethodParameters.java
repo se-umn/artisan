@@ -21,6 +21,7 @@ import java.util.Map;
 
 import org.xmlpull.v1.XmlPullParserException;
 
+import android.R.bool;
 import de.unipassau.abc.data.Pair;
 import dev.navids.soottutorial.visual.Visualizer;
 import soot.Body;
@@ -32,6 +33,7 @@ import soot.SceneTransformer;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.Trap;
+import soot.TrapManager;
 import soot.Type;
 import soot.Unit;
 import soot.Value;
@@ -62,6 +64,7 @@ import soot.util.Chain;
  * ABC.array <init>(type, size) ABC.array Type get(position) ABC.array Type
  * set(position)
  *
+ * TODO Rename this class!
  *
  * @author gambi
  *
@@ -76,6 +79,8 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 	private static final boolean INSTRUMENT_ARRAY_OPERATIONS = System.getProperties()
 			.containsKey("abc.instrument.array.operations");
+
+	private static final boolean INSTRUMENT_TRAPS = System.getProperties().containsKey("abc.instrument.traps");
 
 	private static final boolean DEBUG = System.getProperties().containsKey("abc.debug");
 
@@ -98,7 +103,11 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 	protected SootMethod monitorOnTerminateApp;
 	//
 	protected SootMethod monitorOnReturnIntoFromException;
-	protected SootMethod monitorOnReturnIntoFromExceptionCaught;
+	protected SootMethod monitoronExceptionCaptured;
+
+	// Somehow we need to capture the situation for which a method throws an
+	// exception that it handles. So a throw which is NOT an exit point.
+	protected SootMethod monitorOnThrowCapturedException;
 
 	private List<SootClass> userClasses;
 
@@ -189,7 +198,10 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 			// An exception returned in a catch method of our application
 			monitorOnReturnIntoFromException = clsMonitor.getMethodByName("returnIntoFromException");
 
-			monitorOnReturnIntoFromExceptionCaught = clsMonitor.getMethodByName("returnIntoFromExceptionCaught");
+			monitoronExceptionCaptured = clsMonitor.getMethodByName("onExceptionCaptured");
+
+			// A throw statement that is captured
+			monitorOnThrowCapturedException = clsMonitor.getMethodByName("throwCapturedException");
 
 		} catch (Throwable t) {
 			t.printStackTrace();
@@ -215,6 +227,40 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 	 * <li>TODO Handle Exceptions</li>
 	 * </ul>
 	 *
+	 * We first analyze the body of the method and ensure we wrap it with a
+	 * try/catch/finally to capture unhandled exceptions. This step must ensure that
+	 * we do not tamper with the existing traps mechanisms: that is, we do not have
+	 * to violate the method signature making it impossible to throw explicit
+	 * exceptions. Capturing the entire method body + traps within an BIG
+	 * try/catch(Throwable t){ throw t; } which simply rethrows the throwable
+	 * captured should not change the semantic. So eventually we need to create a
+	 * new trap after the LAST trap/unit of the body and a new EXIT point. Actually,
+	 * this will be the SOLE "exceptional" exit point of the method, so how do we
+	 * distinguish whether or not the exception here was expected (matching the
+	 * declared ones) or unexpected? Do we care? In theory, we do not for the sake
+	 * of the current method as this results in a method that ends exceptionally in
+	 * any case.
+	 * 
+	 * TODO: How do we handle the existing finally blocks?
+	 * 
+	 * 
+	 * We instrument the methods' start > monitorAppMethodStart
+	 * 
+	 * We instrument the methods' body (libCall only!) > monitorLibMethodStart >
+	 * monitorLibMethodEnd
+	 * 
+	 * We instrument the methods' traps TODO - We need this to track the exceptions.
+	 * For each trap we simply notify the monitor about the captured exception. This
+	 * includes also the "outer" catch-all trap However, this changes the definition
+	 * of the traps (begin->end), so if there are "chained traps", and they are
+	 * always there because of step #1, we need to ensure we are correctly shifting
+	 * them! TODO > monitorAppMethodCapturException
+	 * 
+	 * Finally, we instrument the methods' ends:- Those should be a set of return
+	 * stmt - The ONLY throw statement in the outer Trap >
+	 * monitorAppMethodExitNormally > monitorAppMethodExitExceptionally
+	 *
+	 *
 	 * @throws XmlPullParserException
 	 * @throws IOException
 	 */
@@ -225,6 +271,8 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		System.out.println("Options.");
 		System.out.println("OUTPUT_INSTRUMENTED_CODE: " + this.OUTPUT_INSTRUMENTED_CODE);
 		System.out.println("MAKE_ANDROID_LIFE_CYCLE_EVENTS_EXPLICIT: " + this.MAKE_ANDROID_LIFE_CYCLE_EVENTS_EXPLICIT);
+		System.out.println("INSTRUMENT_ARRAY_OPERATIONS: " + this.INSTRUMENT_ARRAY_OPERATIONS);
+		System.out.println("INSTRUMENT_TRAPS: " + this.INSTRUMENT_TRAPS);
 
 		Iterator<SootClass> applicationClassesIterator = userClasses.iterator();
 		if (userClasses.size() == 0) {
@@ -282,6 +330,20 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 						.getUnits();
 
 				/*
+				 * Be sure that for every trap there's a call to returnFromException and the
+				 * other methods. Do it before wrapTryCatchAllBlocks and the other methods in
+				 * order to avoid logging the exception twice?
+				 */
+				// Wrap the entire method in a big try/catch/re-throw
+				// TODO HOW DO WE HANDLE FINAL BLOCKS?
+				System.out.println("\t WRAP METHOD INSIDE TRY-CATCH-ALL");
+				wrapTryCatchAllBlocks(currentlyInstrumentedMethod);
+
+				// TODO - Instrument FINAL blocks?
+				// boolean hasFinally =
+				// getFinally(currentlyInstrumentedMethodBody.toString());
+
+				/*
 				 * To Ensure we log app methods being called we insert an methodEnter probe at
 				 * the beginning of the currentlyInstrumentedMethod. Private methods are tagged
 				 * as such
@@ -310,28 +372,12 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 				instrumentMethodEnds(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
 						currentlyInstrumentedMethodBodyUnitChain);
 
-//				System.out.println("\t INSTRUMENTING METHOD TRAP DISABLED");
-//				instrumentMethodTraps(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
-//						currentlyInstrumentedMethodBodyUnitChain);
-
-				/*
-				 * Be sure that for every trap there's a call to returnFromException and the
-				 * other methods. Do it before wrapTryCatchAllBlocks and the other methods in
-				 * order to avoid logging the exception twice?
-				 */
-
-				// Wrap the entire method in a big try/catch/re-throw
-				// wrapTryCatchAllBlocks(currentlyInstrumentedMethod);
-
-//				if (opts.debugOut()) {
-//				System.out.println("\t WRAP TRY CATCH DISABLED. Try-Finally over the method:");
-//				for (Unit u : currentlyInstrumentedMethodBody.getUnits()) {
-//					System.out.println("\t\t " + u);
-//				}
-
-				// TODO - Instrument FINAL blocks?
-				// boolean hasFinally =
-				// getFinally(currentlyInstrumentedMethodBody.toString());
+				// THE FOLLOWING CODE BREAKS THE APP AND TRIGGER THE ANDROID VERIFIER
+////			if (INSTRUMENT_TRAPS) {
+////			System.out.println("\t INSTRUMENTING TRAPS");
+////			instrumentMethodTraps(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
+////			currentlyInstrumentedMethodBodyUnitChain);
+////			}
 
 				/*
 				 * To ensure monitor is initialized we inject initialization code. Note that we
@@ -380,14 +426,11 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 	} // --
 
 	/**
-	 * For each trap (catch block) insert code which logs the exception as first
-	 * action in the trap. This is to ensure that the exceptional method is
-	 * "closed."
-	 * 
-	 * TODO What do we do for the invocations INSIDE the catch block? Ideally we
-	 * should instrument them as well ! Isn't this already what happens?
-	 * 
-	 * @param currentlyInstrumentedSootMethod
+	 * When a catch block gets triggered some method raised an exception, but we do
+	 * not know which one. However, we can notify the Monitor about the fact that we
+	 * handled an exception so it can pinpoint what was the last executed method.
+	 * The monitor can rule out exceptions that are explicitly thrown by the method
+	 * itself because we log any throw stmt that is not an exit point
 	 */
 	private void instrumentMethodTraps(SootMethod currentlyInstrumentedSootMethod,
 			/*
@@ -403,13 +446,18 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 	) throws IOException, XmlPullParserException {
 
+		// TODO Use this. Note that traps a linked one another so it should not happen
+		// the start of one crosses the others
+		TrapManager tm = new TrapManager();
+
 		Chain<Trap> traps = currentlyInstrumentedMethodBody.getTraps();
 		for (Trap t : traps) {
+			// TODO Leave it be for the moment...
 			System.out.println("---------------------------------------------");
 			System.out.println("Instrumenting TRAP " + t);
 			// TODO Is this the @Caught?
-//			System.out.println("First unit of trap is " + t.getBeginUnit());
-//			System.out.println("Last unit of trap is " + t.getEndUnit());
+			System.out.println("First unit of trap is " + t.getBeginUnit());
+			System.out.println("Last unit of trap is " + t.getEndUnit());
 
 			// This gives us the Class of the exception
 			System.out.println("Caught Exception is " + t.getException());
@@ -420,6 +468,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 			// This is where we n
 			System.out.println(
 					"Unit after the handler " + currentlyInstrumentedMethodBodyUnitChain.getSuccOf(t.getHandlerUnit()));
+			// This should be the first "executable" instruction ?
 			Unit unitAfterHandler = currentlyInstrumentedMethodBodyUnitChain.getSuccOf(t.getHandlerUnit());
 			System.out.println("---------------------------------------------");
 
@@ -427,41 +476,38 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 			// local and pass it to the monitor
 			List<Unit> instrumentationCode = new ArrayList<>();
 			// Prepare the call to the monitor
-			List<Value> onReturnIntoFromExceptionArgs = new ArrayList<>();
+			List<Value> onExceptionCapturedArgs = new ArrayList<>();
 			// Method Owner
 			//
 			if (currentlyInstrumentedSootMethod.isStatic() || currentlyInstrumentedSootMethod.isConstructor()) {
-				onReturnIntoFromExceptionArgs.add(NullConstant.v());
+				onExceptionCapturedArgs.add(NullConstant.v());
 			} else {
-				onReturnIntoFromExceptionArgs.add(currentlyInstrumentedMethodBody.getThisLocal());
+				onExceptionCapturedArgs.add(currentlyInstrumentedMethodBody.getThisLocal());
 			}
 			// Method Signature
 			final String currentlyInstrumentedMethodSignature = currentlyInstrumentedSootMethod.getSignature();
-			onReturnIntoFromExceptionArgs.add(StringConstant.v(currentlyInstrumentedMethodSignature));
+			onExceptionCapturedArgs.add(StringConstant.v(currentlyInstrumentedMethodSignature));
 			// Method Context - TODO What's the difference ? Probably libCall have a
 			// different context ?
-			onReturnIntoFromExceptionArgs.add(StringConstant.v(currentlyInstrumentedMethodSignature));
+			onExceptionCapturedArgs.add(StringConstant.v(currentlyInstrumentedMethodSignature));
 
 			// Pass the exception
-			Value caughtExceptionInstance = ((IdentityStmt) t.getHandlerUnit()).getLeftOp();
+			Value caughtException = ((IdentityStmt) t.getHandlerUnit()).getLeftOp();
 
-			// Include this assignement in the instructions to excute before the
-			// instrumentation
-			// TODO Do we need to include this one as well ?
-			// TODO Maybe we need the Assignment after all ?
-//			instrumentationCode.add(e)
 			// This updates instrumentation code to include all the necessary wrapping code
-			onReturnIntoFromExceptionArgs.add(UtilInstrumenter.generateCorrectObject(currentlyInstrumentedMethodBody,
-					caughtExceptionInstance, instrumentationCode));
+			onExceptionCapturedArgs.add(UtilInstrumenter.generateCorrectObject(currentlyInstrumentedMethodBody,
+					caughtException, instrumentationCode));
 
-			Stmt onReturnIntoCall = Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(
-					monitorOnReturnIntoFromExceptionCaught.makeRef(), onReturnIntoFromExceptionArgs));
+			Stmt onExceptionCapturedCall = Jimple.v().newInvokeStmt(
+					Jimple.v().newStaticInvokeExpr(monitoronExceptionCaptured.makeRef(), onExceptionCapturedArgs));
 
-			instrumentationCode.add(onReturnIntoCall);
+			instrumentationCode.add(onExceptionCapturedCall);
 
 			UtilInstrumenter.instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, unitAfterHandler,
 					instrumentationCode);
-
+			// TODO TO WE NEED TO "REFRESH" THE DEFINITION OF TRAPS, LIKE REPLAVING THE OLD
+			// TRAP WITH THE NEW ONE INSTEAD OF SIMPLY ADDING STUFF TO IT?
+			// It seems this might be the case as the verifier triggers at this point...
 		}
 
 //		Trap t = trapsIt.next();
@@ -912,7 +958,9 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 	}
 
 	/**
-	 * We find all the exit points of this method and instrument all of them
+	 * We find all the exit points of this method and instrument all of them. This
+	 * includes calls to return inside the BODY and TRAPS. So this already changes
+	 * the content of traps and we might need to "split traps again"?
 	 * 
 	 * @param currentlyInstrumentedSootMethod
 	 * @param currentlyInstrumentedMethodBody
@@ -931,8 +979,8 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 			final PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain) {
 
 		/*
-		 * To ensure that we log the method ends in the right place, including
-		 * exceptional branches and finally blocks we build the exceptionalUnitGraph (a
+		 * To ensure that we log all the method ends, including return and throw
+		 * statements that are not trapped we need to build the exceptionalUnitGraph (a
 		 * CFG that includes the exceptional branches), get the exit points of the
 		 * method, i.e., the tails and insert the instrumentation right before each of
 		 * them.
@@ -972,52 +1020,106 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		 * For every ThrowInst or ThrowStmt (what's the difference?) Unit which may
 		 * explicitly throw an exception that would be caught by a Trap in the Body,
 		 * there will be an edge from the throw Unit to the Trap handler's first Unit.
+		 * 
+		 * 
 		 * This means that this particular Throw does NOT "break" the start-end pattern
 		 * of method invocations. What about the other cases -> method signature
 		 * declares a "throws"
 		 * 
 		 */
-		List<Unit> potentialExitPoints = new ArrayList<>();
-		potentialExitPoints.addAll(exceptionalUnitGraph.getTails());
+		List<Unit> exitPoints = new ArrayList<>();
+		List<Unit> nonExitPoints = new ArrayList<>();
 
-		for (Iterator<Unit> iterator = potentialExitPoints.iterator(); iterator.hasNext();) {
-			// Check if this exit point MIGHT be covered by some catch statement
-			Unit exitPoint = iterator.next();
+		for (Unit potentialExitPoint : exceptionalUnitGraph.getTails()) {
+			if (potentialExitPoint instanceof ReturnStmt || potentialExitPoint instanceof ReturnVoidStmt) {
+				System.out.println(
+						"\t\t\t SceneInstrumenterWithMethodParameters.instrumentMethodEnds() Found return exit point "
+								+ potentialExitPoint);
+				// TODO In some cases we get "return null". For example, BasicCalculator... not
+				// sure this is a problem
 
-			if (exitPoint instanceof ReturnStmt || exitPoint instanceof ReturnVoidStmt) {
-				System.out
-						.println("SceneInstrumenterWithMethodParameters.instrumentMethodEnds() Found return exit point "
-								+ exitPoint);
 				// Let's conservatively keep return instructions as exit points to process later
+				exitPoints.add(potentialExitPoint);
 				continue;
-			} else if (exitPoint instanceof ThrowStmt) {
+			} else if (potentialExitPoint instanceof ThrowStmt) {
+
 				for (Trap trap : currentlyInstrumentedSootMethod.getActiveBody().getTraps()) {
 					// None of the following should ever return null...
-					if (exceptionalUnitGraph.getSuccsOf(exitPoint).contains(trap.getHandlerUnit())) {
-						System.out.println("\t\t\t Skipping " + exitPoint + " as it is covered by the trap " + trap);
-						iterator.remove();
+					if (exceptionalUnitGraph.getSuccsOf(potentialExitPoint).contains(trap.getHandlerUnit())) {
+						// This is not really an exit point, since the exception is captured by the
+						// trap. Never the less we need to inform the monitor that one exception has
+						// been raised
+						System.out.println(
+								"\t\t\t SceneInstrumenterWithMethodParameters.instrumentMethodEnds() Found a throw that is NOT an exit point "
+										+ potentialExitPoint);
+						nonExitPoints.add(potentialExitPoint);
 						// Avoid repeatedly remove the "same" object
 						break;
+					} else {
+						// If we reach this point, the ThrowStmt will cause THIS method to exit.
+						exitPoints.add(potentialExitPoint);
+						System.out.println(
+								"\t\t\t SceneInstrumenterWithMethodParameters.instrumentMethodEnds() Found throw exit point "
+										+ potentialExitPoint);
 					}
 				}
-				System.out
-						.println("SceneInstrumenterWithMethodParameters.instrumentMethodEnds() Found throw exit point "
-								+ exitPoint);
 			} else {
-				System.out.println("\t\t\t >> Skipping UNKNOWN " + exitPoint);
-				iterator.remove();
+				throw new RuntimeException("\t\t\t Unknown exitpoint " + potentialExitPoint);
 			}
 		}
 
+		// Instrument the non exit points we found, those should be ThrowStmt that are
+		// captured by the current method
+		for (Unit nonExitPoint : nonExitPoints) {
+			nonExitPoint.apply(new AbstractStmtSwitch() {
+				@Override
+				public void caseThrowStmt(ThrowStmt stmt) {
+					System.out.println("\t\t\t Instrumenting throw that is handled within the method " + stmt);
+
+					// Monitor.throwCapturedException(Object methodOwner, String methodSignature,
+					// String methodContext, Object exception
+
+					// Wrap the value to be returned into a new object
+					// local and pass it to the monitor
+					List<Unit> instrumentationCode = new ArrayList<>();
+					// Prepare the call to the monitor
+					List<Value> throwCapturedException = new ArrayList<>();
+					//
+					if (currentlyInstrumentedSootMethod.isStatic() || currentlyInstrumentedSootMethod.isConstructor()) {
+						throwCapturedException.add(NullConstant.v());
+					} else {
+						throwCapturedException.add(currentlyInstrumentedMethodBody.getThisLocal());
+					}
+					//
+					throwCapturedException.add(StringConstant.v(currentlyInstrumentedMethodSignature));
+					// Context
+					throwCapturedException.add(StringConstant.v(currentlyInstrumentedMethodSignature));
+
+					// Pass the exception instead of the return value or null
+					// ((RefType) ts.getOp().getType()).getSootClass()
+					throwCapturedException.add(UtilInstrumenter.generateCorrectObject(currentlyInstrumentedMethodBody,
+							stmt.getOp(), instrumentationCode));
+
+					Stmt throwCapturedExceptionCall = Jimple.v().newInvokeStmt(Jimple.v()
+							.newStaticInvokeExpr(monitorOnThrowCapturedException.makeRef(), throwCapturedException));
+
+					instrumentationCode.add(throwCapturedExceptionCall);
+
+					UtilInstrumenter.instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt,
+							instrumentationCode);
+				}
+			});
+		}
+
 		// Instrument the exit points we found
-		for (Unit exitPoint : potentialExitPoints) {
-// TODO Refactor this into a separate class?
+		for (Unit exitPoint : exitPoints) {
 			exitPoint.apply(new AbstractStmtSwitch() {
+				// TODO Refactor this into a separate class?
 
 				// The wrapping thingy does not work on constructors
 				@Override
 				public void caseThrowStmt(ThrowStmt stmt) {
-					System.out.println("Instrumenting throw exit point " + stmt);
+					System.out.println("\t\t\t Instrumenting throw exit point " + stmt);
 
 					// Wrap the value to be returned into a new object
 					// local and pass it to the monitor
@@ -1055,7 +1157,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 				@Override
 				public void caseReturnStmt(ReturnStmt stmt) {
-					System.out.println("Instrumenting return exit point " + stmt);
+					System.out.println("\t\t\t Instrumenting return exit point " + stmt);
 					// Wrap the value to be returned into a new object
 					// local and pass it to the monitor
 					List<Unit> instrumentationCode = new ArrayList<>();
@@ -1087,7 +1189,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 				@Override
 				public void caseReturnVoidStmt(ReturnVoidStmt stmt) {
-					System.out.println("Instrumenting return exit point " + stmt);
+					System.out.println("\t\t\t Instrumenting return void exit point " + stmt);
 
 					List<Unit> instrumentationCode = new ArrayList<>();
 					// Prepare the call to the monitor
@@ -1117,7 +1219,15 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 					System.out.println("\t\t\t Injected returnInto at the end of the method before returning (void)");
 
 				}
+
 			});
+
+			// TODO We need to make sure that all traps objects are coorectly handled, and
+			// if mofied (their Begin and End UNit might have changed?)
+			// Since we might have changed the traps of this method, we might need to split
+			// them again?
+//			TrapManager tm = new TrapManager();
+//			tm.splitTrapsAgainst(b, rangeStart, rangeEnd);
 
 		}
 
@@ -1282,98 +1392,144 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 //		return instrumCode;
 //	}
 
-	/*
-	 * ALESSIO: This might be too strong. What happen if a method declares a throws
-	 * ? If we catch everything, isn't this a problem?
+	/**
+	 * Add to the method a Trap that captures Throwable t and re-throws it. To be
+	 * safe we add this try-catch-all in any case, as a method might have a trap
+	 * that captures Throwable but does something else later that raises an
+	 * exception which we will lose if we do not wrap everything !
+	 * 
+	 * 
+	 * 
+	 * TODO How do we handle FINALLY ?
+	 * 
+	 * TODO Handle synchronized blocks ?
+	 * 
+	 * TODO Uniform the method signature to receive always the same input...
+	 * 
+	 * @param currentlyInstrumentedMethod
 	 */
 	public void wrapTryCatchAllBlocks(SootMethod currentlyInstrumentedMethod) {
-		// all probes for the try-catch blocks insertion
-		List<Stmt> tcProbes = new ArrayList<Stmt>();
-		Body b = currentlyInstrumentedMethod.retrieveActiveBody();
-		PatchingChain<Unit> pchain = b.getUnits();
 
-		// it is only safe to insert probes after all ID statements
-//		Stmt sFirstNonId = UtilInstrum.getFirstNonIdStmt(pchain);
-		// ALESSIO TODO This must be reworked to get rid of those dua/profile crap. I
-		// suspect that they add a lot of complexity to keep track of their own
-		// instrumnetaston.
-		Stmt sFirstNonId = null;
-
-		Stmt sLast = (Stmt) pchain.getLast();
-		if (sLast instanceof ThrowStmt && b.getTraps().size() >= 1) {
-			// this happens when the whole body is nested in a synchronized
-			// block
-			sLast = (Stmt) b.getTraps().getLast().getBeginUnit();
-		}
-
-		// Empty method won't cause any exception so we don't need instrument at
-		// all
-		if (sFirstNonId == sLast) {
-			System.out.println("SceneInstrumenterWithMethodParameters.wrapTryCatchAllBlocks() SPECIAL METHOD ? "
-					+ currentlyInstrumentedMethod);
-			return;
-		}
+		SootClass throwableSootClass = Scene.v().getSootClass("java.lang.Throwable");
+		assert throwableSootClass != null;
+		RefType throwableClassRefType = RefType.v(throwableSootClass);
 
 		/*
-		 * add "throws Throwable" declaration if absent so that we add exception
-		 * rethrowing statement in the catch block to be added
+		 * TODO Is this really necessary? I think this is implied... add
+		 * "throws Throwable" declaration if absent so that we add exception rethrowing
+		 * statement in the catch block to be added
 		 * m.addExceptionIfAbsent(Scene.v().getSootClass("java.lang.Throwable")) ;
 		 */
-		SootClass sce = Scene.v().getSootClass("java.lang.Throwable");
-		assert sce != null;
 		// TODO I do not think this is by no means necessary
 		// if (!currentlyInstrumentedMethod.throwsException(sce)) {
 		// currentlyInstrumentedMethod.addException(sce);
 		// }
 
-		// goto the original last statement
-		Stmt gtstmt = Jimple.v().newGotoStmt(sLast);
-		tcProbes.add(gtstmt);
-
-		// two Locals of the Exception type to be inserted in the catch block
-
-		Local er1 = UtilInstrumenter.generateFreshLocal(b, RefType.v(sce));
-		Local er2 = UtilInstrumenter.generateFreshLocal(b, RefType.v(sce));
+		Body body = currentlyInstrumentedMethod.retrieveActiveBody();
+		PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain = body.getUnits();
 
 		/*
-		 * We do not tag our code since it does not change the semantic, plus we should
-		 * not skip instrumenting it with returnInto calls
+		 * To define a trap we need the following data: - exception, - start, - stop, -
+		 * handler:
+		 * 
+		 * Between the start and stop units, including start, but not including stop, if
+		 * the exception is thrown, execution continues at handler.
+		 * 
+		 * Exception: Throwable Start: the start of the method body, since we need to
+		 * wrap the entire thing Stop (excluded): should point to the instruction right
+		 * "after" the last unit of the body to fully include the body in the trap scope
+		 * Handler: is the code that rethrow the exception
+		 * 
 		 */
-		Stmt ids = Jimple.v().newIdentityStmt(er2, Jimple.v().newCaughtExceptionRef());
-		//
-		// ids.addTag(ABCTag.TAG);
-		// the assignment statement assigning the object for the throw statement
-		Stmt ass = Jimple.v().newAssignStmt(er1, er2);
-		// ass.addTag(ABCTag.TAG);
-		// the throw statement rethrowing the exception caught in the block
-		Stmt ths = Jimple.v().newThrowStmt(er1);
-		// ths.addTag(ABCTag.TAG);
 
-		// assemble the catch block
-		tcProbes.add(ids);
-		tcProbes.add(ass);
-		tcProbes.add(ths);
+		Stmt startOfTheMethod = UtilInstrumenter.getFirstNonIdStmt(currentlyInstrumentedMethodBodyUnitChain);
 
-		// add the catch block to the patching chain of the given method's body
-		if (sLast instanceof IdentityStmt) {
-			System.out.println("wrapTryCatchAllBlocks: special case encountered in method "
-					+ currentlyInstrumentedMethod.getSignature() + " stmt: " + sLast);
+		// Found the last unit of the body - TODO This code is taken from DUAFDROID and
+		// I cannot tell if that's reliable or not...
+		Stmt lastUnitOfCurrentlyInstrumentedBodyUnitChain = (Stmt) currentlyInstrumentedMethodBodyUnitChain.getLast();
+		if (lastUnitOfCurrentlyInstrumentedBodyUnitChain instanceof ThrowStmt && body.getTraps().size() >= 1) {
+			/*
+			 * This happens when the whole body is nested in a synchronized block
+			 */
+			lastUnitOfCurrentlyInstrumentedBodyUnitChain = (Stmt) body.getTraps().getLast().getBeginUnit();
+		}
+
+		/*
+		 * Empty method won't cause any exception so we don't need instrument it at all
+		 */
+		if (startOfTheMethod == lastUnitOfCurrentlyInstrumentedBodyUnitChain) {
+			return;
+		}
+
+		// TODO. Not sure what this means ... What's this? An empty body for a instance
+		// method?
+		if (lastUnitOfCurrentlyInstrumentedBodyUnitChain instanceof IdentityStmt) {
+			System.out.println("wrapTryCatchAllBlocks: Special case encountered in method "
+					+ currentlyInstrumentedMethod.getSignature() + " stmt: "
+					+ lastUnitOfCurrentlyInstrumentedBodyUnitChain);
+			// Ensures we remember this case exists !
+			throw new RuntimeException("wrapTryCatchAllBlocks: Special case encountered in method "
+					+ currentlyInstrumentedMethod.getSignature() + " stmt: "
+					+ lastUnitOfCurrentlyInstrumentedBodyUnitChain);
+
 			/*
 			 * Stmt tgt = (Stmt)utils.getFirstNonIdUnit(pchain); if (tgt != null) tgt =
 			 * (Stmt)pchain.getPredOf(tgt); if (tgt == null) tgt = sLast;
+			 * 
 			 * InstrumManager.v().insertAtProbeBottom(pchain, tcProbes, sLast);
 			 */
-			// TODO So we do not instrument this ?!
-			return;
-		} else {
-			// TODO Still not idea what's the meaning of "BeforeNoRedirect"
-			// NOT AVAILABLE: InstrumManager.v().insertRightBeforeNoRedirect(pchain,
-			// tcProbes, sLast);
 		}
-		// finally, we add the trap associated with the newly added catch block
-		// TODO DO we need to tag traps ?!
-		Trap trap = Jimple.v().newTrap(sce, sFirstNonId, gtstmt, ids);
-		b.getTraps().add(trap);
+
+		/*
+		 * The followig code resemble the one in this class:
+		 * https://github.com/soot-oss/soot/blob/master/src/main/java/soot/jimple/
+		 * toolkits/invoke/SynchronizerManager.java#L376
+		 */
+
+		List<Stmt> instrumentationCode = new ArrayList<Stmt>();
+
+		/*
+		 * Ideally one can add a dummy operation at last, i.e., nop, but doing that will
+		 * break the code since nop will appear after return statements. So we need to
+		 * work around this.
+		 */
+//		Stmt gotoForLastUnitOfTheMethod = Jimple.v().newGotoStmt(lastUnitOfCurrentlyInstrumentedBodyUnitChain);
+		// Should this be included in the method?
+//		instrumentationCode.add(gotoForLastUnitOfTheMethod);
+		/*
+		 * Form the Trap body: we need to take the caught exception and store it into a
+		 * local, such that we can rethrow it afterwards since ThrowStmt works on locals
+		 */
+
+		Local exceptionCaughtByTrapLocal = UtilInstrumenter.generateFreshLocal(body, throwableClassRefType);
+		Local exceptionToBeThrownLocal = UtilInstrumenter.generateFreshLocal(body, throwableClassRefType);
+
+		// This corresponds to the @caughtexception, e.g., "r5 := @caughtexception"
+		Stmt handlerStmt = Jimple.v().newIdentityStmt(exceptionCaughtByTrapLocal, Jimple.v().newCaughtExceptionRef());
+		// Assign the @caughtexception to a new Local
+		Stmt assignException = Jimple.v().newAssignStmt(exceptionToBeThrownLocal, exceptionCaughtByTrapLocal);
+		// (re)Throw the exception. pay attention to use the rigth Local
+		Stmt rethrowTheException = Jimple.v().newThrowStmt(exceptionToBeThrownLocal);
+
+		// Assemble the catch block
+		instrumentationCode.add(handlerStmt);
+		instrumentationCode.add(assignException);
+		instrumentationCode.add(rethrowTheException);
+
+		//
+		currentlyInstrumentedMethodBodyUnitChain.addAll(instrumentationCode);
+		// We now need to inject the code into the method body and then define how the
+		// trap looks like/can be reached?.
+//		UtilInstrumenter.instrumentBeforeNoRedirect(currentlyInstrumentedMethodBodyUnitChain, instrumentationCode,
+//				lastUnitOfCurrentlyInstrumentedBodyUnitChain);
+
+		// I am not sure this makes sense to use handlerStmt as the unit after the last
+		// (return)
+		Trap trap = Jimple.v().newTrap(throwableSootClass, startOfTheMethod,
+				lastUnitOfCurrentlyInstrumentedBodyUnitChain, handlerStmt);
+		// Be sure the trap is the last one
+		body.getTraps().addLast(trap);
 	}
 
-} // -- public class icgInst
+}
+// -- public class icgInst
