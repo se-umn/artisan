@@ -179,12 +179,16 @@ public class Monitor {
 		return isString(methodSignature.replaceFirst("<", "").split(" ")[0].replaceAll(":", ""));
 	}
 
-	/*
-	 * initialize the two maps and the global counter upon the program start event
-	 */
+	private static boolean isLogEverything() {
+		// Replace true with a variable of some sort...
+		return true || isUiThread();
+	}
+
+	// THIS IS THE INTERFACE OF THE CLASS.
+
 	/**
-	 * Must ensure that the monitor is initialized no matter how this app is
-	 * started.
+	 * Ensures that the monitor class is properly initialized no matter how the app
+	 * is started.
 	 *
 	 * Note: since getting the Context object from the app is tricky, we hardcode
 	 * the path using the packagename
@@ -246,12 +250,21 @@ public class Monitor {
 
 	}
 
-	public static void enterPrivate(//
+	/**
+	 * Triggered when the execution starts a non-private method that belongs to the
+	 * instrumented application
+	 * 
+	 * @param packageName
+	 * @param methodOwner
+	 * @param methodSignature
+	 * @param methodParameters
+	 * @throws Exception
+	 */
+	public static void onAppMethodCall(//
 			String packageName, //
 			Object methodOwner, //
 			String methodSignature, //
 			java.lang.Object[] methodParameters) throws Exception {
-
 		// Ensure locking.
 		lock.lock();
 		try {
@@ -262,20 +275,35 @@ public class Monitor {
 			// return;
 			// active = true;
 			// try {
-			enter_impl(methodOwner, methodSignature, methodParameters, PRIVATE_METHOD_START_TOKEN);
+			enter_impl(methodOwner, methodSignature, methodParameters, METHOD_START_TOKEN);
 			// } finally {
 			// active = false;
 			// }
 		} catch (Throwable t) {
-			android.util.Log.e(ABC_TAG, "ERROR !", t);
+			android.util.Log.e(ABC_TAG, "ERROR params: \n" //
+					+ packageName + "\n" //
+					+ methodOwner + "\n" //
+					+ methodSignature + "\n" //
+					+ Arrays.toString(methodParameters) + "\n", //
+					t);
 			throw t;
 		} finally {
 			lock.unlock();
 		}
-
 	}
 
-	public static void enterSynthetic(//
+	/**
+	 * Triggered when the execution starts a method that we faked. For example,
+	 * accessing an array element or setting an array element are both faked as
+	 * synthetic methods.
+	 * 
+	 * @param packageName
+	 * @param methodOwner
+	 * @param methodSignature
+	 * @param methodParameters
+	 * @throws Exception
+	 */
+	public static void onSyntheticMethodCall(//
 			String packageName, //
 			Object methodOwner, //
 			String methodSignature, //
@@ -296,7 +324,12 @@ public class Monitor {
 			// active = false;
 			// }
 		} catch (Throwable t) {
-			android.util.Log.e(ABC_TAG, "ERROR !", t);
+			android.util.Log.e(ABC_TAG, "ERROR params: \n" //
+					+ packageName + "\n" //
+					+ methodOwner + "\n" //
+					+ methodSignature + "\n" //
+					+ Arrays.toString(methodParameters) + "\n", //
+					t);
 			throw t;
 		} finally {
 			lock.unlock();
@@ -304,11 +337,23 @@ public class Monitor {
 
 	}
 
-	public static void enter(//
+	/**
+	 * Triggered when the execution starts a private method of the app. We need to
+	 * trace private method calls as they might generate data dependencies despite
+	 * the methods cannot be directly called by the carved tests.
+	 * 
+	 * @param packageName
+	 * @param methodOwner
+	 * @param methodSignature
+	 * @param methodParameters
+	 * @throws Exception
+	 */
+	public static void onPrivateAppMethodCall(//
 			String packageName, //
 			Object methodOwner, //
 			String methodSignature, //
 			java.lang.Object[] methodParameters) throws Exception {
+
 		// Ensure locking.
 		lock.lock();
 		try {
@@ -319,34 +364,36 @@ public class Monitor {
 			// return;
 			// active = true;
 			// try {
-			enter_impl(methodOwner, methodSignature, methodParameters, METHOD_START_TOKEN);
+			enter_impl(methodOwner, methodSignature, methodParameters, PRIVATE_METHOD_START_TOKEN);
 			// } finally {
 			// active = false;
 			// }
 		} catch (Throwable t) {
-			android.util.Log.e(ABC_TAG, "ERROR !", t);
+			android.util.Log.e(ABC_TAG, "ERROR params: \n" //
+					+ packageName + "\n" //
+					+ methodOwner + "\n" //
+					+ methodSignature + "\n" //
+					+ Arrays.toString(methodParameters) + "\n", //
+					t);
 			throw t;
 		} finally {
 			lock.unlock();
 		}
-	}
 
-	@Deprecated // Use Owner=EmptyString instead
-	public static void enterStatic(//
-			String packageName, String methodSignature, //
-			java.lang.Object[] methodParameters) throws Exception {
-		throw new RuntimeException("THIS METHOD IS NO LONGER SUPPORTED ! ");
 	}
 
 	/**
-	 * Same as enter but without package name...
-	 *
+	 * Triggered when the execution starts a method that does not belong to the
+	 * instrumented app.
+	 * 
+	 * 
+	 * @param packageName
 	 * @param methodOwner
 	 * @param methodSignature
 	 * @param methodParameters
 	 * @throws Exception
 	 */
-	public static void libCall(//
+	public static void onLibMethodCall(//
 			Object methodOwner, //
 			String methodSignature, //
 			String methodContext, //
@@ -357,14 +404,30 @@ public class Monitor {
 		try {
 			libCall_impl(methodOwner, methodSignature, methodContext, methodParameters);
 		} catch (Throwable t) {
-			android.util.Log.e(ABC_TAG, "ERROR !", t);
+			android.util.Log.e(ABC_TAG, "ERROR params: \n" //
+					+ methodOwner + "\n" //
+					+ methodSignature + "\n" //
+					+ methodContext + "\n" //
+					+ Arrays.toString(methodParameters) + "\n", //
+					t);
 			throw t;
 		} finally {
 			lock.unlock();
 		}
 	}
 
-	public static void returnInto(Object methodOwner, //
+	/**
+	 * Triggered when the execution of an app method ends normally, via return or
+	 * returnVoid
+	 * 
+	 * 
+	 * @param methodOwner
+	 * @param methodSignature
+	 * @param methodContext
+	 * @param returnValue
+	 * @throws Throwable
+	 */
+	public static void onAppMethodReturnNormally(Object methodOwner, //
 			String methodSignature, //
 			String methodContext, //
 			Object returnValue) throws Throwable {
@@ -382,6 +445,182 @@ public class Monitor {
 			returnInto_impl(methodOwner, methodSignature, methodContext, returnValue, METHOD_END_TOKEN);
 
 		} catch (Throwable t) {
+			android.util.Log.e(ABC_TAG, "ERROR params: \n" //
+					+ methodOwner + "\n" //
+					+ methodSignature + "\n" //
+					+ methodContext + "\n" //
+					+ returnValue + "\n", //
+					t);
+			throw t;
+		} finally {
+			lock.unlock();
+		}
+	}
+
+	/**
+	 * Triggered when the execution of a lib method ends normally, via return or
+	 * returnVoid
+	 * 
+	 * 
+	 * @param methodOwner
+	 * @param methodSignature
+	 * @param methodContext
+	 * @param returnValue
+	 * @throws Throwable
+	 */
+	public static void onLibMethodReturnNormally(Object methodOwner, //
+			String methodSignature, //
+			String methodContext, //
+			Object returnValue) throws Throwable {
+		lock.lock();
+		try {
+
+			// If this method is the last one, and returned normally it cannot be the source
+			// of the exception
+			String threadData = getThreadData();
+
+			ownerOfExceptionSource.remove(threadData);
+			signatureOfExceptionSource.remove(threadData);
+			contextOfExceptionSource.remove(threadData);
+
+			returnInto_impl(methodOwner, methodSignature, methodContext, returnValue, METHOD_END_TOKEN);
+
+		} catch (Throwable t) {
+			android.util.Log.e(ABC_TAG, "ERROR params: \n" //
+					+ methodOwner + "\n" //
+					+ methodSignature + "\n" //
+					+ methodContext + "\n" //
+					+ returnValue + "\n", //
+					t);
+			throw t;
+		} finally {
+			lock.unlock();
+		}
+	}
+
+	/**
+	 * Triggered when the execution of an app method ends exceptionally, i.e., via a
+	 * throw stmt that is also an exit point
+	 * 
+	 * @param methodOwner
+	 * @param methodSignature
+	 * @param methodContext
+	 * @param exception
+	 * @throws Throwable
+	 */
+	public static void onAppMethodReturnExceptionally(Object methodOwner, //
+			String methodSignature, //
+			String methodContext, //
+			Object exception) throws Throwable {
+		lock.lock();
+		try {
+
+			// If lastMethodContext is not empty, it means that a method previously invoked
+			// did not finished. Hence, the exception was thrown in there
+			// otherwise the exception was throw in the current method (using throw)
+			String threadData = getThreadData();
+			if (contextOfExceptionSource.containsKey(threadData)) {
+				/*
+				 * Log the entry and clean up lastMethod data structures to avoid logging
+				 * multiple times it
+				 */
+				returnInto_impl(ownerOfExceptionSource.remove(threadData), //
+						signatureOfExceptionSource.remove(threadData), contextOfExceptionSource.remove(threadData), //
+						exception, METHOD_END_TOKEN_FROM_EXCEPTION);
+			}
+
+			returnInto_impl(methodOwner, methodSignature, methodContext, exception, METHOD_END_TOKEN_FROM_EXCEPTION);
+		} catch (Throwable t) {
+			android.util.Log.e(ABC_TAG, "ERROR params: \n" //
+					+ methodOwner + "\n" //
+					+ methodSignature + "\n" //
+					+ methodContext + "\n" //
+					+ exception + "\n", //
+					t);
+			throw t;
+		} finally {
+			lock.unlock();
+		}
+	}
+
+	/**
+	 * Triggered when the app method throws an exception. This might be an uncaught
+	 * or a caught one and we need this to distinhguish whether the an exception
+	 * that we captured is caused by an app method or a lib call.
+	 * 
+	 * @param methodOwner     The object owning the method raising this exception
+	 * @param methodSignature Method throwing the exception
+	 * @param methodContext   Method throwing the exception
+	 * @param exception       Exception being thrown and captured by themethod
+	 * @throws Throwable
+	 */
+	public static void onAppMethodThrowException(Object methodOwner, //
+			String methodSignature, //
+			String methodContext, //
+			Object exception) throws Throwable {
+		lock.lock();
+		try {
+			// TODO This is just a temporary method to log something in the trace !
+			StringBuffer content = new StringBuffer();
+
+			String threadData = getThreadData();
+			// Append Thread information
+			content.append(threadData).append(DELIMITER);
+
+			// Append context information if any
+			content.append("[" + methodContext + "]").append(DELIMITER);
+
+			// Append opening tag
+			content.append("[DEBUG]").append(DELIMITER);
+			//
+			content.append(exception).append("has been thrown by").append(methodSignature);
+//			traceFileOutputWriter.write("ABC:: " + g_counter + " ");
+			traceFileOutputWriter.write(content.toString());
+			traceFileOutputWriter.newLine();
+			traceFileOutputWriter.flush();
+
+		} catch (Throwable t) {
+			android.util.Log.e(ABC_TAG, "ERROR !", t);
+			throw t;
+		} finally {
+			lock.unlock();
+		}
+
+	}
+
+	/**
+	 * This method is triggered when an app method captures an exception in one of
+	 * its traps
+	 * 
+	 * @param methodOwner     The object owning the method that contains this trap
+	 * @param methodSignature Method containing the trap handling the exception
+	 * @param methodContext   Method containing the trap handling the exception
+	 * @param exception       The Exception being captured by the trap handler
+	 * @throws Throwable
+	 */
+	public static void onAppMethodCaptureException(Object methodOwner, //
+			String methodSignature, //
+			String methodContext, //
+			Object exception) throws Throwable {
+		lock.lock();
+		try {
+			// TODO This logic must be updated: we need to pass the exceptions due to
+			// throwing and capturing the exception within a method but lookup for the
+			// "still open" libCalls
+			// TODO consider also the case the "last" method invocation is one method that
+			// belongs to the application!!
+			// If lastMethodContext is not empty, it means that a method previously invoked
+			// did not finished. Hence, the exception was thrown in there
+			// otherwise the exception was throw in the current method (using throw)
+			String threadData = getThreadData();
+			if (contextOfExceptionSource.containsKey(threadData)) {
+				// Clean Up the data just like we do for returnInto
+				returnInto_impl(ownerOfExceptionSource.remove(threadData),
+						signatureOfExceptionSource.remove(threadData), contextOfExceptionSource.remove(threadData),
+						exception, METHOD_END_TOKEN_FROM_EXCEPTION_CAUGHT);
+			}
+
+		} catch (Throwable t) {
 			android.util.Log.e(ABC_TAG, "ERROR !", t);
 			throw t;
 		} finally {
@@ -389,20 +628,17 @@ public class Monitor {
 		}
 	}
 
-	public static void libCallStatic(//
-			String methodSignature, //
-			String methodContext, //
-			java.lang.Object[] methodParameters) throws Exception {
-		throw new RuntimeException("THIS METHOD IS NO LONGER SUPPORTED ! ");
-	}
-
-	private static boolean isLogEverything() {
-		// Replace true with a variable of some sort...
-		return true || isUiThread();
-	}
-
 	/*
-	 *
+	 * Implementation methods follow
+	 */
+
+	/**
+	 * 
+	 * @param methodOwner
+	 * @param methodSignature
+	 * @param methodContext
+	 * @param methodParameters
+	 * @throws IOException
 	 */
 	private static void libCall_impl(//
 			Object methodOwner, //
@@ -489,112 +725,6 @@ public class Monitor {
 
 	}
 
-	/**
-	 * We need to keep track of methods that throw exceptions that later they
-	 * handle. Those corresponds to the ThrowStmt that are NOT exit points
-	 * 
-	 * @param methodOwner     The object owning the method raising this exception
-	 * @param methodSignature Method throwing the exception
-	 * @param methodContext   Method throwing the exception
-	 * @param exception       Exception being thrown and captured by themethod
-	 * @throws Throwable
-	 */
-	public static void throwCapturedException(Object methodOwner, //
-			String methodSignature, //
-			String methodContext, //
-			Object exception) throws Throwable {
-		lock.lock();
-		try {
-			// TODO This is just a temporary method to log something in the trace !
-			StringBuffer content = new StringBuffer();
-			content.append(">>> DEBUG... The exception ").append(exception).append("has been thrown by")
-					.append(methodSignature);
-//			traceFileOutputWriter.write("ABC:: " + g_counter + " ");
-			traceFileOutputWriter.write(content.toString());
-			traceFileOutputWriter.newLine();
-			traceFileOutputWriter.flush();
-
-		} catch (Throwable t) {
-			android.util.Log.e(ABC_TAG, "ERROR !", t);
-			throw t;
-		} finally {
-			lock.unlock();
-		}
-
-	}
-
-	/**
-	 * This method is triggered by a trap when an exception is handled by the
-	 * corresponding trap handler.
-	 * 
-	 * @param methodOwner     The object owning the method that contains this trap
-	 * @param methodSignature Method containing the trap handling the exception
-	 * @param methodContext   Method containing the trap handling the exception
-	 * @param exception       The Exception being captured by the trap handler
-	 * @throws Throwable
-	 */
-	public static void onExceptionCaptured(Object methodOwner, //
-			String methodSignature, //
-			String methodContext, //
-			Object exception) throws Throwable {
-		lock.lock();
-		try {
-			// TODO This logic must be updated: we need to pass the exceptions due to
-			// throwing and capturing the exception within a method but lookup for the
-			// "still open" libCalls
-			// TODO consider also the case the "last" method invocation is one method that
-			// belongs to the application!!
-			// If lastMethodContext is not empty, it means that a method previously invoked
-			// did not finished. Hence, the exception was thrown in there
-			// otherwise the exception was throw in the current method (using throw)
-			String threadData = getThreadData();
-			if (contextOfExceptionSource.containsKey(threadData)) {
-				// Clean Up the data just like we do for returnInto
-				returnInto_impl(ownerOfExceptionSource.remove(threadData),
-						signatureOfExceptionSource.remove(threadData), contextOfExceptionSource.remove(threadData),
-						exception, METHOD_END_TOKEN_FROM_EXCEPTION_CAUGHT);
-			}
-
-		} catch (Throwable t) {
-			android.util.Log.e(ABC_TAG, "ERROR !", t);
-			throw t;
-		} finally {
-			lock.unlock();
-		}
-	}
-
-	// Most likely we can see the exception bubbling and derive in which method
-	// this happened and was captured
-	public static void returnIntoFromException(Object methodOwner, //
-			String methodSignature, //
-			String methodContext, //
-			Object exception) throws Throwable {
-		lock.lock();
-		try {
-
-			// If lastMethodContext is not empty, it means that a method previously invoked
-			// did not finished. Hence, the exception was thrown in there
-			// otherwise the exception was throw in the current method (using throw)
-			String threadData = getThreadData();
-			if (contextOfExceptionSource.containsKey(threadData)) {
-				/*
-				 * Log the entry and clean up lastMethod data structures to avoid logging
-				 * multiple times it
-				 */
-				returnInto_impl(ownerOfExceptionSource.remove(threadData), //
-						signatureOfExceptionSource.remove(threadData), contextOfExceptionSource.remove(threadData), //
-						exception, METHOD_END_TOKEN_FROM_EXCEPTION);
-			}
-
-			returnInto_impl(methodOwner, methodSignature, methodContext, exception, METHOD_END_TOKEN_FROM_EXCEPTION);
-		} catch (Throwable t) {
-			android.util.Log.e(ABC_TAG, "ERROR !", t);
-			throw t;
-		} finally {
-			lock.unlock();
-		}
-	}
-
 	/* the callee could be either an actual method called or a trap */
 	public static void returnInto_impl(Object methodOwner, String methodSignature, String methodContext,
 			Object returnValue, String token) throws IOException {
@@ -631,8 +761,11 @@ public class Monitor {
 	 * dump the Execute-After sequence that is converted from the two event maps
 	 * upon program termination event this is, however, not required but useful for
 	 * debugging
-	 *
+	 * 
+	 * 
+	 * TODO I do not think we ever use this one...
 	 */
+	@Deprecated
 	public static void terminate(String where) throws Exception {
 		lock.lock();
 		try {

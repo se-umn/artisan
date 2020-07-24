@@ -55,8 +55,8 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
 	private PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain;
 	//
 	private SootClass clsMonitor;
-	private SootMethod monitorOnLibCall;
-	private SootMethod monitorOnReturnInto;
+	private SootMethod monitorOnLibMethodCall;
+	private SootMethod monitorOnLibMethodReturnNormally;
 
 	public InstrumentLibCall(final SootMethod currentlyInstrumentedMethod, //
 			final Body currentlyInstrumentedMethodBody, //
@@ -68,106 +68,107 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
 		this.userClasses = userClasses;
 
 		this.clsMonitor = Scene.v().getSootClass(utils.Constants.MONITOR_CLASS);
-		this.monitorOnLibCall = clsMonitor.getMethodByName("libCall");
-		this.monitorOnReturnInto = clsMonitor.getMethodByName("returnInto");
+		// TODO Move this to enum or something or at least the strings !
+		this.monitorOnLibMethodCall = clsMonitor.getMethodByName("onLibMethodCall");
+		this.monitorOnLibMethodReturnNormally = clsMonitor.getMethodByName("onLibMethodReturnNormally");
 
 	}
 
 	@Override
 	public void caseAssignStmt(AssignStmt stmt) {
-//		System.out.println("InstrumentLibCall.caseAssignStmt() " + stmt);
+		// System.out.println("InstrumentLibCall.caseAssignStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	}
 
 	// TODO: What's this?
 	@Override
 	public void caseBreakpointStmt(soot.jimple.BreakpointStmt stmt) {
-//		System.out.println("InstrumentLibCall.caseBreakpointStmt() " + stmt);
+		// System.out.println("InstrumentLibCall.caseBreakpointStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	}
 
 	// TODO: What's this? synchronize block?
 	@Override
 	public void caseEnterMonitorStmt(EnterMonitorStmt stmt) {
-//		System.out.println("InstrumentLibCall.caseEnterMonitorStmt() " + stmt);
+		// System.out.println("InstrumentLibCall.caseEnterMonitorStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	};
 
 	// TODO: What's this? synchronize block?
 	@Override
 	public void caseExitMonitorStmt(ExitMonitorStmt stmt) {
-//		System.out.println("InstrumentLibCall.caseExitMonitorStmt() " + stmt);
+		// System.out.println("InstrumentLibCall.caseExitMonitorStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	};
 
 	// TODO: What's this?
 	@Override
 	public void caseGotoStmt(GotoStmt stmt) {
-//		System.out.println("InstrumentLibCall.caseGotoStmt() " + stmt);
+		// System.out.println("InstrumentLibCall.caseGotoStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	};
 
 	// TODO: What's this? the initial "this", the implementation of self-referencing
 	@Override
 	public void caseIdentityStmt(IdentityStmt stmt) {
-//		System.out.println("InstrumentLibCall.caseIdentityStmt() " + stmt);
+		// System.out.println("InstrumentLibCall.caseIdentityStmt() " + stmt);
 		super.caseIdentityStmt(stmt);
 	};
 
 	// TODO Is it possible that there's method calls at this point?
 	@Override
 	public void caseIfStmt(IfStmt stmt) {
-//		System.out.println("InstrumentLibCall.caseIfStmt() " + stmt);
+		// System.out.println("InstrumentLibCall.caseIfStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	};
 
 	// TODO Why there's no instrumentation of this?
 	@Override
 	public void caseInvokeStmt(InvokeStmt stmt) {
-//		System.out.println("InstrumentLibCall.caseInvokeStmt() " + stmt);
-		super.caseInvokeStmt(stmt);
+		// System.out.println("InstrumentLibCall.caseInvokeStmt() " + stmt);
+		wrapLibraryInvocationIfAny(stmt);
 	}
 
 	@Override
 	public void caseLookupSwitchStmt(LookupSwitchStmt stmt) {
-//		System.out.println("InstrumentLibCall.caseLookupSwitchStmt() " + stmt);
+		// System.out.println("InstrumentLibCall.caseLookupSwitchStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	}
 
 	@Override
 	public void caseNopStmt(NopStmt stmt) {
-//		System.out.println("InstrumentLibCall.caseNopStmt() " + stmt);
+		// System.out.println("InstrumentLibCall.caseNopStmt() " + stmt);
 		super.caseNopStmt(stmt);
 	}
 
 	@Override
 	public void caseRetStmt(RetStmt stmt) {
-//		System.out.println("InstrumentLibCall.caseRetStmt() " + stmt);
+		// System.out.println("InstrumentLibCall.caseRetStmt() " + stmt);
 		super.caseRetStmt(stmt);
 	}
 
 	@Override
 	public void caseReturnStmt(ReturnStmt stmt) {
-//		System.out.println("InstrumentLibCall.caseReturnStmt() " + stmt);
+		// System.out.println("InstrumentLibCall.caseReturnStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 		super.caseReturnStmt(stmt);
 	}
 
 	@Override
 	public void caseReturnVoidStmt(ReturnVoidStmt stmt) {
-//		System.out.println("InstrumentLibCall.caseReturnVoidStmt() " + stmt);
+		// System.out.println("InstrumentLibCall.caseReturnVoidStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	}
 
 	@Override
 	public void caseTableSwitchStmt(TableSwitchStmt stmt) {
-//		System.out.println("InstrumentLibCall.caseTableSwitchStmt() " + stmt);
+		// System.out.println("InstrumentLibCall.caseTableSwitchStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	}
 
 	@Override
 	public void caseThrowStmt(ThrowStmt stmt) {
-//		System.out.println("InstrumentLibCall.caseThrowStmt() " + stmt);
+		// System.out.println("InstrumentLibCall.caseThrowStmt() " + stmt);
 		wrapLibraryInvocationIfAny(stmt);
 	}
 
@@ -206,7 +207,7 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
 			if (invokeExpr instanceof InstanceInvokeExpr) {
 				csOwner = ((InstanceInvokeExpr) invokeExpr).getBase();
 			} else {
-				System.out.println("Not sure how to handle owner for " + invokeExpr);
+				// System.out.println("Not sure how to handle owner for " + invokeExpr);
 				csOwner = StringConstant.v("");
 			}
 		}
@@ -238,8 +239,8 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
 		instrumentationCodeBefore.addAll(tmpArgsListAndInstructions.getSecond());
 
 		// Prepare the call to monitorOnLibCall
-		final Stmt callTracerMethodStart = Jimple.v()
-				.newInvokeStmt(Jimple.v().newStaticInvokeExpr(monitorOnLibCall.makeRef(), monitorOnLibCallParameters));
+		final Stmt callTracerMethodStart = Jimple.v().newInvokeStmt(
+				Jimple.v().newStaticInvokeExpr(monitorOnLibMethodCall.makeRef(), monitorOnLibCallParameters));
 		// Append the call to the instrumentation code
 		instrumentationCodeBefore.add(callTracerMethodStart);
 
@@ -261,7 +262,7 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
 			if (invokeExpr instanceof InstanceInvokeExpr) {
 				csOwner = ((InstanceInvokeExpr) invokeExpr).getBase();
 			} else {
-				System.out.println("Not sure how to handle owner for " + invokeExpr);
+				// System.out.println("Not sure how to handle owner for " + invokeExpr);
 				// TODO Probably NullConstant.v() ?
 				csOwner = StringConstant.v("");
 			}
@@ -290,7 +291,7 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
 				// be overwritten
 
 				// if (opts.debugOut()) {
-				// System.out.println("\t\t\t >>>> APPLY PATCH TO
+				// // System.out.println("\t\t\t >>>> APPLY PATCH TO
 				// HOLD ORIGINAL OWNER TO " + csOwner + "
 				// ("+csOwner.getType() +") --> " +
 				// originalOwnerHolder +
@@ -355,8 +356,8 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
 		monitorOnReturnIntoParameters.add(UtilInstrumenter.generateCorrectObject(currentlyInstrumentedMethodBody,
 				returnValueFromCallSite, instrumentationCodeAfter));
 		// Prepare the actual call
-		final Stmt onReturnIntoCall = Jimple.v().newInvokeStmt(
-				Jimple.v().newStaticInvokeExpr(monitorOnReturnInto.makeRef(), monitorOnReturnIntoParameters));
+		final Stmt onReturnIntoCall = Jimple.v().newInvokeStmt(Jimple.v()
+				.newStaticInvokeExpr(monitorOnLibMethodReturnNormally.makeRef(), monitorOnReturnIntoParameters));
 		instrumentationCodeAfter.add(onReturnIntoCall);
 
 		/*
