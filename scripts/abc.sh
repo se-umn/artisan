@@ -251,12 +251,15 @@ function instrument-apk() {
   : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
   # This sets the env variable required by "instrument-apk.sh"
   : ${APK_SIGNER:?Please provide a value for APK_SIGNER in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${ANDROID_JAR:?Please provide a value for ANDROID_JAR in $config_file}
 
   local apk_file="${1:?Missing apk file to instrument}"
 
   # The instrumentation script also check if the project requires to be rebuild
   # TODO. Maybe we need to move that script here? Maybe we need to use make ?
   export APK_SIGNER=${APK_SIGNER}
+  export ANDROID_JAR=${ANDROID_JAR}
 
   local instrumented_apk_file=$(${ABC_HOME}/instrumentation/scripts/instrument-apk.sh ${apk_file})
   # THIS PRODUCES A LOG "HERE". TODO Shall we move the log the location of the instrumented apk ?
@@ -502,6 +505,8 @@ function __private_autocomplete() {
   elif [ "${command_name}" == "copy-traces" ]; then
     echo "requires_one_file"
   elif [ "${command_name}" == "split-trace" ]; then
+    echo "requires_one_file"
+  elif [ "${command_name}" == "test-apk" ]; then
     echo "requires_one_file"
   fi
 }
