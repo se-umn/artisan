@@ -368,19 +368,26 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 						currentlyInstrumentedMethodBodyUnitChain);
 
 				/*
+				 * Inject code that store the thrown exception. So we log the fact that the
+				 * method is about to throw an exception before possibly logging it will end	
+				 * exceptionally
+				 * 
+				 */
+				System.out.println("\t INSTRUMENTING THROWS");
+				instrumentMethodThrows(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
+						currentlyInstrumentedMethodBodyUnitChain);
+
+				/*
 				 * Inject instrumentation code before any return/throw statement in the method.
-				 * This might also require to explicitly introdyce try/catch statements to
-				 * capture (and rethrow) also undeclared exceptions
 				 */
 
 				System.out.println("\t INSTRUMENTING METHOD EXIT-POINTS");
 				instrumentMethodEnds(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
 						currentlyInstrumentedMethodBodyUnitChain);
 
-				System.out.println("\t INSTRUMENTING THROWS");
-				instrumentMethodThrows(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
-						currentlyInstrumentedMethodBodyUnitChain);
-
+				/*
+				 * Inject instrumentation code after capturing an exception
+				 */
 				System.out.println("\t INSTRUMENTING TRAPS");
 				instrumentMethodTraps(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
 						currentlyInstrumentedMethodBodyUnitChain);
@@ -566,7 +573,8 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 			instrumentationCode.add(onMonitorAppMethodCaptureExceptionCall);
 
-			// Add the code right after the handler unit so we do not change the definion of the trap...
+			// Add the code right after the handler unit so we do not change the definion of
+			// the trap...
 			UtilInstrumenter.instrumentAfterWithAndTag(currentlyInstrumentedMethodBodyUnitChain,
 					(IdentityStmt) handlerUnit, instrumentationCode);
 		}
