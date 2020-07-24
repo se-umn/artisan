@@ -25,6 +25,7 @@ import soot.jimple.Jimple;
  * @author gambi
  *
  */
+@Deprecated // IS THIS CLASS EVEN USED ?
 public class CaptureReturnValueBodyTransformer extends BodyTransformer {
 
 	private static final Logger logger = LoggerFactory.getLogger(CaptureReturnValueBodyTransformer.class);
