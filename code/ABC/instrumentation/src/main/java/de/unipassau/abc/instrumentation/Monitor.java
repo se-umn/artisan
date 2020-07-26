@@ -444,10 +444,12 @@ public class Monitor {
 			// Clean up the last LibCall data since it returned normally
 			String threadData = getThreadData();
 
-			if (!methodSignatureOfLastLibCall.containsKey(threadData)
-					|| methodSignatureOfLastLibCall.get(threadData).equals(methodSignature)) {
-				android.util.Log.w(ABC_TAG,
-						"Mismatch for onLibMethodReturnNormally " + threadData + " -- " + methodSignatureOfLastLibCall);
+			if (!methodSignatureOfLastLibCall.containsKey(threadData)) {
+				android.util.Log.w(ABC_TAG, "Missing onLibMethodStart for " + threadData + " -- " + methodSignature);
+			}
+			if (!methodSignatureOfLastLibCall.get(threadData).equals(methodSignature)) {
+				android.util.Log.w(ABC_TAG, "Mismatch for onLibMethodReturnNormally " + threadData + "expecting  "
+						+ methodSignatureOfLastLibCall.get(threadData) + " but got " + methodSignature);
 			}
 			// Optimistic implementation
 			methodSignatureOfLastLibCall.remove(threadData);
@@ -485,21 +487,6 @@ public class Monitor {
 			Object exception) throws Throwable {
 		lock.lock();
 		try {
-
-			// If lastMethodContext is not empty, it means that a method previously invoked
-			// did not finished. Hence, the exception was thrown in there
-			// otherwise the exception was throw in the current method (using throw)
-//			String threadData = getThreadData();
-//			if (contextOfExceptionSource.containsKey(threadData)) {
-//				/*
-//				 * Log the entry and clean up lastMethod data structures to avoid logging
-//				 * multiple times it
-//				 */
-//				returnInto_impl(ownerOfExceptionSource.remove(threadData), //
-//						signatureOfExceptionSource.remove(threadData), contextOfExceptionSource.remove(threadData), //
-//						exception, METHOD_END_TOKEN_FROM_EXCEPTION);
-//			}
-
 			returnInto_impl(methodOwner, methodSignature, methodContext, exception, METHOD_END_TOKEN_FROM_EXCEPTION);
 		} catch (Throwable t) {
 			android.util.Log.e(ABC_TAG, "ERROR params: \n" //
@@ -532,9 +519,11 @@ public class Monitor {
 		lock.lock();
 		try {
 
-			// Store that the method threw an exception. If this exception is caught, it
-			// will clear the data otherwise that is the exception that crashed the app (at
-			// least, if thread is UI/Main)
+			/*
+			 * Store that the method executed by thread T threw an exception. If this
+			 * exception is caught, it will clear the data otherwise that is the exception
+			 * that crashed the app (at least, if thread is UI/Main)
+			 */
 			String threadData = getThreadData();
 			thrownExceptions.put(threadData, exception);
 
