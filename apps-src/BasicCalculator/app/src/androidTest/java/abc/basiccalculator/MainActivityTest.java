@@ -3,6 +3,7 @@ package abc.basiccalculator;
 import android.content.Context;
 
 import androidx.test.espresso.Espresso;
+import androidx.test.espresso.PerformException;
 import androidx.test.filters.LargeTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -38,7 +39,29 @@ public class MainActivityTest {
         onView(withId(R.id.input)).perform(typeText("1+1"));
         Espresso.closeSoftKeyboard();
         onView(withId(R.id.calculateButton)).perform(click());
-        onView(withId(R.id.resultView)).check(matches(withText("2.0")));
+        onView(withId(R.id.resultView)).check(matches(withText("2")));
+    }
+
+    @Test (expected = PerformException.class)
+    public void testIllgalInputThrownByApp() {
+        onView(withId(R.id.input)).perform(typeText("13"));
+        Espresso.closeSoftKeyboard();
+        onView(withId(R.id.calculateButton)).perform(click());
+    }
+
+    @Test (expected = PerformException.class)
+    public void testNullPointerThrownBySystem() {
+        onView(withId(R.id.input)).perform(typeText("17"));
+        Espresso.closeSoftKeyboard();
+        onView(withId(R.id.calculateButton)).perform(click());
+    }
+
+    @Test
+    public void testFinallyBlock() {
+        onView(withId(R.id.input)).perform(typeText("1?2"));
+        Espresso.closeSoftKeyboard();
+        onView(withId(R.id.calculateButton)).perform(click());
+        onView(withId(R.id.input)).check(matches(withText("ERROR")));
     }
 
     @Test
@@ -46,9 +69,9 @@ public class MainActivityTest {
         onView(withId(R.id.input)).perform(typeText("1+1"));
         Espresso.closeSoftKeyboard();
         onView(withId(R.id.calculateButton)).perform(click());
-        onView(withId(R.id.resultView)).check(matches(withText("2.0")));
+        onView(withId(R.id.resultView)).check(matches(withText("2")));
         onView(withId(R.id.incrementButtonByOne)).perform(click());
-        onView(withId(R.id.resultView)).check(matches(withText("3.0")));
+        onView(withId(R.id.resultView)).check(matches(withText("3")));
     }
 
     @Test
@@ -56,9 +79,9 @@ public class MainActivityTest {
         onView(withId(R.id.input)).perform(typeText("1+1"));
         Espresso.closeSoftKeyboard();
         onView(withId(R.id.calculateButton)).perform(click());
-        onView(withId(R.id.resultView)).check(matches(withText("2.0")));
+        onView(withId(R.id.resultView)).check(matches(withText("2")));
         onView(withId(R.id.incrementButtonByTwo)).perform(click());
-        onView(withId(R.id.resultView)).check(matches(withText("4.0")));
+        onView(withId(R.id.resultView)).check(matches(withText("4")));
     }
 
     @Test
@@ -66,9 +89,9 @@ public class MainActivityTest {
         onView(withId(R.id.input)).perform(typeText("3+1"));
         Espresso.closeSoftKeyboard();
         onView(withId(R.id.calculateButton)).perform(click());
-        onView(withId(R.id.resultView)).check(matches(withText("4.0")));
+        onView(withId(R.id.resultView)).check(matches(withText("4")));
         onView(withId(R.id.incrementButtonByOne)).perform(click());
-        onView(withId(R.id.resultView)).check(matches(withText("5.0")));
+        onView(withId(R.id.resultView)).check(matches(withText("5")));
     }
 
     @Test
@@ -76,7 +99,7 @@ public class MainActivityTest {
         onView(withId(R.id.input)).perform(typeText("22+1"));
         Espresso.closeSoftKeyboard();
         onView(withId(R.id.calculateButton)).perform(click());
-        onView(withId(R.id.resultView)).check(matches(withText("23.0")));
+        onView(withId(R.id.resultView)).check(matches(withText("23")));
     }
 
     @Test
@@ -84,10 +107,10 @@ public class MainActivityTest {
         onView(withId(R.id.input)).perform(typeText("2+2"));
         Espresso.closeSoftKeyboard();
         onView(withId(R.id.calculateButton)).perform(click());
-        onView(withId(R.id.resultView)).check(matches(withText("4.0")));
+        onView(withId(R.id.resultView)).check(matches(withText("4")));
         onView(withId(R.id.incrementButtonByTwo)).perform(click());
-        onView(withId(R.id.resultView)).check(matches(withText("6.0")));
+        onView(withId(R.id.resultView)).check(matches(withText("6")));
         onView(withId(R.id.incrementButtonByTwo)).perform(click());
-        onView(withId(R.id.resultView)).check(matches(withText("8.0")));
+        onView(withId(R.id.resultView)).check(matches(withText("8")));
     }
 }
