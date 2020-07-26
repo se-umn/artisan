@@ -6,6 +6,7 @@
  * 10/26/15		hcai			added ICC monitoring with time-stamping call events
  * 04/22/17		hcai		added instrumentation for tracking reflection-called method
  * 12/02/19		gambi		Reduce, clean up, update and remove all the un-necessary elements
+ * 27/07/20		gambi		Changed the interface and strongly simplified implementation
  *
  */
 package de.unipassau.abc.instrumentation;
@@ -16,7 +17,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,15 +30,6 @@ import android.os.Looper;
 import android.util.Log;
 import utils.logicClock;
 
-/* Monitoring method events in runtime upon
- * invocations by instrumented probes in the subject
- *
- * to faithfully reproduce the Execute-After algorithm, use two maps and a global counter
- * to track two kinds of events only: entrance (first event) and return-into (last event)
- *
- *
- * Note Alessio: This can be strongly simplified IMHO
- */
 public class Monitor {
 
 	public static final String ABC_TAG = ">> ABC::";
@@ -52,41 +43,37 @@ public class Monitor {
 	public final static String LIB_METHOD_START_TOKEN = "[>>]";
 	public final static String METHOD_END_TOKEN = "[<]";
 	public final static String METHOD_END_TOKEN_FROM_EXCEPTION = "[<E]";
-	public final static String METHOD_END_TOKEN_FROM_EXCEPTION_CAUGHT = "[<e]";
 
 	private static ReentrantLock lock = new ReentrantLock();
 
 	// Store trace info inside the phone memory
 	private static BufferedWriter traceFileOutputWriter;
 
-	/* for DUAF/Soot to access this class */
-	public static void __link() {
-	}
+//	/* for DUAF/Soot to access this class */
+//	public static void __link() {
+//	}
 
-	/**
-	 * To correctly exceptions we need to distinguish the two cases: 1. the last
-	 * method we invoked did throw the exception 2. the current method uses throw to
-	 * throw the exception We distinguish the two cases by storing metadata of the
-	 * last method invocation and clearing them if the method returns. When the
-	 * exception is throw we check whether those meta data are there, if they are,
-	 * the last method invocation is still active meaning that it threw the
-	 * exception. Otherwise, the current method used throw
-	 */
+	// Book keep for each thread the active libCall if any. This is to
+	// reverse-engineering if any of those libCall raised an exception
+	// TODO Do we need all those elements?
+	protected static Map<String, Object> methodOwnerOfLastLibCall = new HashMap<String, Object>();
+	protected static Map<String, String> methodSignatureOfLastLibCall = new HashMap<String, String>();
+	protected static Map<String, String> methodContextOfLastLibCall = new HashMap<String, String>();
 
-	protected static HashMap<String, Object> ownerOfExceptionSource = new HashMap<String, Object>();
-	protected static HashMap<String, String> signatureOfExceptionSource = new HashMap<String, String>();
-	protected static HashMap<String, String> contextOfExceptionSource = new HashMap<String, String>();
+	// Thread-locale data to store whether an exception is thrown (and not yet
+	// handled)
+	protected static Map<String, Object> thrownExceptions = new HashMap<String, Object>();
 
 	/* first events */
-	protected static HashMap<String, Integer> F = new HashMap<String, Integer>();
+//	protected static HashMap<String, Integer> F = new HashMap<String, Integer>();
 	/* last events */
-	protected static HashMap<String, Integer> L = new HashMap<String, Integer>();
+//	protected static HashMap<String, Integer> L = new HashMap<String, Integer>();
 
 	/* all events */
-	protected static HashMap<Integer, String> A = new LinkedHashMap<Integer, String>();
+//	protected static HashMap<Integer, String> A = new LinkedHashMap<Integer, String>();
 
 	/* first message-receiving events */
-	protected static HashMap<String, Integer> S = new HashMap<String, Integer>();
+//	protected static HashMap<String, Integer> S = new HashMap<String, Integer>();
 
 	/* the global counter for timp-stamping each method event */
 	protected static Integer g_counter = 0;
@@ -97,10 +84,10 @@ public class Monitor {
 	 * specified to produce the full call sequence including all intermediate method
 	 * (enter/returned-into) events
 	 */
-	protected static boolean DynCGequenceOnly = true;
+//	protected static boolean DynCGequenceOnly = true;
 
 	/* output file for serializing the two event maps */
-	protected static String fnEventMaps = "";
+//	protected static String fnEventMaps = "";
 
 	/*
 	 * a flag ensuring the initialization and termination are both executed exactly
@@ -119,26 +106,26 @@ public class Monitor {
 	}
 
 	/* The "DynCGequenceOnly" option will be set by EARun via this setter */
-	public static void setDynCGequenceOnly(boolean b) {
-		DynCGequenceOnly = b;
-	}
+//	public static void setDynCGequenceOnly(boolean b) {
+//		DynCGequenceOnly = b;
+//	}
 
 	/*
 	 * The name of serialization target file will be set by EARun via this setter
 	 */
-	public static void setEventMapSerializeFile(String fname) {
-		fnEventMaps = fname;
-
-		if (dumpCallmap) {
-			callmap.clear();
-		}
-		F.clear();
-		L.clear();
-		A.clear();
-		synchronized (g_counter) {
-			g_counter = 1;
-		}
-	}
+//	public static void setEventMapSerializeFile(String fname) {
+//		fnEventMaps = fname;
+//
+//		if (dumpCallmap) {
+//			callmap.clear();
+//		}
+//		F.clear();
+//		L.clear();
+//		A.clear();
+//		synchronized (g_counter) {
+//			g_counter = 1;
+//		}
+//	}
 
 	/** Used to avoid infinite recursion */
 	// private static boolean active = false;
@@ -146,20 +133,21 @@ public class Monitor {
 	/*
 	 * if dump the dynamic calling relationship, namely a map from caller to callee
 	 */
-	protected static boolean dumpCallmap = true;
-	protected static final String calleeTag = "after calling ";
+//	protected static boolean dumpCallmap = true;
+//	protected static final String calleeTag = "after calling ";
+//
+//	public static void setDumpCallmap(boolean b) {
+//		dumpCallmap = b;
+//	}
 
-	public static void setDumpCallmap(boolean b) {
-		dumpCallmap = b;
-	}
-
-	private final static Map<String, String> callmap = new LinkedHashMap<String, String>();
+//	private final static Map<String, String> callmap = new LinkedHashMap<String, String>();
 
 	// TODO How is this used ?
 	/* output file for serializing the two event maps */
-	protected static String fnCallmap = "/tmp/callmap-" + System.currentTimeMillis() + ".out";
+//	protected static String fnCallmap = "/tmp/callmap-" + System.currentTimeMillis() + ".out";
 
 	protected static BufferedWriter cg_writer = null;
+
 	private final static List<String> boxedPrimitiveTypes = Arrays
 			.asList(new String[] { Byte.class.getName(), Short.class.getName(), Integer.class.getName(),
 					Long.class.getName(), Float.class.getName(), Double.class.getName(), Boolean.class.getName(),
@@ -171,9 +159,9 @@ public class Monitor {
 	/*
 	 * The name of serialization target file will be set by EARun via this setter
 	 */
-	public static void setCallMapSerializeFile(String fname) {
-		fnCallmap = fname;
-	}
+//	public static void setCallMapSerializeFile(String fname) {
+//		fnCallmap = fname;
+//	}
 
 	private static boolean isStringMethod(String methodSignature) {
 		return isString(methodSignature.replaceFirst("<", "").split(" ")[0].replaceAll(":", ""));
@@ -200,17 +188,17 @@ public class Monitor {
 		// This is the global counter to identify method invocations
 		synchronized (g_counter) {
 			// Not really suer about this
-			F.clear();
-			L.clear();
-			A.clear();
+//			F.clear();
+//			L.clear();
+//			A.clear();
 
 			g_counter = 1;
 
 			// System.out.println("In Monitor::initialize()");
-			if (!DynCGequenceOnly) {
-				A.put(g_counter, "program start");
-				g_counter++;
-			}
+//			if (!DynCGequenceOnly) {
+//				A.put(g_counter, "program start");
+//				g_counter++;
+//			}
 
 			// Avoid double initializations? should we check this at the very
 			// top ?
@@ -218,15 +206,16 @@ public class Monitor {
 			//
 			g_lgclock.initClock(0);
 
-			if (logicClock.trackingSender) {
-				// just record the ID of local process
-				S.put("" + android.os.Process.myUid(), Integer.MAX_VALUE);
-			}
+//			if (logicClock.trackingSender) {
+//				 just record the ID of local process
+//				S.put("" + android.os.Process.myUid(), Integer.MAX_VALUE);
+//			}
 
 			// we are now only care about apps running on the same device
 			// intentTracker.Monitor.installClock(g_lgclock);
-			callmap.clear();
+//			callmap.clear();
 
+			// Setup the trace file for action based carving
 			String filename = "Trace-" + System.currentTimeMillis() + ".txt";
 			// Write to the internal memory of the app
 			File homeFolder = new File("/data/data/" + packageName);
@@ -236,13 +225,13 @@ public class Monitor {
 			File traceFile = new File(homeFolder, filename);
 			traceFileOutputWriter = new BufferedWriter(new FileWriter(traceFile));
 			StringBuffer sb = new StringBuffer();
-			sb.append("ABC:: ").append(g_counter).append("---- STARTING TRACING for ").append(packageName)
+			sb.append(ABC_TAG).append(g_counter).append("---- STARTING TRACING for ").append(packageName)
 					.append(" output to ").append(traceFile.getAbsolutePath()).append(" ----");
 
-			android.util.Log.e("ABC:: ",
+			android.util.Log.e(ABC_TAG,
 					"---- STARTING TRACING for " + packageName + " output to " + traceFile.getAbsolutePath() + " ----");
 
-			// For the fun of it... list all the files in this folder
+			// For the fun of it... list all the files in this folder on Android log
 			for (File file : traceFile.getParentFile().listFiles()) {
 				android.util.Log.e("ABC:: ", "Internal storage: " + file.getAbsolutePath());
 			}
@@ -271,14 +260,7 @@ public class Monitor {
 			if (!bInitialized) {
 				initialize(packageName);
 			}
-			// if (active)
-			// return;
-			// active = true;
-			// try {
 			enter_impl(methodOwner, methodSignature, methodParameters, METHOD_START_TOKEN);
-			// } finally {
-			// active = false;
-			// }
 		} catch (Throwable t) {
 			android.util.Log.e(ABC_TAG, "ERROR params: \n" //
 					+ packageName + "\n" //
@@ -315,14 +297,7 @@ public class Monitor {
 			if (!bInitialized) {
 				initialize(packageName);
 			}
-			// if (active)
-			// return;
-			// active = true;
-			// try {
 			enter_impl(methodOwner, methodSignature, methodParameters, SYNTHETIC_METHOD_START_TOKEN);
-			// } finally {
-			// active = false;
-			// }
 		} catch (Throwable t) {
 			android.util.Log.e(ABC_TAG, "ERROR params: \n" //
 					+ packageName + "\n" //
@@ -360,14 +335,7 @@ public class Monitor {
 			if (!bInitialized) {
 				initialize(packageName);
 			}
-			// if (active)
-			// return;
-			// active = true;
-			// try {
 			enter_impl(methodOwner, methodSignature, methodParameters, PRIVATE_METHOD_START_TOKEN);
-			// } finally {
-			// active = false;
-			// }
 		} catch (Throwable t) {
 			android.util.Log.e(ABC_TAG, "ERROR params: \n" //
 					+ packageName + "\n" //
@@ -402,6 +370,12 @@ public class Monitor {
 		// Ensure locking.
 		lock.lock();
 		try {
+			// Store info on the LAST invoked event for the thread
+			String threadData = getThreadData();
+			methodOwnerOfLastLibCall.put(threadData, methodOwner);
+			methodSignatureOfLastLibCall.put(threadData, methodSignature);
+			methodContextOfLastLibCall.put(threadData, methodContext);
+
 			libCall_impl(methodOwner, methodSignature, methodContext, methodParameters);
 		} catch (Throwable t) {
 			android.util.Log.e(ABC_TAG, "ERROR params: \n" //
@@ -433,14 +407,6 @@ public class Monitor {
 			Object returnValue) throws Throwable {
 		lock.lock();
 		try {
-
-			// If this method is the last one, and returned normally it cannot be the source
-			// of the exception
-			String threadData = getThreadData();
-
-			ownerOfExceptionSource.remove(threadData);
-			signatureOfExceptionSource.remove(threadData);
-			contextOfExceptionSource.remove(threadData);
 
 			returnInto_impl(methodOwner, methodSignature, methodContext, returnValue, METHOD_END_TOKEN);
 
@@ -475,13 +441,20 @@ public class Monitor {
 		lock.lock();
 		try {
 
-			// If this method is the last one, and returned normally it cannot be the source
-			// of the exception
+			// Clean up the last LibCall data since it returned normally
 			String threadData = getThreadData();
 
-			ownerOfExceptionSource.remove(threadData);
-			signatureOfExceptionSource.remove(threadData);
-			contextOfExceptionSource.remove(threadData);
+			if (!methodSignatureOfLastLibCall.containsKey(threadData)) {
+				android.util.Log.w(ABC_TAG, "Missing onLibMethodStart for " + threadData + " -- " + methodSignature);
+			}
+			if (!methodSignatureOfLastLibCall.get(threadData).equals(methodSignature)) {
+				android.util.Log.w(ABC_TAG, "Mismatch for onLibMethodReturnNormally " + threadData + "expecting  "
+						+ methodSignatureOfLastLibCall.get(threadData) + " but got " + methodSignature);
+			}
+			// Optimistic implementation
+			methodSignatureOfLastLibCall.remove(threadData);
+			methodOwnerOfLastLibCall.remove(threadData);
+			methodContextOfLastLibCall.remove(threadData);
 
 			returnInto_impl(methodOwner, methodSignature, methodContext, returnValue, METHOD_END_TOKEN);
 
@@ -514,21 +487,6 @@ public class Monitor {
 			Object exception) throws Throwable {
 		lock.lock();
 		try {
-
-			// If lastMethodContext is not empty, it means that a method previously invoked
-			// did not finished. Hence, the exception was thrown in there
-			// otherwise the exception was throw in the current method (using throw)
-			String threadData = getThreadData();
-			if (contextOfExceptionSource.containsKey(threadData)) {
-				/*
-				 * Log the entry and clean up lastMethod data structures to avoid logging
-				 * multiple times it
-				 */
-				returnInto_impl(ownerOfExceptionSource.remove(threadData), //
-						signatureOfExceptionSource.remove(threadData), contextOfExceptionSource.remove(threadData), //
-						exception, METHOD_END_TOKEN_FROM_EXCEPTION);
-			}
-
 			returnInto_impl(methodOwner, methodSignature, methodContext, exception, METHOD_END_TOKEN_FROM_EXCEPTION);
 		} catch (Throwable t) {
 			android.util.Log.e(ABC_TAG, "ERROR params: \n" //
@@ -560,24 +518,14 @@ public class Monitor {
 			Object exception) throws Throwable {
 		lock.lock();
 		try {
-			// TODO This is just a temporary method to log something in the trace !
-			StringBuffer content = new StringBuffer();
 
+			/*
+			 * Store that the method executed by thread T threw an exception. If this
+			 * exception is caught, it will clear the data otherwise that is the exception
+			 * that crashed the app (at least, if thread is UI/Main)
+			 */
 			String threadData = getThreadData();
-			// Append Thread information
-			content.append(threadData).append(DELIMITER);
-
-			// Append context information if any
-			content.append("[" + methodContext + "]").append(DELIMITER);
-
-			// Append opening tag
-			content.append("[DEBUG]").append(DELIMITER);
-			//
-			content.append(exception).append("has been thrown by").append(methodSignature);
-//			traceFileOutputWriter.write("ABC:: " + g_counter + " ");
-			traceFileOutputWriter.write(content.toString());
-			traceFileOutputWriter.newLine();
-			traceFileOutputWriter.flush();
+			thrownExceptions.put(threadData, exception);
 
 		} catch (Throwable t) {
 			android.util.Log.e(ABC_TAG, "ERROR !", t);
@@ -604,20 +552,31 @@ public class Monitor {
 			Object exception) throws Throwable {
 		lock.lock();
 		try {
-			// TODO This logic must be updated: we need to pass the exceptions due to
-			// throwing and capturing the exception within a method but lookup for the
-			// "still open" libCalls
-			// TODO consider also the case the "last" method invocation is one method that
-			// belongs to the application!!
-			// If lastMethodContext is not empty, it means that a method previously invoked
-			// did not finished. Hence, the exception was thrown in there
-			// otherwise the exception was throw in the current method (using throw)
+			// Clear the data. Note that the exception received as input should match with
+			// the one stored here
 			String threadData = getThreadData();
-			if (contextOfExceptionSource.containsKey(threadData)) {
-				// Clean Up the data just like we do for returnInto
-				returnInto_impl(ownerOfExceptionSource.remove(threadData),
-						signatureOfExceptionSource.remove(threadData), contextOfExceptionSource.remove(threadData),
-						exception, METHOD_END_TOKEN_FROM_EXCEPTION_CAUGHT);
+			thrownExceptions.remove(threadData);
+
+			/*
+			 * If the current method captures an exception and the last libCall method did
+			 * not returned normally, we conclude that the last libCall method generated the
+			 * exception (so we could NOT log it's normal return)
+			 */
+			// Note that we use the signature because for static methods owner is null
+			if (methodSignatureOfLastLibCall.containsKey(threadData)) {
+				/*
+				 * If lastMethodContext is not empty, it means that a method previously invoked
+				 * did not finished. Hence, the exception was thrown in there otherwise the
+				 * exception was throw in the current method (using throw)
+				 */
+				Object libCallMethodOwner = methodOwnerOfLastLibCall.remove(threadData);
+				String libCallMethodSignature = methodSignatureOfLastLibCall.remove(threadData);
+				String libCallMethodContext = methodContextOfLastLibCall.remove(threadData);
+
+				// Log that the last LibCall Method exited exceptionally. The exception is
+				// exactly the same that was captured
+				returnInto_impl(libCallMethodOwner, libCallMethodSignature, libCallMethodContext, exception,
+						METHOD_END_TOKEN_FROM_EXCEPTION);
 			}
 
 		} catch (Throwable t) {
@@ -651,16 +610,16 @@ public class Monitor {
 
 			synchronized (g_counter) {
 				g_counter = g_lgclock.getLTS();
-				Integer curTS = (Integer) F.get(methodSignature);
-				if (null == curTS) {
-					curTS = 0;
-					F.put(methodSignature, g_counter);
-				}
-				L.put(methodSignature, g_counter);
+//				Integer curTS = (Integer) F.get(methodSignature);
+//				if (null == curTS) {
+//					curTS = 0;
+//					F.put(methodSignature, g_counter);
+//				}
+//				L.put(methodSignature, g_counter);
 
-				if (!DynCGequenceOnly) {
-					A.put(g_counter, methodSignature + ":e");
-				}
+//				if (!DynCGequenceOnly) {
+//					A.put(g_counter, methodSignature + ":e");
+//				}
 				g_counter++;
 				g_lgclock.increment();
 
@@ -701,16 +660,16 @@ public class Monitor {
 		if (isLogEverything() && !isStringMethod(methodSignature)) {
 			synchronized (g_counter) {
 				g_counter = g_lgclock.getLTS();
-				Integer curTS = (Integer) F.get(methodSignature);
-				if (null == curTS) {
-					curTS = 0;
-					F.put(methodSignature, g_counter);
-				}
-				L.put(methodSignature, g_counter);
-
-				if (!DynCGequenceOnly) {
-					A.put(g_counter, methodSignature + ":e");
-				}
+//				Integer curTS = (Integer) F.get(methodSignature);
+//				if (null == curTS) {
+//					curTS = 0;
+//					F.put(methodSignature, g_counter);
+//				}
+//				L.put(methodSignature, g_counter);
+//
+//				if (!DynCGequenceOnly) {
+//					A.put(g_counter, methodSignature + ":e");
+//				}
 				g_counter++;
 				g_lgclock.increment();
 
@@ -730,15 +689,15 @@ public class Monitor {
 			Object returnValue, String token) throws IOException {
 		if (isLogEverything() && !isStringMethod(methodSignature)) {
 			synchronized (g_counter) {
-				Integer curTS = (Integer) L.get(methodSignature);
-				if (null == curTS) {
-					curTS = 0;
-				}
+//				Integer curTS = (Integer) L.get(methodSignature);
+//				if (null == curTS) {
+//					curTS = 0;
+//				}
 				g_counter = g_lgclock.getLTS();
-				L.put(methodSignature, g_counter);
-				if (!DynCGequenceOnly) {
-					A.put(g_counter, methodSignature + ":i");
-				}
+//				L.put(methodSignature, g_counter);
+//				if (!DynCGequenceOnly) {
+//					A.put(g_counter, methodSignature + ":i");
+//				}
 
 				g_counter++;
 				g_lgclock.increment();
@@ -779,7 +738,7 @@ public class Monitor {
 
 			synchronized (g_counter) {
 				g_counter = g_lgclock.getLTS();
-				A.put(g_counter, "program end");
+//				A.put(g_counter, "program end");
 			}
 
 			/** need permission to write files in android environment */
@@ -797,9 +756,9 @@ public class Monitor {
 	}
 
 	public static void terminate_impl(String where) {
-		if (dumpCallmap) {
-			android.util.Log.e("ABC:: " + g_counter, "Application Terminated at " + where);
-		}
+//		if (dumpCallmap) {
+		android.util.Log.e(ABC_TAG + g_counter, "Application Terminated at " + where);
+//		}
 	}
 
 	private static String[] extractParameterTypes(String method) {
@@ -850,11 +809,6 @@ public class Monitor {
 		StringBuffer content = new StringBuffer();
 
 		String threadData = getThreadData();
-
-		// Store info on the LAST invoked event for the thread
-		ownerOfExceptionSource.put(threadData, methodOwner);
-		signatureOfExceptionSource.put(threadData, method);
-		contextOfExceptionSource.put(threadData, methodContext);
 
 		// Append Thread information
 		content.append(threadData).append(DELIMITER);
