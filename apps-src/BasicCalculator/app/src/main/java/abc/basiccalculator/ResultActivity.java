@@ -21,9 +21,9 @@ public class ResultActivity extends Activity {
 
     private TextView resultView;
     private Button incrementButtonByOne;
-    private final String STRING_TO_CHECK_FOR_LOGGING = "5.0";
-    private final String STRING_TO_CHECK_FOR_EXCEPTION = "23.0";
-    private final double VALUE_TO_CHECK_FOR_EXCEPTION = 8.0;
+    private final String STRING_TO_CHECK_FOR_LOGGING = "5";
+    private final String STRING_TO_CHECK_FOR_EXCEPTION = "23";
+    private final int VALUE_TO_CHECK_FOR_EXCEPTION = 8;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -31,7 +31,7 @@ public class ResultActivity extends Activity {
         setContentView(R.layout.activity_result);
 
         Intent intent = getIntent();
-        double result = intent.getDoubleExtra(MainActivity.RESULT_MESSAGE, 0.0);
+        int result = intent.getIntExtra(MainActivity.RESULT_MESSAGE, 0);
 
         resultView = findViewById(R.id.resultView);
         resultView.setText(result+"");
@@ -41,7 +41,8 @@ public class ResultActivity extends Activity {
             @Override
             public void onClick(View view) {
                 Expression e = new ExpressionBuilder(resultView.getText().toString()+"+1").build();
-                resultView.setText(e.evaluate()+"");
+                Number eResult = e.evaluate();
+                resultView.setText(eResult.intValue()+"");
                 if(resultView.getText().toString().equals(STRING_TO_CHECK_FOR_LOGGING)){
                     logMessage("Called logged method");
                 }
@@ -58,9 +59,10 @@ public class ResultActivity extends Activity {
 
     public void incrementByTwo(View view) {
         Expression expr = new ExpressionBuilder(resultView.getText().toString()+"+2").build();
-        double result = expr.evaluate();
+        Number exprResult = expr.evaluate();
+        int result = exprResult.intValue();
         try {
-            if (Double.compare(result, VALUE_TO_CHECK_FOR_EXCEPTION) == 0) {
+            if (result == VALUE_TO_CHECK_FOR_EXCEPTION) {
                 throw new Exception("Fake catched exception");
             }
         }
