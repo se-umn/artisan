@@ -241,7 +241,20 @@ function rebuild-instrument() {
   # NOTE: ABC_HOME should not be between double quotes (")
   pushd ${ABC_HOME}
   cd instrumentation
-  mvn clean compile package appassembler:assemble -DskipTests
+  mvn clean compile package install appassembler:assemble -DskipTests
+  # Return to original folder
+  popd
+}
+
+function rebuild-carving() {
+  # Ensures the required variables are in place
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+
+  # Store current folder in stack and cd to $ABC_HOME
+  # NOTE: ABC_HOME should not be between double quotes (")
+  pushd ${ABC_HOME}
+  cd carving
+  mvn clean compile package install appassembler:assemble -DskipTests
   # Return to original folder
   popd
 }
