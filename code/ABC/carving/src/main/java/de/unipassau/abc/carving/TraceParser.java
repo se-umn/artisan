@@ -1,23 +1,18 @@
 package de.unipassau.abc.carving;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
 
 import de.unipassau.abc.carving.exceptions.CarvingException;
-import de.unipassau.abc.data.CallGraph;
-import de.unipassau.abc.data.DataDependencyGraph;
-import de.unipassau.abc.data.ExecutionFlowGraph;
-import de.unipassau.abc.data.MethodInvocationMatcher;
-import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
+import de.unipassau.abc.parsing.ParsedTrace;
 
 public interface TraceParser {
 
 	/**
-	 * Return a structure representing the execution of several system tests. Each
-	 * system test is uniquely identified by a string object
+	 * Return a structure representing the executions captured by the traces.
+	 * 
 	 * 
 	 * @param traceFilePath
 	 * @param externalInterfaceMatchers
@@ -27,7 +22,6 @@ public interface TraceParser {
 	 * @throws IOException
 	 * @throws CarvingException
 	 */
-	public Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parseTrace(String traceFilePath,
-			List<MethodInvocationMatcher> externalInterfaceMatchers)
-			throws FileNotFoundException, IOException, ABCException;
+	public ParsedTrace parseTrace(File traceFile) throws FileNotFoundException, IOException, ABCException;
+
 }
