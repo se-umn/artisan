@@ -273,6 +273,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 		System.out.println("---- SceneInstrumenterWithMethodParameters.instrument() ----");
 		System.out.println("Options.");
+		// TODO Reorganize how we handle options and command line argumentes
 		System.out.println("OUTPUT_INSTRUMENTED_CODE: " + this.OUTPUT_INSTRUMENTED_CODE);
 		System.out.println("MAKE_ANDROID_LIFE_CYCLE_EVENTS_EXPLICIT: " + this.MAKE_ANDROID_LIFE_CYCLE_EVENTS_EXPLICIT);
 		System.out.println("INSTRUMENT_ARRAY_OPERATIONS: " + this.INSTRUMENT_ARRAY_OPERATIONS);
@@ -296,7 +297,12 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 			}
 
 			if (MAKE_ANDROID_LIFE_CYCLE_EVENTS_EXPLICIT) {
-				makeInterestingLifeCycleEventsExplicit(currentlyInstrumentedSootClass);
+				/*
+				 * Create dummy methods about android life-cycle so they can be logged if
+				 * necessary
+				 */
+				System.out.println("\t MAKE ANDROID EVENT EXPLICITY:");
+				makeAndroidActivityEventsExplicit(currentlyInstrumentedSootClass);
 			}
 
 			// Process fields and make sure there's getter and setter attached to them as
@@ -369,7 +375,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 				/*
 				 * Inject code that store the thrown exception. So we log the fact that the
-				 * method is about to throw an exception before possibly logging it will end	
+				 * method is about to throw an exception before possibly logging it will end
 				 * exceptionally
 				 * 
 				 */
@@ -618,37 +624,31 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 	});
 
 	/**
-	 * This method takes all the interesting events a class extending Android has
-	 * and make them explicit such that they appear in the trace. Those methods
-	 * simply call super
+	 * This method takes all the interesting events a class extending Android
+	 * Activity has and make them explicit such that they appear in the trace. Those
+	 * methods simply call they super method.
 	 * 
+	 * TODO: This is focused on Activities, but fragments and the like should be
+	 * logged as well
 	 * 
-	 * This explicitly tags the synthetic methods (using a s in the trace)
-	 * 
-	 * ALESSIO: XXX Not sure this is still necessary
+	 * This explicitly tags the methods as synthetic so it is clear we introduced
+	 * them
 	 * 
 	 * @param currentlyInstrumentedSootClass
 	 */
-	private void makeInterestingLifeCycleEventsExplicit(SootClass currentlyInstrumentedSootClass) {
-		// /*
-		// * Do not create synthetic methods for abstract classes, since those
-		// are
-		// * extended somewhere... Not ne
-		// */
-		// if (currentlyInstrumentedSootClass.isAbstract()) {
-		// return;
-		// }
-		// This is not necessary the case: sometimes the abstract class
-		// implement some, but not all the methods !
+	private void makeAndroidActivityEventsExplicit(SootClass currentlyInstrumentedSootClass) {
+		// TODO THis method can be refactored as it seems replicating the same code for
+		// each "interesting class"
 
+		// TODO Do we need to extend this list?
 		SootClass androidActivity = Scene.v().getSootClass("android.app.Activity");
 		SootClass androidFragment = Scene.v().getSootClass("android.support.v4.app.Fragment");
 
 		if (Scene.v().getActiveHierarchy().isClassSubclassOf(currentlyInstrumentedSootClass, androidActivity)) {
 			/*
-			 * For each method in androidActivity which starts with on check if the
-			 * currentlyInstrumentedSootClass override it or not. If not create a synthetic
-			 * method which simply calls super...
+			 * For each method in androidActivity which starts with "on" we check whether
+			 * currentlyInstrumentedSootClass overrides it or not. If not we create a
+			 * synthetic method which simply calls super...
 			 */
 			for (SootMethod androidActivityMethod : androidActivity.getMethods()) {
 
@@ -658,11 +658,13 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 					if (!currentlyInstrumentedSootClass.declaresMethod(androidActivityMethod.getSubSignature())) {
 
 						/*
-						 * Lookup the hierarchy until we find the one implementing this method and use
-						 * that as super for the call... Worst case is androidActivity class
+						 * Lookup the hierarchy until we find the one class implementing this method and
+						 * use that as super for the call... Worst case is the AndroidActivity class
+						 * itself
 						 */
 						SootClass superClassActuallyImplementingTheMethod = getSuperClassActuallyImplementingMethod(
 								currentlyInstrumentedSootClass, androidActivityMethod);
+
 						assert superClassActuallyImplementingTheMethod != null : "Cannot find original class declaring "
 								+ androidActivityMethod;
 
@@ -676,7 +678,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 							continue;
 						}
 
-						System.out.println("Override " + androidActivityMethod + " from "
+						System.out.println("\t\t\t Override " + androidActivityMethod + " from "
 								+ superClassActuallyImplementingTheMethod);
 						/*
 						 * Create the override method
@@ -686,7 +688,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 						// Use the same modifiers as super
 						method.setModifiers(theSuperClassMethod.getModifiers());
 						// Tag the method as synthetic
-						method.addTag(ABCTag.TAG);
+						method.addTag(SyntheticCallTag.TAG);
 						// Inject the method in the class
 						currentlyInstrumentedSootClass.addMethod(method);
 
@@ -768,7 +770,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 							continue;
 						}
 
-						System.out.println("Override " + androidFragmentMethod + " from "
+						System.out.println("\t\t\t Override " + androidFragmentMethod + " from "
 								+ superClassActuallyImplementingTheMethod);
 						/*
 						 * Create the override method
@@ -778,7 +780,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 						// Use the same modifiers as super
 						method.setModifiers(theSuperClassMethod.getModifiers());
 						// Tag the method as synthetic
-						method.addTag(ABCTag.TAG);
+						method.addTag(SyntheticCallTag.TAG);
 						// Inject the method in the class
 						currentlyInstrumentedSootClass.addMethod(method);
 
