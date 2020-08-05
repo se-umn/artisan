@@ -1,5 +1,6 @@
 package de.unipassau.abc.carving;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -32,6 +33,7 @@ import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.PrimitiveValue;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
+import de.unipassau.abc.parsing.ParsedTrace;
 import de.unipassau.abc.tracing.Trace;
 import soot.Scene;
 
@@ -39,7 +41,7 @@ import soot.Scene;
  * @author gambi
  *
  */
-
+@Deprecated
 public class StackImplementation implements TraceParser {
 
 	private static final Logger logger = LoggerFactory.getLogger(StackImplementation.class);
@@ -587,6 +589,12 @@ public class StackImplementation implements TraceParser {
 		}
 
 		return types;
+	}
+
+	@Override
+	public ParsedTrace parseTrace(File traceFile) throws FileNotFoundException, IOException, ABCException {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

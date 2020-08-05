@@ -31,10 +31,10 @@ import de.unipassau.abc.data.DataNodeFactory;
 import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
-import de.unipassau.abc.data.MethodInvocationMatcher;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
+import de.unipassau.abc.instrumentation.Monitor;
 import de.unipassau.abc.tracing.Trace;
 import edu.emory.mathcs.backport.java.util.Arrays;
 import soot.G;
@@ -45,14 +45,15 @@ import soot.options.Options;
 
 /**
  * Parser "only" parse one trace file at time, and generates the data structures
- * required for carving.
+ * required for carving, namely an ExecutionFlowGraph, a DataDependencyGraph,
+ * and a CallGraph
  * 
  * Parser considers the following heuristic: - Thread Name contains UI: this is
  * the "main" thread of the android app - Thread Name contains Asynch/Task: this
  * is a background thread that execute a single task (and dies) - Any other
  * thread name indicates some background service.
  * 
- * Calls are intepreted using the tokens defined by {@link Monitor.class}
+ * Calls are interpreted using the tokens defined by {@link Monitor.class}
  * 
  * To account for multiple thread, use the thread name as context and the actual
  * position in the file as id (they get interleaved but are still ordered!)
@@ -78,17 +79,17 @@ public class TraceParserImpl implements TraceParser {
 		@Option(longName = "apk")
 		File getApk();
 
-		@Option(longName = "store-artifacts-to", defaultValue = ".")
+		// This is optional. Storing the parsed traces makes it faster to re-use them
+		@Option(longName = "store-artifacts-to", defaultToNull = true)
 		File getOutputDir();
 
+		// ALESSIO: Why we need more than one trace?
 		@Option(longName = "trace-files")
 		List<File> getTraceFiles();
 	}
 
-	// TODO Replace this with something read from the ENV or passed from the command
-	// line
-	public final static File ANDROID_28 = new File("/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar");
-
+	// TODO This seems to be incomplete. But probably for the moment is ok to keep
+	// it that way
 	public static final Pattern threadPattern = Pattern.compile("\\[((UI:main)|((Modern)?AsyncTask #[1-9][0-9]*))]");
 	private static final Logger logger = LoggerFactory.getLogger(TraceParserImpl.class);
 
@@ -96,13 +97,6 @@ public class TraceParserImpl implements TraceParser {
 
 		long startTime = System.nanoTime();
 		ParserCLI cli = CliFactory.parseArguments(ParserCLI.class, args);
-
-		File outputArtifactTo = cli.getOutputDir();
-
-		if (!outputArtifactTo.isDirectory()) {
-			throw new CarvingException("Wrong input: " + outputArtifactTo.getAbsolutePath()
-					+ " is a file, but should be a directory instead");
-		}
 
 		/*
 		 * Soot is a singleton and exposes static methods only, so we encapsulate its
@@ -123,7 +117,7 @@ public class TraceParserImpl implements TraceParser {
 		for (File traceFile : cli.getTraceFiles()) {
 			try {
 				logger.info("Parsing Trace: " + traceFile);
-				theParsedTraces.add(parser.parseFromTraceFile(traceFile));
+				theParsedTraces.add(parser.parseTrace(traceFile));
 			} catch (Throwable e) {
 				logger.error("Failed to parse " + traceFile, e);
 			}
@@ -135,12 +129,21 @@ public class TraceParserImpl implements TraceParser {
 		 * process
 		 */
 
-		if (!outputArtifactTo.exists()) {
-			Files.createDirectories(outputArtifactTo.toPath(), new FileAttribute[] {});
-		}
+		File outputArtifactTo = cli.getOutputDir();
 
-		for (ParsedTrace parsedTrace : theParsedTraces) {
-			parsedTrace.storeTo(outputArtifactTo);
+		if (outputArtifactTo != null) {
+			if (!outputArtifactTo.isDirectory()) {
+				throw new CarvingException("Wrong input: " + outputArtifactTo.getAbsolutePath()
+						+ " is a file, but should be a directory instead");
+			}
+
+			if (!outputArtifactTo.exists()) {
+				Files.createDirectories(outputArtifactTo.toPath(), new FileAttribute[] {});
+			}
+
+			for (ParsedTrace parsedTrace : theParsedTraces) {
+				parsedTrace.storeTo(outputArtifactTo);
+			}
 		}
 
 	}
@@ -155,22 +158,17 @@ public class TraceParserImpl implements TraceParser {
 		Options.v().set_src_prec(soot.options.Options.src_prec_apk);
 
 		soot.options.Options.v().set_allow_phantom_refs(true);
-
-		// Soot has problems in working on mac.
-		String osName = System.getProperty("os.name");
-		System.setProperty("os.name", "Whatever");
-		Scene.v().loadNecessaryClasses();
-		System.setProperty("os.name", osName);
-
 	}
 
-	protected final SootClass scActivity = Scene.v().getSootClassUnsafe(JimpleUtils.ACTIVITY_CLASS);
-	protected final SootClass scFragment = Scene.v().getSootClassUnsafe(JimpleUtils.FRAGMENT_CLASS);
+	// TODO I would keep the parser generic and define DECORATORS that take the
+	// parsed trace as input and include
+	// the Android specific data there...
+//	protected final SootClass scActivity = Scene.v().getSootClassUnsafe(JimpleUtils.ACTIVITY_CLASS);
+//	protected final SootClass scFragment = Scene.v().getSootClassUnsafe(JimpleUtils.FRAGMENT_CLASS);
+//	protected final SootClass scSupportActivity = Scene.v().getSootClassUnsafe(JimpleUtils.SUPPORT_ACTIVITY_CLASS);
+//	protected final SootClass scSupportFragment = Scene.v().getSootClassUnsafe(JimpleUtils.SUPPORT_FRAGMENT_CLASS);
 
-	protected final SootClass scSupportActivity = Scene.v().getSootClassUnsafe(JimpleUtils.SUPPORT_ACTIVITY_CLASS);
-
-	protected final SootClass scSupportFragment = Scene.v().getSootClassUnsafe(JimpleUtils.SUPPORT_FRAGMENT_CLASS);
-
+	// TODO Pretty sure there's a better way to parse the file ...
 	/**
 	 * Ensures to have the right number of elements in the returning String[] or
 	 * fail with an exception
@@ -213,6 +211,7 @@ public class TraceParserImpl implements TraceParser {
 			// We need to remove the "(" ")"
 			String parametersOrReturnValue = _tokens[5].substring(1, _tokens[5].length() - 1);
 
+			// TODO Arrays ?
 // TODO Special case of array ? - Create a test for this ?
 			//
 //		if (_tokens.length != 4) {
@@ -237,7 +236,7 @@ public class TraceParserImpl implements TraceParser {
 //		}
 //
 //		// Flag the call as library or user
-//		String openingToken = tokens[0];
+
 //
 //		// Count formalParameters
 //		String[] formalParameters = JimpleUtils.getParameterList(methodSignature);
@@ -293,38 +292,29 @@ public class TraceParserImpl implements TraceParser {
 		}
 	}
 
-	private boolean isActivity(SootClass sootClass) {
-		return sootClass != null && !sootClass.isInterface() && ( //
-		Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scActivity)
-				|| Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scSupportActivity));
-	}
+	// TODO Move to decorator
+//	private boolean isActivity(SootClass sootClass) {
+//		return sootClass != null && !sootClass.isInterface() && ( //
+//		Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scActivity)
+//				|| Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scSupportActivity));
+//	}
 
 	//
 	private boolean isArrayMethod(String methodSignature) {
 		return JimpleUtils.getClassNameForMethod(methodSignature).endsWith("[]");
 	}
 
-	private boolean isFragment(SootClass sootClass) {
-		return sootClass != null && !sootClass.isInterface() && ( //
-		Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scFragment)
-				|| Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scSupportFragment));
-	}
+	// TODO Move to decorator
+//	private boolean isFragment(SootClass sootClass) {
+//		return sootClass != null && !sootClass.isInterface() && ( //
+//		Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scFragment)
+//				|| Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scSupportFragment));
+//	}
 
 	private Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedElements = new HashMap<>();
 
-	/**
-	 * Parse the traceFilePath and generates the required DataStructures
-	 * 
-	 * TODO HARD TO TEST !!!
-	 * 
-	 * @param traceFile
-	 * @return A map (ThreadName, ParsedTrace)
-	 * @throws FileNotFoundException
-	 * @throws IOException
-	 * @throws CarvingException
-	 */
-//    public Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parseTrace(File traceFile)
-	public ParsedTrace parseFromTraceFile(File traceFile) throws FileNotFoundException, IOException, ABCException {
+	@Override
+	public ParsedTrace parseTrace(File traceFile) throws FileNotFoundException, IOException, ABCException {
 
 		ParsedTrace parsedTrace = new ParsedTrace(traceFile.getName());
 
@@ -338,9 +328,9 @@ public class TraceParserImpl implements TraceParser {
 		// accesses to fields ! See #123
 
 		/*
-		 * Parsing will create for each execution thread (String:key) a structure that
-		 * contains the ordered list of executed method calls, a graph of method calls
-		 * dependencies via data dependency (read and produced), and via method call
+		 * Create for each execution thread (String:key) a structure that contains the
+		 * ordered list of executed method calls, a graph of method calls dependencies
+		 * via data dependency (read and produced), and via method call
 		 */
 
 		// Parsing variables - some refactoring would not be bad here...
@@ -392,11 +382,12 @@ public class TraceParserImpl implements TraceParser {
 					String methodOwner = tokens.get("methodOwner");
 					String openingToken = tokens.get("methodToken");
 
+					// TODO Open an issue here to setup filtering of method calls
 					// Filter special method invocations
-					if (filter(methodSignature)) {
-						logger.debug("Filtering out call: ", methodSignature);
-						continue;
-					}
+//					if (filter(methodSignature)) {
+//						logger.debug("Filtering out call: ", methodSignature);
+//						continue;
+//					}
 
 					// TODO Maybe some of the following parsing and the like can be moved into Trace
 					// ?
@@ -406,29 +397,25 @@ public class TraceParserImpl implements TraceParser {
 					MethodInvocation methodInvocation = null;
 
 					SootClass sootClass = null;
+					// TODO This probably can be handled way better...
 					if (!isArrayMethod(methodSignature)) {
 						sootClass = Scene.v().getSootClass(JimpleUtils.getClassNameForMethod(methodSignature));
 					} else {
 						logger.debug("Found synthetic method array ", methodOwner, methodSignature);
 					}
 
-					// TODO ALESSIO UP TO HERE. Refactor and check whether we can greate testrs fro
-					// this clasas.
-					// TODO Parsing might be easily parallelizable (for example, by filtering by
-
 					switch (openingToken) {
 
-					case Trace.PRIVATE_METHOD_START_TOKEN:
-					case Trace.SYNTHETIC_METHOD_START_TOKEN:
-					case Trace.METHOD_START_TOKEN:
-					case Trace.LIB_METHOD_START_TOKEN:
+					case Monitor.PRIVATE_METHOD_START_TOKEN:
+					case Monitor.SYNTHETIC_METHOD_START_TOKEN:
+					case Monitor.LIB_METHOD_START_TOKEN:
+					case Monitor.METHOD_START_TOKEN:
 						parseMethodInvocation(globalInvocationCount, local, tokens, sootClass);
 						break;
-					case Trace.METHOD_END_TOKEN:
+					case Monitor.METHOD_END_TOKEN:
 						parseMethodReturn(globalInvocationCount, local, tokens, sootClass);
 						break;
-					case Trace.EXCEPTION_METHOD_END_TOKEN:
-					case Trace.CAUGHT_EXCEPTION_METHOD_END_TOKEN:
+					case Monitor.METHOD_END_TOKEN_FROM_EXCEPTION:
 						parseMethodReturnWithException(globalInvocationCount, local, tokens, sootClass);
 						break;
 					default:
@@ -513,8 +500,9 @@ public class TraceParserImpl implements TraceParser {
 			 * invocation... This is not 100% accurate but we try to live with that...
 			 */
 			ObjectInstance owner = new ObjectInstance(methodOwner);
-			owner.setAndroidActivity(isActivity(sootClass));
-			owner.setAndroidFragment(isFragment(sootClass));
+			// TODO Move to decorator
+//			owner.setAndroidActivity(isActivity(sootClass));
+//			owner.setAndroidFragment(isFragment(sootClass));
 			methodInvocation.setOwner(owner);
 			local.getSecond().addDataDependencyOnOwner(methodInvocation, owner);
 			// Still not sure WHY we need to register the data
@@ -592,8 +580,9 @@ public class TraceParserImpl implements TraceParser {
 			 * invocation... This is not 100% accurate but we try to live with that...
 			 */
 			ObjectInstance owner = new ObjectInstance(methodOwner);
-			owner.setAndroidActivity(isActivity(sootClass));
-			owner.setAndroidFragment(isFragment(sootClass));
+			// TODO Move to decorator
+//			owner.setAndroidActivity(isActivity(sootClass));
+//			owner.setAndroidFragment(isFragment(sootClass));
 			methodInvocation.setOwner(owner);
 			local.getSecond().addDataDependencyOnOwner(methodInvocation, owner);
 			// Still not sure WHY we need to register the data
@@ -692,11 +681,12 @@ public class TraceParserImpl implements TraceParser {
 				}
 			}
 
-			if (isActivity(sootClass)) {
-				methodInvocation.setAndroidActivityCallback(JimpleUtils.isActivityLifecycle(methodSignature));
-			} else if (isFragment(sootClass)) {
-				methodInvocation.setAndroidFragmentCallback(JimpleUtils.isFragmentLifecycle(methodSignature));
-			}
+			// TODO Move to decorator
+//			if (isActivity(sootClass)) {
+//				methodInvocation.setAndroidActivityCallback(JimpleUtils.isActivityLifecycle(methodSignature));
+//			} else if (isFragment(sootClass)) {
+//				methodInvocation.setAndroidFragmentCallback(JimpleUtils.isFragmentLifecycle(methodSignature));
+//			}
 
 			/*
 			 * Update the parsing data
@@ -716,8 +706,9 @@ public class TraceParserImpl implements TraceParser {
 			if (!(methodInvocation.isStatic() || JimpleUtils.isConstructorOrClassConstructor(methodSignature))) {
 				ObjectInstance owner = new ObjectInstance(methodOwner);
 				// Is the sootclass is null we cannot tell.
-				owner.setAndroidActivity(isActivity(sootClass));
-				owner.setAndroidFragment(isFragment(sootClass));
+				// TODO Move to decorator
+//				owner.setAndroidActivity(isActivity(sootClass));
+//				owner.setAndroidFragment(isFragment(sootClass));
 
 				methodInvocation.setOwner(owner);
 				local.getSecond().addDataDependencyOnOwner(methodInvocation, owner);
@@ -842,14 +833,6 @@ public class TraceParserImpl implements TraceParser {
 			stringBuffer.append(methodInvocation).append("\n");
 		}
 		return null;
-	}
-
-	@Override
-	public Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parseTrace(String traceFilePath,
-			List<MethodInvocationMatcher> externalInterfaceMatchers)
-			throws FileNotFoundException, IOException, ABCException {
-		// TODO Auto-generated method stub
-		throw new RuntimeException("FIX ME. I am defined in an interface but this parser does not implement me...");
 	}
 
 }
