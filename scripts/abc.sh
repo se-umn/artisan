@@ -246,6 +246,25 @@ function rebuild-instrument() {
   popd
 }
 
+function sign-apk() {
+  # Ensures the required variables are in place
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${APK_SIGNER:?Please provide a value for APK_SIGNER in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  
+  local apk_file="${1:?Missing apk file to instrument}"
+
+  # The instrumentation script also check if the project requires to be rebuild
+  # TODO. Maybe we need to move that script here? Maybe we need to use make ?
+  export APK_SIGNER=${APK_SIGNER}
+  
+  local signed_apk_file=$(${ABC_HOME}/instrumentation/scripts/sign-apk.sh ${apk_file})
+
+  (echo >&2 "** Signed APK is:")
+  echo "${signed_apk_file}"
+}
+
 function instrument-apk() {
   # Ensures the required variables are in place
   : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
@@ -501,6 +520,8 @@ function __private_autocomplete() {
     # TODO actually requires two files
     echo "requires_one_file"
   elif [ "${command_name}" == "install-apk" ]; then
+    echo "requires_one_file"
+  elif [ "${command_name}" == "sign-apk" ]; then
     echo "requires_one_file"
   elif [ "${command_name}" == "copy-traces" ]; then
     echo "requires_one_file"
