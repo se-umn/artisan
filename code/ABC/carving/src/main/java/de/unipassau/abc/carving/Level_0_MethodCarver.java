@@ -1,4 +1,4 @@
-package de.unipassau.abc.carving.carvers;
+package de.unipassau.abc.carving;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -18,11 +18,12 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
 
-import de.unipassau.abc.carving.MethodCarver;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.CallGraph;
+import de.unipassau.abc.data.CallGraphImpl;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.ExecutionFlowGraph;
+import de.unipassau.abc.data.ExecutionFlowGraphImpl;
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
@@ -85,11 +86,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 	 * @return
 	 * @throws ABCException
 	 */
-	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> level0TestCarving(
+	@Override
+	public List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carve(
 			MethodInvocation methodInvocationToCarve) throws ABCException {
-
-		// TODO What's a context ?!
-
 		// Build the context for the carving. At the beginning the context IS
 		// the entire trace.
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context = new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
@@ -98,17 +97,19 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// Include all the external interfaces..
 		boolean skipExternalInterfaces = false;
 
+		// This is the actual implementation of method carving
 		return level0TestCarving(methodInvocationToCarve, context, skipExternalInterfaces);
 	}
 
-	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> level0TestCarving(
+	// Public only for testability
+	public List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> level0TestCarving(
 			MethodInvocation methodInvocationToCarve,
 			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context, boolean skipExternalInterfaces)
 			throws ABCException {
 		//
 
 		// This creates the root of the tree and invoke the recursive method
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
+		List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedTests = new ArrayList<>();
 
 		/*
 		 * A task is a pair made of work done (first), and work to be done (second)
@@ -194,7 +195,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 	// context.getFirst().getTestSetupMethodInvocations();
 	//
 	// // If the method invocation is not there yet, include it.
-	// for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest :
+	// for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedTest
+	// :
 	// carvedTests) {
 	//
 	// for (MethodInvocation testSetupFromContext : testSetupMethosInvocations)
@@ -236,7 +238,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 	// }
 	// }
 	//
-	// List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedPreconditions =
+	// List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>
+	// carvedPreconditions =
 	// new ArrayList<>();
 	//
 	// boolean skipCartesian = true;
@@ -244,7 +247,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 	// skipCartesian);
 	//
 	// //
-	// Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition =
+	// Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>
+	// carvedPrecondition =
 	// carvedPreconditions.iterator().next();
 	// preconditionCache.put(testSetupFromContext,
 	// carvedPrecondition.getFirst().getOrderedMethodInvocations());
@@ -275,11 +279,12 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 	//// TODO: WHY DO NOT WE USE THE SAME APPROACH FOR CARVING REGULAR METHODS?
 	//// We HAVE the work list, we can simply start from there, isn't it?
-	public void includeCallsToExternalInterfaces(List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests,
+	public void includeCallsToExternalInterfaces(
+			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedTests,
 			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context) throws ABCException {
 
 		// If the method invocation is not there yet, include it.
-		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedTest : carvedTests) {
 
 			// Collect the testSetupMethodInvocations from the context
 			MethodInvocation methodInvocationToCarve = carvedTest.getFirst().getLastMethodInvocation();
@@ -326,7 +331,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 					// and FULL CARTESIAN... But do not include test setup calls
 					// ;)
 
-					List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedPreconditions = new ArrayList<>();
+					List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedPreconditions = new ArrayList<>();
 					//
 
 					if (!preconditionCache.containsKey(methodInvocationToExternalInterface)) {
@@ -344,10 +349,11 @@ public class Level_0_MethodCarver implements MethodCarver {
 						// In case there's more than one because of cartesian
 						// product, pick the first one.
 
-						Iterator<Pair<ExecutionFlowGraph, DataDependencyGraph>> iterator = carvedPreconditions
+						Iterator<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> iterator = carvedPreconditions
 								.iterator();
 						if (iterator.hasNext()) {
-							Pair<ExecutionFlowGraph, DataDependencyGraph> carvedPrecondition = iterator.next();
+							Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedPrecondition = iterator
+									.next();
 							preconditionCache.put(methodInvocationToExternalInterface,
 									carvedPrecondition.getFirst().getOrderedMethodInvocations());
 							logger.trace("Level_0_MethodCarver.includeTestSetupCalls() PRECONDITION for "
@@ -435,8 +441,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 	 * @param carvedTests
 	 * @throws ABCException
 	 */
-	private List<Pair<ExecutionFlowGraph, DataDependencyGraph>> processExternalInterfaces(
-			Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest, //
+	private List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> processExternalInterfaces(
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedTest, //
 			MethodInvocation methodToCarve) throws ABCException {
 
 		// TODO ADD CACHING HERE !!
@@ -579,7 +585,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 				_executionFlowGraph, _dataDependencyGraph, _callGraph);
 
 		// Accumulate those here...
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> partialCarvedExternalInterfaces = new ArrayList<>();
+		List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> partialCarvedExternalInterfaces = new ArrayList<>();
 
 		boolean skipExternalInterfaces = true;
 		for (MethodInvocation setupCall : compressedSetupCalls) {
@@ -591,7 +597,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// Merging Carved Preconditions: ");
 		// // Maybe is enough to collect the Executions
 		// Set<MethodInvocation> merge = new HashSet<>();
-		// for (Pair<ExecutionFlowGraph, DataDependencyGraph>
+		// for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>
 		// partialCarvedExternalInterface : partialCarvedExternalInterfaces) {
 		// merge.addAll(partialCarvedExternalInterface.getFirst().getOrderedMethodInvocations());
 		// }
@@ -617,8 +623,8 @@ public class Level_0_MethodCarver implements MethodCarver {
 	 * @throws ABCException
 	 * @throws CarvingException
 	 */
-	private Pair<ExecutionFlowGraph, DataDependencyGraph> generateCarvedTestFromSlice(Set<MethodInvocation> slice,
-			CallGraph _callGraph) throws ABCException {
+	private Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> generateCarvedTestFromSlice(
+			Set<MethodInvocation> slice, CallGraph _callGraph) throws ABCException {
 		// Order the slice.
 		List<MethodInvocation> orderedSlice = new ArrayList<>(slice);
 
@@ -851,15 +857,18 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 		logger.trace("\t >>>> Generate the following test from slice : \n" + orderedSlice);
 
-		return new Pair<ExecutionFlowGraph, DataDependencyGraph>(executionFlowGraph.getSubGraph(orderedSlice),
-				dataDependencyGraph.getSubGraph(orderedSlice));
+		return new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
+				executionFlowGraph.getSubGraph(orderedSlice), dataDependencyGraph.getSubGraph(orderedSlice),
+				// TODO CallGraph was never intended to be used here, as this is something we
+				// might need to compute ourselves?
+				new CallGraphImpl());
 	}
 
 	// Each of this tests ends with a call to the method to carve.
 	public void level0TestCarving(
 			// This is the node to expand
 			Queue<Pair<Set<MethodInvocation>, Set<MethodInvocation>>> workList, //
-			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests, //
+			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedTests, //
 			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context, //
 			boolean skipCartesian) throws ABCException {
 
@@ -1271,7 +1280,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 	}
 
-	private Pair<ExecutionFlowGraph, DataDependencyGraph> generateSingleTestCaseFromSliceFor(
+	private Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> generateSingleTestCaseFromSliceFor(
 			MethodInvocation methodInvocationToCarve, Set<MethodInvocation> backwardSlice,
 			List<MethodInvocation> dataReturningCalls) throws NotALevel0TestCaseException {
 
@@ -1380,7 +1389,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 			}
 		});
 
-		ExecutionFlowGraph carvedExecutionGraph = new ExecutionFlowGraph();
+		ExecutionFlowGraph carvedExecutionGraph = new ExecutionFlowGraphImpl();
 		for (MethodInvocation mi : carvedTestCase) {
 			carvedExecutionGraph.enqueueMethodInvocations(mi);
 		}
@@ -1388,7 +1397,11 @@ public class Level_0_MethodCarver implements MethodCarver {
 		// This is the original graph
 		DataDependencyGraph carvedDataDependencyGraph = dataDependencyGraph.getSubGraph(carvedExecutionGraph);
 
-		return new Pair<ExecutionFlowGraph, DataDependencyGraph>(carvedExecutionGraph, carvedDataDependencyGraph);
+		return new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(carvedExecutionGraph,
+				carvedDataDependencyGraph,
+				// TODO CallGraph was never intended to be used here, as this is something we
+				// might need to compute ourselves?
+				new CallGraphImpl());
 	}
 
 	private List<MethodInvocation> computePreconditionsFor(MethodInvocation returnCall) {
@@ -1406,7 +1419,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 			// chains)
 
 			try {
-				List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedPreconditions = level0TestCarving(returnCall);
+				// Recursive call to carve
+				List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedPreconditions = carve(
+						returnCall);
 
 				if (!carvedPreconditions.isEmpty()) {
 					//
@@ -1440,27 +1455,24 @@ public class Level_0_MethodCarver implements MethodCarver {
 		return preconditions;
 	}
 
-	/**
-	 * Carve tests out of all the MethodInvocations which match the carveBy
-	 * expression
-	 * 
-	 * @param carveBy
-	 * @return
-	 */
-	public List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carve(
-			List<MethodInvocation> orderedMethodsInvocationsToCarve) {
+	public Map<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>> carve(
+			List<MethodInvocation> methodsInvocations) {
 
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = new ArrayList<>();
+		Map<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>> allCarvedExecution = new HashMap<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>>();
 
 //        List<MethodInvocation> orderedMethodsInvocationsToCarve = new ArrayList<>(executionFlowGraph.getMethodInvocationsFor(carveBy, excludeBy.toArray(new MethodInvocationMatcher[] {})));
 		/*
 		 * By ordering them we should be able to exploit the precondition cache and
 		 * incrementally carve later invocations from previous carved invocations
 		 */
-		Collections.sort(orderedMethodsInvocationsToCarve);
+		Collections.sort(methodsInvocations);
 
-		for (MethodInvocation methodInvocationUnderTest : orderedMethodsInvocationsToCarve) {
+		for (MethodInvocation methodInvocationUnderTest : methodsInvocations) {
+			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedTestsPerMethodInvocation = new ArrayList<>();
+			// Store the list in the map to ensure we produce one
+			allCarvedExecution.put(methodInvocationUnderTest, carvedTestsPerMethodInvocation);
 
+			// TODO Filter UNCARVABLE Method invocations
 //            if (ABCUtils.ARTIFICIAL_METHODS.contains(methodInvocationUnderTest.getInvocationType())) {
 //                logger.info("We do not carve ABC artificial methods " + methodInvocationUnderTest);
 //                continue;
@@ -1468,11 +1480,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 			// Skip methods which has no sense to carve
 			if (methodInvocationUnderTest.isPrivate()) {
-				logger.info("We do not carve private methods " + methodInvocationUnderTest);
+				logger.info("We cannot carve private methods " + methodInvocationUnderTest);
 				continue;
 			}
-
-			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTestsPerMethodInvocation = new ArrayList<>();
 
 			try {
 
@@ -1481,71 +1491,74 @@ public class Level_0_MethodCarver implements MethodCarver {
 						+ "====================================================");
 				long carvingTime = System.currentTimeMillis();
 
-				carvedTestsPerMethodInvocation.addAll(level0TestCarving(methodInvocationUnderTest));
+				// TODO Recursive call to carve
+				carvedTestsPerMethodInvocation.addAll(carve(methodInvocationUnderTest));
 
 				carvingTime = System.currentTimeMillis() - carvingTime;
 				logger.info("\n\n====================================================\n" //
 						+ "Carved  " + carvedTestsPerMethodInvocation.size() + " in " + +carvingTime + " msec \n" //
 						+ "====================================================");
 
-				// Add to big list
-				carvedTests.addAll(carvedTestsPerMethodInvocation);
 			} catch (ABCException e) {
 				logger.error("Cannot carve test for " + methodInvocationUnderTest, e);
 			}
 		}
 
 		/*
-		 * Post processing carved tests. If any...
+		 * TODO Post processing carved tests. If any...
 		 */
+//
+//		// Here we need to remove the duplicated tests. After simplify they
+//		// might end up implementing the same functionalities
+//		// HashSet is difficult to ues since graph do not implements proper
+//		// hashCode. Better use equals
+//		// Set<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>
+//		// uniqueCarvedTests
+//		// = new HashSet<>(carvedTests);
+//		List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> uniqueCarvedTests = new ArrayList<>();
+//
+//		// Here I need to check if there are test cases which have the SAME
+//		// jimple calls or equivalent calls not exactly carving the same
+//		// invocations !
+//		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedTest : allCarvedExecution) {
+//			// This is a simplistic check, it cannot rule out the code which is
+//			// generated from different method invocations, which implement the
+//			// same functionalities, however is SIMPLE to implement. We check
+//			// for equivalence later, at JIMPLE level.
+//			if (!uniqueCarvedTests.contains(carvedTest)) {
+//				uniqueCarvedTests.add(carvedTest);
+//			} else {
+//				logger.debug("Found duplicate test" + carvedTest.getFirst().getOrderedMethodInvocations());
+//			}
+//		}
+//
+//		// Order by size (in jimple statements)
+//		Collections.sort(uniqueCarvedTests,
+//				new Comparator<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>() {
+//
+//					@Override
+//					public int compare(Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> o1,
+//							Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> o2) {
+//						return o1.getFirst().getOrderedMethodInvocations().size()
+//								- o2.getFirst().getOrderedMethodInvocations().size();
+//					}
+//
+//				});
+//
+//		return uniqueCarvedTests;
 
-		// Here we need to remove the duplicated tests. After simplify they
-		// might end up implementing the same functionalities
-		// HashSet is difficult to ues since graph do not implements proper
-		// hashCode. Better use equals
-		// Set<Pair<ExecutionFlowGraph, DataDependencyGraph>> uniqueCarvedTests
-		// = new HashSet<>(carvedTests);
-		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> uniqueCarvedTests = new ArrayList<>();
-
-		// Here I need to check if there are test cases which have the SAME
-		// jimple calls or equivalent calls not exactly carving the same
-		// invocations !
-		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
-			// This is a simplistic check, it cannot rule out the code which is
-			// generated from different method invocations, which implement the
-			// same functionalities, however is SIMPLE to implement. We check
-			// for equivalence later, at JIMPLE level.
-			if (!uniqueCarvedTests.contains(carvedTest)) {
-				uniqueCarvedTests.add(carvedTest);
-			} else {
-				logger.debug("Found duplicate test" + carvedTest.getFirst().getOrderedMethodInvocations());
-			}
-		}
-
-		// Order by size (in jimple statements)
-		Collections.sort(uniqueCarvedTests, new Comparator<Pair<ExecutionFlowGraph, DataDependencyGraph>>() {
-
-			@Override
-			public int compare(Pair<ExecutionFlowGraph, DataDependencyGraph> o1,
-					Pair<ExecutionFlowGraph, DataDependencyGraph> o2) {
-				return o1.getFirst().getOrderedMethodInvocations().size()
-						- o2.getFirst().getOrderedMethodInvocations().size();
-			}
-
-		});
-
-		return uniqueCarvedTests;
+		return allCarvedExecution;
 	}
 
 	// FIXME: this takes half a second and I do not recall what's for, Maybe
 	// removing duplicates or reducing the size of the carved tests ?
 	private void simplify(MethodInvocation methodInvocationUnderTest,
-			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests) {
+			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedTests) {
 
 		long start = System.currentTimeMillis();
 		logger.debug("Simplify for " + methodInvocationUnderTest);
 
-		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedTest : carvedTests) {
 
 			DataDependencyGraph dataDependencyGraph = carvedTest.getSecond();
 			ExecutionFlowGraph executionFlowGraph = carvedTest.getFirst();

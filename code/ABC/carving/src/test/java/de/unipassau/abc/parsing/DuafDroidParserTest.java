@@ -34,7 +34,7 @@ public class DuafDroidParserTest {
 		String[] args = new String[] { "--trace-files", traceFile.getAbsolutePath(), "--store-artifacts-to",
 				outputTo.getAbsolutePath(), "--apk", apk, "--android-jar", androidJar };
 
-		TraceParserImpl.main(args);
+		Main.main(args);
 
 //        // Check that this is actually happening
 //        XStream xStream = new XStream();
@@ -52,7 +52,7 @@ public class DuafDroidParserTest {
 //            parsedTraceFiles.put(file.getAbsolutePath(),
 //                    (Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>) xStream.fromXML(file));
 //        }
-		ParsedTrace parsedTrace = ParsedTrace.loadFromDirectory(outputTo);
+		ParsedTrace parsedTrace = ParsedTraceImpl.loadFromDirectory(outputTo);
 		Assert.assertEquals(1, parsedTrace.getThreadCount());
 	}
 
@@ -73,10 +73,10 @@ public class DuafDroidParserTest {
 		String[] args = new String[] { "--trace-files", traceFile.getAbsolutePath(), "--store-artifacts-to",
 				outputTo.getAbsolutePath(), "--apk", apk, "--android-jar", androidJar };
 
-		TraceParserImpl.main(args);
+		Main.main(args);
 
 		// Check that this is actually happening
-		ParsedTrace parsedTrace = ParsedTrace.loadFromDirectory(outputTo);
+		ParsedTrace parsedTrace = ParsedTraceImpl.loadFromDirectory(outputTo);
 
 		Assert.assertEquals(8, parsedTrace.getThreadCount());
 	}

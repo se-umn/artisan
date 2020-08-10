@@ -1,47 +1,27 @@
 package de.unipassau.abc.parsing;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.attribute.FileAttribute;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.lexicalscope.jewel.cli.CliFactory;
-import com.lexicalscope.jewel.cli.Option;
-
-import de.unipassau.abc.carving.TraceParser;
-import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.CallGraph;
+import de.unipassau.abc.data.CallGraphImpl;
 import de.unipassau.abc.data.DataDependencyGraph;
+import de.unipassau.abc.data.DataDependencyGraphImpl;
 import de.unipassau.abc.data.DataNode;
 import de.unipassau.abc.data.DataNodeFactory;
 import de.unipassau.abc.data.ExecutionFlowGraph;
+import de.unipassau.abc.data.ExecutionFlowGraphImpl;
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
-import de.unipassau.abc.instrumentation.Monitor;
 import de.unipassau.abc.tracing.Trace;
-import edu.emory.mathcs.backport.java.util.Arrays;
-import soot.G;
-import soot.Scene;
-import soot.SootClass;
 import soot.SootMethod;
-import soot.options.Options;
 
 /**
  * Parser "only" parse one trace file at time, and generates the data structures
@@ -70,384 +50,54 @@ import soot.options.Options;
  * @author gambi
  *
  */
-public class TraceParserImpl implements TraceParser {
+public class TraceParserImpl extends TraceParser {
 
-	public interface ParserCLI {
-		@Option(longName = "android-jar")
-		File getAndroidJar();
+	private ParsedTraceImpl parsedTrace;
 
-		@Option(longName = "apk")
-		File getApk();
-
-		// This is optional. Storing the parsed traces makes it faster to re-use them
-		@Option(longName = "store-artifacts-to", defaultToNull = true)
-		File getOutputDir();
-
-		// ALESSIO: Why we need more than one trace?
-		@Option(longName = "trace-files")
-		List<File> getTraceFiles();
+	@Override
+	public ParsedTrace setupParsedTrace(File traceFile) {
+		this.parsedTrace = new ParsedTraceImpl(traceFile.getName());
+		return parsedTrace;
 	}
-
-	// TODO This seems to be incomplete. But probably for the moment is ok to keep
-	// it that way
-	public static final Pattern threadPattern = Pattern.compile("\\[((UI:main)|((Modern)?AsyncTask #[1-9][0-9]*))]");
-	private static final Logger logger = LoggerFactory.getLogger(TraceParserImpl.class);
-
-	public static void main(String[] args) throws IOException, CarvingException {
-
-		long startTime = System.nanoTime();
-		ParserCLI cli = CliFactory.parseArguments(ParserCLI.class, args);
-
-		/*
-		 * Soot is a singleton and exposes static methods only, so we encapsulate its
-		 * configuration inside static method calls
-		 */
-		TraceParserImpl.setupSoot(cli.getAndroidJar(), cli.getApk());
-
-		/*
-		 * A test of an application might result in generating multiple traces if the
-		 * app is decomissioned from the memory. However, here we assume that each trace
-		 * is independent and the main method simply parses and stores the results for
-		 * later processing into an XML object.
-		 */
-		TraceParserImpl parser = new TraceParserImpl();
-
-		List<ParsedTrace> theParsedTraces = new ArrayList<>();
-
-		for (File traceFile : cli.getTraceFiles()) {
-			try {
-				logger.info("Parsing Trace: " + traceFile);
-				theParsedTraces.add(parser.parseTrace(traceFile));
-			} catch (Throwable e) {
-				logger.error("Failed to parse " + traceFile, e);
-			}
-		}
-
-		/*
-		 * Serialize the parsed graphs to files so maybe we can avoid re-parsing the
-		 * trace over and over and we might be able to limit the memory footprint of the
-		 * process
-		 */
-
-		File outputArtifactTo = cli.getOutputDir();
-
-		if (outputArtifactTo != null) {
-			if (!outputArtifactTo.isDirectory()) {
-				throw new CarvingException("Wrong input: " + outputArtifactTo.getAbsolutePath()
-						+ " is a file, but should be a directory instead");
-			}
-
-			if (!outputArtifactTo.exists()) {
-				Files.createDirectories(outputArtifactTo.toPath(), new FileAttribute[] {});
-			}
-
-			for (ParsedTrace parsedTrace : theParsedTraces) {
-				parsedTrace.storeTo(outputArtifactTo);
-			}
-		}
-
-	}
-
-	public static void setupSoot(File androidJar, File apk) {
-		G.reset();
-		Options.v().set_allow_phantom_refs(true);
-		Options.v().set_whole_program(true);
-
-		Options.v().set_soot_classpath(androidJar.getAbsolutePath());
-		Options.v().set_process_dir(Arrays.asList(new String[] { apk.getAbsolutePath() }));
-		Options.v().set_src_prec(soot.options.Options.src_prec_apk);
-
-		soot.options.Options.v().set_allow_phantom_refs(true);
-	}
-
-	// TODO I would keep the parser generic and define DECORATORS that take the
-	// parsed trace as input and include
-	// the Android specific data there...
-//	protected final SootClass scActivity = Scene.v().getSootClassUnsafe(JimpleUtils.ACTIVITY_CLASS);
-//	protected final SootClass scFragment = Scene.v().getSootClassUnsafe(JimpleUtils.FRAGMENT_CLASS);
-//	protected final SootClass scSupportActivity = Scene.v().getSootClassUnsafe(JimpleUtils.SUPPORT_ACTIVITY_CLASS);
-//	protected final SootClass scSupportFragment = Scene.v().getSootClassUnsafe(JimpleUtils.SUPPORT_FRAGMENT_CLASS);
-
-	// TODO Pretty sure there's a better way to parse the file ...
-	/**
-	 * Ensures to have the right number of elements in the returning String[] or
-	 * fail with an exception
-	 */
-	public Map<String, String> parseLine(String line) throws ABCException {
-		try {
-			// Remove the "ABC::" tag
-			line = line.replaceFirst(Trace.ABC_TAG, "").trim();
-
-			String[] _tokens = line.split(Trace.DELIMITER);
-
-			// Extract the method id
-			String methodId = _tokens[0].split(" ")[0];
-
-			// Extracts the identifier of the thread that executed the invocation
-			String threadName = _tokens[0].split(" ")[1];
-//			.replaceFirst("\\[", "").replaceFirst("\\]", "");
-
-			// Extract the context of the invocation
-			String context = _tokens[1];
-//			.substring(_tokens[1].indexOf('['), _tokens[1].indexOf(']')).replaceFirst("\\[",
-//					"");
-
-			// Extract method token. Token is DEFINED with [ ] so we do not need to remove
-			// them
-			String methodToken = _tokens[2];
-//			.substring(_tokens[2].indexOf('['), _tokens[2].indexOf(']'))
-//					.replaceFirst("\\[", "");
-
-			/*
-			 * TODO Static calls might be reported with a null owner... I do not really like
-			 * this, but maybe we can distinguish them using the method token ?
-			 */
-			String methodOwner = _tokens[3];
-
-			// Method Signature this is the JIMPLE format
-			String methodSignature = _tokens[4];
-
-			// Input parameters for method invocation, otherwise return value
-			// We need to remove the "(" ")"
-			String parametersOrReturnValue = _tokens[5].substring(1, _tokens[5].length() - 1);
-
-			// TODO Arrays ?
-// TODO Special case of array ? - Create a test for this ?
-			//
-//		if (_tokens.length != 4) {
-//			// Does the line contains an array as OWNER ?! I guess in the end arrays can
-//			// have method calls ...
-//			// [>>];[Lorg.ametro.catalog.entities.TransportType;@71559508;<java.lang.Object:
-//			// java.lang.Object clone()>;(); got 5 instead of 4
-//			if (_tokens[1].startsWith("[") && _tokens[2].startsWith("@")) {
-//				tokens[0] = _tokens[0];
-//				tokens[2] = _tokens[3];
-//				tokens[3] = _tokens[4];
-//
-//				// Convert the array owner to the expected form
-//
-//				tokens[1] = JimpleUtils.getBaseArrayType(_tokens[1]) + "[]" + _tokens[2];
-//
-//			} else {
-//				throw new ABCException("Cannot parse line " + line + " got " + _tokens.length + " instead of 4");
-//			}
-//		} else {
-//			tokens = _tokens;
-//		}
-//
-//		// Flag the call as library or user
-
-//
-//		// Count formalParameters
-//		String[] formalParameters = JimpleUtils.getParameterList(methodSignature);
-//
-//		// At this point take the remainder of the String and parse the
-//		// parameters or the return value
-//		String parameterString = tokens[3];
-//
-//		// Remove the opening ( and closing )
-//		parameterString = parameterString.substring(1, parameterString.length() - 1);
-
-			Map<String, String> parsedLine = new HashMap<String, String>();
-			parsedLine.put("invocationCount", methodId);
-			parsedLine.put("threadName", threadName);
-			parsedLine.put("methodContext", context);
-			parsedLine.put("methodToken", methodToken);
-			parsedLine.put("methodOwner", methodOwner);
-			parsedLine.put("methodSignature", methodSignature);
-			parsedLine.put("parametersOrReturnValue", parametersOrReturnValue);
-
-			return parsedLine;
-		} catch (Throwable t) {
-			throw new ABCException("Cannot parse line", t);
-		}
-	}
-
-	// TODO Maybe filtering should be app-specific ?
-	public boolean filter(String methodSignature) {
-		if (methodSignature.contains("java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)")) {
-			return true;
-		}
-		// else if( methodSignature.contains("" ) ){ return true; }
-		else {
-			return false;
-		}
-	}
-
-	private SootMethod getSootMethodFor(String methodSignature) {
-		if (isArrayMethod(methodSignature)) {
-			return null;
-		}
-
-		try {
-
-			return Scene.v().getMethod(methodSignature);
-		} catch (Throwable e) {
-			SootClass sootClass = Scene.v().getSootClass(JimpleUtils.getClassNameForMethod(methodSignature));
-			logger.warn("Cannot find method " + methodSignature + " in class " + sootClass);
-			for (SootMethod sootMethod : sootClass.getMethods()) {
-				System.out.println("- " + sootMethod);
-			}
-			return null;
-		}
-	}
-
-	// TODO Move to decorator
-//	private boolean isActivity(SootClass sootClass) {
-//		return sootClass != null && !sootClass.isInterface() && ( //
-//		Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scActivity)
-//				|| Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scSupportActivity));
-//	}
-
-	//
-	private boolean isArrayMethod(String methodSignature) {
-		return JimpleUtils.getClassNameForMethod(methodSignature).endsWith("[]");
-	}
-
-	// TODO Move to decorator
-//	private boolean isFragment(SootClass sootClass) {
-//		return sootClass != null && !sootClass.isInterface() && ( //
-//		Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scFragment)
-//				|| Scene.v().getActiveHierarchy().isClassSubclassOfIncluding(sootClass, scSupportFragment));
-//	}
 
 	private Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedElements = new HashMap<>();
 
+	// TODO Maybe some of the following parsing and the like can be moved into Trace
+	// ?
+
+	// Thread Name, but to do so, we need to change this code
+
+//	MethodInvocation methodInvocation = null;
+//TODO Why do we need to have a reference HERE to soot classes? I think that's relevant only if we manage that otherwise, we'll use a decorator to pass over the graph and include soot-related properties 
+//	SootClass sootClass = null;
+//	// TODO This probably can be handled way better...
+//	if (!isArrayMethod(methodSignature)) {
+//		sootClass = Scene.v().getSootClass(JimpleUtils.getClassNameForMethod(methodSignature));
+//	} else {
+//		logger.debug("Found synthetic method array ", methodOwner, methodSignature);
+//	}
+
 	@Override
-	public ParsedTrace parseTrace(File traceFile) throws FileNotFoundException, IOException, ABCException {
-
-		ParsedTrace parsedTrace = new ParsedTrace(traceFile.getName());
-
-		/*
-		 * This is global id of method invocations, acts like a global logical clock
-		 * (across multiple traces/Threads
-		 */
-		AtomicInteger globalInvocationCount = new AtomicInteger(0);
-
-		// TODO We probably do not handle GLOBAL variables -passed implicitly- or
-		// accesses to fields ! See #123
-
-		/*
-		 * Create for each execution thread (String:key) a structure that contains the
-		 * ordered list of executed method calls, a graph of method calls dependencies
-		 * via data dependency (read and produced), and via method call
-		 */
-
-		// Parsing variables - some refactoring would not be bad here...
-		ExecutionFlowGraph executionFlowGraph = null;
-		DataDependencyGraph dataDependencyGraph = null;
-		CallGraph callGraph = null;
-
-		// TODO Maybe replace this with Scanner?
-		// TODO Maybe we could replace this entire code with something more maintainable
-		// which actually implements a lesser/parser or a scannerless parser?
-		//
-
-		try (BufferedReader b = new BufferedReader(new FileReader(traceFile))) {
-
-			String currentLine = "";
-			int i = 0;
-			long startTime = System.currentTimeMillis();
-
-			while ((currentLine = b.readLine()) != null) {
-
-				// Increment line count
-				i++;
-
-				if (i % 10000 == 0) {
-					long elapsed = System.currentTimeMillis() - startTime;
-					logger.info("Parsed " + i + " lines took "
-							+ String.format("%d min, %d sec", TimeUnit.MILLISECONDS.toMinutes(elapsed),
-									TimeUnit.MILLISECONDS.toSeconds(elapsed)
-											- TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(elapsed))));
-					System.gc();
-				}
-
-				try {
-					// TODO should the parseLine return an object instead of plain String?
-					Map<String, String> tokens = parseLine(currentLine);
-					// TODO Check whether we have all the required elements in the parsedLine ?
-					// TODO Implement validation of line and move it inside parseLine method
-					if (tokens.get("methodSignature") == null) {
-						throw new ABCException("Missing method signature in trace. Offending line: " + currentLine);
-					}
-
-					// Load the data structure to fill up with the parsed info
-					Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> local = getOrInitializeDataStructure(
-							tokens.get("threadName"));
-
-					// TODO Brutally filter method calls that MOST-LIKELY are
-					// not useful to unit tests...
-					String methodSignature = tokens.get("methodSignature");
-					String methodOwner = tokens.get("methodOwner");
-					String openingToken = tokens.get("methodToken");
-
-					// TODO Open an issue here to setup filtering of method calls
-					// Filter special method invocations
-//					if (filter(methodSignature)) {
-//						logger.debug("Filtering out call: ", methodSignature);
-//						continue;
-//					}
-
-					// TODO Maybe some of the following parsing and the like can be moved into Trace
-					// ?
-
-					// Thread Name, but to do so, we need to change this code
-
-					MethodInvocation methodInvocation = null;
-
-					SootClass sootClass = null;
-					// TODO This probably can be handled way better...
-					if (!isArrayMethod(methodSignature)) {
-						sootClass = Scene.v().getSootClass(JimpleUtils.getClassNameForMethod(methodSignature));
-					} else {
-						logger.debug("Found synthetic method array ", methodOwner, methodSignature);
-					}
-
-					switch (openingToken) {
-
-					case Monitor.PRIVATE_METHOD_START_TOKEN:
-					case Monitor.SYNTHETIC_METHOD_START_TOKEN:
-					case Monitor.LIB_METHOD_START_TOKEN:
-					case Monitor.METHOD_START_TOKEN:
-						parseMethodInvocation(globalInvocationCount, local, tokens, sootClass);
-						break;
-					case Monitor.METHOD_END_TOKEN:
-						parseMethodReturn(globalInvocationCount, local, tokens, sootClass);
-						break;
-					case Monitor.METHOD_END_TOKEN_FROM_EXCEPTION:
-						parseMethodReturnWithException(globalInvocationCount, local, tokens, sootClass);
-						break;
-					default:
-						throw new ABCException("Invalid token" + openingToken);
-					}
-				} catch (Throwable t) {
-					logger.error("Error while parsing line " + currentLine, t);
-					throw t;
-				}
-			}
-		}
-
-		// Ensure parsing was done right (matching calls, etc).
-		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsedTraceResult : parsedElements
-				.values()) {
-			CallGraph cGraph = parsedTraceResult.getThird();
-			cGraph.verify();
-		}
-
-		parsedTrace.setContent(parsedElements);
-		//
-		return parsedTrace;
+	public void validate() throws ABCException {
+		// TODO Auto-generated method stub
 
 	}
 
-	public void parseMethodReturnWithException(AtomicInteger globalInvocationCount,
-			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> local, Map<String, String> tokens,
-			SootClass sootClass) throws ABCException {
+	@Override
+	public void endOfExecution() {
+		// TODO Auto-generated method stub
+	}
 
-		String methodSignature = tokens.get("methodSignature");
-		String methodOwner = tokens.get("methodOwner");
-		String parameterString = tokens.get("parametersOrReturnValue");
+	@Override
+	public void parseMethodReturnWithException(AtomicInteger globalInvocationCount, ParsedLine tokens)
+			throws ABCException {
+
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> local = getOrInitializeDataStructure(
+				tokens.threadName);
+
+		String methodSignature = tokens.methodSignature;
+		String methodOwner = tokens.methodOwner;
+		String parameterString = tokens.parametersOrReturnValue;
 
 		MethodInvocation methodInvocation;
 		String exceptionAsString = parameterString;
@@ -472,7 +122,7 @@ public class TraceParserImpl implements TraceParser {
 					.getOrderedSubsumingMethodInvocationsFor(methodInvocation);
 
 			throw new ABCException("Unexpected method return from " + methodInvocation + "\nSubsuming methods; "
-					+ prettyPrint(subsumingMethods));
+					+ ParsingUtils.prettyPrint(subsumingMethods));
 		}
 
 		if (!methodInvocation.isStatic() && !JimpleUtils.isConstructorOrClassConstructor(methodSignature)) {
@@ -526,13 +176,15 @@ public class TraceParserImpl implements TraceParser {
 
 	}
 
-	public void parseMethodReturn(AtomicInteger globalInvocationCount,
-			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> local, Map<String, String> tokens,
-			SootClass sootClass) throws ABCException {
+	@Override
+	public void parseMethodReturn(AtomicInteger globalInvocationCount, ParsedLine tokens) throws ABCException {
 
-		String methodSignature = tokens.get("methodSignature");
-		String methodOwner = tokens.get("methodOwner");
-		String parameterString = tokens.get("parametersOrReturnValue");
+		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> local = getOrInitializeDataStructure(
+				tokens.threadName);
+
+		String methodSignature = tokens.methodSignature;
+		String methodOwner = tokens.methodOwner;
+		String parameterString = tokens.parametersOrReturnValue;
 
 		MethodInvocation methodInvocation;
 		String returnValueAsString = parameterString.isEmpty() ? null : parameterString;
@@ -552,7 +204,7 @@ public class TraceParserImpl implements TraceParser {
 					.getOrderedSubsumingMethodInvocationsFor(methodInvocation);
 
 			throw new ABCException("Unexpected method return from " + methodInvocation + "\nSubsuming methods; "
-					+ prettyPrint(subsumingMethods));
+					+ ParsingUtils.prettyPrint(subsumingMethods));
 		}
 
 		if (!methodInvocation.isStatic() && !JimpleUtils.isConstructorOrClassConstructor(methodSignature)) {
@@ -608,16 +260,18 @@ public class TraceParserImpl implements TraceParser {
 					+ ((methodInvocation.isLibraryCall()) ? " libCall" : ""));
 	}
 
-	private void parseMethodInvocation(AtomicInteger globalInvocationCount,
-			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> local, Map<String, String> tokens,
-			SootClass sootClass) throws ABCException {
+	@Override
+	public void parseMethodInvocation(AtomicInteger globalInvocationCount, ParsedLine tokens) throws ABCException {
 
 		try {
 
-			String methodSignature = tokens.get("methodSignature");
-			String openingToken = tokens.get("methodToken");
-			String methodOwner = tokens.get("methodOwner");
-			String parameterString = tokens.get("parametersOrReturnValue");
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> local = getOrInitializeDataStructure(
+					tokens.threadName);
+
+			String methodSignature = tokens.methodSignature;
+			String openingToken = tokens.methodToken;
+			String methodOwner = tokens.methodOwner;
+			String parameterString = tokens.parametersOrReturnValue;
 
 			MethodInvocation methodInvocation;
 			/*
@@ -646,8 +300,8 @@ public class TraceParserImpl implements TraceParser {
 				// to see if that's lifecycle
 
 			} else {
-
-				SootMethod sootMethod = getSootMethodFor(methodSignature);
+				// TODO Do we really need this information from soot? or in general?
+				SootMethod sootMethod = ParsingUtils.getSootMethodFor(methodSignature);
 
 				if (sootMethod != null) {
 
@@ -655,7 +309,7 @@ public class TraceParserImpl implements TraceParser {
 					methodInvocation.setPrivate(sootMethod.isPrivate());
 					methodInvocation.setPublic(sootMethod.isPublic());
 					methodInvocation.setProtected(sootMethod.isProtected());
-				} else if (isArrayMethod(methodSignature)) {
+				} else if (ParsingUtils.isArrayMethod(methodSignature)) {
 					/*
 					 * This is a method that we created on the fly, it does not exist for real...
 					 */
@@ -739,100 +393,33 @@ public class TraceParserImpl implements TraceParser {
 		}
 	}
 
-	public final static Pattern params = Pattern.compile("\\((.*?)\\)");
-
-	public String[] getFormalParameters(String jimpleMethod) {
-
-		Matcher matchPattern = params.matcher(jimpleMethod);
-		if (matchPattern.find()) {
-			String t = matchPattern.group(1);
-			if (t.length() == 0) {
-				return new String[] {};
-			}
-			return t.split(",");
-		}
-		return new String[] {};
-	}
-
-	// TODO If this is used only somewhere else, move it to TraceParseImpl maybe
-	public String[] getActualParameters(String methodSignature, String parameterString) {
-		String[] formalParameters = JimpleUtils.getParameterList(methodSignature);
-		String[] actualParametersOrReturnValue = new String[formalParameters.length];
-
-		if (formalParameters.length == 0) {
-			return actualParametersOrReturnValue;
-		}
-
-		// TODO Consider to rebuild the strings first and then parse using spli
-		String[] tokens = parameterString.split(",");
-		int pCount = 0; // formalParameters.length;
-		boolean accumulateStringContent = false;
-		String partialStringValue = null;
-
-		for (String token : tokens) {
-
-			// Empty String. Note that we cannot reliably rely on formal parameters as they
-			// might be Object
-			if (token.equals("[]")) {
-				accumulateStringContent = false;
-			}
-			// Single Char Strings
-			else if (token.contains("[") && token.contains("]")) {
-				accumulateStringContent = false;
-			} else if (token.startsWith("[") && !token.contains("@")) { // Arrays have [Type form...
-				accumulateStringContent = true;
-				// Initialize the String
-				partialStringValue = "";
-			} else if (token.endsWith("]")) {
-				accumulateStringContent = false;
-				// Append the last token, without the delimiter
-				partialStringValue += token;
-			}
-
-			if (accumulateStringContent) {
-				// If the token represents a string-bytes, accumulate the
-				// elements
-				partialStringValue += token + ",";
-			} else {
-				if (partialStringValue == null) {
-					// Handle null at first position
-					if (token.isEmpty()) {
-						actualParametersOrReturnValue[pCount] = null;
-					} else {
-						actualParametersOrReturnValue[pCount] = token;
-					}
-				} else {
-					actualParametersOrReturnValue[pCount] = partialStringValue;
-				}
-				pCount++;
-				partialStringValue = null;
-			}
-		}
-
-		assert actualParametersOrReturnValue.length == formalParameters.length : "actual and formal parameters do not match";
-
-		return actualParametersOrReturnValue;
-
-	}
-
 	/*
 	 * Initialize the data structure holding the parsing results or getting the
 	 * existing one
 	 */
-	private Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> getOrInitializeDataStructure(String context) {
-		if (!parsedElements.containsKey(context)) {
-			parsedElements.put(context, new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
-					new ExecutionFlowGraph(), new DataDependencyGraph(), new CallGraph()));
+	private Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> getOrInitializeDataStructure(
+			String threadName) {
+		if (!parsedElements.containsKey(threadName)) {
+			parsedElements.put(threadName, new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
+					new ExecutionFlowGraphImpl(), new DataDependencyGraphImpl(), new CallGraphImpl()));
 		}
-		return parsedElements.get(context);
+		return parsedElements.get(threadName);
 	}
 
-	private String prettyPrint(List<MethodInvocation> subsumingMethods) {
-		StringBuffer stringBuffer = new StringBuffer();
-		for (MethodInvocation methodInvocation : subsumingMethods) {
-			stringBuffer.append(methodInvocation).append("\n");
-		}
-		return null;
+	@Override
+	public void parsePrivateMethodInvocation(AtomicInteger globalInvocationCount, ParsedLine tokens)
+			throws ABCException {
+		// TODO
+		parseMethodInvocation(globalInvocationCount, tokens);
+
+	}
+
+	@Override
+	public void parseSyntheticMethodInvocation(AtomicInteger globalInvocationCount, ParsedLine tokens)
+			throws ABCException {
+		// TODO
+		parseMethodInvocation(globalInvocationCount, tokens);
+
 	}
 
 }

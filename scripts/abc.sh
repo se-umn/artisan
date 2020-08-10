@@ -233,6 +233,18 @@ function beautify() {
     awk '{printf "%-8d%-8s\n", NR, $0}' >${beautified_file}
 }
 
+function rebuild-all(){
+  # Ensures the required variables are in place
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+
+  # Store current folder in stack and cd to $ABC_HOME
+  # NOTE: ABC_HOME should not be between double quotes (")
+  pushd ${ABC_HOME}
+  mvn clean compile package install -DskipTests
+  # Return to original folder
+  popd
+}
+
 function rebuild-instrument() {
   # Ensures the required variables are in place
   : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}

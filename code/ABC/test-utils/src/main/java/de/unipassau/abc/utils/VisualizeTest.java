@@ -6,7 +6,7 @@ import org.junit.Test;
 
 import com.thoughtworks.xstream.XStream;
 
-import de.unipassau.abc.data.DataDependencyGraph;
+import de.unipassau.abc.data.DataDependencyGraphImpl;
 import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.Pair;
 
@@ -21,7 +21,7 @@ public class VisualizeTest {
         File carvedTestFile = new File("src/test/resources/android-28-carved-tests/com.farmerbb.notepad.activity.MainActivity.getPreferences_11");
         XStream xStream = new XStream();
         
-        Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest = (Pair<ExecutionFlowGraph, DataDependencyGraph>) xStream.fromXML(carvedTestFile);
+        Pair<ExecutionFlowGraph, DataDependencyGraphImpl> carvedTest = (Pair<ExecutionFlowGraph, DataDependencyGraphImpl>) xStream.fromXML(carvedTestFile);
         
         ExecutionFlowGraph executionFlowGraph = carvedTest.getFirst();
         System.out.println("VisualizeTest.loadTestAndVisualizeIt() " + executionFlowGraph );

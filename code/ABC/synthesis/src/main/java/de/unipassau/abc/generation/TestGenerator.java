@@ -1,6 +1,7 @@
 package de.unipassau.abc.generation;
 
 import java.io.IOException;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -16,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import de.unipassau.abc.ABCUtils;
+import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.JimpleUtils;
@@ -48,7 +50,6 @@ import soot.jimple.NewArrayExpr;
 import soot.jimple.Stmt;
 import soot.jimple.StringConstant;
 import soot.jimple.toolkits.annotation.j5anno.AnnotationGenerator;
-import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.util.Chain;
 
 public class TestGenerator {
@@ -80,16 +81,16 @@ public class TestGenerator {
 	 * @throws InterruptedException
 	 * @throws ABCException
 	 */
-	public List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> generateTestCases(
-			List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests, TestClassGenerator testClassGenerator)
-			throws IOException, InterruptedException {
+	public List<Map.Entry<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>, SootMethod>> generateTestCases(
+			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedTests,
+			TestClassGenerator testClassGenerator) throws IOException, InterruptedException {
 
-		List<Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>> testCases = new ArrayList<>();
+		List<Map.Entry<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>, SootMethod>> testCases = new ArrayList<>();
 
 		// Why we need to initialize soot here otherwise we cannot create
 		// methods and classes, and such
 		// To probably there's also something else to include here
-		for (Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest : carvedTests) {
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedTest : carvedTests) {
 
 			long start = System.currentTimeMillis();
 
@@ -118,8 +119,11 @@ public class TestGenerator {
 				// ,i.e., last element
 				SootMethod testMethod = generateAndAddTestMethodToTestClass(testClass, carvedTest);
 				if (testMethod != null) {
-					testCases.add(new Triplette<ExecutionFlowGraph, DataDependencyGraph, SootMethod>(
-							carvedTest.getFirst(), carvedTest.getSecond(), testMethod));
+					testCases
+							.add(new AbstractMap.SimpleEntry(
+									new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
+											carvedTest.getFirst(), carvedTest.getSecond(), carvedTest.getThird()),
+									testMethod));
 				}
 			} catch (ABCException e) {
 				logger.warn("Cannot generate test ", e);
@@ -130,7 +134,8 @@ public class TestGenerator {
 		return testCases;
 	}
 
-	private void validate(Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest) throws ABCException {
+	private void validate(Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedTest)
+			throws ABCException {
 		DataDependencyGraph dataDependencyGraph = carvedTest.getSecond();
 		Collection<ObjectInstance> instances = dataDependencyGraph.getObjectInstances();
 		for (ObjectInstance instance : instances) {
@@ -180,7 +185,7 @@ public class TestGenerator {
 	 * an equivalent one
 	 */
 	private SootMethod generateAndAddTestMethodToTestClass(SootClass testClass,
-			Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest) throws ABCException {
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedTest) throws ABCException {
 
 		// For each element in the DataDependencyGraph create
 		ExecutionFlowGraph executionFlowGraph = carvedTest.getFirst();

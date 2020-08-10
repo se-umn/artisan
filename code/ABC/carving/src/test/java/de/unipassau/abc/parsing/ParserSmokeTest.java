@@ -24,13 +24,26 @@ public class ParserSmokeTest {
 
 	@Test
 	public void parseTrace() throws FileNotFoundException, IOException, ABCException {
-		File traceFile = new File("./src/test/resources/abc.basiccalculator/testCalculate-trace.txt");
+		File traceFile = new File("./src/test/resources/abc.basiccalculator/testCalculate-trace-small.txt");
 		File apk_file = new File("./src/test/resources/abc.basiccalculator/app-debug.apk");
 
-		TraceParserImpl.setupSoot(ANDROID_JAR, apk_file);
+		ParsingUtils.setupSoot(ANDROID_JAR, apk_file);
 
-		TraceParserImpl parser = new TraceParserImpl();
+		TraceParser parser = new TraceParserImpl();
 		ParsedTrace parsedTrace = parser.parseTrace(traceFile);
+
+	}
+
+	@Test
+	public void parseTraceWithGremlin() throws FileNotFoundException, IOException, ABCException {
+		File traceFile = new File("./src/test/resources/abc.basiccalculator/testCalculate-trace-small.txt");
+		File apk_file = new File("./src/test/resources/abc.basiccalculator/app-debug.apk");
+
+		ParsingUtils.setupSoot(ANDROID_JAR, apk_file);
+
+		TraceParser parser = new GremlinParser();
+		ParsedTrace parsedTrace = parser.parseTrace(traceFile);
+
 	}
 
 //	@Test
