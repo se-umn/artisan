@@ -19,6 +19,7 @@ import org.junit.Assert;
 
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
+import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;

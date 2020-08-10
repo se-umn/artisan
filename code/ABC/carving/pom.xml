@@ -24,7 +24,7 @@
 					<configuration>
 						<programs>
 							<program>
-								<mainClass>de.unipassau.abc.parsing.TraceParserImpl</mainClass>
+								<mainClass>de.unipassau.abc.parsing.Main</mainClass>
 								<id>parse-trace</id>
 								<jvmSettings>
 									<initialMemorySize>200m</initialMemorySize>
@@ -61,5 +61,20 @@
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-simple</artifactId>
 		</dependency>
+
+		<!-- Graph Query Language to implement the carving directives -->
+		<dependency>
+			<groupId>org.apache.tinkerpop</groupId>
+			<artifactId>gremlin-core</artifactId>
+			<version>3.4.7</version>
+		</dependency>
+		<!-- Local Graph Implementation, might be replaced by JanusGraph -->
+		<dependency>
+			<groupId>org.apache.tinkerpop</groupId>
+			<artifactId>tinkergraph-gremlin</artifactId>
+			<version>3.4.7</version>
+		</dependency>
+
+
 	</dependencies>
 </project>
