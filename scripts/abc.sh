@@ -149,7 +149,22 @@ function __private_get_package_name_from_apk_file() {
   local apk_file="${1:?Missing apk file to install}"
 
   ${ANDROID_AAPT_EXE} dump badging ${apk_file} | grep "package: name" | awk '{print $2}' | sed -e "s|name=||" -e "s|'||g"
+}
 
+function __private_get_version_from_apk_file() {
+  : ${ANDROID_AAPT_EXE:?Please provide a value for ANDROID_AAPT_EXE in $config_file }
+
+  local apk_file="${1:?Missing apk file to install}"
+
+  ${ANDROID_AAPT_EXE} dump badging ${apk_file} | grep "versionName=" | awk '{print $4}' | sed -e "s|versionName=||" -e "s|'||g" -e "s|\.||g"
+}
+
+function __private_get_application_label_from_apk_file() {
+  : ${ANDROID_AAPT_EXE:?Please provide a value for ANDROID_AAPT_EXE in $config_file }
+
+  local apk_file="${1:?Missing apk file to install}"
+
+  ${ANDROID_AAPT_EXE} dump badging ${apk_file} | grep "application-label:" | awk '{print $1}' | sed -e "s|application-label:||" -e "s|'||g"
 }
 
 function install-apk() {
@@ -312,50 +327,6 @@ function instrument-apk() {
   echo "${instrumented_apk_file}"
 }
 
-function run-test() {
-  # Ensures the required variables are in place
-  : ${MONKEYRUNNER_EXE:?Please provide a value for MONKEYRUNNER_EXE in $config_file}
-  : ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
-
-  # Mandatory. The file that contains instructions to be run with monkeyrunner
-  local instructions_file="${1:?Missing an instructions file}"
-  local apk_file="${2:?Missing an APK file}"
-
-  if [ ! -e ${instructions_file} ]; then
-    (echo >&2 "The provided test file ${instructions_file} does not exist.")
-    return -1
-  fi
-
-  if [ ! -e ${apk_file} ]; then
-    (echo >&2 "The provided APK ${apk_file} does not exist.")
-    return -1
-  fi
-
-  # Application directory
-  local apk_dir=${instructions_file%/*}
-
-  # Reads the package name of the application
-  local package_name=$(__private_get_package_name_from_apk_file ${apk_file})
-
-  # Gets the path of the droixbench playback script
-  local playback_script=$(realpath "$ABC_HOME/../../apks/automated-testing/monkey_playback.py")
-
-  start-clean-emulator
-
-  # Checks if app is installed. Assumes that the directory contains exactly one apk file
-  # if [ -z "$(${ANDROID_ADB_EXE} shell pm list packages $package_name)" ]; then
-  (echo >&2 "(Re)Installing the APK")
-  install-apk "$apk_file"
-  # fi
-
-  (echo >&2 "Running ${green}${instructions_file}${reset}")
-  ${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" "$ANDROID_ADB_EXE" >run-test.log 2>&1
-
-  (echo >&2 "Test completed")
-
-  copy-traces "$package_name"
-}
-
 function copy-traces() {
   # Ensures the required variables are in place
   : ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
@@ -388,10 +359,83 @@ function copy-traces() {
   (echo >&2 "Done Copying")
 }
 
-function test-apk() {
+function run-test() {
+  # Ensures the required variables are in place
   : ${MONKEYRUNNER_EXE:?Please provide a value for MONKEYRUNNER_EXE in $config_file}
   : ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
 
+  # Mandatory. The file that contains instructions to be run with monkeyrunner
+  local apk_file="${1:?Missing an APK file}"
+
+  if [ ! -e ${apk_file} ]; then
+    (echo >&2 "The provided APK ${apk_file} does not exist.")
+    return -1
+  fi
+
+  # Application directory
+  local apk_dir=${apk_file%/*}
+
+  # Reads the package name of the application
+  local package_name=$(__private_get_package_name_from_apk_file ${apk_file})
+
+  start-clean-emulator
+
+  # Checks if app is installed. Assumes that the directory contains exactly one apk file
+  (echo >&2 "(Re)Installing the APK")
+  install-apk "$apk_file"
+
+  local tests_dir=$(realpath "${ABC_HOME}/../../apps-src/tests")
+  pushd ${tests_dir} &> /dev/null || ((echo >&2 "Tests directory $tests_dir does not exist") && exit)
+
+  # Build the tests
+  local build_result=$("$tests_dir/gradlew" assembleAndroidTest)
+  local test_runner=$(realpath "$tests_dir/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk")
+  popd &> /dev/null || exit
+  ( >&2 echo "Test runner is $test_runner" )
+  # The "testing" apk must be installed, afterwards it can be invoked to test apk under test
+  # Check installed instrumentation with 'adb shell pm list instrumentation'
+  install-apk $test_runner
+
+  # Combine the test class name out of application name and version assuming they are correctly defined.
+  # Other options are:
+  # 1) Create a hard-written list of apk-specific test methods / classes (adb supports such a list directly)
+  # 2) Create some sort of marker annotation, which means creating an annotation for every single apk
+  # https://developer.android.com/reference/androidx/test/runner/AndroidJUnitRunner
+  local apk_version=$(__private_get_version_from_apk_file ${apk_file})
+  local apk_name=$(__private_get_application_label_from_apk_file ${apk_file})
+
+  __log_verbose "APK name is ${apk_name}, version: ${apk_version}"
+
+  local test_name="de.unipassau.tests.${apk_name}${apk_version}Test"
+  if [ ! -z "$2" ]; then
+    # Run only one test method
+    test_name="$test_name#$2"
+  fi
+
+  # Run specific test class/method that contains UI tests for the apk under test.
+  # UIautomator test log contains each test method twice
+  local test_methods=$(${ANDROID_ADB_EXE} shell am instrument \
+      -w -r -e debug false -e class ${test_name} \
+      -e apk-path ${apk_file} \
+      de.unipassau.tests.test/androidx.test.runner.AndroidJUnitRunner | grep 'test=' \
+      | awk 'NR % 2 == 0 {print $2}' | sed -e 's/test=//g')
+
+  (echo >&2 "Test(s) completed")
+  local traces=$(copy-traces "$package_name" | sort)
+
+  IFS=$'\n'
+  read -rd '' -a trace_paths <<<"$traces"
+  read -rd '' -a test_methods <<< "$test_methods"
+
+  for i in "${!trace_paths[@]}"; do
+    echo "${test_methods[${i}]}:${trace_paths[${i}]}"
+  done
+}
+
+function test-apk() {
+  # Ensures the required variables are in place
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+  : ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
   local ORIGINAL_APK="${1:?Missing APK}"
   local INSTRUMENTED_APK=$(instrument-apk ${ORIGINAL_APK})
 
@@ -400,36 +444,34 @@ function test-apk() {
   fi
 
   local apk_dir=$(dirname "$ORIGINAL_APK")
+  pushd $apk_dir || exit
+  # Clean up
+  make &> /dev/null
+  popd
 
-  # Clean previous traces
-  rm -f "$apk_dir/*.test-trace-*"
+  for entry in $(run-test $INSTRUMENTED_APK); do
+    local method_name=$(echo $entry | cut -d ':' -f 1)
+    local TRACE=$(echo $entry | cut -d ':' -f 2)
+    local trace_path=$(echo "$TRACE" | sed -e "s/Trace-/Trace-${method_name}-/g")
+    echo "Test name: ${green}${method_name}${reset}"
+    # Copy the trace in the test folder using the test name as template
+    cp -v "${TRACE}" "${apk_dir}/$(basename ${trace_path})-trace"
 
-  for TEST in $(find "$apk_dir" -type f -iname "*.test"); do
-    # This might generate more traces?
-    local i=1
-    for TRACE in $(run-test "${TEST}" "${INSTRUMENTED_APK}"); do
-      # Copy the trace in the test folder using the test name as template
-      cp -v "${TRACE}" "${TEST}-trace-${i}"
+    split-trace "$TRACE" &>/dev/null
 
-      split-trace "$TRACE" &>/dev/null
-
-      for SPLIT in "$TRACE"-split*; do
-
-        # Actually check that the number of lines in the trace are even
-        local number_of_line=$(wc -l ${SPLIT} | awk '{print $1}')
-        if [ ! $((number_of_line % 2)) -eq 0 ]; then
-          # https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
-          thread_name=$(echo "$SPLIT" | awk 'match($0, /(split\-)[a-zA-Z 0-9 \- _]+$/) {print substr($0, RSTART + 7, RLENGTH)}' | tr "_" " ")
-          VERDICT="${red}FAIL${reset}: expected an even number of lines in thread $thread_name but got ${number_of_line}"
-          break
-        else
-          VERDICT="${green}PASS${reset}"
-        fi
-      done
-      ((++i))
-      (echo >&2 "${VERDICT}")
+    for SPLIT in "$TRACE"-split*; do
+      # Actually check that the number of lines in the trace are even
+      local number_of_line=$(wc -l ${SPLIT} | awk '{print $1}')
+      if [ ! $((number_of_line % 2)) -eq 0 ]; then
+        # https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
+        thread_name=$(echo "$SPLIT" | awk 'match($0, /(split\-)[a-zA-Z 0-9 \- _]+$/) {print substr($0, RSTART + 7, RLENGTH)}' | tr "_" " ")
+        VERDICT="${red}FAIL${reset}: expected an even number of lines in thread $thread_name but got ${number_of_line}"
+        break
+      else
+        VERDICT="${green}PASS${reset}"
+      fi
     done
-    (echo >&2 "Done Test: ${TEST}")
+    (echo >&2 "${VERDICT}")
   done
 }
 
