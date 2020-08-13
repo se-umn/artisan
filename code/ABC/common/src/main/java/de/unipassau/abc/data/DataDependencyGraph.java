@@ -5,10 +5,55 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import de.unipassau.abc.exceptions.ABCException;
 import soot.Local;
 import soot.Value;
 
 public interface DataDependencyGraph {
+
+	/**
+	 * Return the list of parameters used for the method invocation. Order matters!
+	 * 
+	 * @param methodInvocation
+	 * @return
+	 */
+	public List<DataNode> getParametersOf(MethodInvocation methodInvocation);
+
+	/**
+	 * Method used during parsing to link the DataNode to the method invocation
+	 * 
+	 * @param methodInvocation
+	 * @param actualParameter
+	 * @param position
+	 */
+	public void addDataDependencyOnActualParameter(MethodInvocation methodInvocation, DataNode actualParameter,
+			int position);
+
+	/**
+	 * Return the node that corresponds to the return value of this methodInvocation
+	 * or Optional.empty if the signature is void. If the methodI invocation is not
+	 * tied to any return value an exception will be thrown
+	 * 
+	 * @param mi
+	 * @return
+	 * @throws ABCException if a return value cannot be found for a method that is
+	 *                      not declared as void
+	 */
+	public Optional<DataNode> getReturnValue(MethodInvocation mi) throws ABCException;
+
+	/**
+	 * Ensure that we reset the transient state of the graph.
+	 */
+	public void reset();
+
+	/**
+	 * Return all the weakly connected components that can be formed considering the
+	 * given methodInvocations (and their dependencies)
+	 * 
+	 * @param methodInvocations
+	 * @return
+	 */
+	public Collection<DataDependencyGraph> extrapolate(Set<MethodInvocation> methodInvocations);
 
 	public void visualize();
 
@@ -23,9 +68,6 @@ public interface DataDependencyGraph {
 	public boolean verifyObjectInstanceProvenance();
 
 	public Set<ObjectInstance> getDanglingObjects();
-
-	public void addDataDependencyOnActualParameter(MethodInvocation methodInvocation, DataNode actualParameter,
-			int position);
 
 	public void addDataDependencyOnOwner(MethodInvocation controllerLifecycleMethod, ObjectInstance objectInstance);
 
@@ -59,8 +101,6 @@ public interface DataDependencyGraph {
 
 	public Collection<MethodInvocation> getMethodInvocationsRecheableFrom(MethodInvocation methodInvocation);
 
-	public List<ObjectInstance> getParametersOf(MethodInvocation methodInvocation);
-
 	public Set<DataNode> getDataNodes();
 
 	public Value getReturnObjectLocalFor(MethodInvocation mut);
@@ -70,5 +110,13 @@ public interface DataDependencyGraph {
 	public List<Value> getParametersSootValueFor(MethodInvocation methodInvocation);
 
 	public void setSootValueFor(DataNode node, Value localVariable);
+
+	/**
+	 * This is mostly used for testing. Returns all the methods invocations in this
+	 * graph.
+	 * 
+	 * @return
+	 */
+	public Collection<MethodInvocation> getAllMethodInvocations();
 
 }

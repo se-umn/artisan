@@ -1,7 +1,10 @@
 package de.unipassau.abc.data;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,9 +12,12 @@ import org.slf4j.LoggerFactory;
 import soot.tagkit.Tag;
 
 /// FIXME Rebuild hashCode and Equals
-public class MethodInvocation implements GraphNode, Comparable<MethodInvocation> {
+public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>, Cloneable {
 
 	private final static Logger logger = LoggerFactory.getLogger(MethodInvocation.class);
+
+	// Makes easy to cache result but requires explicity resetting of the state !!!
+	public boolean alreadyCarved = false;
 
 	// Unique id of the method invocation
 	private int invocationCount;
@@ -21,38 +27,99 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	private ObjectInstance owner;
 	// List of the actual parameters
 	private List<DataNode> actualParameterInstances;
-	// return value if anuy
+	// return value if any
 	private DataNode returnValue;
 
 	/// The following might not be used ... TODO Check what we need !
+	@Deprecated
 	private String[] actualParameters;
+
+	@Deprecated // TODO WHAT'S THIS ?
 	private String invocationType;
+	@Deprecated
 	private String xmlFileForOwner; // This stores the owner value status AFTER
-									// calling this method
+
+	@Deprecated // calling this method
 	private String xmlFileForReturn; // This stores the return value status
 										// AFTER calling this method
 
 	// This is to include comments in the final
+	@Deprecated
 	private int distanceFromMain;
 
 	// Todo TAG this method invocation as being part of external libraries
 	// instead of applications
+	@Deprecated
 	private boolean belongToExternalInterface;
 
 	private boolean isPrivate = false;
 
 	// why we need this if we have owner?
+
 	private boolean staticCall;
 
+	@Deprecated
 	private boolean isTestSetupCall;
 
 	private boolean isLibraryCall;
 
 	private boolean isConstructor;
 
+	@Deprecated
 	private boolean isAndroidActivityCallback;
 
+	@Deprecated
 	private boolean isAndroidFragmentCallback;
+
+	public MethodInvocation clone() {
+		MethodInvocation cloned = new MethodInvocation(invocationCount, methodSignature);
+
+		if (actualParameterInstances != null) {
+			cloned.actualParameterInstances = actualParameterInstances.stream().map(new Function<DataNode, DataNode>() {
+
+				@Override
+				public DataNode apply(DataNode t) {
+					return t.clone();
+				}
+			}).collect(Collectors.toList());
+		}
+
+		if (actualParameters != null) {
+			cloned.actualParameters = Arrays.copyOf(actualParameters, actualParameters.length);
+		}
+		
+		cloned.alreadyCarved = alreadyCarved;
+		cloned.belongToExternalInterface = belongToExternalInterface;
+		cloned.distanceFromMain = distanceFromMain;
+		cloned.invocationCount = invocationCount;
+		cloned.invocationType = invocationType;
+		cloned.isConstructor = isConstructor;
+		cloned.isExceptional = isExceptional;
+		cloned.isLibraryCall = isLibraryCall;
+		cloned.isNecessary = isNecessary;
+		cloned.isPrivate = isPrivate;
+		cloned.isProtected = isProtected;
+		cloned.isPublic = isPublic;
+		cloned.isSynthetic = isSynthetic;
+		cloned.isTestSetupCall = isTestSetupCall;
+		cloned.methodSignature = methodSignature;
+
+		if (owner != null) {
+			cloned.owner = owner.clone();
+		}
+		if (raisedException != null) {
+			cloned.raisedException = raisedException.clone();
+		}
+		if (returnValue != null) {
+			cloned.returnValue = returnValue.clone();
+		}
+
+		cloned.staticCall = staticCall;
+		cloned.xmlFileForOwner = xmlFileForOwner;
+		cloned.xmlFileForReturn = xmlFileForReturn;
+
+		return cloned;
+	}
 
 	// The parameters and the owners are set later from the Graph Objects?
 	// Basically explicitly set all the properties ?
@@ -191,7 +258,9 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		return isPrivate;
 	}
 
-	// This define the order as in the execution graph
+	/**
+	 * Sort by ascending order of invocation
+	 */
 	@Override
 	public int compareTo(MethodInvocation o) {
 		return getInvocationCount() - o.getInvocationCount();
@@ -222,6 +291,8 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		return isLibraryCall;
 	}
 
+	// Why this is deprecated? because we should lookup this dependency from the
+	// DataDependencyGraph ?
 	@Deprecated
 	public String[] getActualParameters() {
 		return actualParameters;
@@ -232,10 +303,12 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		this.actualParameters = actualParameters;
 	}
 
+	@Deprecated
 	public List<DataNode> getActualParameterInstances() {
 		return actualParameterInstances;
 	}
 
+	@Deprecated
 	public void setActualParameterInstances(List<DataNode> actualParameterInstances) {
 		this.actualParameterInstances = actualParameterInstances;
 	}
@@ -369,6 +442,8 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
 	private DataNode raisedException;
 
+	private boolean isNecessary;
+
 	public void setSyntheticMethod(boolean synthetic) {
 		this.isSynthetic = synthetic;
 	}
@@ -415,5 +490,13 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
 	public DataNode getRaisedException() {
 		return raisedException;
+	}
+
+	public void setNecessary(boolean isNecessary) {
+		this.isNecessary = isNecessary;
+	}
+
+	public boolean isNecessary() {
+		return isNecessary;
 	}
 }

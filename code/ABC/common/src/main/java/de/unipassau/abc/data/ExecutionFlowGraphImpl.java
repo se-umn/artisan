@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import javax.swing.JFrame;
 
@@ -22,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Function;
 
 import de.unipassau.abc.utils.GraphUtility;
+import edu.uci.ics.jung.algorithms.cluster.WeakComponentClusterer;
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
 import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
 import edu.uci.ics.jung.graph.Graph;
@@ -57,6 +60,12 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 	// TODO Why we need this information at this point if we update the method
 	// invocations. Because the graph return shallow copies of the objects maybe
 	// ?!
+
+	public void reset() {
+		for (MethodInvocation mi : graph.getVertices()) {
+			mi.alreadyCarved = false;
+		}
+	}
 
 	@Deprecated
 	public void addOwnerToMethodInvocation(MethodInvocation methodInvocation, ObjectInstance object) {
@@ -224,17 +233,19 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 	 * @param methodInvocation
 	 * @return
 	 */
-	public Set<MethodInvocation> getMethodInvocationsBefore(MethodInvocation methodInvocation) {
+	public Set<MethodInvocation> getMethodInvocationsBefore(MethodInvocation methodInvocation,
+			Predicate<MethodInvocation> predicate) {
 		boolean includeTheGivenMethodInvocation = true; // NOT SURE WHY ONE
 														// WOULD DO THIS..
-		return getMethodInvocationsBefore(methodInvocation, includeTheGivenMethodInvocation);
+		return getMethodInvocationsBefore(methodInvocation, includeTheGivenMethodInvocation, predicate);
 	}
 
 	public int getPositionOf(MethodInvocation methodInvocation) {
 		return getOrderedMethodInvocations().indexOf(methodInvocation);
 	}
 
-	public Set<MethodInvocation> getMethodInvocationsBefore(MethodInvocation methodInvocation, boolean inclusive) {
+	public Set<MethodInvocation> getMethodInvocationsBefore(MethodInvocation methodInvocation, boolean inclusive,
+			Predicate<MethodInvocation> predicate) {
 		// This creates a copy
 		int fromIndex = 0;
 
@@ -247,6 +258,8 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 		}
 
 		List<MethodInvocation> orderedInvocationsBefore = getOrderedMethodInvocations().subList(fromIndex, toIndex);
+		// Remove the elements that do not match the predicate
+		orderedInvocationsBefore.removeIf(predicate.negate());
 		// This might not be necessary for removing the duplicates...
 		return new HashSet<>(orderedInvocationsBefore);
 	}
@@ -549,12 +562,80 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 		return graph.containsVertex(methodInvocation);
 	}
 
+	/**
+	 * By default this will return a new graph object where nodes and esges are
+	 * cloned from the original graph
+	 */
 	public ExecutionFlowGraph getSubGraph(List<MethodInvocation> orderedSlice) {
 		ExecutionFlowGraphImpl subGraph = new ExecutionFlowGraphImpl();
 		for (MethodInvocation methodInvocation : orderedSlice) {
 			subGraph.enqueueMethodInvocations(methodInvocation);
 		}
 		return subGraph;
+	}
+
+	/**
+	 * By default this will return a new graph object where nodes and esges are
+	 * cloned from the original graph. TODO Re
+	 */
+	public Collection<ExecutionFlowGraph> extrapolate(Collection<MethodInvocation> methodInvocations) {
+		Collection<ExecutionFlowGraph> extrapolatedGraphs = new ArrayList<ExecutionFlowGraph>();
+
+		// we store here all the data and then obtain the components from here
+		Graph<MethodInvocation, String> union = new DirectedSparseMultigraph<MethodInvocation, String>();
+
+		// Add all the nodes - clone them in the process
+		for (MethodInvocation methodInvocation : methodInvocations) {
+			union.addVertex(methodInvocation.clone());
+		}
+
+		// For each pair of nodes if there's an edge in the graph connecting them, add
+		// the same edge here.
+//		for (MethodInvocation source : extrapolatedGraph.graph.getVertices()) {
+//			for (MethodInvocation target : extrapolatedGraph.graph.getVertices()) {
+//	/			// TODO Really not sure which of the two might be faster....
+//			}
+//		}
+		for (String edge : graph.getEdges()) {
+			MethodInvocation source = graph.getSource(edge);
+			MethodInvocation dest = graph.getDest(edge);
+			// If BOTH source and dest are in the extrapolated graph, add the edge there
+			if (union.containsVertex(source) && union.containsVertex(dest)) {
+				// Clone the edge over, it's a string so it should be enough to add it
+				union.addEdge(edge, source, dest, EdgeType.DIRECTED);
+			}
+		}
+
+		WeakComponentClusterer<MethodInvocation, String> clusterer = new WeakComponentClusterer<MethodInvocation, String>();
+		Set<Set<MethodInvocation>> clusters = clusterer.apply(union);
+
+		// Clusters at this points are partions of the nodes, nodes are clones of the
+		// original nodes, so we can build the sub graphs.
+		// Note that the extrapolated graphs will have different edges;
+		// they will start from 0 and increment, each one. However, the cloned method
+		// invocations will retain their original value inside invocationCount
+		for (Set<MethodInvocation> cluster : clusters) {
+
+			/*
+			 * All the nodes in each cluster are connected. In this graph the only
+			 * connection is "next". So if we sort them by id we can add them to the new
+			 * data structure.
+			 */
+			List<MethodInvocation> orderedMethodInvocations = cluster.stream().sorted().collect(Collectors.toList());
+
+			//
+			ExecutionFlowGraph executionFlowGraph = new ExecutionFlowGraphImpl();
+
+			for (MethodInvocation methodInvocation : orderedMethodInvocations) {
+				executionFlowGraph.enqueueMethodInvocations(methodInvocation);
+			}
+			extrapolatedGraphs.add(executionFlowGraph);
+
+		}
+
+		// TODO Ensure that all nodes are indeed there ?
+
+		return extrapolatedGraphs;
 	}
 
 	// Insert the method invocation in the "right" place...Usually in front,

@@ -19,6 +19,7 @@ import com.thoughtworks.xstream.io.xml.StaxDriver;
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.ExecutionFlowGraph;
+import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.Triplette;
 
 public class ParsedTraceImpl implements ParsedTrace {
@@ -35,6 +36,18 @@ public class ParsedTraceImpl implements ParsedTrace {
 	}
 
 	@Override
+	public void reset() {
+		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> partial : this.content.values()) {
+			// Having this into a single place instead of duplicate info would have
+			// helped...
+			partial.getFirst().reset();
+			partial.getSecond().reset();
+			partial.getThird().reset();
+		}
+
+	}
+
+	@Override
 	public Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> getUIThreadParsedTrace() {
 		return getThreadParsedTraceFor(MAIN_THREAD);
 	}
@@ -48,7 +61,7 @@ public class ParsedTraceImpl implements ParsedTrace {
 	public Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> getThreadParsedTraceFor(String threadName) {
 		return this.content.get(threadName);
 	}
-	
+
 	@Override
 	public void setContent(Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> content) {
 		this.content = content;
@@ -120,6 +133,5 @@ public class ParsedTraceImpl implements ParsedTrace {
 	public int getThreadCount() {
 		return content.keySet().size();
 	}
-
 
 }

@@ -13,6 +13,7 @@ import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 
+import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +23,7 @@ import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.CallGraphImpl;
 import de.unipassau.abc.data.DataDependencyGraph;
+import de.unipassau.abc.data.DataNode;
 import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.ExecutionFlowGraphImpl;
 import de.unipassau.abc.data.JimpleUtils;
@@ -87,8 +89,7 @@ public class Level_0_MethodCarver implements MethodCarver {
 	 * @throws ABCException
 	 */
 	@Override
-	public List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carve(
-			MethodInvocation methodInvocationToCarve) throws ABCException {
+	public List<CarvedExecution> carve(MethodInvocation methodInvocationToCarve) throws ABCException {
 		// Build the context for the carving. At the beginning the context IS
 		// the entire trace.
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> context = new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
@@ -98,7 +99,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 		boolean skipExternalInterfaces = false;
 
 		// This is the actual implementation of method carving
-		return level0TestCarving(methodInvocationToCarve, context, skipExternalInterfaces);
+		return null;
+		// TODO ! FIX ME
+//		return level0TestCarving(methodInvocationToCarve, context, skipExternalInterfaces);
 	}
 
 	// Public only for testability
@@ -968,8 +971,16 @@ public class Level_0_MethodCarver implements MethodCarver {
 					if (methodInvocation.isStatic()) {
 						// Static calls require only parameters if any
 						if (JimpleUtils.getParameterList(methodInvocation.getMethodSignature()).length > 0) {
-							Set<ObjectInstance> parameters = new HashSet<>(
+
+							Set<DataNode> allParameters = new HashSet<>(
 									_dataDependencyGraph.getParametersOf(methodInvocation));
+
+							Set<ObjectInstance> parameters = new HashSet<>();
+							for (DataNode paramter : allParameters) {
+								if (paramter instanceof ObjectInstance) {
+									parameters.add((ObjectInstance) paramter);
+								}
+							}
 							//
 							// logger.trace("Level_0_MethodCarver.level0TestCarving()
 							// Data Dependencies for "
@@ -995,7 +1006,15 @@ public class Level_0_MethodCarver implements MethodCarver {
 						deps.add(owner);
 						//
 						if (JimpleUtils.getParameterList(methodInvocation.getMethodSignature()).length > 0) {
-							List<ObjectInstance> parameters = _dataDependencyGraph.getParametersOf(methodInvocation);
+							List<DataNode> allParameters = _dataDependencyGraph.getParametersOf(methodInvocation);
+
+							Set<ObjectInstance> parameters = new HashSet<>();
+							for (DataNode paramter : allParameters) {
+								if (paramter instanceof ObjectInstance) {
+									parameters.add((ObjectInstance) paramter);
+								}
+							}
+
 							// logger.debug("Level_0_MethodCarver.level0TestCarving()
 							// dependencies for " + methodInvocation
 							// + " are " + parameters);
@@ -1019,7 +1038,13 @@ public class Level_0_MethodCarver implements MethodCarver {
 						// Regular invocations require parameters and the
 						// constructor if the constructor is not there yet
 						if (JimpleUtils.getParameterList(methodInvocation.getMethodSignature()).length > 0) {
-							List<ObjectInstance> parameters = _dataDependencyGraph.getParametersOf(methodInvocation);
+							List<DataNode> allParameters = _dataDependencyGraph.getParametersOf(methodInvocation);
+							Set<ObjectInstance> parameters = new HashSet<>();
+							for (DataNode paramter : allParameters) {
+								if (paramter instanceof ObjectInstance) {
+									parameters.add((ObjectInstance) paramter);
+								}
+							}
 
 							// logger.debug("Level_0_MethodCarver.level0TestCarving()
 							// dependencies for " + methodInvocation
@@ -1052,12 +1077,12 @@ public class Level_0_MethodCarver implements MethodCarver {
 								// generation ?!
 								continue;
 							}
-							// Is this patch still neeede ?
-							if (ObjectInstance.systemIn.equals(data) || //
-									ObjectInstance.systemOut.equals(data) || //
-									ObjectInstance.systemErr.equals(data)) {
-								continue;
-							}
+//							// Is this patch still neeede ?
+//							if (ObjectInstance.systemIn.equals(data) || //
+//									ObjectInstance.systemOut.equals(data) || //
+//									ObjectInstance.systemErr.equals(data)) {
+//								continue;
+//							}
 
 							// Collect methods which return the instance
 							Set<MethodInvocation> methodsWhichReturnTheObject = new HashSet<>();
@@ -1420,28 +1445,28 @@ public class Level_0_MethodCarver implements MethodCarver {
 
 			try {
 				// Recursive call to carve
-				List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedPreconditions = carve(
-						returnCall);
+				List<CarvedExecution> carvedPreconditions = carve(returnCall);
 
-				if (!carvedPreconditions.isEmpty()) {
-					//
-					preconditions.addAll(carvedPreconditions.get(0).getFirst().getOrderedMethodInvocations());
-
-					/*
-					 * Here we do not really care about data dep, since the later call should
-					 * include them as well !?
-					 */
-					logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Preconditions are : "
-							+ preconditions);
-
-					if (carvedPreconditions.size() > 1) {
-						logger.error("Level_0_MethodCarver.computePreconditionsFor() MULTIPLE PRECONDITIONS FOR "
-								+ returnCall);
-					}
-				} else {
-					logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Method " + returnCall
-							+ " has no preconditions");
-				}
+				throw new NotImplementedException();
+//				if (!carvedPreconditions.isEmpty()) {
+//					//
+//					preconditions.addAll(carvedPreconditions.get(0).getFirst().getOrderedMethodInvocations());
+//
+//					/*
+//					 * Here we do not really care about data dep, since the later call should
+//					 * include them as well !?
+//					 */
+//					logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Preconditions are : "
+//							+ preconditions);
+//
+//					if (carvedPreconditions.size() > 1) {
+//						logger.error("Level_0_MethodCarver.computePreconditionsFor() MULTIPLE PRECONDITIONS FOR "
+//								+ returnCall);
+//					}
+//				} else {
+//					logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Method " + returnCall
+//							+ " has no preconditions");
+//				}
 			} catch (ABCException e) {
 				logger.error("Cannot compute preconditions for return call " + returnCall);
 				e.printStackTrace();
@@ -1455,58 +1480,58 @@ public class Level_0_MethodCarver implements MethodCarver {
 		return preconditions;
 	}
 
-	public Map<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>> carve(
-			List<MethodInvocation> methodsInvocations) {
+	public Map<MethodInvocation, List<CarvedExecution>> carve(List<MethodInvocation> methodsInvocations) {
+		throw new NotImplementedException();
+//
+//		Map<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>> allCarvedExecution = new HashMap<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>>();
+//
+////        List<MethodInvocation> orderedMethodsInvocationsToCarve = new ArrayList<>(executionFlowGraph.getMethodInvocationsFor(carveBy, excludeBy.toArray(new MethodInvocationMatcher[] {})));
+//		/*
+//		 * By ordering them we should be able to exploit the precondition cache and
+//		 * incrementally carve later invocations from previous carved invocations
+//		 */
+//		Collections.sort(methodsInvocations);
+//
+//		for (MethodInvocation methodInvocationUnderTest : methodsInvocations) {
+//			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedTestsPerMethodInvocation = new ArrayList<>();
+//			// Store the list in the map to ensure we produce one
+//			allCarvedExecution.put(methodInvocationUnderTest, carvedTestsPerMethodInvocation);
+//
+//			// TODO Filter UNCARVABLE Method invocations
+////            if (ABCUtils.ARTIFICIAL_METHODS.contains(methodInvocationUnderTest.getInvocationType())) {
+////                logger.info("We do not carve ABC artificial methods " + methodInvocationUnderTest);
+////                continue;
+////            }
+//
+//			// Skip methods which has no sense to carve
+//			if (methodInvocationUnderTest.isPrivate()) {
+//				logger.info("We cannot carve private methods " + methodInvocationUnderTest);
+//				continue;
+//			}
+//
+//			try {
+//
+//				logger.info("\n\n====================================================\n" //
+//						+ "Starting the carve of " + methodInvocationUnderTest + "\n" //
+//						+ "====================================================");
+//				long carvingTime = System.currentTimeMillis();
+//
+//				// TODO Recursive call to carve
+//				carvedTestsPerMethodInvocation.addAll(carve(methodInvocationUnderTest));
+//
+//				carvingTime = System.currentTimeMillis() - carvingTime;
+//				logger.info("\n\n====================================================\n" //
+//						+ "Carved  " + carvedTestsPerMethodInvocation.size() + " in " + +carvingTime + " msec \n" //
+//						+ "====================================================");
+//
+//			} catch (ABCException e) {
+//				logger.error("Cannot carve test for " + methodInvocationUnderTest, e);
+//			}
+	}
 
-		Map<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>> allCarvedExecution = new HashMap<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>>();
-
-//        List<MethodInvocation> orderedMethodsInvocationsToCarve = new ArrayList<>(executionFlowGraph.getMethodInvocationsFor(carveBy, excludeBy.toArray(new MethodInvocationMatcher[] {})));
-		/*
-		 * By ordering them we should be able to exploit the precondition cache and
-		 * incrementally carve later invocations from previous carved invocations
-		 */
-		Collections.sort(methodsInvocations);
-
-		for (MethodInvocation methodInvocationUnderTest : methodsInvocations) {
-			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedTestsPerMethodInvocation = new ArrayList<>();
-			// Store the list in the map to ensure we produce one
-			allCarvedExecution.put(methodInvocationUnderTest, carvedTestsPerMethodInvocation);
-
-			// TODO Filter UNCARVABLE Method invocations
-//            if (ABCUtils.ARTIFICIAL_METHODS.contains(methodInvocationUnderTest.getInvocationType())) {
-//                logger.info("We do not carve ABC artificial methods " + methodInvocationUnderTest);
-//                continue;
-//            }
-
-			// Skip methods which has no sense to carve
-			if (methodInvocationUnderTest.isPrivate()) {
-				logger.info("We cannot carve private methods " + methodInvocationUnderTest);
-				continue;
-			}
-
-			try {
-
-				logger.info("\n\n====================================================\n" //
-						+ "Starting the carve of " + methodInvocationUnderTest + "\n" //
-						+ "====================================================");
-				long carvingTime = System.currentTimeMillis();
-
-				// TODO Recursive call to carve
-				carvedTestsPerMethodInvocation.addAll(carve(methodInvocationUnderTest));
-
-				carvingTime = System.currentTimeMillis() - carvingTime;
-				logger.info("\n\n====================================================\n" //
-						+ "Carved  " + carvedTestsPerMethodInvocation.size() + " in " + +carvingTime + " msec \n" //
-						+ "====================================================");
-
-			} catch (ABCException e) {
-				logger.error("Cannot carve test for " + methodInvocationUnderTest, e);
-			}
-		}
-
-		/*
-		 * TODO Post processing carved tests. If any...
-		 */
+	/*
+	 * TODO Post processing carved tests. If any...
+	 */
 //
 //		// Here we need to remove the duplicated tests. After simplify they
 //		// might end up implementing the same functionalities
@@ -1547,8 +1572,9 @@ public class Level_0_MethodCarver implements MethodCarver {
 //
 //		return uniqueCarvedTests;
 
-		return allCarvedExecution;
-	}
+//	return allCarvedExecution;
+
+//	}
 
 	// FIXME: this takes half a second and I do not recall what's for, Maybe
 	// removing duplicates or reducing the size of the carved tests ?

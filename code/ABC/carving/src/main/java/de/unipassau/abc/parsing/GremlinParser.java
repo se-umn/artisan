@@ -26,6 +26,11 @@ import de.unipassau.abc.exceptions.ABCException;
  */
 public class GremlinParser extends TraceParser {
 
+	/**
+	 * SOME NOTES: Link method invocations and parameter with a PARAMETER link, with
+	 * a LABEL/POSITION property
+	 */
+
 	// Store directly the vertex instead of storing the MethodInvocation and then
 	// retrieve it everytime...
 	private Stack<Vertex> stack;

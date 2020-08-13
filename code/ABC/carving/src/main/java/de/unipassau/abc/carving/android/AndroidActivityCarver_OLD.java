@@ -12,12 +12,15 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 
+import org.apache.commons.lang.NotImplementedException;
 import org.mockito.Mockito;
 import org.mockito.stubbing.OngoingStubbing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de.unipassau.abc.carving.CarvedExecution;
 import de.unipassau.abc.carving.MethodCarver;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.CallGraph;
@@ -101,13 +104,13 @@ public class AndroidActivityCarver_OLD implements MethodCarver {
 	}
 
 	@Override
-	public List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carve(MethodInvocation methodInvocation)
-			throws CarvingException, ABCException {
-		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedTest = carveTheMethodInvocationRecursive(
-				methodInvocation);
-		List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedExecutions = new ArrayList<>();
-		carvedExecutions.add(carvedTest);
-		return carvedExecutions;
+	public List<CarvedExecution> carve(MethodInvocation methodInvocation) throws CarvingException, ABCException {
+//		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedTest = carveTheMethodInvocationRecursive(
+//				methodInvocation);
+//		List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedExecutions = new ArrayList<>();
+//		carvedExecutions.add(carvedTest);
+//		return carvedExecutions;
+		throw new NotImplementedException();
 	}
 
 	/**
@@ -119,94 +122,96 @@ public class AndroidActivityCarver_OLD implements MethodCarver {
 	 * @throws CarvingException
 	 */
 	@Override
-	public Map<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>> carve(
-			List<MethodInvocation> orderedMethodsInvocationsToCarve) throws CarvingException {
+	public Map<MethodInvocation, List<CarvedExecution>> carve(List<MethodInvocation> orderedMethodsInvocationsToCarve)
+			throws CarvingException {
 
-		Map<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>> carvedTests = new HashMap<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>>();
-
-		/*
-		 * By ordering them we should be able to exploit the precondition cache and
-		 * incrementally carve later invocations from previous carved invocations
-		 */
-		Collections.sort(orderedMethodsInvocationsToCarve);
-
-		for (MethodInvocation methodInvocationUnderTest : orderedMethodsInvocationsToCarve) {
-
-			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedTestsPerMethodInvocation = new ArrayList<>();
-			carvedTests.put(methodInvocationUnderTest, carvedTestsPerMethodInvocation);
-
-			/*
-			 * Skip methods which has no sense to carve
-			 */
-			if (methodInvocationUnderTest.isPrivate()) {
-				logger.info("We do not carve private methods " + methodInvocationUnderTest);
-				continue;
-			}
-
-			/*
-			 * Skip synthetic methods which does not exists in the original code
-			 */
-			if (methodInvocationUnderTest.isSynthetic()) {
-				logger.info("We do not carve synthetic methods " + methodInvocationUnderTest);
-				continue;
-			}
-
-			/*
-			 * Skip activity constructors as those should never be there/implemented
-			 */
-			if (methodInvocationUnderTest.isConstructor()) {
-				logger.info("We do not carve Activity constructors " + methodInvocationUnderTest);
-				continue;
-			}
-
-			if (isTriviallyUncarvable(methodInvocationUnderTest)) {
-				logger.info("\n\n====================================================\n" //
-						+ " Skip carving of " + methodInvocationUnderTest + " as trivially uncarvable \n" //
-						+ "====================================================");
-				// Explain why this is trivially uncarvable
-				logger.info("The following method subsumes " + methodInvocationUnderTest + ":"
-						+ prettyPrint(callGraph.getOrderedSubsumingMethodInvocationsFor(methodInvocationUnderTest)));
-				continue;
-
-			}
-			try {
-				long carvingTime = System.currentTimeMillis();
-
-				logger.info("\n\n====================================================\n" //
-						+ "Starting the carve of " + methodInvocationUnderTest + "\n" //
-						+ "====================================================");
-
-				List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedTest = carve(
-						methodInvocationUnderTest);
-
-				carvedTestsPerMethodInvocation.addAll(carvedTest);
-
-				carvingTime = System.currentTimeMillis() - carvingTime;
-				logger.info("\n\n====================================================\n" //
-						+ "Carved  " + carvedTestsPerMethodInvocation.size() + " in " + +carvingTime + " msec \n" //
-						+ "====================================================");
-
-			} catch (CarvingException e) {
-				// e.printStackTrace();
-				logger.warn("\n\n====================================================\n" //
-						+ "Cannot carve test for " + methodInvocationUnderTest + " :: " + e.getMessage() + "\n"
-						+ "====================================================");
-
-				// DEBUG/DEVELOPMENT
-				// if( e.getMessage().contains("More than one activity type")){
-				// throw e;
-				// }
-
-			} catch (Throwable e) {
-				// THIS IS UNEXPECTED
-				e.printStackTrace();
-				logger.warn("\n\n====================================================\n" //
-						+ "Cannot carve test for " + methodInvocationUnderTest + " :: " + e.getMessage() + "\n"
-						+ "====================================================");
-			}
-		}
-
-		return carvedTests;
+		throw new NotImplementedException();
+//		
+//		Map<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>> carvedTests = new HashMap<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>>();
+//
+//		/*
+//		 * By ordering them we should be able to exploit the precondition cache and
+//		 * incrementally carve later invocations from previous carved invocations
+//		 */
+//		Collections.sort(orderedMethodsInvocationsToCarve);
+//
+//		for (MethodInvocation methodInvocationUnderTest : orderedMethodsInvocationsToCarve) {
+//
+//			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedTestsPerMethodInvocation = new ArrayList<>();
+//			carvedTests.put(methodInvocationUnderTest, carvedTestsPerMethodInvocation);
+//
+//			/*
+//			 * Skip methods which has no sense to carve
+//			 */
+//			if (methodInvocationUnderTest.isPrivate()) {
+//				logger.info("We do not carve private methods " + methodInvocationUnderTest);
+//				continue;
+//			}
+//
+//			/*
+//			 * Skip synthetic methods which does not exists in the original code
+//			 */
+//			if (methodInvocationUnderTest.isSynthetic()) {
+//				logger.info("We do not carve synthetic methods " + methodInvocationUnderTest);
+//				continue;
+//			}
+//
+//			/*
+//			 * Skip activity constructors as those should never be there/implemented
+//			 */
+//			if (methodInvocationUnderTest.isConstructor()) {
+//				logger.info("We do not carve Activity constructors " + methodInvocationUnderTest);
+//				continue;
+//			}
+//
+//			if (isTriviallyUncarvable(methodInvocationUnderTest)) {
+//				logger.info("\n\n====================================================\n" //
+//						+ " Skip carving of " + methodInvocationUnderTest + " as trivially uncarvable \n" //
+//						+ "====================================================");
+//				// Explain why this is trivially uncarvable
+//				logger.info("The following method subsumes " + methodInvocationUnderTest + ":"
+//						+ prettyPrint(callGraph.getOrderedSubsumingMethodInvocationsFor(methodInvocationUnderTest)));
+//				continue;
+//
+//			}
+//			try {
+//				long carvingTime = System.currentTimeMillis();
+//
+//				logger.info("\n\n====================================================\n" //
+//						+ "Starting the carve of " + methodInvocationUnderTest + "\n" //
+//						+ "====================================================");
+//
+//				List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedTest = carve(
+//						methodInvocationUnderTest);
+//
+//				carvedTestsPerMethodInvocation.addAll(carvedTest);
+//
+//				carvingTime = System.currentTimeMillis() - carvingTime;
+//				logger.info("\n\n====================================================\n" //
+//						+ "Carved  " + carvedTestsPerMethodInvocation.size() + " in " + +carvingTime + " msec \n" //
+//						+ "====================================================");
+//
+//			} catch (CarvingException e) {
+//				// e.printStackTrace();
+//				logger.warn("\n\n====================================================\n" //
+//						+ "Cannot carve test for " + methodInvocationUnderTest + " :: " + e.getMessage() + "\n"
+//						+ "====================================================");
+//
+//				// DEBUG/DEVELOPMENT
+//				// if( e.getMessage().contains("More than one activity type")){
+//				// throw e;
+//				// }
+//
+//			} catch (Throwable e) {
+//				// THIS IS UNEXPECTED
+//				e.printStackTrace();
+//				logger.warn("\n\n====================================================\n" //
+//						+ "Cannot carve test for " + methodInvocationUnderTest + " :: " + e.getMessage() + "\n"
+//						+ "====================================================");
+//			}
+//		}
+//
+//		return carvedTests;
 	}
 
 	private String prettyPrint(Collection<MethodInvocation> methodInvocations) {
@@ -1016,7 +1021,12 @@ public class AndroidActivityCarver_OLD implements MethodCarver {
 			Pair<ObjectInstance, Pair<MethodInvocation, MethodInvocation>> leftOver) {
 		// The all the methods before second, including second
 		Set<MethodInvocation> result = this.executionFlowGraph
-				.getMethodInvocationsBefore(leftOver.getSecond().getSecond());
+				.getMethodInvocationsBefore(leftOver.getSecond().getSecond(), new Predicate<MethodInvocation>() {
+					@Override
+					public boolean test(MethodInvocation t) {
+						return true;
+					}
+				});
 		result.add(leftOver.getSecond().getSecond());
 		// Remove all the methods before first to obtain all the methods in
 		// between
@@ -1124,7 +1134,14 @@ public class AndroidActivityCarver_OLD implements MethodCarver {
 
 		final AtomicBoolean missingOnDestroy = new AtomicBoolean(true);
 		tupleIterator(androidActivitiesConstructors, (latter, former) -> {
-			Set<MethodInvocation> beforeLatterConstructor = executionFlowGraph.getMethodInvocationsBefore(latter);
+			Set<MethodInvocation> beforeLatterConstructor = executionFlowGraph.getMethodInvocationsBefore(latter,
+					new Predicate<MethodInvocation>() {
+
+						@Override
+						public boolean test(MethodInvocation t) {
+							return true;
+						}
+					});
 			Set<MethodInvocation> afterFormerConstructor = executionFlowGraph.getMethodInvocationsAfter(former);
 			// Compute the intersection
 			Set<MethodInvocation> methodsInBetweenTheConstructors = new HashSet<>(afterFormerConstructor);

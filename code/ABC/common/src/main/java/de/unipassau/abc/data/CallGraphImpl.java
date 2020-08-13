@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import javax.swing.JFrame;
 
@@ -18,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 
+import edu.uci.ics.jung.algorithms.cluster.WeakComponentClusterer;
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
 import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
 import edu.uci.ics.jung.graph.Graph;
@@ -38,6 +40,12 @@ public class CallGraphImpl implements CallGraph {
 	public CallGraphImpl() {
 		graph = new DirectedSparseMultigraph<MethodInvocation, String>();
 		stack = new Stack<MethodInvocation>();
+	}
+
+	public void reset() {
+		for (MethodInvocation mi : graph.getVertices()) {
+			mi.alreadyCarved = false;
+		}
 	}
 
 	public void push(MethodInvocation methodInvocation) {
@@ -331,5 +339,97 @@ public class CallGraphImpl implements CallGraph {
 			parent = getCallerOf(parent);
 		}
 		return distance;
+	}
+
+	public CallGraph getSubGraph(List<MethodInvocation> methodInvocations) {
+		Collection<MethodInvocation> vertices = graph.getVertices();
+		Collection<String> edges = graph.getEdges();
+
+		CallGraphImpl subGraph = new CallGraphImpl();
+		// Add the nodes that corresponds to the given methodInvocations
+		for (MethodInvocation vertex : vertices) {
+			if (methodInvocations.contains(vertex)) {
+				subGraph.graph.addVertex(vertex);
+			}
+		}
+		// Keep an edge ONLY if both of its ends are already inside the subgraph
+		for (String edge : edges) {
+			MethodInvocation source = graph.getSource(edge);
+			MethodInvocation dest = graph.getDest(edge);
+			if (subGraph.graph.containsVertex(source) && subGraph.graph.containsVertex(dest)) {
+				subGraph.graph.addEdge(edge, source, dest, EdgeType.DIRECTED);
+				if (source.compareTo(dest) >= 0) {
+					// TODO How is this possible ?
+					throw new RuntimeException("Cannot add a calling graph in the PAST !");
+				}
+			}
+		}
+		return subGraph;
+	}
+
+	// Order is not necessary guaranteed
+	public Collection<MethodInvocation> getAllMethodInvocations() {
+		Collection<MethodInvocation> methodInvocations = new ArrayList<MethodInvocation>();
+		for (GraphNode node : graph.getVertices()) {
+			if (node instanceof MethodInvocation) {
+				methodInvocations.add((MethodInvocation) node);
+			}
+		}
+		return methodInvocations;
+	}
+
+	@Override
+	public Collection<CallGraph> extrapolate(Set<MethodInvocation> methodInvocations) {
+		Collection<CallGraph> extrapolated = new ArrayList<CallGraph>();
+
+		Graph<MethodInvocation, String> union = new DirectedSparseMultigraph<MethodInvocation, String>();
+
+		// Add all the nodes - clone them in the process
+		for (MethodInvocation methodInvocation : methodInvocations) {
+			union.addVertex(methodInvocation.clone());
+		}
+
+		for (String edge : graph.getEdges()) {
+			MethodInvocation source = graph.getSource(edge);
+			MethodInvocation dest = graph.getDest(edge);
+			// If BOTH source and dest are in the extrapolated graph, add the edge there
+			if (union.containsVertex(source) && union.containsVertex(dest)) {
+				// Clone the edge over, it's a string so it should be enough to add it
+				union.addEdge(edge, source, dest, EdgeType.DIRECTED);
+			}
+		}
+
+		// Find the weakly connected components
+		WeakComponentClusterer<MethodInvocation, String> clusterer = new WeakComponentClusterer<MethodInvocation, String>();
+		Set<Set<MethodInvocation>> clusters = clusterer.apply(union);
+
+		// Clusters at this points are partitions of the nodes, nodes are clones of the
+		// original nodes, so we can build the sub graphs.
+		// Note that the extrapolated graphs will have different edges;
+		// they will start from 0 and increment.
+
+		for (Set<MethodInvocation> cluster : clusters) {
+
+			// We need the implementation class here to directly access the attribute
+			CallGraphImpl callGraph = new CallGraphImpl();
+			// I would have preferred using pop/push, the primitives for this graph, but it
+			// might be tedious to get it right
+
+			for (MethodInvocation source : cluster) {
+				for (MethodInvocation target : cluster) {
+					Collection<String> edges = graph.findEdgeSet(source, target);
+					if (edges != null) {
+						for (String edge : edges) {
+							callGraph.graph.addEdge(edge, source, target, EdgeType.DIRECTED);
+						}
+					}
+
+				}
+			}
+
+			extrapolated.add(callGraph);
+		}
+
+		return extrapolated;
 	}
 }

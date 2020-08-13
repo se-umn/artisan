@@ -3,6 +3,7 @@ package de.unipassau.abc.carving.android;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Predicate;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,7 +126,14 @@ public class ResponseIntentCarver {
 
 		// Find the last setResult in between onResume and onPause
 		List<MethodInvocation> setResultMethods = new ArrayList<>();
-		setResultMethods.addAll(this.executionFlowGraph.getMethodInvocationsBefore(lastOnPause));
+		setResultMethods.addAll(
+				this.executionFlowGraph.getMethodInvocationsBefore(lastOnPause, new Predicate<MethodInvocation>() {
+
+					@Override
+					public boolean test(MethodInvocation t) {
+						return true;
+					}
+				}));
 		MethodInvocationMatcher.keepMatchingInPlace(MethodInvocationMatcher.before(lastOnPause), setResultMethods);
 		MethodInvocationMatcher.keepMatchingInPlace(MethodInvocationMatcher.after(lastOnResume), setResultMethods);
 		MethodInvocationMatcher.keepMatchingInPlace(MethodInvocationMatcher.byMethodName("setResult"),

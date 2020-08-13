@@ -67,4 +67,10 @@ public class GremlinParsedTrace implements ParsedTrace {
 		return null;
 	}
 
+	@Override
+	public void reset() {
+		// TODO Auto-generated method stub
+
+	}
+
 }

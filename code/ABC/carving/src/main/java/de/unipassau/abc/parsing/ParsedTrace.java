@@ -13,20 +13,23 @@ import de.unipassau.abc.data.Triplette;
 public interface ParsedTrace {
 
 	// Is this platform specific ?
-	public final String MAIN_THREAD = "UI:MainThread";
+	public final String MAIN_THREAD = "[UI:main]";
 
 	public Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> getParsedTrace();
 
 	// Shorthand for getThreadParsedTraceFor(MAIN_THREAD)
 	public Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> getUIThreadParsedTrace();
-	
+
 	public Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> getThreadParsedTraceFor(String threadName);
-	
+
 	void setContent(Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> content);
 
 	void storeTo(File outputArtifactTo) throws FileNotFoundException, IOException;
 
 	// Mostly for testing
 	int getThreadCount();
+
+	// Ensure that whatever transient state is there, this will be reset;
+	public void reset();
 
 }

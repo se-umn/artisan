@@ -3,8 +3,57 @@ package de.unipassau.abc.data;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
 public interface ExecutionFlowGraph {
+
+	/**
+	 * 
+	 * @param methodInvocation
+	 * @param predicate
+	 * @return the method invocations that happened before the given
+	 *         methodInvocation and matches the predicate
+	 */
+	public Set<MethodInvocation> getMethodInvocationsBefore(MethodInvocation methodInvocation,
+			Predicate<MethodInvocation> predicate);
+
+	/**
+	 * Extract from the underlying graph a fragmented graph data structure where
+	 * each connected component respects the relations of the original graph.
+	 * Basically, the resulting graph will have one node (cloned) for each of the
+	 * given method invocations, and there will be a link between nodes, only if
+	 * there was a link connecting their counter parts in the original graph.
+	 * 
+	 * 
+	 * TODO This might require to return a Collection<ExecutionFlowGraph> one for
+	 * each connected components
+	 * 
+	 * @param methodInvocations
+	 * @return
+	 */
+	public Collection<ExecutionFlowGraph> extrapolate(Collection<MethodInvocation> methodInvocations);
+
+	/**
+	 * Return a new subgraph that contains all the given methodInvocations enqueued
+	 * in the same order they are given. This effectively creates another graph
+	 * object (so not a view) where nodes edges are cloned from the original graphs
+	 * but nodes are not.
+	 * 
+	 * 
+	 * @param methodInvocations
+	 * @return
+	 */
+	public ExecutionFlowGraph getSubGraph(List<MethodInvocation> methodInvocations);
+
+	/**
+	 * THIS MODIFIED THE GRAPH ITSELF, WHILE I NEED ONLY THE SUBGRAPH WITH THE
+	 * CONNECTED METHODS?
+	 * 
+	 * @param requiredMethodInvocations
+	 */
+	public void refine(Set<MethodInvocation> requiredMethodInvocations);
+
+	public void reset();
 
 	public List<MethodInvocation> getOrderedMethodInvocations();
 
@@ -19,19 +68,13 @@ public interface ExecutionFlowGraph {
 
 	public List<MethodInvocation> getOrderedMethodInvocationsBefore(MethodInvocation second);
 
-	public void refine(Set<MethodInvocation> requiredMethodInvocations);
-
 	public void include(ExecutionFlowGraph acitivityLifecycleExecutionFlowGraph);
 
 	public void summarize(CallGraph callGraph);
 
-	public Set<MethodInvocation> getMethodInvocationsBefore(MethodInvocation second);
-
 	public Set<MethodInvocation> getMethodInvocationsAfter(MethodInvocation former);
 
 	public void removeMethodInvocation(MethodInvocation methodInvocation);
-
-	public ExecutionFlowGraph getSubGraph(List<MethodInvocation> invocationsBefore);
 
 	public Set<MethodInvocation> getTestSetupMethodInvocations();
 
