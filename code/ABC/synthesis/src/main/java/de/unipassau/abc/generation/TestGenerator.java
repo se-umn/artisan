@@ -1,10 +1,7 @@
 package de.unipassau.abc.generation;
 
 import java.io.IOException;
-import java.util.AbstractMap;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -17,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import de.unipassau.abc.ABCUtils;
+import de.unipassau.abc.carving.CarvedExecution;
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.ExecutionFlowGraph;
@@ -24,7 +22,6 @@ import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.MethodInvocationMatcher;
 import de.unipassau.abc.data.ObjectInstance;
-import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.instrumentation.CarvingTag;
@@ -81,98 +78,100 @@ public class TestGenerator {
 	 * @throws InterruptedException
 	 * @throws ABCException
 	 */
-	public List<Map.Entry<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>, SootMethod>> generateTestCases(
-			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedTests,
+	public List<Map.Entry<CarvedExecution, SootMethod>> generateTestCases(List<CarvedExecution> carvedTests,
 			TestClassGenerator testClassGenerator) throws IOException, InterruptedException {
 
-		List<Map.Entry<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>, SootMethod>> testCases = new ArrayList<>();
+		throw new NotImplementedException();
 
-		// Why we need to initialize soot here otherwise we cannot create
-		// methods and classes, and such
-		// To probably there's also something else to include here
-		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedTest : carvedTests) {
-
-			long start = System.currentTimeMillis();
-
-			// Check basic properties, variables initialized before used
-			try {
-				validate(carvedTest);
-			} catch (ABCException e) {
-				logger.error(" Error " + e.getMessage() + " while generating test: "
-						+ e.getCarvedTest().getFirst().getOrderedMethodInvocations());
-
-				/// Find if we have the call in the parsed trace !
-
-				continue;
-			}
-
-			// Get the mut, which by definition is the last invocation executed
-			MethodInvocation mut = carvedTest.getFirst().getLastMethodInvocation();
-
-			// Somehow this does include the executions we removed ?!
-			// logger.info("Generate Test: " + mut);
-
-			SootClass testClass = testClassGenerator.getTestClassFor(mut);
-			try {
-				// TODO For the moment we name tests after their position and
-				// MUT
-				// ,i.e., last element
-				SootMethod testMethod = generateAndAddTestMethodToTestClass(testClass, carvedTest);
-				if (testMethod != null) {
-					testCases
-							.add(new AbstractMap.SimpleEntry(
-									new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
-											carvedTest.getFirst(), carvedTest.getSecond(), carvedTest.getThird()),
-									testMethod));
-				}
-			} catch (ABCException e) {
-				logger.warn("Cannot generate test ", e);
-			} finally {
-				logger.info("Generate Test : " + mut + " took " + (System.currentTimeMillis() - start) + " msec");
-			}
-		}
-		return testCases;
+//		List<Map.Entry<CarvedExecution, SootMethod>> testCases = new ArrayList<>();
+//
+//		// Why we need to initialize soot here otherwise we cannot create
+//		// methods and classes, and such
+//		// To probably there's also something else to include here
+//		for (CarvedExecution carvedTest : carvedTests) {
+//
+//			long start = System.currentTimeMillis();
+//
+//			// Check basic properties, variables initialized before used
+//			try {
+//				validate(carvedTest);
+//			} catch (ABCException e) {
+//				logger.error(" Error " + e.getMessage() + " while generating test: "
+//						+ e.getCarvedTest().getFirst().getOrderedMethodInvocations());
+//
+//				/// Find if we have the call in the parsed trace !
+//
+//				continue;
+//			}
+//
+//			// Get the mut, which by definition is the last invocation executed
+//			MethodInvocation mut = carvedTest.getFirst().getLastMethodInvocation();
+//
+//			// Somehow this does include the executions we removed ?!
+//			// logger.info("Generate Test: " + mut);
+//
+//			SootClass testClass = testClassGenerator.getTestClassFor(mut);
+//			try {
+//				// TODO For the moment we name tests after their position and
+//				// MUT
+//				// ,i.e., last element
+//				SootMethod testMethod = generateAndAddTestMethodToTestClass(testClass, carvedTest);
+//				if (testMethod != null) {
+//					testCases
+//							.add(new AbstractMap.SimpleEntry(
+//									new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
+//											carvedTest.getFirst(), carvedTest.getSecond(), carvedTest.getThird()),
+//									testMethod));
+//				}
+//			} catch (ABCException e) {
+//				logger.warn("Cannot generate test ", e);
+//			} finally {
+//				logger.info("Generate Test : " + mut + " took " + (System.currentTimeMillis() - start) + " msec");
+//			}
+//		}
+//		return testCases;
 	}
 
-	private void validate(Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedTest)
-			throws ABCException {
-		DataDependencyGraph dataDependencyGraph = carvedTest.getSecond();
-		Collection<ObjectInstance> instances = dataDependencyGraph.getObjectInstances();
-		for (ObjectInstance instance : instances) {
-
-			if (instance.equals(ObjectInstance.systemIn) || //
-					instance.equals(ObjectInstance.systemOut) || //
-					instance.equals(ObjectInstance.systemErr) //
-			) {
-				continue;
-			}
-
-			// TODO This does not cover the cases where the variable is
-			// initialzed AFTER its used !
-			// And this is exactly the case !!
-			if (dataDependencyGraph.getInitMethodInvocationFor(instance) == null
-					&& dataDependencyGraph.getMethodInvocationsWhichReturn(instance).isEmpty()) {
-
-				ABCException e = new ABCException(
-						"Object instance " + instance + " is invalid. No method initizalizes or returns it !");
-				e.setBrokenInstance(instance);
-				e.setCarvedTest(carvedTest);
-
-				MethodInvocation mut = carvedTest.getFirst().getLastMethodInvocation();
-				for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsed : parsedTrace.values()) {
-					if (parsed.getFirst().contains(mut)) {
-						DataDependencyGraph ddg = parsed.getSecond();
-						StringBuffer msg = new StringBuffer();
-						msg.append("Init for " + instance + " " + ddg.getInitMethodInvocationFor(instance));
-						msg.append("Returns for " + instance + " " + ddg.getMethodInvocationsWhichReturn(instance));
-						logger.warn(msg.toString());
-					}
-				}
-
-				throw e;
-			}
-
-		}
+	private void validate(CarvedExecution carvedExecution) throws ABCException {
+		throw new NotImplementedException();
+//		
+//		DataDependencyGraph dataDependencyGraph = carvedTest.getSecond();
+//		Collection<ObjectInstance> instances = dataDependencyGraph.getObjectInstances();
+//		for (ObjectInstance instance : instances) {
+//
+//			if (instance.equals(ObjectInstance.systemIn) || //
+//					instance.equals(ObjectInstance.systemOut) || //
+//					instance.equals(ObjectInstance.systemErr) //
+//			) {
+//				continue;
+//			}
+//
+//			// TODO This does not cover the cases where the variable is
+//			// initialzed AFTER its used !
+//			// And this is exactly the case !!
+//			if (dataDependencyGraph.getInitMethodInvocationFor(instance) == null
+//					&& dataDependencyGraph.getMethodInvocationsWhichReturn(instance).isEmpty()) {
+//
+//				ABCException e = new ABCException(
+//						"Object instance " + instance + " is invalid. No method initizalizes or returns it !");
+//				e.setBrokenInstance(instance);
+//				e.setCarvedTest(carvedTest);
+//
+//				MethodInvocation mut = carvedTest.getFirst().getLastMethodInvocation();
+//				for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> parsed : parsedTrace.values()) {
+//					if (parsed.getFirst().contains(mut)) {
+//						DataDependencyGraph ddg = parsed.getSecond();
+//						StringBuffer msg = new StringBuffer();
+//						msg.append("Init for " + instance + " " + ddg.getInitMethodInvocationFor(instance));
+//						msg.append("Returns for " + instance + " " + ddg.getMethodInvocationsWhichReturn(instance));
+//						logger.warn(msg.toString());
+//					}
+//				}
+//
+//				throw e;
+//			}
+//
+//		}
 
 	}
 
@@ -289,18 +288,18 @@ public class TestGenerator {
 				// InputStream ina = System.in;
 				// TODO I do not like this but it might help
 				// StaticFieldRef shall be initialized
-				if (node.equals(ObjectInstance.systemIn)) {
-					units.add(Jimple.v().newAssignStmt(localVariable, Jimple.v().newStaticFieldRef(
-							Scene.v().getField("<java.lang.System: java.io.InputStream in>").makeRef())));
-				} else if (node.equals(ObjectInstance.systemOut)) {
-					// Patch in place initialization for this...
-					units.add(Jimple.v().newAssignStmt(localVariable, Jimple.v().newStaticFieldRef(
-							Scene.v().getField("<java.lang.System: java.io.PrintStream out>").makeRef())));
-				} else if (node.equals(ObjectInstance.systemErr)) {
-					// Patch in place initialization for this...
-					units.add(Jimple.v().newAssignStmt(localVariable, Jimple.v().newStaticFieldRef(
-							Scene.v().getField("<java.lang.System: java.io.PrintStream err>").makeRef())));
-				}
+//				if (node.equals(ObjectInstance.systemIn)) {
+//					units.add(Jimple.v().newAssignStmt(localVariable, Jimple.v().newStaticFieldRef(
+//							Scene.v().getField("<java.lang.System: java.io.InputStream in>").makeRef())));
+//				} else if (node.equals(ObjectInstance.systemOut)) {
+//					// Patch in place initialization for this...
+//					units.add(Jimple.v().newAssignStmt(localVariable, Jimple.v().newStaticFieldRef(
+//							Scene.v().getField("<java.lang.System: java.io.PrintStream out>").makeRef())));
+//				} else if (node.equals(ObjectInstance.systemErr)) {
+//					// Patch in place initialization for this...
+//					units.add(Jimple.v().newAssignStmt(localVariable, Jimple.v().newStaticFieldRef(
+//							Scene.v().getField("<java.lang.System: java.io.PrintStream err>").makeRef())));
+//				}
 
 			}
 

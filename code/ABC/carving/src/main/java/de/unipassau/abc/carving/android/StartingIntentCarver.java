@@ -3,6 +3,7 @@ package de.unipassau.abc.carving.android;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Predicate;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -124,7 +125,15 @@ public class StartingIntentCarver {
 	private MethodInvocation findTheStartActivityMethod(ObjectInstance activityUnderTest, MethodInvocation onCreate)
 			throws CarvingException {
 		List<MethodInvocation> methodsWhichMightHaveStartedThisActivity = new ArrayList<>();
-		methodsWhichMightHaveStartedThisActivity.addAll(this.executionFlowGraph.getMethodInvocationsBefore(onCreate));
+		methodsWhichMightHaveStartedThisActivity
+				.addAll(this.executionFlowGraph.getMethodInvocationsBefore(onCreate, new Predicate<MethodInvocation>() {
+
+					@Override
+					public boolean test(MethodInvocation t) {
+						// Return all of them...
+						return true;
+					}
+				}));
 		Collections.sort(methodsWhichMightHaveStartedThisActivity);
 
 		/*

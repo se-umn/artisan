@@ -5,10 +5,12 @@ import soot.Value;
 /**
  * Wrap a parameter into a literal parameter matcher...
  * 
+ * TODO Why this has to be a ValueNode ?
+ * 
  * @author gambi
  *
  */
-public class ParameterMatcherLiteralValue implements ValueNode {
+public class ParameterMatcherLiteralValue implements ValueNode, Cloneable {
 
 	private int uniqueId;
 	private DataNode parameter;
@@ -16,6 +18,12 @@ public class ParameterMatcherLiteralValue implements ValueNode {
 	public ParameterMatcherLiteralValue(int id, DataNode parameter) {
 		this.parameter = parameter;
 		this.uniqueId = id;
+	}
+
+	public ParameterMatcherLiteralValue clone() {
+		// TODO Somehow this violates the semantic of "uniqueId" ?
+		ParameterMatcherLiteralValue cloned = new ParameterMatcherLiteralValue(uniqueId, parameter);
+		return cloned;
 	}
 
 	// THIS IS THE MOST GENERIC FORM SO OBJECT MATCH ANYTHING NULL INCLUDED

@@ -85,7 +85,7 @@ public class TraceParserImpl extends TraceParser {
 
 	@Override
 	public void endOfExecution() {
-		// TODO Auto-generated method stub
+		this.parsedTrace.setContent(this.parsedElements);
 	}
 
 	@Override
@@ -260,8 +260,7 @@ public class TraceParserImpl extends TraceParser {
 					+ ((methodInvocation.isLibraryCall()) ? " libCall" : ""));
 	}
 
-	@Override
-	public void parseMethodInvocation(AtomicInteger globalInvocationCount, ParsedLine tokens) throws ABCException {
+	public void parseMethodInvocation_OLD(AtomicInteger globalInvocationCount, ParsedLine tokens) throws ABCException {
 
 		try {
 
@@ -300,7 +299,8 @@ public class TraceParserImpl extends TraceParser {
 				// to see if that's lifecycle
 
 			} else {
-				// TODO Do we really need this information from soot? or in general?
+				// TODO Do we really need this information from soot? or in general? MOVE TO
+				// DECORATOR ?
 				SootMethod sootMethod = ParsingUtils.getSootMethodFor(methodSignature);
 
 				if (sootMethod != null) {
@@ -393,6 +393,100 @@ public class TraceParserImpl extends TraceParser {
 		}
 	}
 
+	/**
+	 * Parse method attributes but do not try to use Soot as backend to get
+	 * additional data about methods
+	 * 
+	 * @param globalInvocationCount
+	 * @param tokens
+	 * @throws ABCException
+	 */
+	public void basicParseMethodInvocation(AtomicInteger globalInvocationCount, ParsedLine tokens) throws ABCException {
+
+		try {
+
+			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> local = getOrInitializeDataStructure(
+					tokens.threadName);
+
+			ExecutionFlowGraph executionFlowGraph = local.getFirst();
+			DataDependencyGraph dataDependencyGraph = local.getSecond();
+			CallGraph callGraph = local.getThird();
+
+			String methodSignature = tokens.methodSignature;
+			String openingToken = tokens.methodToken;
+			String methodOwner = tokens.methodOwner;
+			String parameterString = tokens.parametersOrReturnValue;
+
+			MethodInvocation methodInvocation;
+			/*
+			 * This is the basic carving object, a method call/method invocation
+			 */
+			methodInvocation = new MethodInvocation(globalInvocationCount.incrementAndGet(), methodSignature);
+			/*
+			 * Explicitly set the relevant attributes of the object
+			 */
+			methodInvocation.setLibraryCall(openingToken.equals(Trace.LIB_METHOD_START_TOKEN));
+			methodInvocation.setSyntheticMethod(openingToken.equals(Trace.SYNTHETIC_METHOD_START_TOKEN));
+			methodInvocation.setPrivate(openingToken.equals(Trace.PRIVATE_METHOD_START_TOKEN));
+
+			/*
+			 * Update the parsing data
+			 */
+			executionFlowGraph.enqueueMethodInvocations(methodInvocation);
+			dataDependencyGraph.addMethodInvocationWithoutAnyDependency(methodInvocation);
+			callGraph.push(methodInvocation);
+
+			/*
+			 * Update data dependencies and link the various objects
+			 */
+
+			if (methodOwner != null) {
+				// Instance method
+				ObjectInstance owner = new ObjectInstance(methodOwner);
+				methodInvocation.setOwner(owner);
+				dataDependencyGraph.addDataDependencyOnOwner(methodInvocation, owner);
+				methodInvocation.setStatic(false);
+			} else if (JimpleUtils.isConstructor(methodSignature)) {
+				// The constructor will return this object as result of the invocation
+				methodInvocation.setConstructor(true);
+				methodInvocation.setStatic(false);
+			} else {
+				// Here are actual static methods
+				methodInvocation.setStatic(true);
+				// Possibly constructors
+				methodInvocation.setConstructor(JimpleUtils.isClassConstructor(methodSignature));
+			}
+
+			/*
+			 * Parameters data
+			 */
+			String[] actualParameters = getActualParameters(methodSignature, parameterString);
+			String[] formalParameters = getFormalParameters(methodSignature);
+			List<DataNode> actualParameterInstances = new ArrayList<>();
+
+			for (int position = 0; position < actualParameters.length; position++) {
+				String actualParameterAsString = actualParameters[position];
+				String formalParameter = formalParameters[position];
+				// Store the information about parameter in a node
+				DataNode actualParameter = DataNodeFactory.get(formalParameter, actualParameterAsString);
+				actualParameterInstances.add(actualParameter);
+				// Link the method invocation with its parameters
+				dataDependencyGraph.addDataDependencyOnActualParameter(methodInvocation, actualParameter, position);
+			}
+			// TODO Why do we need to duplicate this information here?
+			methodInvocation.setActualParameterInstances(actualParameterInstances);
+
+			if (logger.isTraceEnabled()) {
+				logger.trace("Starting Method invocation:" + methodInvocation + ""
+						+ ((methodInvocation.isStatic()) ? " static" : "")
+						+ ((methodInvocation.isLibraryCall()) ? " libCall" : ""));
+			}
+		} catch (Throwable e) {
+			throw new ABCException("Cannot parsed method invocation", e);
+		}
+
+	}
+
 	/*
 	 * Initialize the data structure holding the parsing results or getting the
 	 * existing one
@@ -407,10 +501,15 @@ public class TraceParserImpl extends TraceParser {
 	}
 
 	@Override
+	public void parseMethodInvocation(AtomicInteger globalInvocationCount, ParsedLine tokens) throws ABCException {
+		basicParseMethodInvocation(globalInvocationCount, tokens);
+	}
+
+	@Override
 	public void parsePrivateMethodInvocation(AtomicInteger globalInvocationCount, ParsedLine tokens)
 			throws ABCException {
 		// TODO
-		parseMethodInvocation(globalInvocationCount, tokens);
+		basicParseMethodInvocation(globalInvocationCount, tokens);
 
 	}
 
@@ -418,7 +517,7 @@ public class TraceParserImpl extends TraceParser {
 	public void parseSyntheticMethodInvocation(AtomicInteger globalInvocationCount, ParsedLine tokens)
 			throws ABCException {
 		// TODO
-		parseMethodInvocation(globalInvocationCount, tokens);
+		basicParseMethodInvocation(globalInvocationCount, tokens);
 
 	}
 

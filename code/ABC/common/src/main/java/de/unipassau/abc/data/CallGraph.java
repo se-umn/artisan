@@ -6,11 +6,28 @@ import java.util.Set;
 
 public interface CallGraph {
 
+	/**
+	 * Return a graph that is the union of the fragments where the method
+	 * invocations are given methodInvocations are linked by caller-callee relation.
+	 * 
+	 * @param methodInvocations
+	 * @return
+	 */
+	public CallGraph getSubGraph(List<MethodInvocation> methodInvocations);
+
 	void visualize();
 
 	List<MethodInvocation> getOrderedSubsumingMethodInvocationsFor(MethodInvocation methodInvocationUnderTest);
 
-	Set<MethodInvocation> getMethodInvocationsSubsumedBy(MethodInvocation methodInvocation);
+	/**
+	 * Return the set of method invocations that will be invoked if the given method
+	 * invocation is invoked. This is the transitive closure of the "call" relation
+	 * over the method invocations.
+	 * 
+	 * @param methodInvocation
+	 * @return
+	 */
+	public Set<MethodInvocation> getMethodInvocationsSubsumedBy(MethodInvocation methodInvocation);
 
 	Collection<MethodInvocation> getAll();
 
@@ -30,5 +47,24 @@ public interface CallGraph {
 	CallGraph getSubGraph(MethodInvocation testSetupFromContext);
 
 	void markParentAndPruneAfter(MethodInvocation parent);
+
+	public void reset();
+
+	/**
+	 * This is used mostly for testing. Can be lifted to upper interface. TODO:
+	 * CarvingGraph or something
+	 * 
+	 * @return
+	 */
+	public Collection<MethodInvocation> getAllMethodInvocations();
+
+	/**
+	 * Return the collection of weakly connected components that can be formed from
+	 * the given method invocations
+	 * 
+	 * @param necessaryMethodInvocations
+	 * @return
+	 */
+	public Collection<CallGraph> extrapolate(Set<MethodInvocation> necessaryMethodInvocations);
 
 }

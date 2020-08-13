@@ -43,7 +43,7 @@ public abstract class TraceParser {
 	protected static final Logger logger = LoggerFactory.getLogger(TraceParser.class);
 
 	// The final parsed trace
-	private ParsedTrace parsedTrace;
+	protected ParsedTrace parsedTrace;
 
 	/**
 	 * TODO This is pyblic mostly for testability. Parses a single line of the
@@ -222,7 +222,6 @@ public abstract class TraceParser {
 				}
 			}
 		}
-
 		endOfExecution();
 
 		validate();

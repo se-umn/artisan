@@ -28,8 +28,7 @@ public interface MethodCarver {
 	 * @throws CarvingException
 	 * @throws ABCException
 	 */
-	public List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carve(MethodInvocation methodInvocation)
-			throws CarvingException, ABCException;
+	public List<CarvedExecution> carve(MethodInvocation methodInvocation) throws CarvingException, ABCException;
 
 	/**
 	 * Return all the carved tests for all the given method invocations
@@ -38,6 +37,6 @@ public interface MethodCarver {
 	 * @return
 	 * @throws CarvingException
 	 */
-	public Map<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>> carve(
-			List<MethodInvocation> methodInvocations) throws CarvingException, ABCException;
+	public Map<MethodInvocation, List<CarvedExecution>> carve(List<MethodInvocation> methodInvocations)
+			throws CarvingException, ABCException;
 }

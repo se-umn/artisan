@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 
 import org.apache.commons.lang.NotImplementedException;
 import org.mockito.Mockito;
@@ -22,6 +23,7 @@ import org.robolectric.android.controller.ComponentController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import de.unipassau.abc.carving.CarvedExecution;
 import de.unipassau.abc.carving.MethodCarver;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.CallGraph;
@@ -312,16 +314,15 @@ public class AndroidActivityCarver implements MethodCarver {
 	 * @throws CarvingException
 	 */
 	@Override
-	public List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carve(
-			MethodInvocation methodInvocationToCarve) throws CarvingException {
+	public List<CarvedExecution> carve(MethodInvocation methodInvocationToCarve) throws CarvingException {
 		// TODO I have not idea what's going on here... so not implemented exception
 		throw new NotImplementedException("Method not yet implemented !");
 //	
 	}
 
 	@Override
-	public Map<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>> carve(
-			List<MethodInvocation> methodInvocationsToCarve) throws CarvingException {
+	public Map<MethodInvocation, List<CarvedExecution>> carve(List<MethodInvocation> methodInvocationsToCarve)
+			throws CarvingException {
 
 		// TODO I have not idea what's going on here... so not implemented exception
 		throw new NotImplementedException("Method not yet implemented !");
@@ -1797,7 +1798,13 @@ public class AndroidActivityCarver implements MethodCarver {
 			Pair<ObjectInstance, Pair<MethodInvocation, MethodInvocation>> leftOver) {
 		// The all the methods before second, including second
 		Set<MethodInvocation> result = this.executionFlowGraph
-				.getMethodInvocationsBefore(leftOver.getSecond().getSecond());
+				.getMethodInvocationsBefore(leftOver.getSecond().getSecond(), new Predicate<MethodInvocation>() {
+
+					@Override
+					public boolean test(MethodInvocation t) {
+						return true;
+					}
+				});
 		result.add(leftOver.getSecond().getSecond());
 		// Remove all the methods before first to obtain all the methods in
 		// between
@@ -1905,7 +1912,14 @@ public class AndroidActivityCarver implements MethodCarver {
 
 		final AtomicBoolean missingOnDestroy = new AtomicBoolean(true);
 		tupleIterator(androidActivitiesConstructors, (latter, former) -> {
-			Set<MethodInvocation> beforeLatterConstructor = executionFlowGraph.getMethodInvocationsBefore(latter);
+			Set<MethodInvocation> beforeLatterConstructor = executionFlowGraph.getMethodInvocationsBefore(latter,
+					new Predicate<MethodInvocation>() {
+
+						@Override
+						public boolean test(MethodInvocation t) {
+							return true;
+						}
+					});
 			Set<MethodInvocation> afterFormerConstructor = executionFlowGraph.getMethodInvocationsAfter(former);
 			// Compute the intersection
 			Set<MethodInvocation> methodsInBetweenTheConstructors = new HashSet<>(afterFormerConstructor);

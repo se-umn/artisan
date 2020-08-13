@@ -26,8 +26,9 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Function;
 
 import de.unipassau.abc.ABCGlobalOptions;
-import de.unipassau.abc.data.ObjectInstance.StaticObjectInstance;
+import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.utils.GraphUtility;
+import edu.uci.ics.jung.algorithms.cluster.WeakComponentClusterer;
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
 import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
 import edu.uci.ics.jung.graph.Graph;
@@ -79,9 +80,19 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 		if (!graph.containsVertex(methodInvocation)) {
 			graph.addVertex(methodInvocation);
 		}
-
 	}
 
+	public void reset() {
+		for (GraphNode gn : graph.getVertices()) {
+			if (gn instanceof MethodInvocation) {
+				((MethodInvocation) gn).alreadyCarved = false;
+			}
+		}
+	}
+
+	/*
+	 * The positional information is ENCODED in the edge label !
+	 */
 	public void addDataDependencyOnActualParameter(MethodInvocation methodInvocation, DataNode actualParameter,
 			int position) {
 		DataNode node = null;
@@ -180,16 +191,16 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 			// We need to check those hard coded constants as first... TODO
 			// refactor to deal with system constant using artificial operation
 			// maybe ?!
-			else if ("java.lang.System.in".equals(actualParameters[position])) {
-				node = ObjectInstance.systemIn;
-			} else if ("java.lang.System.out".equals(actualParameters[position])) {
-				node = ObjectInstance.systemOut;
-			} else if ("java.lang.System.err".equals(actualParameters[position])) {
-				node = ObjectInstance.systemErr;
-			} else if ("StaticFieldOperation".equals(methodInvocation.getInvocationType())) {
-				node = new StaticObjectInstance(actualParameters[position] + "@0",
-						JimpleUtils.getReturnType(methodInvocation.getMethodSignature()));
-			}
+//			else if ("java.lang.System.in".equals(actualParameters[position])) {
+//				node = ObjectInstance.systemIn;
+//			} else if ("java.lang.System.out".equals(actualParameters[position])) {
+//				node = ObjectInstance.systemOut;
+//			} else if ("java.lang.System.err".equals(actualParameters[position])) {
+//				node = ObjectInstance.systemErr;
+//			} else if ("StaticFieldOperation".equals(methodInvocation.getInvocationType())) {
+//				node = new StaticObjectInstance(actualParameters[position] + "@0",
+//						JimpleUtils.getReturnType(methodInvocation.getMethodSignature()));
+//			}
 			// else if (JimpleUtils.isString(formalParameters[position]) &&
 			// !Carver.STRINGS_AS_OBJECTS) {
 			// // Since the string here is a PARAMETER somewhere its value has
@@ -293,13 +304,16 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 			// System.out.println("Call a method on null object... NPE?!");
 			// Null parameter
 			setSootValueFor(node, NullConstant.v());
-		} else if (((ObjectInstance) node).getType()
-				.startsWith("org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock")) {
-			// TODO This feels wrong... Check if this is System.in mocking
-			logger.debug(
-					"DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with " + ObjectInstance.systemIn);
-			return ObjectInstance.systemIn;
-		} else if (((ObjectInstance) node).getType().endsWith("[]")) {
+		}
+//		else if (((ObjectInstance) node).getType()
+//				.startsWith("org.junit.contrib.java.lang.system.TextFromStandardInputStream$SystemInMock")) {
+//			// TODO This feels wrong... Check if this is System.in mocking
+//			logger.debug(
+//					"DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with " + ObjectInstance.systemIn);
+//			return ObjectInstance.systemIn;
+//		} 
+
+		else if (((ObjectInstance) node).getType().endsWith("[]")) {
 			return node;
 		} else {
 			// For some reason, the tracer reports an interface
@@ -494,33 +508,40 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 		vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller() {
 			@Override
 			public String apply(Object node) {
-				if (node instanceof ValueNode) {
-					// TODO Not sure we can skip the visualization at all...
-					return "VALUE NODE";
-					// } else if (node instanceof ObjectInstance) {
-					// return ((ObjectInstance) node).getObjectId();
-					// } else if (node instanceof MethodInvocation) {
-					// return ((MethodInvocation) node).getJimpleMethod();
-				} else {
-					return super.apply(node);
-				}
+				System.out.println("Label node " + node);
+//				if (node instanceof ValueNode) {
+//					// TODO Not sure we can skip the visualization at all...
+//					return "VALUE NODE";
+//					// } else if (node instanceof ObjectInstance) {
+//					// return ((ObjectInstance) node).getObjectId();
+//					// } else if (node instanceof MethodInvocation) {
+//					// return ((MethodInvocation) node).getJimpleMethod();
+//				} else {
+				return super.apply(node);
+//				}
 			}
 		});
 
 		vv.getRenderContext().setVertexFillPaintTransformer(new Function<GraphNode, Paint>() {
 			@Override
 			public Paint apply(GraphNode node) {
+				System.out.println("Fill Node " + node);
 				if (node instanceof ValueNode) {
-					// TODO Not sure we can skip the visualization at all...
+//					// TODO Not sure we can skip the visualization at all...
 					return Color.YELLOW;
+				} else if (node instanceof NullInstance) {
+					return Color.BLACK;
 				} else if (node instanceof ObjectInstance) {
 					return Color.GREEN;
-				} else if (node instanceof MethodInvocation) {
-					MethodInvocation methodInvocation = (MethodInvocation) node;
-					return (methodInvocation.getInvocationType().equals("StaticInvokeExpr")) ? Color.ORANGE : Color.RED;
-				} else {
+				}
+//				} else if (node instanceof MethodInvocation) {
+//					MethodInvocation methodInvocation = (MethodInvocation) node;
+//					return (methodInvocation.getInvocationType().equals("StaticInvokeExpr")) ? Color.ORANGE : Color.RED;
+//				}
+				else {
 					return Color.BLUE;
 				}
+//				return super.apply(node);
 			}
 		});
 
@@ -532,6 +553,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 		frame.setVisible(true);
 
 	}
+
 	// public boolean addEdges(String v1, String v2) {
 	// return graph.addEdge("Edge" + Math.random(), v2, v1,
 	// EdgeType.UNDIRECTED);
@@ -791,11 +813,11 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 	 * @param carvedExecutionGraph
 	 * @return
 	 */
-	public DataDependencyGraphImpl getSubGraph(ExecutionFlowGraph carvedExecutionGraph) {
+	public DataDependencyGraph getSubGraph(ExecutionFlowGraph carvedExecutionGraph) {
 		return getSubGraph(carvedExecutionGraph.getOrderedMethodInvocations());
 	}
 
-	public DataDependencyGraphImpl getSubGraph(List<MethodInvocation> orderedMerthodInvocations) {
+	public DataDependencyGraph getSubGraph(List<MethodInvocation> orderedMerthodInvocations) {
 		// For each node in carvedExecutionFlow we bring in the Object/Value
 		// nodes and return types unless they are there, and connects the dots
 		DataDependencyGraphImpl subGraph = new DataDependencyGraphImpl();
@@ -867,20 +889,28 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 		return additionalData.get(node);
 	}
 
-	///
-	public List<ObjectInstance> getParametersOf(MethodInvocation methodInvocation) {
+	public List<DataNode> getParametersOf(MethodInvocation methodInvocation) {
 
-		List<ObjectInstance> parametersOf = new ArrayList<>();
+		// TODO Maybe a getParameterCount might be ok here...
+		DataNode[] parametersOf = new DataNode[methodInvocation.getActualParameterInstances().size()];
 
 		for (String incomingEdge : getIncomingEdges(methodInvocation)) {
+			/*
+			 * Identify incident relations to method invocation tagged as data. The
+			 * parameter is the other end of the incoming link
+			 */
 			if (incomingEdge.startsWith(DATA_DEPENDENCY_PREFIX)) {
-				if (graph.getOpposite(methodInvocation, incomingEdge) instanceof ObjectInstance) {
-					parametersOf.add(((ObjectInstance) graph.getOpposite(methodInvocation, incomingEdge)));
-				}
+				// TODO Why in the above we used ObjectInstance?
+//				if (graph.getOpposite(methodInvocation, incomingEdge) instanceof ObjectInstance) {
+//					parametersOf.add(((ObjectInstance) graph.getOpposite(methodInvocation, incomingEdge)));
+//				}
+
+				parametersOf[Integer.parseInt(incomingEdge.split("_")[1])] = (DataNode) graph
+						.getOpposite(methodInvocation, incomingEdge);
 			}
 		}
 
-		return parametersOf;
+		return Arrays.asList(parametersOf);
 	}
 
 	public Collection<String> getIncomingEdges(GraphNode methodInvocation) {
@@ -1344,6 +1374,116 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 		if (!graph.containsVertex(carvingTarget)) {
 			graph.addVertex(carvingTarget);
 		}
+	}
+
+	/*
+	 * If the return type is a Primitive or an Object which is not used in the then
+	 * this does not find it, because we did not tracked it !
+	 * 
+	 */
+	public Optional<DataNode> getReturnValue(MethodInvocation methodInvocation) throws ABCException {
+		if (JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())) {
+			return Optional.empty();
+		} else {
+			for (GraphNode node : graph.getVertices()) {
+				if (node instanceof MethodInvocation) {
+					if (((MethodInvocation) node).equals(methodInvocation)) {
+
+						Set<String> dataDependencyEdges = new HashSet<String>(getOutgoingEgdes(node));
+
+						for (String edge : dataDependencyEdges) {
+							if (edge.startsWith(RETURN_DEPENDENCY_PREFIX)) {
+								GraphNode returnValue = graph.getOpposite(node, edge);
+								// TODO This could not be otherwise !
+								return Optional.of((DataNode) returnValue);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		throw new ABCException("Cannot find any return value for method invocation " + methodInvocation);
+	}
+
+	// Order is not necessary guaranteed
+	public Collection<MethodInvocation> getAllMethodInvocations() {
+		Collection<MethodInvocation> methodInvocations = new ArrayList<MethodInvocation>();
+		for (GraphNode node : graph.getVertices()) {
+			if (node instanceof MethodInvocation) {
+				methodInvocations.add((MethodInvocation) node);
+			}
+		}
+		return methodInvocations;
+	}
+
+	@Override
+	public Collection<DataDependencyGraph> extrapolate(Set<MethodInvocation> methodInvocations) {
+		Collection<DataDependencyGraph> extrapolated = new ArrayList<DataDependencyGraph>();
+
+		Graph<GraphNode, String> union = new DirectedSparseMultigraph<GraphNode, String>();
+
+		// Add all method invocation nodes - clone them in the process
+		for (MethodInvocation methodInvocation : methodInvocations) {
+			// Add the method invocation vertex and its neighbors, unless they are there
+			// already
+			union.addVertex(methodInvocation.clone());
+			// This will not add multiple times the same vertex, in the hope they use
+			// hashCode and equals
+			for (GraphNode neighbor : graph.getNeighbors(methodInvocation)) {
+				union.addVertex(neighbor.clone());
+			}
+			// Add all the edges between the method Invocation and its getNeighbors
+			for (GraphNode neighbor : graph.getNeighbors(methodInvocation)) {
+				Collection<String> edges = graph.findEdgeSet(methodInvocation, neighbor);
+				if (edges != null) {
+					for (String edge : edges) {
+						union.addEdge(edge, methodInvocation, neighbor, EdgeType.DIRECTED);
+					}
+				}
+				// There might be edges in the other sense
+				Collection<String> reverseEdges = graph.findEdgeSet(neighbor, methodInvocation);
+				if (reverseEdges != null) {
+					for (String edge : reverseEdges) {
+						union.addEdge(edge, methodInvocation, neighbor, EdgeType.DIRECTED);
+					}
+				}
+			}
+		}
+		// Find the weakly connected components
+		WeakComponentClusterer<GraphNode, String> clusterer = new WeakComponentClusterer<GraphNode, String>();
+		Set<Set<GraphNode>> clusters = clusterer.apply(union);
+
+		// Clusters at this points are partitions of the nodes, nodes are clones of the
+		// original nodes, so we can build the sub graphs.
+		// Note that the extrapolated graphs will have different edges;
+		// they will start from 0 and increment.
+
+		for (Set<GraphNode> cluster : clusters) {
+			// TODO Here probably one should use the INTERFACE not the implementation
+			DataDependencyGraphImpl dataDependencyGraph = new DataDependencyGraphImpl();
+			for (GraphNode vertex : cluster) {
+				// Add Data and Method Invocations to the graph
+				dataDependencyGraph.graph.addVertex(vertex);
+			}
+			// Connect them
+
+			for (GraphNode source : dataDependencyGraph.graph.getVertices()) {
+				for (GraphNode dest : dataDependencyGraph.graph.getVertices()) {
+					Collection<String> edges = graph.findEdgeSet(source, dest);
+					if (edges != null) {
+						for (String edge : edges) {
+							dataDependencyGraph.graph.addEdge(edge, source, dest, EdgeType.DIRECTED);
+						}
+					}
+				}
+			}
+
+			extrapolated.add(dataDependencyGraph);
+		}
+
+		return extrapolated;
+
 	}
 
 }

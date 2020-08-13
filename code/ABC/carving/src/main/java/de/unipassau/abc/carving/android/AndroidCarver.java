@@ -22,6 +22,7 @@ import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
 import com.thoughtworks.xstream.XStream;
 
+import de.unipassau.abc.carving.CarvedExecution;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
@@ -197,7 +198,7 @@ public class AndroidCarver {
 		 * At this level of abstraction carved tests are simply a number of method
 		 * invocations
 		 */
-		Map<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>> carvedTests = new HashMap<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>>();
+		Map<MethodInvocation, List<CarvedExecution>> carvedTests = new HashMap<MethodInvocation, List<CarvedExecution>>();
 
 		long carvingTime = System.currentTimeMillis();
 
@@ -247,27 +248,27 @@ public class AndroidCarver {
 
 		logger.info(">> Carved tests : " + carvedTests.size() + "/" + methodInvocationCount);
 
-		logger.debug("Storing carved tests to : " + storeCarvedTestsTo.getAbsolutePath());
+//		logger.debug("Storing carved tests to : " + storeCarvedTestsTo.getAbsolutePath());
 
-		XStream xStream = new XStream();
-		// TODO Store carved tests to storeCarvedTestsTo
-
-		for (List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedExecutionsForMethod : carvedTests
-				.values()) {
-			for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedTest : carvedExecutionsForMethod) {
-				MethodInvocation carvedMethodInvocation = carvedTest.getFirst().getLastMethodInvocation();
-				String methodSignature = carvedMethodInvocation.getMethodSignature();
-
-				String carvedClass = JimpleUtils.getClassNameForMethod(methodSignature);
-				String carvedMethod = JimpleUtils.getMethodName(methodSignature);
-
-				// Store to outputfile
-				File outputFile = new File(storeCarvedTestsTo,
-						carvedClass + "." + carvedMethod + "_" + carvedMethodInvocation.getInvocationCount());
-				logger.trace("Store carved test to " + outputFile.getAbsolutePath());
-				xStream.toXML(carvedTest, new FileWriter(outputFile));
-			}
-		}
+//		XStream xStream = new XStream();
+//		// TODO Store carved tests to storeCarvedTestsTo
+//
+//		for (List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedExecutionsForMethod : carvedTests
+//				.values()) {
+//			for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedTest : carvedExecutionsForMethod) {
+//				MethodInvocation carvedMethodInvocation = carvedTest.getFirst().getLastMethodInvocation();
+//				String methodSignature = carvedMethodInvocation.getMethodSignature();
+//
+//				String carvedClass = JimpleUtils.getClassNameForMethod(methodSignature);
+//				String carvedMethod = JimpleUtils.getMethodName(methodSignature);
+//
+//				// Store to outputfile
+//				File outputFile = new File(storeCarvedTestsTo,
+//						carvedClass + "." + carvedMethod + "_" + carvedMethodInvocation.getInvocationCount());
+//				logger.trace("Store carved test to " + outputFile.getAbsolutePath());
+//				xStream.toXML(carvedTest, new FileWriter(outputFile));
+//			}
+//		}
 		return;
 	}
 

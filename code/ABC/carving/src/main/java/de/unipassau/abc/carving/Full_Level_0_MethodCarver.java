@@ -13,6 +13,7 @@ import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.Set;
 
+import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +23,7 @@ import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.CallGraphImpl;
 import de.unipassau.abc.data.DataDependencyGraph;
+import de.unipassau.abc.data.DataNode;
 import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.ExecutionFlowGraphImpl;
 import de.unipassau.abc.data.JimpleUtils;
@@ -88,8 +90,7 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 	 * @return
 	 * @throws CarvingException
 	 */
-	public List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carve(
-			MethodInvocation methodInvocationToCarve) throws CarvingException {
+	public List<CarvedExecution> carve(MethodInvocation methodInvocationToCarve) throws CarvingException {
 
 		// Build the context for the carving. At the beginning the context IS
 		// the entire trace.
@@ -99,7 +100,9 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 		// Include all the external interfaces..
 		boolean skipExternalInterfaces = false;
 
-		return level0TestCarving(methodInvocationToCarve, context, skipExternalInterfaces);
+		// TODO Generate the CarvedExecuttion from the Triplette here...
+//		return level0TestCarving(methodInvocationToCarve, context, skipExternalInterfaces);
+		return null;
 	}
 
 	public List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> level0TestCarving(
@@ -919,8 +922,15 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 					if (methodInvocation.isStatic()) {
 						// Static calls require only parameters if any
 						if (JimpleUtils.getParameterList(methodInvocation.getMethodSignature()).length > 0) {
-							Set<ObjectInstance> parameters = new HashSet<ObjectInstance>(
-									_dataDependencyGraph.getParametersOf(methodInvocation));
+
+							List<DataNode> allParameters = _dataDependencyGraph.getParametersOf(methodInvocation);
+
+							Set<ObjectInstance> parameters = new HashSet<>();
+							for (DataNode paramter : allParameters) {
+								if (paramter instanceof ObjectInstance) {
+									parameters.add((ObjectInstance) paramter);
+								}
+							}
 							//
 							logger.trace("Level_0_MethodCarver.level0TestCarving() Data Dependencies for "
 									+ methodInvocation + " are " + parameters.size());
@@ -941,7 +951,15 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 						deps.add(owner);
 						//
 						if (JimpleUtils.getParameterList(methodInvocation.getMethodSignature()).length > 0) {
-							List<ObjectInstance> parameters = _dataDependencyGraph.getParametersOf(methodInvocation);
+							List<DataNode> allParameters = _dataDependencyGraph.getParametersOf(methodInvocation);
+
+							Set<ObjectInstance> parameters = new HashSet<>();
+							for (DataNode paramter : allParameters) {
+								if (paramter instanceof ObjectInstance) {
+									parameters.add((ObjectInstance) paramter);
+								}
+							}
+
 							// logger.debug("Level_0_MethodCarver.level0TestCarving()
 							// dependencies for " + methodInvocation
 							// + " are " + parameters);
@@ -963,7 +981,14 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 						// Regular invocations require parameters and the
 						// constructor if the constructor is not there yet
 						if (JimpleUtils.getParameterList(methodInvocation.getMethodSignature()).length > 0) {
-							List<ObjectInstance> parameters = _dataDependencyGraph.getParametersOf(methodInvocation);
+							List<DataNode> allParameters = _dataDependencyGraph.getParametersOf(methodInvocation);
+
+							Set<ObjectInstance> parameters = new HashSet<>();
+							for (DataNode paramter : allParameters) {
+								if (paramter instanceof ObjectInstance) {
+									parameters.add((ObjectInstance) paramter);
+								}
+							}
 
 							// logger.debug("Level_0_MethodCarver.level0TestCarving()
 							// dependencies for " + methodInvocation
@@ -998,11 +1023,11 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 							// generation ?!
 							continue;
 						}
-						if (ObjectInstance.systemIn.equals(data) || //
-								ObjectInstance.systemOut.equals(data) || //
-								ObjectInstance.systemErr.equals(data)) {
-							continue;
-						}
+//						if (ObjectInstance.systemIn.equals(data) || //
+//								ObjectInstance.systemOut.equals(data) || //
+//								ObjectInstance.systemErr.equals(data)) {
+//							continue;
+//						}
 						// REPLACED dataDependencyGraphBefore with //
 						// dataDependencyGraph
 
@@ -1935,28 +1960,29 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 			// chains)
 
 			try {
-				List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedPreconditions = carve(
-						returnCall);
+				List<CarvedExecution> carvedPreconditions = carve(returnCall);
 
-				if (!carvedPreconditions.isEmpty()) {
-					//
-					preconditions.addAll(carvedPreconditions.get(0).getFirst().getOrderedMethodInvocations());
+				throw new NotImplementedException();
 
-					/*
-					 * Here we do not really care about data dep, since the later call should
-					 * include them as well !?
-					 */
-					logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Preconditions are : "
-							+ preconditions);
-
-					if (carvedPreconditions.size() > 1) {
-						logger.error("Level_0_MethodCarver.computePreconditionsFor() MULTIPLE PRECONDITIONS FOR "
-								+ returnCall);
-					}
-				} else {
-					logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Method " + returnCall
-							+ " has no preconditions");
-				}
+//				if (!carvedPreconditions.isEmpty()) {
+//					//
+//					preconditions.addAll(carvedPreconditions.get(0).getFirst().getOrderedMethodInvocations());
+//
+//					/*
+//					 * Here we do not really care about data dep, since the later call should
+//					 * include them as well !?
+//					 */
+//					logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Preconditions are : "
+//							+ preconditions);
+//
+//					if (carvedPreconditions.size() > 1) {
+//						logger.error("Level_0_MethodCarver.computePreconditionsFor() MULTIPLE PRECONDITIONS FOR "
+//								+ returnCall);
+//					}
+//				} else {
+//					logger.trace("Level_0_MethodCarver.generateSingleTestCaseFromSlice() Method " + returnCall
+//							+ " has no preconditions");
+//				}
 			} catch (CarvingException e) {
 				logger.error("Cannot compute preconditions for return call " + returnCall);
 				e.printStackTrace();
@@ -1970,9 +1996,8 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 		return preconditions;
 	}
 
-	public Map<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>> carve(
-			List<MethodInvocation> orderedMethodsInvocationsToCarve) {
-		Map<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>> carvedTests = new HashMap<MethodInvocation, List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>>();
+	public Map<MethodInvocation, List<CarvedExecution>> carve(List<MethodInvocation> orderedMethodsInvocationsToCarve) {
+		Map<MethodInvocation, List<CarvedExecution>> carvedTests = new HashMap<MethodInvocation, List<CarvedExecution>>();
 
 		// List<MethodInvocation> orderedMethodsInvocationsToCarve = new
 		// ArrayList<>(
@@ -1987,7 +2012,7 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 
 		for (MethodInvocation methodInvocationUnderTest : orderedMethodsInvocationsToCarve) {
 
-			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedTestsPerMethodInvocation = new ArrayList<>();
+			List<CarvedExecution> carvedTestsPerMethodInvocation = new ArrayList<>();
 			carvedTests.put(methodInvocationUnderTest, carvedTestsPerMethodInvocation);
 
 			if (methodInvocationUnderTest.isPrivate()) {
@@ -2065,34 +2090,34 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 		return carvedTests;
 	}
 
-	private void simplify(MethodInvocation methodInvocationUnderTest,
-			List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carvedTests) {
+	private void simplify(MethodInvocation methodInvocationUnderTest, List<CarvedExecution> carvedTests) {
 
 		logger.debug("Simplify for " + methodInvocationUnderTest);
 
-		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedTest : carvedTests) {
+		for (CarvedExecution carvedTest : carvedTests) {
 
-			DataDependencyGraph dataDependencyGraph = carvedTest.getSecond();
-			ExecutionFlowGraph executionFlowGraph = carvedTest.getFirst();
-
-			// This is the CORE of the carved test
-			Set<MethodInvocation> coreMethodInvocations = dataDependencyGraph
-					.getWeaklyConnectedComponentContaining(methodInvocationUnderTest);
-
-			// This is to consider external interfaces and their preconditions
-			for (MethodInvocation methodInvocation : executionFlowGraph.getOrderedMethodInvocations()) {
-				if (methodInvocation.belongsToExternalInterface() || methodInvocation.isTestSetupCall()) {
-					coreMethodInvocations.add(methodInvocation);
-					coreMethodInvocations
-							.addAll(dataDependencyGraph.getWeaklyConnectedComponentContaining(methodInvocation));
-				}
-			}
-
-			// This is to consider the external interfaces which are static
-			// invocations ?
-
-			dataDependencyGraph.refine(coreMethodInvocations);
-			executionFlowGraph.refine(coreMethodInvocations);
+			throw new NotImplementedException();
+//			DataDependencyGraph dataDependencyGraph = carvedTest.getSecond();
+//			ExecutionFlowGraph executionFlowGraph = carvedTest.getFirst();
+//
+//			// This is the CORE of the carved test
+//			Set<MethodInvocation> coreMethodInvocations = dataDependencyGraph
+//					.getWeaklyConnectedComponentContaining(methodInvocationUnderTest);
+//
+//			// This is to consider external interfaces and their preconditions
+//			for (MethodInvocation methodInvocation : executionFlowGraph.getOrderedMethodInvocations()) {
+//				if (methodInvocation.belongsToExternalInterface() || methodInvocation.isTestSetupCall()) {
+//					coreMethodInvocations.add(methodInvocation);
+//					coreMethodInvocations
+//							.addAll(dataDependencyGraph.getWeaklyConnectedComponentContaining(methodInvocation));
+//				}
+//			}
+//
+//			// This is to consider the external interfaces which are static
+//			// invocations ?
+//
+//			dataDependencyGraph.refine(coreMethodInvocations);
+//			executionFlowGraph.refine(coreMethodInvocations);
 		}
 	}
 
