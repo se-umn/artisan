@@ -1,4 +1,4 @@
-package de.unipassau.abc.generation;
+package de.unipassau.abc.generation.impl;
 
 import static com.github.javaparser.JavaParser.parseVariableDeclarationExpr;
 
@@ -404,6 +404,7 @@ public class TestCaseFactory {
 								// Update the definition of the variable !
 								// JavaParser.parseClassOrInterfaceType(n.getElementType().asString()+"<"+rt+">");
 								// n.getElementType().asTypeParameter()
+								//
 								ClassOrInterfaceType c = JavaParser.parseClassOrInterfaceType(rt.describe());
 								// System.out.println(" ClassOrInterfaceType c "
 								// + c);

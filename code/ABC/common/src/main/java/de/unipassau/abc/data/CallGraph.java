@@ -15,6 +15,15 @@ public interface CallGraph {
 	 */
 	public CallGraph getSubGraph(List<MethodInvocation> methodInvocations);
 
+	/**
+	 * Return the set of method invocations at the top level of the call graph,
+	 * i.e., the roots. For each call graph there is always at least one root.
+	 * 
+	 * @return
+	 */
+	public Set<MethodInvocation> getRoots();
+
+	@Deprecated
 	void visualize();
 
 	List<MethodInvocation> getOrderedSubsumingMethodInvocationsFor(MethodInvocation methodInvocationUnderTest);
@@ -66,5 +75,7 @@ public interface CallGraph {
 	 * @return
 	 */
 	public Collection<CallGraph> extrapolate(Set<MethodInvocation> necessaryMethodInvocations);
+
+//	
 
 }

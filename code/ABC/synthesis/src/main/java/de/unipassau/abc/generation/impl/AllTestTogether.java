@@ -6,12 +6,13 @@ import java.util.Map;
 
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
-import de.unipassau.abc.generation.TestClassGenerator;
 import soot.Modifier;
 import soot.Scene;
 import soot.SootClass;
 
-public class AllTestTogether implements TestClassGenerator {
+@Deprecated
+
+public class AllTestTogether implements SootTestClassGenerator {
 
 	private Map<String, SootClass> testClasses = new HashMap<>();
 

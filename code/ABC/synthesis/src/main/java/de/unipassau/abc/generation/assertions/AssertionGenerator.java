@@ -1,4 +1,4 @@
-package de.unipassau.abc.generation;
+package de.unipassau.abc.generation.assertions;
 
 import java.io.File;
 import java.util.ArrayList;

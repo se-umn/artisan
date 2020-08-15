@@ -1422,34 +1422,60 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 		Collection<DataDependencyGraph> extrapolated = new ArrayList<DataDependencyGraph>();
 
 		Graph<GraphNode, String> union = new DirectedSparseMultigraph<GraphNode, String>();
+		// THIS IS REALLY ANNOYING ! We need to store the clones otherwise graph will
+		// not realize it is the same node ..
+		Map<GraphNode, GraphNode> cloneMap = new HashMap<GraphNode, GraphNode>();
 
 		// Add all method invocation nodes - clone them in the process
 		for (MethodInvocation methodInvocation : methodInvocations) {
 			// Add the method invocation vertex and its neighbors, unless they are there
 			// already
-			union.addVertex(methodInvocation.clone());
-			// This will not add multiple times the same vertex, in the hope they use
-			// hashCode and equals
-			for (GraphNode neighbor : graph.getNeighbors(methodInvocation)) {
-				union.addVertex(neighbor.clone());
+			MethodInvocation cloned = methodInvocation.clone();
+			union.addVertex(cloned);
+			cloneMap.put(cloned, methodInvocation);
+
+			for (GraphNode neighbor : graph.getPredecessors(methodInvocation)) {
+				GraphNode clonedNode = neighbor.clone();
+				cloneMap.put(clonedNode, neighbor);
+				union.addVertex(cloned);
 			}
-			// Add all the edges between the method Invocation and its getNeighbors
-			for (GraphNode neighbor : graph.getNeighbors(methodInvocation)) {
-				Collection<String> edges = graph.findEdgeSet(methodInvocation, neighbor);
+
+			for (GraphNode neighbor : graph.getSuccessors(methodInvocation)) {
+				GraphNode clonedNode = neighbor.clone();
+				cloneMap.put(clonedNode, neighbor);
+				union.addVertex(cloned);
+			}
+
+		}
+		// Add all the edges between the nodes
+		for (GraphNode source : union.getVertices()) {
+			for (GraphNode target : union.getVertices()) {
+
+				GraphNode originalSource = cloneMap.get(source);
+				GraphNode originalTarget = cloneMap.get(target);
+
+				if (!graph.containsVertex(originalSource)) {
+					logger.info("Graph does not contain " + source);
+					logger.info("ALL VERTICES " + graph.getVertices());
+
+				}
+
+				if (!graph.containsVertex(originalTarget)) {
+					logger.info("Graph does not contain " + target);
+					logger.info("ALL VERTICES " + graph.getVertices());
+
+				}
+
+				// Original grap here.. BUT, it works with == and not equals ! :(
+				Collection<String> edges = graph.findEdgeSet(originalSource, originalTarget);
 				if (edges != null) {
 					for (String edge : edges) {
-						union.addEdge(edge, methodInvocation, neighbor, EdgeType.DIRECTED);
-					}
-				}
-				// There might be edges in the other sense
-				Collection<String> reverseEdges = graph.findEdgeSet(neighbor, methodInvocation);
-				if (reverseEdges != null) {
-					for (String edge : reverseEdges) {
-						union.addEdge(edge, methodInvocation, neighbor, EdgeType.DIRECTED);
+						union.addEdge(edge, source, target, EdgeType.DIRECTED);
 					}
 				}
 			}
 		}
+
 		// Find the weakly connected components
 		WeakComponentClusterer<GraphNode, String> clusterer = new WeakComponentClusterer<GraphNode, String>();
 		Set<Set<GraphNode>> clusters = clusterer.apply(union);
@@ -1467,7 +1493,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 				dataDependencyGraph.graph.addVertex(vertex);
 			}
 			// Connect them
-
+			// TODO This fails somehow to get null objects?
 			for (GraphNode source : dataDependencyGraph.graph.getVertices()) {
 				for (GraphNode dest : dataDependencyGraph.graph.getVertices()) {
 					Collection<String> edges = graph.findEdgeSet(source, dest);

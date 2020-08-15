@@ -19,7 +19,6 @@ import com.thoughtworks.xstream.io.xml.StaxDriver;
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.ExecutionFlowGraph;
-import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.Triplette;
 
 public class ParsedTraceImpl implements ParsedTrace {

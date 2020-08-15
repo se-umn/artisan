@@ -1,4 +1,4 @@
-package de.unipassau.abc.generation;
+package de.unipassau.abc.generation.utils;
 
 import java.io.File;
 import java.io.IOException;
@@ -68,7 +68,7 @@ public class Utils {
 			}
 		}
 		//
-		MethodDeclaration setupMethod = testType.addMethod("setup", Modifier.PUBLIC);
+		MethodDeclaration setupMethod = testType.addMethod("setup", Modifier.Keyword.PUBLIC);
 		setupMethod.addAnnotation(Before.class);
 		setupMethod.addThrownException(Exception.class);
 		BlockStmt body = new BlockStmt();
@@ -76,7 +76,7 @@ public class Utils {
 		setupMethod.setBody(body);
 
 	}
-	
+
 	public static void removePureMethods(CompilationUnit testClass) {
 		testClass.accept(new ModifierVisitor<Void>() {
 

@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import soot.tagkit.Tag;
 
 /// FIXME Rebuild hashCode and Equals
+// TODO Encapsulate the calls to JimpleUtils and expose proper methods, like getMethodName and the like...
 public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>, Cloneable {
 
 	private final static Logger logger = LoggerFactory.getLogger(MethodInvocation.class);

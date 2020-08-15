@@ -84,6 +84,19 @@ public class CallGraphImpl implements CallGraph {
 		return callee;
 	}
 
+	public Set<MethodInvocation> getRoots() {
+		Set<MethodInvocation> roots = new HashSet<MethodInvocation>();
+		// A root in this graph is defined as a node which does not have incoming edges
+		// TODO This is because we only model call relation and not return into
+		for (MethodInvocation mi : graph.getVertices()) {
+			if (graph.getInEdges(mi).size() == 0) {
+				roots.add(mi);
+			}
+		}
+		return roots;
+
+	}
+
 	public void visualize() {
 		VisualizationViewer<MethodInvocation, String> vv = new VisualizationViewer<MethodInvocation, String>(
 				// new TreeLayout<>((Forest<MethodInvocation, String> )graph));

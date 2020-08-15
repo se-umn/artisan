@@ -4,11 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import de.unipassau.abc.carving.exceptions.CarvingException;
-import de.unipassau.abc.data.CallGraph;
-import de.unipassau.abc.data.DataDependencyGraph;
-import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.MethodInvocation;
-import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
 
 /**

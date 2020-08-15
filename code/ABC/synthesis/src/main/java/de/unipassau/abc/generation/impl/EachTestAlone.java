@@ -9,7 +9,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
-import de.unipassau.abc.generation.TestClassGenerator;
 import soot.Modifier;
 import soot.Scene;
 import soot.SootClass;
@@ -21,7 +20,9 @@ import soot.SootClass;
  * @author gambi
  *
  */
-public class EachTestAlone implements TestClassGenerator {
+@Deprecated
+
+public class EachTestAlone implements SootTestClassGenerator {
 
 	private Map<String, AtomicInteger> testClasseCounters = new HashMap<>();
 	private List<SootClass> testClasses = new ArrayList<>();

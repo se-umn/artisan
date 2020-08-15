@@ -1,4 +1,4 @@
-package de.unipassau.abc.generation;
+package de.unipassau.abc.generation.postprocessing;
 
 import java.io.BufferedReader;
 import java.io.File;
