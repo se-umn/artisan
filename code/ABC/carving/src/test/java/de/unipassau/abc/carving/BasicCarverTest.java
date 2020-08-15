@@ -3,7 +3,6 @@ package de.unipassau.abc.carving;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 
 import org.junit.Assert;
@@ -57,7 +56,7 @@ public class BasicCarverTest {
 	}
 
 	@Test
-	public void testCarvingMainActivityInstantiation() throws FileNotFoundException, IOException, ABCException {
+	public void testCarvingNoArgsConstructor() throws FileNotFoundException, IOException, ABCException {
 		// Basic Carver gets' only a sigle structre
 		BasicCarver carver = new BasicCarver(parsedTrace);
 
@@ -72,7 +71,6 @@ public class BasicCarverTest {
 		// Assert that this execution containt ONLY the targetMethodInvocation
 		CarvedExecution carvedExecution = carvedExecutions.iterator().next();
 
-		System.out.println("BasicCarverTest.testCarvingMainActivityInstantiation()");
 		// Carved Execution contains collections of fragments
 
 //		List<MethodInvocation> actual = carvedExecution.getFirst().getOrderedMethodInvocations();

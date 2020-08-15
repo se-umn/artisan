@@ -1,4 +1,4 @@
-package de.unipassau.abc.generation;
+package de.unipassau.abc.generation.postprocessing;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,6 +34,7 @@ import com.lexicalscope.jewel.cli.Option;
 
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.exceptions.ABCException;
+import de.unipassau.abc.generation.utils.Utils;
 
 /// org.codedefenders.multiplayer.CoverageGenerator
 // Test suite minimizer uses DeltaDebugger and TestSuite reduction via Coverage analyss !

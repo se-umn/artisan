@@ -1,4 +1,4 @@
-package de.unipassau.abc.generation;
+package de.unipassau.abc.generation.impl;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -38,6 +38,7 @@ import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.Triplette;
+import de.unipassau.abc.generation.utils.Utils;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.SourceLocator;

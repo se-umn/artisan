@@ -1,7 +1,6 @@
 package de.unipassau.abc.carving;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -13,7 +12,6 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 import de.unipassau.abc.carving.exceptions.CarvingException;
@@ -228,7 +226,9 @@ public class BasicCarver implements MethodCarver {
 		carvedExecution.executionFlowGraphs = this.executionFlowGraph.extrapolate(necessaryMethodInvocations);
 		carvedExecution.dataDependencyGraphs = this.dataDependencyGraph.extrapolate(necessaryMethodInvocations);
 		carvedExecution.callGraphs = this.callGraph.extrapolate(necessaryMethodInvocations);
-
+		carvedExecution.methodInvocationUnderTest = methodInvocation;
+		
+		
 		carvedExecutions.add(carvedExecution);
 
 		return carvedExecutions;

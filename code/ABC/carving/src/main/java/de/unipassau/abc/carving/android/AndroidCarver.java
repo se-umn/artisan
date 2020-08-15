@@ -1,7 +1,6 @@
 package de.unipassau.abc.carving.android;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -13,28 +12,24 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.SystemUtils;
-import org.checkerframework.checker.units.qual.K;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.lexicalscope.jewel.cli.ArgumentValidationException;
 import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
-import com.thoughtworks.xstream.XStream;
 
 import de.unipassau.abc.carving.CarvedExecution;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.ExecutionFlowGraph;
-import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.MethodInvocationMatcher;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.parsing.ParsedTrace;
 import de.unipassau.abc.parsing.ParsedTraceImpl;
-import fj.data.vector.V;
 import soot.G;
 import soot.Scene;
 import soot.options.Options;

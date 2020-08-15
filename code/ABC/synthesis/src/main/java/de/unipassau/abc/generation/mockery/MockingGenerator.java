@@ -1,4 +1,4 @@
-package de.unipassau.abc.generation;
+package de.unipassau.abc.generation.mockery;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -21,6 +21,7 @@ import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.MethodInvocationMatcher;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.Triplette;
+import de.unipassau.abc.generation.utils.JUnitRuleTag;
 import de.unipassau.abc.instrumentation.UtilInstrumenter2;
 import soot.Body;
 import soot.Local;

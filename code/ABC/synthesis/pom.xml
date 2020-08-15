@@ -14,6 +14,10 @@
 
 	<name>Test synthesis of the ABC Framework for Action-Based Test Carving</name>
 
+	<properties>
+		<javaparser.version>3.16.1</javaparser.version>
+		<robolectric.version>4.3.1</robolectric.version>
+	</properties>
 
 	<dependencies>
 		<dependency>
@@ -36,35 +40,31 @@
 		</dependency>
 
 		<!-- Utility for Decompiling Class files into Java -->
+		<!-- THIS MIGHT BE REPLACED BY THE COMPILER API FROM JAVA -->
 		<!-- THis is nice but becomes superflous if we generate java code directly -->
-		<dependency>
-			<groupId>org.bitbucket.mstrobel</groupId>
-			<artifactId>procyon-compilertools</artifactId>
-			<version>0.5.32</version>
-		</dependency>
+		<!-- <dependency> <groupId>org.bitbucket.mstrobel</groupId> <artifactId>procyon-compilertools</artifactId> 
+			<version>0.5.32</version> </dependency> -->
 		<!-- Code Generation -->
 		<dependency>
 			<groupId>com.github.javaparser</groupId>
 			<artifactId>javaparser-core</artifactId>
-			<version>3.5.15</version>
+			<version>${javaparser.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.github.javaparser</groupId>
 			<artifactId>javaparser-symbol-solver-core</artifactId>
-			<version>3.5.15</version>
+			<version>${javaparser.version}</version>
 		</dependency>
-		<!-- -->
-		<dependency>
-			<groupId>com.squareup</groupId>
-			<artifactId>javapoet</artifactId>
-			<version>1.11.1</version>
-		</dependency>
+		<!-- We favor Javaparser -->
+		<!-- <dependency> <groupId>com.squareup</groupId> <artifactId>javapoet</artifactId> 
+			<version>1.11.1</version> </dependency> -->
 
 		<dependency>
 			<groupId>org.robolectric</groupId>
 			<artifactId>robolectric</artifactId>
-			<version>4.2</version>
+			<version>${robolectric.version}</version>
 			<exclusions>
+				<!-- Is this still relevant -->
 				<exclusion>
 					<groupId>androidx.test</groupId>
 					<artifactId>monitor</artifactId>
@@ -72,7 +72,7 @@
 			</exclusions>
 		</dependency>
 
-		<!-- Test suite reduction -->
+		<!-- Test suite reduction. We can probably omit this? -->
 		<!-- Using the release jar, e.g., core-0.8.1 breaks -->
 		<dependency>
 			<groupId>org.jacoco</groupId>

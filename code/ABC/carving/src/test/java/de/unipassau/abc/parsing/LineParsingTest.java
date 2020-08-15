@@ -1,17 +1,6 @@
 package de.unipassau.abc.parsing;
 
-import java.util.Arrays;
-import java.util.Map;
-import java.util.regex.Matcher;
-
-import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Ignore;
-import org.junit.Test;
-
-import de.unipassau.abc.data.JimpleUtils;
-import de.unipassau.abc.exceptions.ABCException;
-import de.unipassau.abc.tracing.Trace;
 
 @Ignore
 // TESTS ARE BROKEN AFTER REFACTORING
