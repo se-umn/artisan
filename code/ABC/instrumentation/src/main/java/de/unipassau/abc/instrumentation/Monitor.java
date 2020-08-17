@@ -174,6 +174,24 @@ public class Monitor {
 
 	// THIS IS THE INTERFACE OF THE CLASS.
 
+	private static String testName = null;
+
+	public static void testStart(String _testName) {
+		testName = _testName;
+		// This forces the reinitialization at the first call to the monitor
+		bInitialized = false;
+
+		android.util.Log.e(ABC_TAG, "---- CALLED testStart from " + testName);
+	}
+
+	public static void testEnd() {
+		android.util.Log.e(ABC_TAG, "---- CALLED testEnd from " + testName);
+		testName = null;
+		bInitialized = false;
+		// Here probably we can flush the output if needed
+
+	}
+
 	/**
 	 * Ensures that the monitor class is properly initialized no matter how the app
 	 * is started.
@@ -185,38 +203,18 @@ public class Monitor {
 	 */
 	public static void initialize(String packageName) throws Exception {
 
-		// This is the global counter to identify method invocations
+		android.util.Log.e(ABC_TAG, "---- CALLED initialize");
 		synchronized (g_counter) {
-			// Not really suer about this
-//			F.clear();
-//			L.clear();
-//			A.clear();
-
 			g_counter = 1;
-
-			// System.out.println("In Monitor::initialize()");
-//			if (!DynCGequenceOnly) {
-//				A.put(g_counter, "program start");
-//				g_counter++;
-//			}
-
-			// Avoid double initializations? should we check this at the very
-			// top ?
 			bInitialized = true;
-			//
 			g_lgclock.initClock(0);
-
-//			if (logicClock.trackingSender) {
-//				 just record the ID of local process
-//				S.put("" + android.os.Process.myUid(), Integer.MAX_VALUE);
-//			}
-
-			// we are now only care about apps running on the same device
-			// intentTracker.Monitor.installClock(g_lgclock);
-//			callmap.clear();
-
 			// Setup the trace file for action based carving
 			String filename = "Trace-" + System.currentTimeMillis() + ".txt";
+			if (testName != null) {
+				// Keep Trace- so we can automatically collect all the files at once
+				filename = "Trace-" + testName + "-" + System.currentTimeMillis() + ".txt";
+			}
+
 			// Write to the internal memory of the app
 			File homeFolder = new File("/data/data/" + packageName);
 			if (!homeFolder.exists()) {

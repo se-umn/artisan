@@ -1,38 +1,70 @@
 package abc.basiccalculator;
 
-import android.content.Context;
-
 import androidx.test.espresso.Espresso;
 import androidx.test.espresso.PerformException;
-import androidx.test.filters.LargeTest;
-import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
+import androidx.test.filters.LargeTest;
 import androidx.test.rule.ActivityTestRule;
 
-import androidx.test.espresso.action.ViewActions;
-import androidx.test.espresso.matcher.ViewMatchers;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestName;
+import org.junit.runner.RunWith;
+
+import java.lang.reflect.Method;
 
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
-import static androidx.test.espresso.action.ViewActions.closeSoftKeyboard;
 import static androidx.test.espresso.action.ViewActions.typeText;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
-
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-
-import static org.junit.Assert.*;
 
 
 @RunWith(AndroidJUnit4.class)
 @LargeTest
 public class MainActivityTest {
 
+    // Do not launch the activity before the test, we do it manually
     @Rule
-    public ActivityTestRule<MainActivity> activityRule = new ActivityTestRule<>(MainActivity.class);
+    public ActivityTestRule<MainActivity> activityRule = new ActivityTestRule<>(MainActivity.class, true, false);
+
+    @Rule
+    public TestName name = new TestName();
+
+    @Before
+    public void notifyMonitorTestStart() {
+        try {
+            final String testName = name.getMethodName();
+
+            final String className = "de.unipassau.abc.instrumentation.Monitor";
+            final Class monitorClass = Class.forName(className);
+            final Method startTestMethod = monitorClass.getMethod("testStart", String.class);
+
+            startTestMethod.invoke(null, testName);
+        } catch (Exception e) {
+            // Do nothing here.
+        }
+
+        // no idea what intent to send...
+        activityRule.launchActivity(null);
+    }
+
+    @After
+    public void notifyMonitorTestEnd() {
+        activityRule.finishActivity();
+//        try {
+//            final String className = "de.unipassau.abc.instrumentation.Monitor";
+//            final Class monitorClass = Class.forName(className);
+//            final Method endTestMethod = monitorClass.getMethod("testEnd");
+//
+//            endTestMethod.invoke(null);
+//        } catch (Exception e) {
+//            // Do nothing here
+//        }
+    }
 
     @Test
     public void testCalculate() {
@@ -42,14 +74,14 @@ public class MainActivityTest {
         onView(withId(R.id.resultView)).check(matches(withText("2")));
     }
 
-    @Test (expected = PerformException.class)
+    @Test(expected = PerformException.class)
     public void testIllgalInputThrownByApp() {
         onView(withId(R.id.input)).perform(typeText("13"));
         Espresso.closeSoftKeyboard();
         onView(withId(R.id.calculateButton)).perform(click());
     }
 
-    @Test (expected = PerformException.class)
+    @Test(expected = PerformException.class)
     public void testNullPointerThrownBySystem() {
         onView(withId(R.id.input)).perform(typeText("17"));
         Espresso.closeSoftKeyboard();
