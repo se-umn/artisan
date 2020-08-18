@@ -12,7 +12,6 @@ import com.lexicalscope.jewel.cli.ArgumentValidationException;
 import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
 
-import android.graphics.Path.Op;
 import soot.G;
 import soot.PackManager;
 import soot.Scene;

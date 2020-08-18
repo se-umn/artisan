@@ -24,6 +24,7 @@ import org.xmlpull.v1.XmlPullParserException;
 import de.unipassau.abc.data.Pair;
 import dev.navids.soottutorial.visual.Visualizer;
 import soot.Body;
+import soot.IntType;
 import soot.Local;
 import soot.PatchingChain;
 import soot.RefType;
@@ -32,18 +33,24 @@ import soot.SceneTransformer;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.Trap;
-import soot.TrapManager;
 import soot.Type;
 import soot.Unit;
+import soot.UnitPatchingChain;
 import soot.Value;
 import soot.VoidType;
 import soot.jimple.AbstractStmtSwitch;
+import soot.jimple.AssignStmt;
 import soot.jimple.IdentityStmt;
+import soot.jimple.IntConstant;
+import soot.jimple.InvokeExpr;
+import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
 import soot.jimple.JimpleBody;
+import soot.jimple.NewExpr;
 import soot.jimple.NullConstant;
 import soot.jimple.ReturnStmt;
 import soot.jimple.ReturnVoidStmt;
+import soot.jimple.SpecialInvokeExpr;
 import soot.jimple.Stmt;
 import soot.jimple.StringConstant;
 import soot.jimple.ThrowStmt;
@@ -70,6 +77,11 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 	private static final boolean MAKE_ANDROID_LIFE_CYCLE_EVENTS_EXPLICIT = System.getProperties()
 			.containsKey("abc.make.android.lifecycle.events.explicit");
+
+	// TODO Consider distribute the instrumentation logic across several
+	// workers/tasks to be registered to soot
+	private static final boolean TAINT_ANDROID_INTENTS = System.getProperties()
+			.containsKey("abc.taint.android.intents");
 
 	private static final boolean OUTPUT_INSTRUMENTED_CODE = System.getProperties()
 			.containsKey("abc.output.instrumented.code");
@@ -161,11 +173,150 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 		initMonitorClass();
 
+		// We can include additional calls here and make sure they will appear in the
+		// trace
+		if (TAINT_ANDROID_INTENTS) {
+			taintAndroidIntents();
+		}
+
 		try {
 			instrument();
 		} catch (IOException | XmlPullParserException e) {
 			throw new RuntimeException(e);
 		}
+
+	}
+
+	/**
+	 * For each intent that is creates include an additional putExtra/getExtra with
+	 * the following KEYWORD: ABC_INTENT_ID to map the intents across invocations
+	 */
+	public void taintAndroidIntents() {
+		// TODO Move it to a separate class?
+
+		System.out.println("---- SceneInstrumenterWithMethodParameters.taintAndroidIntents() ----");
+
+		Iterator<SootClass> applicationClassesIterator = userClasses.iterator();
+		if (userClasses.size() == 0) {
+			System.out.println("\n\n NO USER CLASSES DEFINED !");
+		}
+
+		while (applicationClassesIterator.hasNext()) {
+
+			SootClass currentlyInstrumentedSootClass = (SootClass) applicationClassesIterator.next();
+
+			if (skipClass(currentlyInstrumentedSootClass)) {
+				continue;
+			}
+
+			/*
+			 * Traverse all methods of this class and check whether or not a new Intent is
+			 * created
+			 */
+			Iterator<SootMethod> methodsIterator = currentlyInstrumentedSootClass.getMethods().iterator();
+			while (methodsIterator.hasNext()) {
+
+				SootMethod currentlyInstrumentedMethod = (SootMethod) methodsIterator.next();
+
+				if (skipMethod(currentlyInstrumentedMethod)) {
+					continue;
+				}
+
+				/*
+				 * Forces soot to (re)load the entire class body using retrieveActiveBody()
+				 */
+				final Body currentlyInstrumentedMethodBody = currentlyInstrumentedMethod.retrieveActiveBody();
+
+				/*
+				 * Go over the units of the method looking for Intent instantiations
+				 */
+
+				SootClass intentClass = Scene.v().getSootClass("android.content.Intent");
+
+				SootMethod putExtraIntMethod = intentClass
+						.getMethod("android.content.Intent putExtra(java.lang.String,int)");
+				SootMethod getExtraIntMethod = intentClass.getMethod("int getIntExtra(java.lang.String,int)");
+
+				final String INTENT_TAINT_TAG = "INTENT_TAINT_TAG";
+
+				Scene.v().loadClassAndSupport("java.lang.System");
+				SootMethod identityHashCodeMethod = Scene.v()
+						.getMethod("<java.lang.System: int identityHashCode(java.lang.Object)>");
+
+				UnitPatchingChain currentlyInstrumentedMethodBodyUnitChain = currentlyInstrumentedMethodBody.getUnits();
+				for (final Iterator<Unit> iter = currentlyInstrumentedMethodBodyUnitChain.snapshotIterator(); iter
+						.hasNext();) {
+
+					final Unit currentUnit = iter.next();
+
+					currentUnit.apply(new AbstractStmtSwitch() {
+
+						@Override
+						public void caseInvokeStmt(InvokeStmt stmt) {
+							InvokeExpr invocation = stmt.getInvokeExpr();
+							// Probably wont work if we use a subclass of intent?
+							if (invocation.getMethod().isConstructor()) {
+
+								Value intent = ((SpecialInvokeExpr) invocation).getBase();
+
+								if (intent.getType().equals(intentClass.getType())) {
+
+									System.out.println(" Found Instantiation of Intent " + intent + "at "
+											+ currentlyInstrumentedMethod);
+
+									List<Unit> instrumentationCode = new ArrayList<>();
+
+									Local intentHashCode = UtilInstrumenter
+											.generateFreshLocal(currentlyInstrumentedMethodBody, IntType.v());
+
+									instrumentationCode.add(Jimple.v().newAssignStmt(intentHashCode,
+											Jimple.v().newStaticInvokeExpr(identityHashCodeMethod.makeRef(), intent)));
+//
+									instrumentationCode.add(Jimple.v().newInvokeStmt(//
+											Jimple.v().newVirtualInvokeExpr(//
+													(Local) intent, //
+													putExtraIntMethod.makeRef(), //
+													StringConstant.v(INTENT_TAINT_TAG), //
+													intentHashCode)));
+//
+									UtilInstrumenter.instrumentAfter(currentlyInstrumentedMethodBodyUnitChain, stmt,
+											instrumentationCode);
+								}
+							}
+						}
+
+						@Override
+						public void caseAssignStmt(AssignStmt stmt) {
+							/*
+							 * If an Intent is assigned as a result of a method invocation, we make sure to
+							 * trace the call as this is an Intent definition (use)
+							 */
+
+							Value leftSide = stmt.getLeftOp();
+
+							if (leftSide.getType().equals(intentClass.getType()) && stmt.containsInvokeExpr()) {
+
+								List<Unit> instrumentationCode = new ArrayList<>();
+
+								InvokeExpr intentDefinition = stmt.getInvokeExpr();
+								System.err.println(" Found Assignment of Intent from " + intentDefinition);
+
+								instrumentationCode.add(Jimple.v().newInvokeStmt(//
+										Jimple.v().newVirtualInvokeExpr(//
+												(Local) leftSide, //
+												getExtraIntMethod.makeRef(), //
+												StringConstant.v(INTENT_TAINT_TAG), IntConstant.v(-1))));
+
+								UtilInstrumenter.instrumentAfter(currentlyInstrumentedMethodBodyUnitChain, stmt,
+										instrumentationCode);
+
+							}
+						}
+					});
+				}
+			}
+		}
+
 	}
 
 	/**
