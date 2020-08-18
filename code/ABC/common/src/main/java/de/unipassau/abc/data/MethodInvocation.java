@@ -88,7 +88,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		if (actualParameters != null) {
 			cloned.actualParameters = Arrays.copyOf(actualParameters, actualParameters.length);
 		}
-		
+
 		cloned.alreadyCarved = alreadyCarved;
 		cloned.belongToExternalInterface = belongToExternalInterface;
 		cloned.distanceFromMain = distanceFromMain;
@@ -441,7 +441,8 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
 	private boolean isExceptional;
 
-	private DataNode raisedException;
+	// Must be an object... cannot be a primitive type
+	private ObjectInstance raisedException;
 
 	private boolean isNecessary;
 
@@ -485,11 +486,11 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		return isExceptional;
 	}
 
-	public void setRaisedException(DataNode exceptionValue) {
+	public void setRaisedException(ObjectInstance exceptionValue) {
 		this.raisedException = exceptionValue;
 	}
 
-	public DataNode getRaisedException() {
+	public ObjectInstance getRaisedException() {
 		return raisedException;
 	}
 

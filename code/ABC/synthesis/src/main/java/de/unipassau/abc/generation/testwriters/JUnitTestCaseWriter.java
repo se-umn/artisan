@@ -11,6 +11,7 @@ import java.util.Set;
 
 import org.apache.commons.lang.NotImplementedException;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +20,7 @@ import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.AssignExpr.Operator;
@@ -29,23 +31,26 @@ import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
-import com.github.javaparser.ast.expr.TypeExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
-import com.squareup.javapoet.MethodSpec.Builder;
 
+import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.DataNode;
+import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodCallLiteralValue;
 import de.unipassau.abc.data.MethodInvocation;
-import de.unipassau.abc.data.NullInstance;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.PrimitiveValue;
-import de.unipassau.abc.data.ValueNode;
+import de.unipassau.abc.generation.SyntheticMethodSignatures;
 import de.unipassau.abc.generation.TestCaseWriter;
+import de.unipassau.abc.generation.data.AndroidCarvedTest;
 import de.unipassau.abc.generation.data.CarvedTest;
+import de.unipassau.abc.generation.data.CatchBlock;
 import de.unipassau.abc.generation.utils.TestCase;
 import de.unipassau.abc.generation.utils.TestCaseOrganizer;
 import de.unipassau.abc.generation.utils.TypeUtils;
@@ -93,6 +98,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
 	public CompilationUnit generateJUnitTestCase(TestCase testCase) {
 		logger.info("Generate source code for " + testCase.getName());
+
 		CompilationUnit cu = new CompilationUnit();
 
 		cu.setPackageDeclaration(testCase.getPackageName());
@@ -101,12 +107,27 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
 		testClass.setModifiers(Modifier.Keyword.PUBLIC);
 
+		// If any of the tests in this test case requires a specific runner we need to
+		// add it to the class
+		boolean requiresRobolectricTestRunner = false;
+		for (CarvedTest carvedTest : testCase.getCarvedTests()) {
+			if (carvedTest instanceof AndroidCarvedTest) {
+				requiresRobolectricTestRunner = true;
+				break;
+			}
+		}
+		if (requiresRobolectricTestRunner) {
+			// https://stackoverflow.com/questions/36082370/i-need-both-robolectric-and-mockito-in-my-test-each-one-proposes-their-own-test
+			ClassOrInterfaceType robolectricTestRunner = new ClassOrInterfaceType("RobolectricTestRunner");
+			testClass.addSingleMemberAnnotation(RunWith.class, robolectricTestRunner.getNameAsExpression());
+
+		}
+
 		// TODO Create imports
 
 		AtomicInteger testId = new AtomicInteger(1);
 
 		for (CarvedTest carvedTest : testCase.getCarvedTests()) {
-			// public void.
 			// TODO Name tests
 			MethodDeclaration testMethod = testClass.addMethod("test" + testId.getAndIncrement(),
 					Modifier.Keyword.PUBLIC);
@@ -117,10 +138,8 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 			// Add the generic Exception throwing
 			testMethod.addThrownException(Exception.class);
 
-			// TODO Generate method body
-			BlockStmt blockStmt = generateMethodBody(testMethod, carvedTest);
-			testMethod.setBody(blockStmt);
-
+			// Generate method body
+			generateMethodBody(testMethod, carvedTest);
 		}
 
 		return cu;
@@ -133,28 +152,89 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 	// Simple Index to name variables by their class name
 	private Map<String, AtomicInteger> declaredVariablesIndex = new HashMap<>();
 
-	private BlockStmt generateMethodBody(MethodDeclaration testMethod, CarvedTest carvedTest) {
-		BlockStmt methodBody = new BlockStmt();
-
-		// First declare all the variables
-		Set<ObjectInstance> objectInstances = carvedTest.getObjectInstances();
+	/**
+	 * Generate a "self" contained block of code from the given data structures by
+	 * first declaring variables and the implementing the calls, one after the
+	 * other. The method takes care to define the bindings from synthetic methods
+	 * and actual methods
+	 * 
+	 * @param executionFlowGraph
+	 * @param dataDependencyGraph
+	 * @return
+	 */
+	public BlockStmt generateBlockStmtFrom(ExecutionFlowGraph executionFlowGraph,
+			DataDependencyGraph dataDependencyGraph) {
+		BlockStmt blockStmt = new BlockStmt();
+		// TODO First declare all the variables in the scope of this block ?
+		Set<ObjectInstance> objectInstances = new HashSet<ObjectInstance>(dataDependencyGraph.getObjectInstances());
 		for (ObjectInstance objectInstance : objectInstances) {
 			// Default initialization. Avoid variable not initialize warning/errors
-			declareVariableFor(objectInstance, methodBody, new NullLiteralExpr());
+			declareVariableFor(objectInstance, blockStmt, new NullLiteralExpr());
 		}
 
-		// TODO generateVariablDeclaration
-
 		// Next implement all the methods, making sure variables and parameters match
-		for (MethodInvocation methodInvocation : carvedTest.getStatements()) {
+		for (MethodInvocation methodInvocation : executionFlowGraph.getOrderedMethodInvocations()) {
 			if (methodInvocation.isConstructor()) {
-				generateConstructorCall(methodInvocation, methodBody);
+				generateConstructorCall(methodInvocation, blockStmt);
 			} else {
-				generateMethodCall(methodInvocation, methodBody);
+				generateMethodCall(methodInvocation, blockStmt);
 			}
 		}
 
-		return methodBody;
+		return blockStmt;
+	}
+
+	/**
+	 * Generate a javaparser catch clause from an abc CatchBlock
+	 * 
+	 * @param catchBlock
+	 * @return
+	 */
+	private CatchClause generateCatchClause(CatchBlock catchBlock, String exceptionName) {
+		// TODO Handle multi catch block? Not sure we will ever use it
+		ClassOrInterfaceType capturedExceptionType = new ClassOrInterfaceType(
+				catchBlock.getCapturedExceptions().get(0));
+
+		CatchClause catchClause = new CatchClause();
+		Parameter p = new Parameter();
+		p.setName(exceptionName);
+		p.setType(capturedExceptionType);
+		catchClause.setParameter(p);
+
+		BlockStmt cb = generateBlockStmtFrom(catchBlock.getExecutionFlowGraph(), catchBlock.getDataDependencyGraph());
+		catchClause.setBody(cb);
+		return catchClause;
+	}
+
+	private void generateMethodBody(MethodDeclaration testMethod, CarvedTest carvedTest) {
+		BlockStmt methodBody = generateBlockStmtFrom(carvedTest.getExecutionFlowGraph(),
+				carvedTest.getDataDependencyGraph());
+
+		if (carvedTest.expectException()) {
+			// Build the try statement that encapsulate the entire method body
+			TryStmt tryStatement = new TryStmt();
+			tryStatement.setTryBlock(methodBody);
+
+			CatchBlock expectedExceptionCatchBlock = carvedTest.getExpectedExceptionCatchBlock();
+			CatchClause expectedExceptionCatchClause = generateCatchClause(expectedExceptionCatchBlock, "expected");
+
+			CatchBlock unexpectedExceptionCatchBlock = carvedTest.getUnexpectedExceptionCatchBlock();
+			CatchClause unexpectedExceptionCatchClause = generateCatchClause(unexpectedExceptionCatchBlock,
+					"unexpected");
+
+			NodeList<CatchClause> multiCatchBlock = new NodeList<>();
+			multiCatchBlock.add(expectedExceptionCatchClause);
+			multiCatchBlock.add(unexpectedExceptionCatchClause);
+			//
+			tryStatement.setCatchClauses(multiCatchBlock);
+
+			BlockStmt wrappedMethodBody = new BlockStmt();
+			wrappedMethodBody.addStatement(tryStatement);
+			testMethod.setBody(wrappedMethodBody);
+
+		} else {
+			testMethod.setBody(methodBody);
+		}
 
 	}
 
@@ -188,16 +268,34 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 		MethodCallExpr methodCallExpr = null;
 
 		if (!methodInvocation.isStatic()) {
+			// Instance method calls
 			ObjectInstance owner = methodInvocation.getOwner();
 			String variableName = getVariableFor(owner, methodBody);
 
-			NameExpr nameExpr = new NameExpr(variableName);
-			methodCallExpr = new MethodCallExpr(nameExpr, methodName);
+			if (methodInvocation.isSynthetic()) {
+				throw new NotImplementedException("Binding not defined for synthetic method call: " + methodInvocation);
+			} else {
+				NameExpr nameExpr = new NameExpr(variableName);
+				methodCallExpr = new MethodCallExpr(nameExpr, methodName);
+			}
 
 		} else {
+			// Static methods
 			// Include the Type, but shoud we use TypeExpr instead?
-			methodCallExpr = new MethodCallExpr(
-					JimpleUtils.getFullyQualifiedMethodName(methodInvocation.getMethodSignature()));
+			if (methodInvocation.isSynthetic()) {
+				switch (methodInvocation.getMethodSignature()) {
+				case SyntheticMethodSignatures.FAIL_WITH_MESSAGE:
+					methodCallExpr = new MethodCallExpr(
+							JimpleUtils.getFullyQualifiedMethodName("<org.junit.Assert: void fail(java.lang.String)>"));
+					break;
+				default:
+					throw new NotImplementedException(
+							"Binding not defined for synthetic method call: " + methodInvocation);
+				}
+			} else {
+				methodCallExpr = new MethodCallExpr(
+						JimpleUtils.getFullyQualifiedMethodName(methodInvocation.getMethodSignature()));
+			}
 		}
 
 		for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
@@ -260,7 +358,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 		return declaredVariables.get(objectInstance);
 	}
 
-	// TODO Contenxtualize on MethodBody
+	// TODO Contenxtualize on MethodBody/scope !
 	private void declareVariableFor(DataNode dataNode, BlockStmt methodBody, Expression initializer) {
 		String variableType = TypeUtils.getActualTypeFor(dataNode);
 		// TODO Move to Utils methods as this is used in many places
