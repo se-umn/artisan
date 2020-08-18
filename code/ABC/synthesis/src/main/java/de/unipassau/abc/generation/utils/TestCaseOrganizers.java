@@ -16,4 +16,11 @@ public class TestCaseOrganizers {
 		return new ByClassUnderTest();
 	}
 
+	public static TestCaseOrganizer byAllTestsTogether() {
+		return new ByAllTestsTogether();
+	}
+
+	public static TestCaseOrganizer byEachTestAlone() {
+		return new BySingleTest();
+	}
 }

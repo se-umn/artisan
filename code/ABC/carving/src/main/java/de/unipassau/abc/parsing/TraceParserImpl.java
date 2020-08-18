@@ -166,7 +166,7 @@ public class TraceParserImpl extends TraceParser {
 		/*
 		 * Store Instance of Exception.
 		 */
-		DataNode exceptionValue = DataNodeFactory.getFromException(exceptionAsString);
+		ObjectInstance exceptionValue = DataNodeFactory.getFromException(exceptionAsString);
 		methodInvocation.setRaisedException(exceptionValue);
 		local.getSecond().addDataDependencyOnReturn(methodInvocation, exceptionValue);
 

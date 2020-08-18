@@ -10,33 +10,34 @@ import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.generation.data.CarvedTest;
 
 /**
- * Place carved tests that test the same method together TODO Far from being
- * finished
- * 
- * @author gambitemp
+ * Place carved tests that test the same method together TODO Far from being finished
  *
+ * @author gambitemp
  */
 public class ByClassUnderTest implements TestCaseOrganizer {
 
-	@Override
-	public Set<TestCase> organize(CarvedTest... carvedTests) {
+  @Override
+  public Set<TestCase> organize(CarvedTest... carvedTests) {
 
-		Map<String, Set<CarvedTest>> muts = new HashMap<String, Set<CarvedTest>>();
-		for (CarvedTest carvedTest : carvedTests) {
-			muts.putIfAbsent(JimpleUtils.getClassNameForMethod(carvedTest.getMethodUnderTest().getMethodSignature()),
-					new HashSet<CarvedTest>());
-			muts.get(carvedTest.getMethodUnderTest()).add(carvedTest);
-		}
+    Map<String, Set<CarvedTest>> muts = new HashMap<>();
+    for (CarvedTest carvedTest : carvedTests) {
+      String className = JimpleUtils
+          .getClassNameForMethod(carvedTest.getMethodUnderTest().getMethodSignature());
+      muts.putIfAbsent(className, new HashSet<>());
+      muts.get(className).add(carvedTest);
+    }
 
-		// Now make sure to define proper naming and packaging
-		Set<TestCase> testSuite = new HashSet<TestCase>();
+    // Now make sure to define proper naming and packaging
+    Set<TestCase> testSuite = new HashSet<>();
 
-		for (Entry<String, Set<CarvedTest>> testGroup : muts.entrySet()) {
-			TestCase testCase = new TestCase(testGroup.getKey(), testGroup.getKey(), testGroup.getValue());
-			testSuite.add(testCase);
-		}
+    for (Entry<String, Set<CarvedTest>> testGroup : muts.entrySet()) {
+      String packageName = testGroup.getKey().substring(0, testGroup.getKey().lastIndexOf("."));
+      TestCase testCase = new TestCase(packageName,
+          testGroup.getKey().substring(testGroup.getKey().lastIndexOf(".") + 1),
+          testGroup.getValue());
+      testSuite.add(testCase);
+    }
 
-		return testSuite;
-	}
-
+    return testSuite;
+  }
 }

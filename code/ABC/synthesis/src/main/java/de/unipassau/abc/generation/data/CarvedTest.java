@@ -22,6 +22,25 @@ public class CarvedTest {
 	private ExecutionFlowGraph executionFlowGraph;
 	private DataDependencyGraph dataDependencyGraph;
 
+	/*
+	 * But to flexibly assert the occurrence of exceptional behaviors we need to
+	 * tweak the basic structure to include catch-blocks for the expected exception
+	 * (pass) and any other one (fail)
+	 */
+	private CatchBlock catchExpectedException;
+	private CatchBlock catchUnexpectedException;
+
+	// Basic Tests
+	public CarvedTest(MethodInvocation methodInvocationUnderTest, ExecutionFlowGraph executionFlowGraph,
+			DataDependencyGraph dataDependencyGraph, CatchBlock catchExpectedException,
+			CatchBlock catchUnexpectedException) {
+		this.methodInvocationUnderTest = methodInvocationUnderTest;
+		this.executionFlowGraph = executionFlowGraph;
+		this.dataDependencyGraph = dataDependencyGraph;
+		this.catchExpectedException = catchExpectedException;
+		this.catchUnexpectedException = catchUnexpectedException;
+	}
+
 	public CarvedTest(MethodInvocation methodInvocationUnderTest, ExecutionFlowGraph executionFlowGraph,
 			DataDependencyGraph dataDependencyGraph) {
 		this.methodInvocationUnderTest = methodInvocationUnderTest;
@@ -53,4 +72,26 @@ public class CarvedTest {
 		// invoke
 		return this.executionFlowGraph.getOrderedMethodInvocations();
 	}
+
+	public boolean expectException() {
+		return this.catchExpectedException != null;
+	}
+
+	public CatchBlock getExpectedExceptionCatchBlock() {
+		return this.catchExpectedException;
+
+	}
+
+	public CatchBlock getUnexpectedExceptionCatchBlock() {
+		return this.catchUnexpectedException;
+	}
+
+	public ExecutionFlowGraph getExecutionFlowGraph() {
+		return this.executionFlowGraph;
+	}
+
+	public DataDependencyGraph getDataDependencyGraph() {
+		return this.dataDependencyGraph;
+	}
+
 }

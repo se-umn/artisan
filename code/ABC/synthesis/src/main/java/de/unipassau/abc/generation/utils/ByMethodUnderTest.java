@@ -35,7 +35,7 @@ public class ByMethodUnderTest implements TestCaseOrganizer {
 
 		for (Entry<MethodInvocation, Set<CarvedTest>> testGroup : muts.entrySet()) {
 			MethodInvocation methodInvocation = testGroup.getKey();
-			TestCase testCase = new TestCase(JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature()),
+			TestCase testCase = new TestCase(JimpleUtils.getPackage(methodInvocation.getMethodSignature()),
 					JimpleUtils.getMethodName(methodInvocation.getMethodSignature()), testGroup.getValue());
 
 			testSuite.add(testCase);
