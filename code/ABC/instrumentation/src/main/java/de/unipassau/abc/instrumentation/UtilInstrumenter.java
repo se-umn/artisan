@@ -76,6 +76,19 @@ public class UtilInstrumenter {
 	}
 
 	/**
+	 * Insert the provided units after the target one but do not tag them
+	 *
+	 * @param currentlyInstrumentedMethodBodyUnitChain
+	 * @param targetStmt
+	 * @param instrumentationCode
+	 */
+	public static void instrumentAfter(PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain, Stmt targetStmt,
+			List<Unit> instrumentationCode) {
+		currentlyInstrumentedMethodBodyUnitChain.insertAfter(instrumentationCode, targetStmt);
+
+	}
+
+	/**
 	 * Returns a Pair which contains the array to pass as parameter to
 	 * monitorOnEnter and the necessary code to create it
 	 */
