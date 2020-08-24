@@ -1,0 +1,15 @@
+@SEQUENCE
+android.view.View: void setOnClickListener(android.view.View$OnClickListener)
+android.widget.TextView: java.lang.CharSequence getText()
+java.lang.CharSequence: java.lang.String toString()
+abc.basiccalculator.ResultActivity: void checkResult(java.lang.String)
+abc.basiccalculator.ResultActivity: void incrementByTwo(android.view.View)
+@SEQUENCE
+abc.basiccalculator.MainActivity: java.lang.String eval(java.lang.String)
+java.lang.Double: java.lang.Double valueOf(double)
+java.lang.Number: int intValue()
+java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)
+java.lang.StringBuilder: java.lang.String toString()
+android.widget.TextView: void setText(java.lang.CharSequence)
+abc.basiccalculator.ResultActivity: void incrementByTwo(android.view.View)
+java.lang.Throwable: java.lang.String getMessage()
