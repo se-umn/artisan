@@ -1,0 +1,11 @@
+@SEQUENCE
+abc.basiccalculator.MainActivity: void onCreate(android.os.Bundle)
+android.app.Activity: void setContentView(int)
+abc.basiccalculator.MainActivity: void sendResult(android.view.View)
+android.view.View: int getId()
+@SEQUENCE
+android.app.Activity: android.view.View findViewById(int)
+android.widget.EditText: android.text.Editable getText()
+java.lang.Object: java.lang.String toString()
+abc.basiccalculator.MainActivity: java.lang.String eval(java.lang.String)
+android.util.Log: int d(java.lang.String,java.lang.String)
