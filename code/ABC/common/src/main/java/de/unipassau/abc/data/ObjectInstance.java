@@ -65,6 +65,8 @@ public class ObjectInstance implements DataNode, Cloneable {
 			this.objectId = objectId;
 		}
 		this.type = objectId.split("@")[0];
+
+
 	}
 
 	@Override

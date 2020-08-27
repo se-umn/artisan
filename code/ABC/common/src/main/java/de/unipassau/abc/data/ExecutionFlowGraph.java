@@ -33,6 +33,8 @@ public interface ExecutionFlowGraph {
 	 */
 	public Collection<ExecutionFlowGraph> extrapolate(Collection<MethodInvocation> methodInvocations);
 
+	public void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl);
+
 	/**
 	 * Return a new subgraph that contains all the given methodInvocations enqueued
 	 * in the same order they are given. This effectively creates another graph

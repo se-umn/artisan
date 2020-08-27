@@ -21,59 +21,61 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	public boolean alreadyCarved = false;
 
 	// Unique id of the method invocation
-	private int invocationCount;
+	protected int invocationCount;
 	// Signature of the method
-	private String methodSignature;
+	protected String methodSignature;
 	// Method owner (null if static)
-	private ObjectInstance owner;
+	protected ObjectInstance owner;
 	// List of the actual parameters
-	private List<DataNode> actualParameterInstances;
+	protected List<DataNode> actualParameterInstances;
 	// return value if any
-	private DataNode returnValue;
+	protected DataNode returnValue;
 
 	/// The following might not be used ... TODO Check what we need !
 	@Deprecated
-	private String[] actualParameters;
+	protected String[] actualParameters;
 
 	@Deprecated // TODO WHAT'S THIS ?
-	private String invocationType;
+	protected String invocationType;
 	@Deprecated
-	private String xmlFileForOwner; // This stores the owner value status AFTER
+	protected String xmlFileForOwner; // This stores the owner value status AFTER
 
 	@Deprecated // calling this method
-	private String xmlFileForReturn; // This stores the return value status
+	protected String xmlFileForReturn; // This stores the return value status
 										// AFTER calling this method
 
 	// This is to include comments in the final
 	@Deprecated
-	private int distanceFromMain;
+	protected int distanceFromMain;
 
 	// Todo TAG this method invocation as being part of external libraries
 	// instead of applications
 	@Deprecated
-	private boolean belongToExternalInterface;
+	protected boolean belongToExternalInterface;
 
-	private boolean isPrivate = false;
+	protected boolean isPrivate = false;
 
 	// why we need this if we have owner?
 
-	private boolean staticCall;
+	protected boolean staticCall;
 
 	@Deprecated
-	private boolean isTestSetupCall;
+	protected boolean isTestSetupCall;
 
-	private boolean isLibraryCall;
+	protected boolean isLibraryCall;
 
-	private boolean isConstructor;
-
-	@Deprecated
-	private boolean isAndroidActivityCallback;
-
-	@Deprecated
-	private boolean isAndroidFragmentCallback;
+	protected boolean isConstructor;
 
 	public MethodInvocation clone() {
-		MethodInvocation cloned = new MethodInvocation(invocationCount, methodSignature);
+		MethodInvocation cloned = null;
+		try {
+			cloned = (MethodInvocation) super.clone();
+		} catch (CloneNotSupportedException e) {
+			throw new RuntimeException(e);
+		}
+		cloned.invocationCount = invocationCount;
+		cloned.methodSignature = methodSignature;
+		//MethodInvocation cloned = new MethodInvocation(invocationCount, methodSignature);
 
 		if (actualParameterInstances != null) {
 			cloned.actualParameterInstances = actualParameterInstances.stream().map(new Function<DataNode, DataNode>() {
@@ -337,114 +339,18 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		this.returnValue = returnValue;
 	}
 
-	/**
-	 * 
-	 * https://developer.android.com/guide/components/activities/activity-lifecycle
-	 * 
-	 * NOTE: Not all the methods might be implemented...
-	 * 
-	 * onCreate(): In the onCreate() method, you perform basic application startup
-	 * logic that should happen only once for the entire life of the activity. This
-	 * method receives the parameter savedInstanceState, which is a Bundle object
-	 * containing the activity's previously saved state. If the activity has never
-	 * existed before, the value of the Bundle object is null.
-	 *
-	 * >> Relevant properties of the bundle are accessed by calling getXXX methods
-	 * while putXXX methods are used to store the state. Hence, in theory, carving
-	 * the bundle objects might be enough to "drive" the activity in a specific
-	 * state.
-	 * 
-	 * </br>
-	 * onStart(): The onStart() call makes the activity visible to the user, as the
-	 * app prepares for the activity to enter the foreground and become interactive.
-	 * he onStart() method completes very quickly and, as with the Created state,
-	 * the activity does not stay resident in the Started state. Once this callback
-	 * finishes, the activity enters the Resumed state, and the system invokes the
-	 * onResume() method.
-	 * 
-	 * >> This means we can chain onStart and onResume basically always...
-	 * 
-	 * </br>
-	 * onResume(): . This is the state in which the app interacts with the user. The
-	 * app stays in this state until something happens to take focus away from the
-	 * app. Such an event might be, for instance, receiving a phone call, the user’s
-	 * navigating to another activity, or the device screen’s turning off.
-	 * 
-	 * Visible and active in the foreground
-	 * 
-	 * If the activity returns to the Resumed state from the Paused state, the
-	 * system once again calls onResume() method.
-	 * 
-	 * >> Regardless of which build-up event you choose to perform an initialization
-	 * operation in, make sure to use the corresponding lifecycle event to release
-	 * the resource.
-	 * 
-	 * >> Assertions specific to Activity lifecycle?
-	 * 
-	 * </br>
-	 * 
-	 * onPause(): When an interruptive event occurs, the activity enters the Paused
-	 * state, and the system invokes the onPause() callback. user is leaving your
-	 * activity (though it does not always mean the activity is being destroyed); it
-	 * indicates that the activity is no longer in the foreground (though it may
-	 * still be visible if the user is in multi-window mode).
-	 * 
-	 * 
-	 * onPause() execution is very brief, and does not necessarily afford enough
-	 * time to perform save operations. For this reason, you should not use
-	 * onPause() to save application or user data, make network calls, or execute
-	 * database transactions; such work may not complete before the method
-	 * completes. Instead, you should perform heavy-load shutdown operations during
-	 * onStop().
-	 *
-	 * >> Will this generate flaky tests?
-	 * 
-	 * </br>
-	 * onStop(): When your activity is no longer visible to the user, it has entered
-	 * the Stopped state, and the system invokes the onStop() callback. This may
-	 * occur, for example, when a newly launched activity covers the entire screen.
-	 * The system may also call onStop() when the activity has finished running, and
-	 * is about to be terminated.
-	 * 
-	 * 
-	 * </br>
-	 * onDestroy(): onDestroy() is called before the activity is destroyed.
-	 * 
-	 * </br>
-	 * 
-	 * onRestart()</br>
-	 * 
-	 * 
-	 * @return
-	 */
-	public boolean isAndroidActivityCallback() {
-		return this.isAndroidActivityCallback;
-	}
+	protected boolean isSynthetic = false;
 
-	public void setAndroidActivityCallback(boolean isAndroidActivityCallback) {
-		this.isAndroidActivityCallback = isAndroidActivityCallback;
-	}
+	protected boolean isPublic;
 
-	public boolean isAndroidFragmentCallback() {
-		return this.isAndroidFragmentCallback;
-	}
+	protected boolean isProtected;
 
-	public void setAndroidFragmentCallback(boolean isAndroidFragmentCallback) {
-		this.isAndroidFragmentCallback = isAndroidFragmentCallback;
-	}
-
-	private boolean isSynthetic = false;
-
-	private boolean isPublic;
-
-	private boolean isProtected;
-
-	private boolean isExceptional;
+	protected boolean isExceptional;
 
 	// Must be an object... cannot be a primitive type
-	private ObjectInstance raisedException;
+	protected ObjectInstance raisedException;
 
-	private boolean isNecessary;
+	protected boolean isNecessary;
 
 	public void setSyntheticMethod(boolean synthetic) {
 		this.isSynthetic = synthetic;
