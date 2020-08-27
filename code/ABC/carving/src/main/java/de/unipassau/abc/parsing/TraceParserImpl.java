@@ -33,7 +33,7 @@ import soot.SootMethod;
  * is a background thread that execute a single task (and dies) - Any other
  * thread name indicates some background service.
  * 
- * Calls are interpreted using the tokens defined by {@link Monitor.class}
+ * Calls are interpreted using the tokens defined by {@link de.unipassau.abc.instrumentation.Monitor}
  * 
  * To account for multiple thread, use the thread name as context and the actual
  * position in the file as id (they get interleaved but are still ordered!)
@@ -261,7 +261,6 @@ public class TraceParserImpl extends TraceParser {
 	}
 
 	public void parseMethodInvocation_OLD(AtomicInteger globalInvocationCount, ParsedLine tokens) throws ABCException {
-
 		try {
 
 			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> local = getOrInitializeDataStructure(

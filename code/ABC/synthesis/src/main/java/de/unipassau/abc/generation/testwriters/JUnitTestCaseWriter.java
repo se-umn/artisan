@@ -1,19 +1,6 @@
 package de.unipassau.abc.generation.testwriters;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
-import org.apache.commons.lang.NotImplementedException;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static com.github.javaparser.StaticJavaParser.parseClassOrInterfaceType;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
@@ -37,7 +24,6 @@ import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
-
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.DataNode;
 import de.unipassau.abc.data.ExecutionFlowGraph;
@@ -55,6 +41,20 @@ import de.unipassau.abc.generation.utils.TestCase;
 import de.unipassau.abc.generation.utils.TestCaseOrganizer;
 import de.unipassau.abc.generation.utils.TypeUtils;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import org.apache.commons.lang.NotImplementedException;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Generate the source code implementing the carved tests as tests were
@@ -118,9 +118,9 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 		}
 		if (requiresRobolectricTestRunner) {
 			// https://stackoverflow.com/questions/36082370/i-need-both-robolectric-and-mockito-in-my-test-each-one-proposes-their-own-test
-			ClassOrInterfaceType robolectricTestRunner = new ClassOrInterfaceType("RobolectricTestRunner");
-			testClass.addSingleMemberAnnotation(RunWith.class, robolectricTestRunner.getNameAsExpression());
-
+			cu.addImport(RobolectricTestRunner.class);
+			ClassOrInterfaceType robolectricTestRunner = parseClassOrInterfaceType("RobolectricTestRunner");
+			testClass.addSingleMemberAnnotation(RunWith.class, robolectricTestRunner.getNameAsString() + ".class");
 		}
 
 		// TODO Create imports

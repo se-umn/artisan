@@ -73,6 +73,8 @@ public interface DataDependencyGraph {
 
 	public void addMethodInvocationWithoutAnyDependency(MethodInvocation controllerLifecycleMethod);
 
+	public void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl);
+
 	public void summarize(ExecutionFlowGraph executionFlowGraph);
 
 	public Set<ObjectInstance> getAliasesOf(ObjectInstance owner);

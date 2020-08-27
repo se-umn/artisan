@@ -60,7 +60,6 @@ public class CarvedTest {
 	public Set<ObjectInstance> getObjectInstances() {
 		// This might not return what do we expect...
 		return new HashSet<ObjectInstance>(dataDependencyGraph.getObjectInstances());
-
 	}
 
 	// The list of statements that make up the entire test (setup, invocation, and

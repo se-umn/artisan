@@ -17,8 +17,9 @@ public class ByAllTestsTogether implements TestCaseOrganizer {
 	@Override
 	public Set<TestCase> organize(CarvedTest... carvedTests) {
 
-		Set<TestCase> testSuite = new HashSet<TestCase>();
-		TestCase testCase = new TestCase("all", "AllCarvedTests", new HashSet<CarvedTest>(Arrays.asList(carvedTests)));
+		Set<TestCase> testSuite = new HashSet<>();
+		TestCase testCase = new TestCase("all", "AllCarvedTests",
+				new HashSet<>(Arrays.asList(carvedTests)));
 		testSuite.add(testCase);
 
 		return testSuite;

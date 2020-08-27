@@ -26,6 +26,8 @@ public interface CallGraph {
 	@Deprecated
 	void visualize();
 
+	void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl);
+
 	List<MethodInvocation> getOrderedSubsumingMethodInvocationsFor(MethodInvocation methodInvocationUnderTest);
 
 	/**
