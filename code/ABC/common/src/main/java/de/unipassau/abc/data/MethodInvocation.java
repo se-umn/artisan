@@ -75,7 +75,8 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		}
 		cloned.invocationCount = invocationCount;
 		cloned.methodSignature = methodSignature;
-		//MethodInvocation cloned = new MethodInvocation(invocationCount, methodSignature);
+		// MethodInvocation cloned = new MethodInvocation(invocationCount,
+		// methodSignature);
 
 		if (actualParameterInstances != null) {
 			cloned.actualParameterInstances = actualParameterInstances.stream().map(new Function<DataNode, DataNode>() {
@@ -227,7 +228,6 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	}
 
 	public void setXmlDumpForOwner(String xmlFile) {
-		logger.trace("MethodInvocation.setXmlDumpForOwner() " + xmlFile + " for " + this);
 		this.xmlFileForOwner = xmlFile;
 	}
 
@@ -236,7 +236,6 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	}
 
 	public void setXmlDumpForReturn(String xmlFile) {
-		logger.trace("MethodInvocation.setXmlDumpForReturn() " + xmlFile + " for " + this);
 		this.xmlFileForReturn = xmlFile;
 	}
 

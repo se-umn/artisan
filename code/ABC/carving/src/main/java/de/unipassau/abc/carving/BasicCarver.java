@@ -23,15 +23,23 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Basic carver is a method carver, that is, it will produce a carved execution
- * whose last element is the invocation of the given method or methods
+ * which assure the target methos is invoked. However, this does not necessary
+ * mean that the target method will be visible inside the test case. This is the
+ * case for example of a method invocation that is subsumed by another method
+ * invocations from the same object instance.
  * 
  * 
  * @author gambitemp
  *
  */
 public class BasicCarver implements MethodCarver {
+
+	private final static Logger logger = LoggerFactory.getLogger(BasicCarver.class);
 
 	private ExecutionFlowGraph executionFlowGraph;
 	private DataDependencyGraph dataDependencyGraph;
@@ -51,7 +59,14 @@ public class BasicCarver implements MethodCarver {
 	 * <ol>
 	 * <li>Locate the method invocation in the graph and its owner</li>
 	 * <li>Collect the method invocations on the same owner (if any) that happen
-	 * before the target method invocation</li>
+	 * before the target method invocation
+	 * <ul>
+	 * <li>- What happens if the target method is subsumed by another method of the
+	 * same instance?</li>
+	 * </ul>
+	 * 
+	 * </li>
+	 *
 	 * <li>Collect the object instances that have been used as parameters for each
 	 * of those method invocations</li>
 	 * <li>For each object instance, collects all the method invocations that have
@@ -193,13 +208,12 @@ public class BasicCarver implements MethodCarver {
 		 * TODO Assumption: addAll does not replace the objects that are ALREADY inside
 		 * the set, we need this to propagate the "isNecessary" tag.
 		 */
-		necessaryMethodInvocations
-				.addAll(allMethodInvocations.stream().map(t -> {
-					// Create a clone and mark it as necessary
-					MethodInvocation clonedMethodInvocation = t.clone();
-					clonedMethodInvocation.setNecessary(true);
-					return clonedMethodInvocation;
-				}).collect(Collectors.toSet()));
+		necessaryMethodInvocations.addAll(allMethodInvocations.stream().map(t -> {
+			// Create a clone and mark it as necessary
+			MethodInvocation clonedMethodInvocation = t.clone();
+			clonedMethodInvocation.setNecessary(true);
+			return clonedMethodInvocation;
+		}).collect(Collectors.toSet()));
 
 		/*
 		 * Next extract from the traces those fragments (connected components?) that
