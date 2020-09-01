@@ -34,9 +34,31 @@ import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.exceptions.NotALevel0TestCaseException;
 
-public class Full_Level_0_MethodCarver implements MethodCarver {
+/**
+ * 
+ * This carver makes no use of primitive method and does not rely on knowledge
+ * about the internals of the CUT. 
+ * 
+ * We generate several test cases for the same MUT if the parameters comes from
+ * different level (see https://en.wikipedia.org/wiki/Law_of_Demeter) up to the
+ * level of the current MUT ?
+ * 
+ * The point is: a parameter is generated and modified at some location, and we
+ * need to get it. We can either replicate all the invocations on it (and the
+ * ones needed there) but also we can go up one level, and invoke whatever
+ * method provided that instance (at last) as return value
+ * 
+ * We create a new test for method which return any parameters handled by MUT.
+ * This can be simply done by including that method before removing subsumed
+ * calls
+ * 
+ * @param methodInvocationToCarve
+ * @return
+ * @throws CarvingException
+ */
+public class ObjectAPIMethodCarver implements MethodCarver {
 
-	private final Logger logger = LoggerFactory.getLogger(Full_Level_0_MethodCarver.class);
+	private final Logger logger = LoggerFactory.getLogger(ObjectAPIMethodCarver.class);
 
 	private ExecutionFlowGraph executionFlowGraph;
 	private DataDependencyGraph dataDependencyGraph;
@@ -60,7 +82,7 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 	 * @param dataDependencyGraph
 	 * @param callGraph
 	 */
-	public Full_Level_0_MethodCarver(ExecutionFlowGraph executionFlowGraph, DataDependencyGraph dataDependencyGraph,
+	public ObjectAPIMethodCarver(ExecutionFlowGraph executionFlowGraph, DataDependencyGraph dataDependencyGraph,
 			CallGraph callGraph) {
 		super();
 		this.executionFlowGraph = executionFlowGraph;
@@ -68,28 +90,6 @@ public class Full_Level_0_MethodCarver implements MethodCarver {
 		this.callGraph = callGraph;
 	}
 
-	/**
-	 * 
-	 * Level 0 means that we cannot invoke any primitive method or rely on knowledge
-	 * about the internals of the CUT
-	 * 
-	 * We generate several test cases for the same MUT if the parameters comes from
-	 * different level (see https://en.wikipedia.org/wiki/Law_of_Demeter) up to the
-	 * level of the current MUT ?
-	 * 
-	 * The point is: a parameter is generated and modified at some location, and we
-	 * need to get it. We can either replicate all the invocations on it (and the
-	 * ones needed there) but also we can go up one level, and invoke whatever
-	 * method provided that instance (at last) as return value
-	 * 
-	 * We create a new test for method which return any parameters handled by MUT.
-	 * This can be simply done by including that method before removing subsumed
-	 * calls
-	 * 
-	 * @param methodInvocationToCarve
-	 * @return
-	 * @throws CarvingException
-	 */
 	public List<CarvedExecution> carve(MethodInvocation methodInvocationToCarve) throws CarvingException {
 
 		// Build the context for the carving. At the beginning the context IS
