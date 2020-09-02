@@ -45,7 +45,10 @@ public class MainActivity extends Activity {
 
     }
 
-    private String eval(String input) {
+    /**
+        This method was originally private, not it is public only to illustrate how carving can deal with hidden methods (see #167)
+     */
+    public String eval(String input) {
         String result = "";
         if (input.isEmpty()) {
             return null;

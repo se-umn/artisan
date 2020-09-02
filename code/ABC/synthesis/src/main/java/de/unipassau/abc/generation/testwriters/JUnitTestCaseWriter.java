@@ -302,7 +302,9 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 			methodCallExpr.addArgument(getParameterFor(parameter, methodBody));
 		}
 
-		if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())) {
+		// If a method is exceptional it cannot return a value despite it is non-void
+		if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())
+				&& !methodInvocation.isExceptional()) {
 			// Generate the left side of the invocation. We store values into new variables
 			// no matter what ?
 			declareVariableFor(methodInvocation.getReturnValue(), methodBody, methodCallExpr);
