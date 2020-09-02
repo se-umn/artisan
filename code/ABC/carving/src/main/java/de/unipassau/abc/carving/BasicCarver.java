@@ -27,12 +27,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Basic carver is a method carver, that is, it will produce a carved execution
- * which assure the target methos is invoked. However, this does not necessary
- * mean that the target method will be visible inside the test case. This is the
- * case for example of a method invocation that is subsumed by another method
- * invocations from the same object instance.
- * 
+ * Basic carver is a method carver. It produces a carved execution that assures
+ * the target method is invoked just as it was during the original execution.
+ * This does not include ensuring that this method invocation will be directly
+ * visible
  * 
  * @author gambitemp
  *
@@ -144,8 +142,7 @@ public class BasicCarver implements MethodCarver {
 
 		// Sort the method invocations so the last one would leverage that the first
 		// have been carved already.
-		List<MethodInvocation> orderedRelevantMethodInvocations = new ArrayList<>(
-				relevantMethodInvocations);
+		List<MethodInvocation> orderedRelevantMethodInvocations = new ArrayList<>(relevantMethodInvocations);
 		Collections.sort(orderedRelevantMethodInvocations);
 
 		for (MethodInvocation relevantMethodInvocation : orderedRelevantMethodInvocations) {
@@ -204,16 +201,14 @@ public class BasicCarver implements MethodCarver {
 		 * invocations obtained by cloning the subsumed method invocations. Since the
 		 * hash and equalsTo function have been re-defined for the MethodInvocation, it
 		 * should hold that 'a.equals(a.clone())'
-		 * 
-		 * TODO Assumption: addAll does not replace the objects that are ALREADY inside
-		 * the set, we need this to propagate the "isNecessary" tag.
 		 */
-		necessaryMethodInvocations.addAll(allMethodInvocations.stream().map(t -> {
-			// Create a clone and mark it as necessary
-			MethodInvocation clonedMethodInvocation = t.clone();
-			clonedMethodInvocation.setNecessary(true);
-			return clonedMethodInvocation;
-		}).collect(Collectors.toSet()));
+		necessaryMethodInvocations.addAll(allMethodInvocations.stream()
+				.filter(mi -> !necessaryMethodInvocations.contains(mi)).map(t -> {
+					// Create a clone and mark it as necessary
+					MethodInvocation clonedMethodInvocation = t.clone();
+//					clonedMethodInvocation.setNecessary(true);
+					return clonedMethodInvocation;
+				}).collect(Collectors.toSet()));
 
 		/*
 		 * Next extract from the traces those fragments (connected components?) that
@@ -222,12 +217,12 @@ public class BasicCarver implements MethodCarver {
 		 */
 
 		CarvedExecution carvedExecution = new CarvedExecution();
+		//
 		carvedExecution.executionFlowGraphs = this.executionFlowGraph.extrapolate(necessaryMethodInvocations);
 		carvedExecution.dataDependencyGraphs = this.dataDependencyGraph.extrapolate(necessaryMethodInvocations);
 		carvedExecution.callGraphs = this.callGraph.extrapolate(necessaryMethodInvocations);
 		carvedExecution.methodInvocationUnderTest = methodInvocation;
-		
-		
+
 		carvedExecutions.add(carvedExecution);
 
 		return carvedExecutions;

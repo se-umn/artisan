@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +16,7 @@ import de.unipassau.abc.carving.BasicCarver;
 import de.unipassau.abc.carving.CarvedExecution;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.AndroidMethodInvocation;
+import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.DataDependencyGraphImpl;
 import de.unipassau.abc.data.DataNode;
@@ -84,7 +86,7 @@ public class BasicTestGenerator implements TestGenerator {
 		 * execution?).
 		 *
 		 */
-		List<MethodInvocation> directlyCallableMethodInvocations = new ArrayList<>();
+		final List<MethodInvocation> directlyCallableMethodInvocations = new ArrayList<>();
 		carvedExecution.callGraphs.forEach(callGraph -> directlyCallableMethodInvocations.addAll(callGraph.getRoots()));
 
 		/*
@@ -92,6 +94,53 @@ public class BasicTestGenerator implements TestGenerator {
 		 * target method invocation the test needs some adjustment. For the moment,
 		 * simply raise an exception.
 		 */
+		if (!directlyCallableMethodInvocations.stream()
+				.anyMatch(mi -> mi.equals(carvedExecution.methodInvocationUnderTest))) {
+
+			// Try to recover this test? Or maybe this is an actual feature of the CARVER ?
+			/*
+			 * Recovery works as follow. Recursively replace the invocation of a parent
+			 * method with its execution until the mehtod invocation under test becomes
+			 * visible again. Next, remove the "un-necessary" method invocations from the
+			 * carve execution.
+			 */
+
+			CallGraph callGraph = carvedExecution.getCallGraphContainingTheMethodInvocationUnderTest();
+
+			// Reverse iteration
+			List<MethodInvocation> methodsSubsumingMethodInvocationUnderTest = callGraph
+					.getOrderedSubsumingMethodInvocationsFor(carvedExecution.methodInvocationUnderTest);
+			ListIterator<MethodInvocation> listIterator = methodsSubsumingMethodInvocationUnderTest
+					.listIterator(methodsSubsumingMethodInvocationUnderTest.size());
+
+			while (listIterator.hasPrevious()) {
+				MethodInvocation methodInvocationToReplace = listIterator.previous();
+				callGraph.replaceMethodInvocationWithExecution(methodInvocationToReplace);
+			}
+
+			/*
+			 * At this point we should get rid of the method invocations that became visible
+			 * after replacing their caller but are not strictly necessary for carving, but
+			 * have been included only because subsumed
+			 */
+
+			// THIS PROBABLY CAN BE DONE WITH SOME reduce/map magic...
+			List<MethodInvocation> unecessaryMethodInvocations = callGraph.getRoots().stream()
+					.filter(mi -> !mi.isNecessary()).collect(Collectors.toList());
+			for (MethodInvocation removeMe : unecessaryMethodInvocations) {
+				/*
+				 * Remove unnecessary method invocations and all the method invocations that are
+				 * subsumed from it
+				 */
+				callGraph.remove(removeMe);
+			}
+
+		}
+
+		// Check if, after the recovery, the metho under test is still not visible...
+		// THIS SHOULD NOT BE EVER POSSIBLE...
+		directlyCallableMethodInvocations.clear();
+		carvedExecution.callGraphs.forEach(callGraph -> directlyCallableMethodInvocations.addAll(callGraph.getRoots()));
 		if (!directlyCallableMethodInvocations.stream()
 				.anyMatch(mi -> mi.equals(carvedExecution.methodInvocationUnderTest))) {
 			throw new CarvingException("Target method invocation " + carvedExecution.methodInvocationUnderTest
@@ -104,7 +153,9 @@ public class BasicTestGenerator implements TestGenerator {
 		for (MethodInvocation directlyCallableMethodInvocation : directlyCallableMethodInvocations) {
 			if (directlyCallableMethodInvocation.isPrivate()) {
 				// TODO Describe
-				throw new CarvingException("Carved tests cannot make use of PRIVATE methods!");
+				throw new CarvingException(
+						"Carved tests cannot make use of PRIVATE methods! Offending method invocation: "
+								+ directlyCallableMethodInvocation);
 			}
 		}
 
@@ -125,7 +176,11 @@ public class BasicTestGenerator implements TestGenerator {
 			if (!methodInvocation.isStatic()) {
 				dataDependencyGraph.addDataDependencyOnOwner(methodInvocation, methodInvocation.getOwner());
 			}
-			if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())) {
+			/*
+			 * If the method invocation is exceptional, there's no return type there !
+			 */
+			if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())
+					&& !methodInvocation.isExceptional()) {
 				dataDependencyGraph.addDataDependencyOnReturn(methodInvocation, methodInvocation.getReturnValue());
 			}
 

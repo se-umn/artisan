@@ -23,12 +23,31 @@ public interface CallGraph {
 	 */
 	public Set<MethodInvocation> getRoots();
 
-	@Deprecated
-	void visualize();
+	/**
+	 * Replace a method invocation with another one ensuring that the connections of
+	 * the nodes (edges) are semantically preserved
+	 * 
+	 * @param orig
+	 * @param repl
+	 */
+	public void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl);
 
-	void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl);
+	/**
+	 * Replace a method invocation with its executions. Basically, it flatten the
+	 * call graph by removing the nesting
+	 * 
+	 * @param methodInvocationToReplace
+	 */
+	public void replaceMethodInvocationWithExecution(MethodInvocation methodInvocationToReplace);
 
-	List<MethodInvocation> getOrderedSubsumingMethodInvocationsFor(MethodInvocation methodInvocationUnderTest);
+	/**
+	 * Return the list of the methods that from the root of the call graph arrive to
+	 * the given method invocation ordered by the call relation.
+	 * 
+	 * @param methodInvocationUnderTest
+	 * @return
+	 */
+	public List<MethodInvocation> getOrderedSubsumingMethodInvocationsFor(MethodInvocation methodInvocationUnderTest);
 
 	/**
 	 * Return the set of method invocations that will be invoked if the given method
@@ -78,6 +97,16 @@ public interface CallGraph {
 	 */
 	public Collection<CallGraph> extrapolate(Set<MethodInvocation> necessaryMethodInvocations);
 
+	@Deprecated
+	void visualize();
 //	
+
+	/**
+	 * Remove a node from the call graph including all the nodes that are reachable
+	 * from it.
+	 * 
+	 * @param node
+	 */
+	public void remove(MethodInvocation node);
 
 }
