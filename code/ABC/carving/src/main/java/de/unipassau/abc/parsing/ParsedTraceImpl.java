@@ -35,18 +35,6 @@ public class ParsedTraceImpl implements ParsedTrace {
 	}
 
 	@Override
-	public void reset() {
-		for (Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> partial : this.content.values()) {
-			// Having this into a single place instead of duplicate info would have
-			// helped...
-			partial.getFirst().reset();
-			partial.getSecond().reset();
-			partial.getThird().reset();
-		}
-
-	}
-
-	@Override
 	public Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> getUIThreadParsedTrace() {
 		return getThreadParsedTraceFor(MAIN_THREAD);
 	}

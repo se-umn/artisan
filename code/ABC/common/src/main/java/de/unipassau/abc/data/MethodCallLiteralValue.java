@@ -8,7 +8,8 @@ import java.util.stream.Collectors;
 import soot.Value;
 
 /**
- * What's this ?
+ * What's this ? This is something we might need for mocking objects... smells
+ * like an reflective object
  * 
  * @author gambitemp
  *
@@ -62,6 +63,11 @@ public class MethodCallLiteralValue implements ValueNode, Cloneable {
 
 	@Override
 	public Value getData() {
+		throw new RuntimeException("Not implemented");
+	}
+
+	@Override
+	public String getType() {
 		throw new RuntimeException("Not implemented");
 	}
 

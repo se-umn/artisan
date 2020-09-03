@@ -8,7 +8,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -38,6 +37,7 @@ import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
  * objects are Immutable...
  *
  * @author gambi
+ *
  */
 public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 
@@ -59,12 +59,6 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 	// TODO Why we need this information at this point if we update the method
 	// invocations. Because the graph return shallow copies of the objects maybe
 	// ?!
-
-	public void reset() {
-		for (MethodInvocation mi : graph.getVertices()) {
-			mi.alreadyCarved = false;
-		}
-	}
 
 	public void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl) {
 		MethodInvocation originalMethodInvocation = graph.getVertices().stream()
@@ -271,9 +265,9 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 		return getMethodInvocationsBefore(methodInvocation, includeTheGivenMethodInvocation, predicate);
 	}
 
-	public int getPositionOf(MethodInvocation methodInvocation) {
-		return getOrderedMethodInvocations().indexOf(methodInvocation);
-	}
+  public int getPositionOf(MethodInvocation methodInvocation) {
+    return getOrderedMethodInvocations().indexOf(methodInvocation);
+  }
 
 	public Set<MethodInvocation> getMethodInvocationsBefore(MethodInvocation methodInvocation, boolean inclusive,
 			Predicate<MethodInvocation> predicate) {
@@ -354,9 +348,8 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 		// Sort them. Method invocation implements comparable
 		Collections.sort(orderedMethodInvocationsAfter);
 
-		if (orderedMethodInvocationsAfter.isEmpty() || orderedMethodInvocationsAfter.size() == 1) {
+		if (orderedMethodInvocationsAfter.isEmpty() || orderedMethodInvocationsAfter.size() == 1)
 			return orderedMethodInvocationsAfter;
-		}
 
 		// Find the position of the given mi
 		int position = orderedMethodInvocationsAfter.indexOf(methodInvocation);
@@ -560,32 +553,25 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj) {
+		if (this == obj)
 			return true;
-		}
-		if (obj == null) {
+		if (obj == null)
 			return false;
-		}
-		if (getClass() != obj.getClass()) {
+		if (getClass() != obj.getClass())
 			return false;
-		}
 		ExecutionFlowGraphImpl other = (ExecutionFlowGraphImpl) obj;
 
 		if (firstMethodInvocation == null) {
-			if (other.firstMethodInvocation != null) {
+			if (other.firstMethodInvocation != null)
 				return false;
-			}
-		} else if (!firstMethodInvocation.equals(other.firstMethodInvocation)) {
+		} else if (!firstMethodInvocation.equals(other.firstMethodInvocation))
 			return false;
-		}
 		//
 		if (lastMethodInvocation == null) {
-			if (other.lastMethodInvocation != null) {
+			if (other.lastMethodInvocation != null)
 				return false;
-			}
-		} else if (!lastMethodInvocation.equals(other.lastMethodInvocation)) {
+		} else if (!lastMethodInvocation.equals(other.lastMethodInvocation))
 			return false;
-		}
 		//
 		return GraphUtility.areExecutionGraphsEqual(graph, other.graph);
 	}
@@ -618,10 +604,10 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 	 * cloned from the original graph. TODO Re
 	 */
 	public Collection<ExecutionFlowGraph> extrapolate(Collection<MethodInvocation> methodInvocations) {
-		Collection<ExecutionFlowGraph> extrapolatedGraphs = new ArrayList<ExecutionFlowGraph>();
+		Collection<ExecutionFlowGraph> extrapolatedGraphs = new ArrayList<>();
 
 		// we store here all the data and then obtain the components from here
-		Graph<MethodInvocation, String> union = new DirectedSparseMultigraph<MethodInvocation, String>();
+		Graph<MethodInvocation, String> union = new DirectedSparseMultigraph<>();
 
 		// Add all the nodes - clone them in the process
 		for (MethodInvocation methodInvocation : methodInvocations) {
@@ -701,21 +687,15 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 
 	public Set<MethodInvocation> getMethodInvocationsToExternalInterfaceBefore(
 			MethodInvocation methodInvocationToCarve) {
-		return new HashSet<MethodInvocation>(
-				getOrderedMethodInvocationsToExternalInterfaceBefore(methodInvocationToCarve));
+		return new HashSet<>(
+        getOrderedMethodInvocationsToExternalInterfaceBefore(methodInvocationToCarve));
 	}
 
 	public List<MethodInvocation> getOrderedMethodInvocationsToExternalInterfaceBefore(
 			MethodInvocation methodInvocationToCarve) {
 		List<MethodInvocation> all = new ArrayList<>(getOrderedMethodInvocationsBefore(methodInvocationToCarve));
 		// Now remove everything not an external interface
-		Iterator<MethodInvocation> iterator = all.iterator();
-		while (iterator.hasNext()) {
-			MethodInvocation methodInvocation = iterator.next();
-			if (!methodInvocation.belongsToExternalInterface()) {
-				iterator.remove();
-			}
-		}
+    all.removeIf(methodInvocation -> !methodInvocation.belongsToExternalInterface());
 		return all;
 	}
 

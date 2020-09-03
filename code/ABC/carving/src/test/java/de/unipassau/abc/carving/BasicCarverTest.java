@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.util.List;
 
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -49,12 +48,6 @@ public class BasicCarverTest {
 		parsedTrace = parser.parseTrace(traceFile);
 	}
 
-	@Before
-	public void resetParsedTrace() {
-		// Ensures we reset the isAlreadyCarved flag
-		parsedTrace.reset();
-	}
-
 	@Test
 	public void testCarvingNoArgsConstructor() throws FileNotFoundException, IOException, ABCException {
 		// Basic Carver gets' only a sigle structre
@@ -79,6 +72,25 @@ public class BasicCarverTest {
 
 //		Assert.assertThat(actual, is(expected));
 	}
+
+	@Test
+	public void testCarveIntentPutExtra() throws FileNotFoundException, IOException, ABCException {
+		// Basic Carver gets' only a sigle structre
+		BasicCarver carver = new BasicCarver(parsedTrace);
+
+		// The first method invocation is the constructor of the Main Activity
+		MethodInvocation mainActivityConstructor = parsedTrace.getUIThreadParsedTrace().getFirst()
+				.getOrderedMethodInvocations().get(0);
+
+		List<CarvedExecution> carvedExecutions = carver.carve(mainActivityConstructor);
+
+		// Assert there's only one carved execution
+		Assert.assertEquals(1, carvedExecutions.size());
+		// Assert that this execution containt ONLY the targetMethodInvocation
+		CarvedExecution carvedExecution = carvedExecutions.iterator().next();
+
+	}
+
 //
 //	@Test
 //	public void testCarvingMainActivityOnCreate() throws FileNotFoundException, IOException, ABCException {

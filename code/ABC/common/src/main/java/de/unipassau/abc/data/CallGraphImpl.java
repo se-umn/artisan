@@ -34,14 +34,8 @@ public class CallGraphImpl implements CallGraph {
 	private Stack<MethodInvocation> stack;
 
 	public CallGraphImpl() {
-		graph = new DirectedSparseMultigraph<MethodInvocation, String>();
-		stack = new Stack<MethodInvocation>();
-	}
-
-	public void reset() {
-		for (MethodInvocation mi : graph.getVertices()) {
-			mi.alreadyCarved = false;
-		}
+		graph = new DirectedSparseMultigraph<>();
+		stack = new Stack<>();
 	}
 
 	public void push(MethodInvocation methodInvocation) {
@@ -95,9 +89,9 @@ public class CallGraphImpl implements CallGraph {
 
 	public void visualize() {
 		VisualizationViewer<MethodInvocation, String> vv = new VisualizationViewer<>(
-				// new TreeLayout<>((Forest<MethodInvocation, String> )graph));
-				// // Does not work..
-				new KKLayout<>(graph));
+        // new TreeLayout<>((Forest<MethodInvocation, String> )graph));
+        // // Does not work..
+        new KKLayout<>(graph));
 
 		vv.setPreferredSize(new Dimension(1000, 800));
 		vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller() {
@@ -113,18 +107,18 @@ public class CallGraphImpl implements CallGraph {
 			}
 		});
 		vv.getRenderContext().setVertexFillPaintTransformer((Function<GraphNode, Paint>) node -> {
-			if (node instanceof ValueNode) {
-				// TODO Not sure we can skip the visualization at all...
-				return Color.YELLOW;
-			} else if (node instanceof ObjectInstance) {
-				return Color.GREEN;
-			} else if (node instanceof MethodInvocation) {
-				MethodInvocation methodInvocation = (MethodInvocation) node;
-				return (methodInvocation.getInvocationType().equals("StaticInvokeExpr")) ? Color.ORANGE : Color.RED;
-			} else {
-				return Color.BLUE;
-			}
-		});
+      if (node instanceof ValueNode) {
+        // TODO Not sure we can skip the visualization at all...
+        return Color.YELLOW;
+      } else if (node instanceof ObjectInstance) {
+        return Color.GREEN;
+      } else if (node instanceof MethodInvocation) {
+        MethodInvocation methodInvocation = (MethodInvocation) node;
+        return (methodInvocation.getInvocationType().equals("StaticInvokeExpr")) ? Color.ORANGE : Color.RED;
+      } else {
+        return Color.BLUE;
+      }
+    });
 
 		JFrame frame = new JFrame("Call Graph View");
 		// frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -160,6 +154,43 @@ public class CallGraphImpl implements CallGraph {
 				.addEdge(edgeNameMethodInvocationPair.getFirst(), repl, edgeNameMethodInvocationPair.getSecond()));
 	}
 
+	@Override
+	public void replaceMethodInvocationWithExecution(MethodInvocation methodInvocationToReplace) {
+		Collection<MethodInvocation> callers = getPredecessors(methodInvocationToReplace);
+		if (callers.size() > 1) {
+			throw new IllegalStateException(
+					"Call graph contains multiple callers for " + methodInvocationToReplace + ": " + callers);
+		} else if (callers.isEmpty()) {
+			/*
+			 * If the caller was at the root level we do not have to do anything except
+			 * removing it from this call graph. This will remove the node and the edges
+			 * attached to it, hence promoting the methods directly invoked by it by one
+			 * level
+			 */
+			this.graph.removeVertex(methodInvocationToReplace);
+		} else {
+			// Get method calling methodInvocationToReplace
+			MethodInvocation caller = callers.iterator().next();
+
+			// Collect the methods directly called by methodInvocationToReplace. No need for
+			// ordering
+			Collection<MethodInvocation> calleds = this.getSuccessors(methodInvocationToReplace);
+
+			// Connect the caller of methodInvocationToReplace to the method invocations it
+			// subsumes
+			for (MethodInvocation called : calleds) {
+				// Not sure we need to encode any specify information here...
+				this.graph.addEdge("Replaced-CallDependency-" + id.getAndIncrement(), caller, called,
+						EdgeType.DIRECTED);
+			}
+
+			// Finally, remove the methodInvocation
+			this.graph.removeVertex(methodInvocationToReplace);
+
+		}
+
+	}
+
 	// public boolean addVertices(String data){
 	// return graph.addVertex(data);
 	// }
@@ -169,9 +200,6 @@ public class CallGraphImpl implements CallGraph {
 	// public boolean verticeExists(String data){
 	// return graph.containsVertex(data);
 	// }
-
-	// This cannot be made as list because call graph is a tree and a node might
-	// have multiple childreen
 
 	/**
 	 * For some reason, the graph library says that a give edge is UNDIRECTED, while
@@ -215,6 +243,8 @@ public class CallGraphImpl implements CallGraph {
 		}
 	}
 
+	// Return the ordered list that starting from (main?) reaches
+	// methodinvocation by means of call chain
 	public List<MethodInvocation> getOrderedSubsumingMethodInvocationsFor(MethodInvocation methodInvocation) {
 		List<MethodInvocation> subsumingCalls = new ArrayList<>();
 		for (MethodInvocation mi : getPredecessors(methodInvocation)) {
@@ -226,9 +256,10 @@ public class CallGraphImpl implements CallGraph {
 
 	public List<MethodInvocation> getSubsumingPathFor(MethodInvocation subsumingMethodInvocation,
 			MethodInvocation subsumedMethodInvocation) {
-
 		List<MethodInvocation> subsumingPath = getOrderedSubsumingMethodInvocationsFor(subsumedMethodInvocation);
 		subsumingPath.removeAll(getOrderedSubsumingMethodInvocationsFor(subsumingMethodInvocation));
+		// TODO This does not contain the input --- actually there's duplicates
+		// here ...
 		return subsumingPath;
 
 	}
@@ -264,7 +295,7 @@ public class CallGraphImpl implements CallGraph {
 	/**
 	 * Return the parent of this method invocation if any
 	 *
-	 * @param methodUnderInspection
+	 * @param methodInvocation
 	 * @return
 	 */
 	public MethodInvocation getCallerOf(MethodInvocation methodInvocation) {
@@ -430,11 +461,7 @@ public class CallGraphImpl implements CallGraph {
 			}
 		}
 
-		// Find the weakly connected components.
-		/*
-		 * TODO I cannot understand why by the following call reset the attributes of
-		 * the nodes...
-		 */
+		// Find the weakly connected components
 		WeakComponentClusterer<MethodInvocation, String> clusterer = new WeakComponentClusterer<MethodInvocation, String>();
 		Set<Set<MethodInvocation>> clusters = clusterer.apply(union);
 
@@ -449,13 +476,6 @@ public class CallGraphImpl implements CallGraph {
 			CallGraphImpl callGraph = new CallGraphImpl();
 			// I would have preferred using pop/push, the primitives for this graph, but it
 			// might be tedious to get it right
-
-			for (MethodInvocation v : cluster) {
-				// Look up v inside union and clone it so we can preserve the attributes?
-				callGraph.graph.addVertex(union.getVertices().stream().filter(mi -> mi.equals(v)).reduce((a, b) -> {
-					throw new IllegalStateException("Cannot have duplicated nodes");
-				}).get().clone());
-			}
 
 			for (MethodInvocation source : cluster) {
 				for (MethodInvocation target : cluster) {
@@ -473,42 +493,5 @@ public class CallGraphImpl implements CallGraph {
 		}
 
 		return extrapolated;
-	}
-
-	@Override
-	public void replaceMethodInvocationWithExecution(MethodInvocation methodInvocationToReplace) {
-		Collection<MethodInvocation> callers = getPredecessors(methodInvocationToReplace);
-		if (callers.size() > 1) {
-			throw new IllegalStateException(
-					"Call graph contains multiple callers for " + methodInvocationToReplace + ": " + callers);
-		} else if (callers.isEmpty()) {
-			/*
-			 * If the caller was at the root level we do not have to do anything except
-			 * removing it from this call graph. This will remove the node and the edges
-			 * attached to it, hence promoting the methods directly invoked by it by one
-			 * level
-			 */
-			this.graph.removeVertex(methodInvocationToReplace);
-		} else {
-			// Get method calling methodInvocationToReplace
-			MethodInvocation caller = callers.iterator().next();
-
-			// Collect the methods directly called by methodInvocationToReplace. No need for
-			// ordering
-			Collection<MethodInvocation> calleds = this.getSuccessors(methodInvocationToReplace);
-
-			// Connect the caller of methodInvocationToReplace to the method invocations it
-			// subsumes
-			for (MethodInvocation called : calleds) {
-				// Not sure we need to encode any specify information here...
-				this.graph.addEdge("Replaced-CallDependency-" + id.getAndIncrement(), caller, called,
-						EdgeType.DIRECTED);
-			}
-
-			// Finally, remove the methodInvocation
-			this.graph.removeVertex(methodInvocationToReplace);
-
-		}
-
 	}
 }

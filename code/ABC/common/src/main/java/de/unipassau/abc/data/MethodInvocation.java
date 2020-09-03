@@ -18,7 +18,8 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	private final static Logger logger = LoggerFactory.getLogger(MethodInvocation.class);
 
 	// Makes easy to cache result but requires explicity resetting of the state !!!
-	public boolean alreadyCarved = false;
+	// Storing this here creates all sort of problems during carving...
+//	public boolean alreadyCarved = false;
 
 	// Unique id of the method invocation
 	protected int invocationCount;
@@ -92,7 +93,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 			cloned.actualParameters = Arrays.copyOf(actualParameters, actualParameters.length);
 		}
 
-		cloned.alreadyCarved = alreadyCarved;
+//		cloned.alreadyCarved = alreadyCarved;
 		cloned.belongToExternalInterface = belongToExternalInterface;
 		cloned.distanceFromMain = distanceFromMain;
 		cloned.invocationCount = invocationCount;

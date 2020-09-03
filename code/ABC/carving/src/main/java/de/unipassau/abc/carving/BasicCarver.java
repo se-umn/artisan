@@ -23,25 +23,22 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
- * Basic carver is a method carver. It produces a carved execution that assures
- * the target method is invoked just as it was during the original execution.
- * This does not include ensuring that this method invocation will be directly
- * visible
+ * Basic carver is a method carver, that is, it will produce a carved execution
+ * whose last element is the invocation of the given method or methods
+ * 
  * 
  * @author gambitemp
  *
  */
 public class BasicCarver implements MethodCarver {
 
-	private final static Logger logger = LoggerFactory.getLogger(BasicCarver.class);
-
 	private ExecutionFlowGraph executionFlowGraph;
 	private DataDependencyGraph dataDependencyGraph;
 	private CallGraph callGraph;
+
+	// Bookkeep the carved method invocations.
+	private Set<MethodInvocation> carvedMethodInvocationsCache = new HashSet<MethodInvocation>();
 
 	public BasicCarver(ParsedTrace parsedTrace) {
 		Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> executionTraceForMainThread = parsedTrace
@@ -57,14 +54,7 @@ public class BasicCarver implements MethodCarver {
 	 * <ol>
 	 * <li>Locate the method invocation in the graph and its owner</li>
 	 * <li>Collect the method invocations on the same owner (if any) that happen
-	 * before the target method invocation
-	 * <ul>
-	 * <li>- What happens if the target method is subsumed by another method of the
-	 * same instance?</li>
-	 * </ul>
-	 * 
-	 * </li>
-	 *
+	 * before the target method invocation</li>
 	 * <li>Collect the object instances that have been used as parameters for each
 	 * of those method invocations</li>
 	 * <li>For each object instance, collects all the method invocations that have
@@ -84,7 +74,7 @@ public class BasicCarver implements MethodCarver {
 		// The first relevant method invocation is the one to carve
 		relevantMethodInvocations.add(methodInvocation);
 
-		if (methodInvocation.alreadyCarved) {
+		if (isMethodInvocationAlreadyCarved(methodInvocation)) {
 			// Return an empty result
 			return relevantMethodInvocations;
 		}
@@ -134,7 +124,7 @@ public class BasicCarver implements MethodCarver {
 		}
 
 		// Mark the given method invocation as already carved
-		methodInvocation.alreadyCarved = true;
+		cacheCarvedMethodInvocation(methodInvocation);
 
 		// Prepare the work by enqueueing all the relevant method invocations found so
 		// far that have not yet been carved
@@ -146,7 +136,7 @@ public class BasicCarver implements MethodCarver {
 		Collections.sort(orderedRelevantMethodInvocations);
 
 		for (MethodInvocation relevantMethodInvocation : orderedRelevantMethodInvocations) {
-			if (!relevantMethodInvocation.alreadyCarved) {
+			if (!isMethodInvocationAlreadyCarved(relevantMethodInvocation)) {
 				queue.add(relevantMethodInvocation);
 			}
 		}
@@ -160,10 +150,19 @@ public class BasicCarver implements MethodCarver {
 		return relevantMethodInvocations;
 	}
 
+	private void cacheCarvedMethodInvocation(MethodInvocation methodInvocation) {
+		carvedMethodInvocationsCache.add(methodInvocation);
+
+	}
+
+	private boolean isMethodInvocationAlreadyCarved(MethodInvocation methodInvocation) {
+		return carvedMethodInvocationsCache.contains(methodInvocation);
+	}
+
 	@Override
 	public List<CarvedExecution> carve(MethodInvocation methodInvocation) throws CarvingException, ABCException {
 
-		List<CarvedExecution> carvedExecutions = new ArrayList<>();
+		List<CarvedExecution> carvedExecutions = new ArrayList<CarvedExecution>();
 
 		/*
 		 * Collect and sort the method invocations necessary for the carving
@@ -201,12 +200,15 @@ public class BasicCarver implements MethodCarver {
 		 * invocations obtained by cloning the subsumed method invocations. Since the
 		 * hash and equalsTo function have been re-defined for the MethodInvocation, it
 		 * should hold that 'a.equals(a.clone())'
+		 * 
+		 * TODO Assumption: addAll does not replace the objects that are ALREADY inside
+		 * the set, we need this to propagate the "isNecessary" tag.
 		 */
-		necessaryMethodInvocations.addAll(allMethodInvocations.stream()
-				.filter(mi -> !necessaryMethodInvocations.contains(mi)).map(t -> {
+		necessaryMethodInvocations
+				.addAll(allMethodInvocations.stream().map(t -> {
 					// Create a clone and mark it as necessary
 					MethodInvocation clonedMethodInvocation = t.clone();
-//					clonedMethodInvocation.setNecessary(true);
+					clonedMethodInvocation.setNecessary(true);
 					return clonedMethodInvocation;
 				}).collect(Collectors.toSet()));
 
@@ -217,10 +219,12 @@ public class BasicCarver implements MethodCarver {
 		 */
 
 		CarvedExecution carvedExecution = new CarvedExecution();
-		//
+		// How do we ensure that whatever we extrapolate from the graphs belong
+		// together? We order method invocations per id of the first call?
 		carvedExecution.executionFlowGraphs = this.executionFlowGraph.extrapolate(necessaryMethodInvocations);
 		carvedExecution.dataDependencyGraphs = this.dataDependencyGraph.extrapolate(necessaryMethodInvocations);
 		carvedExecution.callGraphs = this.callGraph.extrapolate(necessaryMethodInvocations);
+
 		carvedExecution.methodInvocationUnderTest = methodInvocation;
 
 		carvedExecutions.add(carvedExecution);
@@ -228,17 +232,25 @@ public class BasicCarver implements MethodCarver {
 		return carvedExecutions;
 	}
 
+	// TODO Does this have to be a LIST for carving? I do not think so...
 	@Override
 	public Map<MethodInvocation, List<CarvedExecution>> carve(List<MethodInvocation> methodInvocations)
 			throws CarvingException, ABCException {
-		// TODO Make sure we reset the method invocations objects at some point....
+
 		Map<MethodInvocation, List<CarvedExecution>> carvedExecutions = new HashMap<>();
 
 		for (MethodInvocation methodInvocation : methodInvocations) {
+			// Unless we want to push caching further, just clear the cache here
+			clearTheCache();
+
 			carvedExecutions.put(methodInvocation, carve(methodInvocation));
 		}
 
 		return carvedExecutions;
+	}
+
+	private void clearTheCache() {
+		carvedMethodInvocationsCache.clear();
 	}
 
 }

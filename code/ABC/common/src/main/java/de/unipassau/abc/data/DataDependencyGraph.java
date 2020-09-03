@@ -42,11 +42,6 @@ public interface DataDependencyGraph {
 	public Optional<DataNode> getReturnValue(MethodInvocation mi) throws ABCException;
 
 	/**
-	 * Ensure that we reset the transient state of the graph.
-	 */
-	public void reset();
-
-	/**
 	 * Return all the weakly connected components that can be formed considering the
 	 * given methodInvocations (and their dependencies)
 	 * 
