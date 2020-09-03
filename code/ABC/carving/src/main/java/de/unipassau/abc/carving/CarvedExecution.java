@@ -1,12 +1,13 @@
 package de.unipassau.abc.carving;
 
-import java.util.Collection;
-import java.util.NoSuchElementException;
-
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.MethodInvocation;
+import de.unipassau.abc.data.ObjectInstance;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.NoSuchElementException;
 
 /**
  * This class holds all the fragments extracted during the carving. For the
@@ -18,17 +19,29 @@ import de.unipassau.abc.data.MethodInvocation;
 public class CarvedExecution {
 
 	/*
-	 * 
+	 * This method invocation can be either the invocation carved or the context for
+	 * carving the object. If the object is not null, then it is the latter,
+	 * otherwise the former
 	 */
 	public MethodInvocation methodInvocationUnderTest;
+	// TODO Does it make sense to carve primitives?
+	public ObjectInstance carvedObject;
 
+	// Those elements do not have to be matched by position, since all of them are
+	// needed to recreate the execution
 	public Collection<ExecutionFlowGraph> executionFlowGraphs;
 	public Collection<DataDependencyGraph> dataDependencyGraphs;
 	public Collection<CallGraph> callGraphs;
 
+	public CarvedExecution() {
+		this.executionFlowGraphs = new ArrayList<>();
+		this.dataDependencyGraphs = new ArrayList<>();
+		this.callGraphs = new ArrayList<>();
+	}
+
 	/**
 	 * Return the callGraph which contain the methodInvocationUnderTest or null
-	 * 
+	 *
 	 * @return
 	 */
 	public CallGraph getCallGraphContainingTheMethodInvocationUnderTest() {
@@ -43,5 +56,4 @@ public class CarvedExecution {
 			return null;
 		}
 	}
-
 }

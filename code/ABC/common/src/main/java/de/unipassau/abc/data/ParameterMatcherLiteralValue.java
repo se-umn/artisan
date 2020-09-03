@@ -59,4 +59,8 @@ public class ParameterMatcherLiteralValue implements ValueNode, Cloneable {
 		throw new RuntimeException("Not implemented");
 	}
 
+	@Override
+	public String getType() {
+		throw new RuntimeException("Not implemented");
+	}
 }

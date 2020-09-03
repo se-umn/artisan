@@ -75,6 +75,9 @@ import soot.util.Chain;
  */
 public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
+	// MOVE THIS INTO A SEPARATE CLAS
+	public final static String INTENT_TAINT_TAG = "INTENT_TAINT_TAG";
+
 	private static final boolean MAKE_ANDROID_LIFE_CYCLE_EVENTS_EXPLICIT = System.getProperties()
 			.containsKey("abc.make.android.lifecycle.events.explicit");
 
@@ -236,8 +239,6 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 				SootMethod putExtraIntMethod = intentClass
 						.getMethod("android.content.Intent putExtra(java.lang.String,int)");
 				SootMethod getExtraIntMethod = intentClass.getMethod("int getIntExtra(java.lang.String,int)");
-
-				final String INTENT_TAINT_TAG = "INTENT_TAINT_TAG";
 
 				Scene.v().loadClassAndSupport("java.lang.System");
 				SootMethod identityHashCodeMethod = Scene.v()

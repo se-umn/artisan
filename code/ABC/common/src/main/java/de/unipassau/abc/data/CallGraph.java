@@ -78,8 +78,6 @@ public interface CallGraph {
 
 	void markParentAndPruneAfter(MethodInvocation parent);
 
-	public void reset();
-
 	/**
 	 * This is used mostly for testing. Can be lifted to upper interface. TODO:
 	 * CarvingGraph or something

@@ -2,6 +2,7 @@ package de.unipassau.abc.data;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+// TODO: What's the point of having a uniqueId for a primitive node if they all mean the same ?! Just to have it reported as a logically different "object/node"?
 public class PrimitiveNodeFactory {
 
 	private static AtomicInteger uniqueId = new AtomicInteger(0);
