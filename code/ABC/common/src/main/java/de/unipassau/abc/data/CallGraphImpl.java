@@ -1,6 +1,8 @@
 package de.unipassau.abc.data;
 
 import com.google.common.base.Function;
+
+import android.telecom.Call;
 import edu.uci.ics.jung.algorithms.cluster.WeakComponentClusterer;
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
 import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
@@ -13,8 +15,10 @@ import java.awt.Dimension;
 import java.awt.Paint;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -89,9 +93,9 @@ public class CallGraphImpl implements CallGraph {
 
 	public void visualize() {
 		VisualizationViewer<MethodInvocation, String> vv = new VisualizationViewer<>(
-        // new TreeLayout<>((Forest<MethodInvocation, String> )graph));
-        // // Does not work..
-        new KKLayout<>(graph));
+				// new TreeLayout<>((Forest<MethodInvocation, String> )graph));
+				// // Does not work..
+				new KKLayout<>(graph));
 
 		vv.setPreferredSize(new Dimension(1000, 800));
 		vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller() {
@@ -107,18 +111,18 @@ public class CallGraphImpl implements CallGraph {
 			}
 		});
 		vv.getRenderContext().setVertexFillPaintTransformer((Function<GraphNode, Paint>) node -> {
-      if (node instanceof ValueNode) {
-        // TODO Not sure we can skip the visualization at all...
-        return Color.YELLOW;
-      } else if (node instanceof ObjectInstance) {
-        return Color.GREEN;
-      } else if (node instanceof MethodInvocation) {
-        MethodInvocation methodInvocation = (MethodInvocation) node;
-        return (methodInvocation.getInvocationType().equals("StaticInvokeExpr")) ? Color.ORANGE : Color.RED;
-      } else {
-        return Color.BLUE;
-      }
-    });
+			if (node instanceof ValueNode) {
+				// TODO Not sure we can skip the visualization at all...
+				return Color.YELLOW;
+			} else if (node instanceof ObjectInstance) {
+				return Color.GREEN;
+			} else if (node instanceof MethodInvocation) {
+				MethodInvocation methodInvocation = (MethodInvocation) node;
+				return (methodInvocation.getInvocationType().equals("StaticInvokeExpr")) ? Color.ORANGE : Color.RED;
+			} else {
+				return Color.BLUE;
+			}
+		});
 
 		JFrame frame = new JFrame("Call Graph View");
 		// frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -442,25 +446,60 @@ public class CallGraphImpl implements CallGraph {
 
 	@Override
 	public Collection<CallGraph> extrapolate(Set<MethodInvocation> methodInvocations) {
-		Collection<CallGraph> extrapolated = new ArrayList<CallGraph>();
 
-		Graph<MethodInvocation, String> union = new DirectedSparseMultigraph<MethodInvocation, String>();
+		final Set<MethodInvocation> allMethodInvocations = graph.getVertices().stream()//
+				.filter(v -> MethodInvocation.class.isInstance(v))//
+				.map(MethodInvocation.class::cast)//
+				.collect(Collectors.toSet());
+
+		Graph<MethodInvocation, String> union = new DirectedSparseMultigraph<>();
+		Map<MethodInvocation, MethodInvocation> cloneMap = new HashMap<>();
 
 		// Add all the nodes - clone them in the process
 		for (MethodInvocation methodInvocation : methodInvocations) {
-			union.addVertex(methodInvocation.clone());
+
+			// Avoid using incomplete information from methodInvocation
+			MethodInvocation originalMethodInvocation = allMethodInvocations.parallelStream()
+					.filter(mi -> mi.getInvocationCount() == methodInvocation.getInvocationCount())//
+					.findAny().orElse(null);
+
+			MethodInvocation cloned = originalMethodInvocation.clone();
+			union.addVertex(cloned);
+			cloneMap.put(cloned, originalMethodInvocation);
 		}
 
-		for (String edge : graph.getEdges()) {
-			MethodInvocation source = graph.getSource(edge);
-			MethodInvocation dest = graph.getDest(edge);
-			// If BOTH source and dest are in the extrapolated graph, add the edge there
-			if (union.containsVertex(source) && union.containsVertex(dest)) {
-				// Clone the edge over, it's a string so it should be enough to add it
-				union.addEdge(edge, source, dest, EdgeType.DIRECTED);
+		// Add all the edges between the nodes
+		for (MethodInvocation clonedSource : union.getVertices()) {
+			// TODO Do not check a node with itself
+			for (MethodInvocation clonedTarget : union.getVertices()) {
+
+				MethodInvocation originalSource = cloneMap.get(clonedSource);
+				MethodInvocation originalTarget = cloneMap.get(clonedTarget);
+
+				if (!graph.containsVertex(originalSource)) {
+					logger.info("Graph does not contain " + clonedSource);
+					logger.info("ALL VERTICES " + graph.getVertices());
+
+				}
+
+				if (!graph.containsVertex(originalTarget)) {
+					logger.info("Graph does not contain " + clonedTarget);
+					logger.info("ALL VERTICES " + graph.getVertices());
+
+				}
+
+				// Original grap here.. BUT, it works with == and not equals ! :(
+				Collection<String> edges = graph.findEdgeSet(originalSource, originalTarget);
+				if (edges != null) {
+					for (String edge : edges) {
+						union.addEdge(edge, clonedSource, clonedTarget, EdgeType.DIRECTED);
+						logger.trace("Adding dependency " + edge);
+					}
+				}
 			}
 		}
 
+		Collection<CallGraph> extrapolated = new ArrayList<CallGraph>();
 		// Find the weakly connected components
 		WeakComponentClusterer<MethodInvocation, String> clusterer = new WeakComponentClusterer<MethodInvocation, String>();
 		Set<Set<MethodInvocation>> clusters = clusterer.apply(union);
@@ -479,7 +518,12 @@ public class CallGraphImpl implements CallGraph {
 
 			for (MethodInvocation source : cluster) {
 				for (MethodInvocation target : cluster) {
-					Collection<String> edges = graph.findEdgeSet(source, target);
+					
+					MethodInvocation originalSource = cloneMap.get(source );
+					MethodInvocation originalTarget = cloneMap.get(target);
+
+					Collection<String> edges = graph.findEdgeSet(originalSource, originalTarget);
+					
 					if (edges != null) {
 						for (String edge : edges) {
 							callGraph.graph.addEdge(edge, source, target, EdgeType.DIRECTED);
@@ -494,4 +538,5 @@ public class CallGraphImpl implements CallGraph {
 
 		return extrapolated;
 	}
+
 }
