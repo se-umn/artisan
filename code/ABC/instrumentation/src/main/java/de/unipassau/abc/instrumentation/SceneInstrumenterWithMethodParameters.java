@@ -12,6 +12,8 @@
 package de.unipassau.abc.instrumentation;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,6 +56,7 @@ import soot.jimple.SpecialInvokeExpr;
 import soot.jimple.Stmt;
 import soot.jimple.StringConstant;
 import soot.jimple.ThrowStmt;
+import soot.jimple.FieldRef;
 // InfoFlow
 import soot.jimple.infoflow.android.manifest.ProcessManifest;
 import soot.toolkits.graph.ExceptionalUnitGraph;
@@ -1005,11 +1008,16 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 	 */
 	private void instrumentMethodBody(final SootMethod currentlyInstrumentedMethod,
 			final Body currentlyInstrumentedMethodBody,
-			final PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain) {
+			final PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain) throws IOException {
+
+        // BufferedWriter unitFileWriter = new BufferedWriter(new FileWriter("unit_log.txt"));
 
 		for (final Iterator<Unit> iter = currentlyInstrumentedMethodBodyUnitChain.snapshotIterator(); iter.hasNext();) {
 
 			final Unit currentUnit = iter.next();
+            
+            // unitFileWriter.write(currentUnit.toString());
+            // unitFileWriter.newLine();
 
 			/*
 			 * Do not instrument our instrumentation ...
@@ -1017,6 +1025,9 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 			if (currentUnit.getTags().contains(ABCTag.TAG)) {
 				continue;
 			}
+
+            currentUnit.apply(new FieldTransformer(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
+					currentlyInstrumentedMethodBodyUnitChain, userClasses));
 
 			/*
 			 * Instrument all the libCall method invocations by wrapping them with begin/end
