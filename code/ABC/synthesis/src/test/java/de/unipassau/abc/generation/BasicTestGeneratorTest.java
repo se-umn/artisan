@@ -32,7 +32,7 @@ import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 public class BasicTestGeneratorTest {
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
 
 	private final static File ANDROID_JAR = new File(
 			"/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar");
@@ -136,4 +136,5 @@ public class BasicTestGeneratorTest {
 			System.out.println(cu);
 		}
 	}
+
 }

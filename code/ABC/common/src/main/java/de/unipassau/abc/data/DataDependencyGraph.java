@@ -50,6 +50,16 @@ public interface DataDependencyGraph {
 	 */
 	public Collection<DataDependencyGraph> extrapolate(Set<MethodInvocation> methodInvocations);
 
+	/**
+	 * Return a set containing the object instances for which we cannot establish
+	 * provenance, that is, object instances that appear out-of-the-blue. Null
+	 * objects and objects that are modeled as primitive values (e.g., Strings) are
+	 * not considered here.
+	 * 
+	 * @return
+	 */
+	public Set<ObjectInstance> getDanglingObjects();
+
 	public void visualize();
 
 	public Collection<ObjectInstance> getObjectInstances();
@@ -61,8 +71,6 @@ public interface DataDependencyGraph {
 	public void include(DataDependencyGraph second);
 
 	public boolean verifyObjectInstanceProvenance();
-
-	public Set<ObjectInstance> getDanglingObjects();
 
 	public void addDataDependencyOnOwner(MethodInvocation controllerLifecycleMethod, ObjectInstance objectInstance);
 

@@ -603,34 +603,79 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 	 * By default this will return a new graph object where nodes and esges are
 	 * cloned from the original graph. TODO Re
 	 */
-	public Collection<ExecutionFlowGraph> extrapolate(Collection<MethodInvocation> methodInvocations) {
-		Collection<ExecutionFlowGraph> extrapolatedGraphs = new ArrayList<>();
+	public Collection<ExecutionFlowGraph> extrapolate(Collection<MethodInvocation> methodInvocationsToExtrapolate) {
 
-		// we store here all the data and then obtain the components from here
 		Graph<MethodInvocation, String> union = new DirectedSparseMultigraph<>();
+		Map<MethodInvocation, MethodInvocation> cloneMap = new HashMap<>();
 
-		// Add all the nodes - clone them in the process
-		for (MethodInvocation methodInvocation : methodInvocations) {
-			union.addVertex(methodInvocation.clone());
-		}
+		
+		final Set<MethodInvocation> allMethodInvocations = graph.getVertices().stream()//
+				.filter(v -> MethodInvocation.class.isInstance(v))//
+				.map(MethodInvocation.class::cast)//
+				.collect(Collectors.toSet());
 
-		// For each pair of nodes if there's an edge in the graph connecting them, add
-		// the same edge here.
-//		for (MethodInvocation source : extrapolatedGraph.graph.getVertices()) {
-//			for (MethodInvocation target : extrapolatedGraph.graph.getVertices()) {
-//	/			// TODO Really not sure which of the two might be faster....
-//			}
-//		}
-		for (String edge : graph.getEdges()) {
-			MethodInvocation source = graph.getSource(edge);
-			MethodInvocation dest = graph.getDest(edge);
-			// If BOTH source and dest are in the extrapolated graph, add the edge there
-			if (union.containsVertex(source) && union.containsVertex(dest)) {
-				// Clone the edge over, it's a string so it should be enough to add it
-				union.addEdge(edge, source, dest, EdgeType.DIRECTED);
+		// Add all method invocation nodes - clone them in the process
+		for (MethodInvocation methodInvocation : methodInvocationsToExtrapolate) {
+			// Avoid using incomplete information from methodInvocation
+			MethodInvocation originalMethodInvocation = allMethodInvocations.parallelStream()
+					.filter(mi -> mi.getInvocationCount() == methodInvocation.getInvocationCount())//
+					.findAny().orElse(null);
+
+			//
+			MethodInvocation cloned = originalMethodInvocation.clone();
+			union.addVertex(cloned);
+			cloneMap.put(cloned, originalMethodInvocation);
+
+			logger.trace("Node " + originalMethodInvocation + " has the following predecessors:");
+
+			for (MethodInvocation neighbor : graph.getPredecessors(originalMethodInvocation)) {
+				logger.trace(" - " + neighbor);
+				MethodInvocation clonedNode = neighbor.clone();
+				cloneMap.put(clonedNode, neighbor);
+				union.addVertex(clonedNode);
+			}
+
+			logger.trace("Node " + originalMethodInvocation + " has the following successors:");
+			for (MethodInvocation neighbor : graph.getSuccessors(originalMethodInvocation)) {
+				logger.trace(" - " + neighbor);
+				MethodInvocation clonedNode = neighbor.clone();
+				cloneMap.put(clonedNode, neighbor);
+				union.addVertex(clonedNode);
 			}
 		}
 
+		// Add all the edges between the nodes
+		for (MethodInvocation clonedSource : union.getVertices()) {
+			// TODO Do not check a node with itself
+			for (MethodInvocation clonedTarget : union.getVertices()) {
+
+				MethodInvocation originalSource = cloneMap.get(clonedSource);
+				MethodInvocation originalTarget = cloneMap.get(clonedTarget);
+
+				if (!graph.containsVertex(originalSource)) {
+					logger.info("Graph does not contain " + clonedSource);
+					logger.info("ALL VERTICES " + graph.getVertices());
+
+				}
+
+				if (!graph.containsVertex(originalTarget)) {
+					logger.info("Graph does not contain " + clonedTarget);
+					logger.info("ALL VERTICES " + graph.getVertices());
+
+				}
+
+				// Original grap here.. BUT, it works with == and not equals ! :(
+				Collection<String> edges = graph.findEdgeSet(originalSource, originalTarget);
+				if (edges != null) {
+					for (String edge : edges) {
+						union.addEdge(edge, clonedSource, clonedTarget, EdgeType.DIRECTED);
+						logger.trace("Adding dependency " + edge);
+					}
+				}
+			}
+		}
+
+		Collection<ExecutionFlowGraph> extrapolatedGraphs = new ArrayList<>();
 		WeakComponentClusterer<MethodInvocation, String> clusterer = new WeakComponentClusterer<MethodInvocation, String>();
 		Set<Set<MethodInvocation>> clusters = clusterer.apply(union);
 
@@ -648,7 +693,7 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 			 */
 			List<MethodInvocation> orderedMethodInvocations = cluster.stream().sorted().collect(Collectors.toList());
 
-			//
+			// In this case we do not need and do not want to clone the edges from the other graph
 			ExecutionFlowGraph executionFlowGraph = new ExecutionFlowGraphImpl();
 
 			for (MethodInvocation methodInvocation : orderedMethodInvocations) {
