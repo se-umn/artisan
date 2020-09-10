@@ -64,7 +64,7 @@ public class PrimitiveValueAssertionGenerator implements AssertionGenerator {
 		//
 		MethodInvocation originalMethodInvocation = carvedExecution.methodInvocationUnderTest;
 
-		if (JimpleUtils.hasVoidReturnType(originalMethodInvocation.getMethodSignature())) {
+		if (! JimpleUtils.hasVoidReturnType(originalMethodInvocation.getMethodSignature())) {
 			ExecutionFlowGraph assertionExecutionFlowGraph = new ExecutionFlowGraphImpl();
 			DataDependencyGraph assertionDataDependencyGraph = new DataDependencyGraphImpl();
 
@@ -74,7 +74,9 @@ public class PrimitiveValueAssertionGenerator implements AssertionGenerator {
 			DataNode actualReturnValue = methodInvocationInsideTest.getReturnValue();
 
 			// invoke Matchers.equalTo(operand) with operand being the expectedReturnValue
+			// TODO This might be easier to wrap into a factory
 			MethodInvocation matchersEqualTo = new MethodInvocation(id.getAndIncrement(), EQUAL_TO_SIGNATURE);
+			matchersEqualTo.setStatic(true);
 			matchersEqualTo.setActualParameterInstances(Arrays.asList(expectedReturnValue));
 			DataNode equalsToMatcher = ObjectInstanceFactory.get("org.hamcrest.Matcher@1");
 			matchersEqualTo.setReturnValue(equalsToMatcher);
@@ -87,6 +89,7 @@ public class PrimitiveValueAssertionGenerator implements AssertionGenerator {
 
 			// Invokes Matchers.is using the previous matcher as input
 			MethodInvocation matchersIs = new MethodInvocation(id.getAndIncrement(), IS_SIGNATURE);
+			matchersIs.setStatic(true);
 			matchersIs.setActualParameterInstances(Arrays.asList(equalsToMatcher));
 			DataNode isMatcher = DataNodeFactory.get("org.hamcrest.Matcher", "org.hamcrest.Matcher@2");
 			matchersIs.setReturnValue(isMatcher);
@@ -99,6 +102,7 @@ public class PrimitiveValueAssertionGenerator implements AssertionGenerator {
 			
 			// Invokes MatcherAssert.assertThat
 			MethodInvocation assertThat = new MethodInvocation(id.getAndIncrement(), ASSERT_THAT_SIGNATURE);
+			assertThat.setStatic(true);
 			assertThat.setActualParameterInstances(Arrays.asList(actualReturnValue, isMatcher));
 
 			assertionExecutionFlowGraph.enqueueMethodInvocations(assertThat);

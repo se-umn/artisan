@@ -51,6 +51,7 @@ public class NullValueAssertionGenerator implements AssertionGenerator {
 			if (expectedReturnValue.isNull()) {
 				// Invokes Matchers.is using the previous matcher as input
 				MethodInvocation matchersNullValue = new MethodInvocation(id.getAndIncrement(), NULL_VALUE_SIGNATURE);
+				matchersNullValue.setStatic(true);
 				matchersNullValue.setReturnValue(nullNotNullMatcher);
 
 				assertionExecutionFlowGraph.enqueueMethodInvocations(matchersNullValue);
@@ -61,6 +62,7 @@ public class NullValueAssertionGenerator implements AssertionGenerator {
 			} else {
 				MethodInvocation matchersNotNullValue = new MethodInvocation(id.getAndIncrement(),
 						NOT_NULL_VALUE_SIGNATURE);
+				matchersNotNullValue.setStatic(true);
 				matchersNotNullValue.setReturnValue(nullNotNullMatcher);
 
 				assertionExecutionFlowGraph.enqueueMethodInvocations(matchersNotNullValue);
@@ -71,6 +73,7 @@ public class NullValueAssertionGenerator implements AssertionGenerator {
 
 			// Invokes Matchers.is using the previous matcher as input
 			MethodInvocation matchersIs = new MethodInvocation(id.getAndIncrement(), IS_SIGNATURE);
+			matchersIs.setStatic(true);
 			matchersIs.setActualParameterInstances(Arrays.asList(nullNotNullMatcher));
 			DataNode isMatcher = DataNodeFactory.get("org.hamcrest.Matcher", "org.hamcrest.Matcher@2");
 			matchersIs.setReturnValue(isMatcher);
@@ -85,6 +88,7 @@ public class NullValueAssertionGenerator implements AssertionGenerator {
 			// TODO This is tricky as we need to make the connection at some point ...
 			DataNode actualReturnValue = carvedTest.getMethodUnderTest().getReturnValue();
 			MethodInvocation assertThat = new MethodInvocation(id.getAndIncrement(), ASSERT_THAT_SIGNATURE);
+			assertThat.setStatic(true);
 			assertThat.setActualParameterInstances(Arrays.asList(actualReturnValue, isMatcher));
 //
 			assertionExecutionFlowGraph.enqueueMethodInvocations(assertThat);

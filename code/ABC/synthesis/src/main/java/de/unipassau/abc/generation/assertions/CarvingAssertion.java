@@ -8,7 +8,7 @@ import de.unipassau.abc.data.ExecutionFlowGraph;
 
 /**
  * For the moment a simple DTO to contain execution flow and data dependency
- * information for each assertion
+ * information for each assertion separately
  * 
  * @author gambitemp
  *

@@ -2,6 +2,26 @@ package de.unipassau.abc.generation.testwriters;
 
 import static com.github.javaparser.StaticJavaParser.parseClassOrInterfaceType;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.commons.lang.NotImplementedException;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.NodeList;
@@ -24,6 +44,7 @@ import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
+
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.DataNode;
 import de.unipassau.abc.data.ExecutionFlowGraph;
@@ -31,9 +52,11 @@ import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodCallLiteralValue;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
+import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.PrimitiveValue;
 import de.unipassau.abc.generation.SyntheticMethodSignatures;
 import de.unipassau.abc.generation.TestCaseWriter;
+import de.unipassau.abc.generation.assertions.CarvingAssertion;
 import de.unipassau.abc.generation.data.AndroidCarvedTest;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
@@ -41,20 +64,6 @@ import de.unipassau.abc.generation.utils.TestCase;
 import de.unipassau.abc.generation.utils.TestCaseOrganizer;
 import de.unipassau.abc.generation.utils.TypeUtils;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import org.apache.commons.lang.NotImplementedException;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.robolectric.RobolectricTestRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Generate the source code implementing the carved tests as tests were
@@ -206,11 +215,22 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 		return catchClause;
 	}
 
-	private void generateMethodBody(MethodDeclaration testMethod, CarvedTest carvedTest) {
-		BlockStmt methodBody = generateBlockStmtFrom(carvedTest.getExecutionFlowGraph(),
-				carvedTest.getDataDependencyGraph());
+	// MOVE THIS TO UTILITY CLASS
+	public static <A, B> List<Pair<A, B>> zip(List<A> as, List<B> bs) {
+		Iterator<A> it1 = as.iterator();
+		Iterator<B> it2 = bs.iterator();
+		List<Pair<A, B>> result = new ArrayList<>();
+		while (it1.hasNext() && it2.hasNext()) {
+			result.add(new Pair<A, B>(it1.next(), it2.next()));
+		}
+		return result;
+	}
 
+	private void generateMethodBody(MethodDeclaration testMethod, CarvedTest carvedTest) {
 		if (carvedTest.expectException()) {
+			BlockStmt methodBody = generateBlockStmtFrom(carvedTest.getExecutionFlowGraph(),
+					carvedTest.getDataDependencyGraph());
+
 			// Build the try statement that encapsulate the entire method body
 			TryStmt tryStatement = new TryStmt();
 			tryStatement.setTryBlock(methodBody);
@@ -233,6 +253,36 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 			testMethod.setBody(wrappedMethodBody);
 
 		} else {
+			// Handle the assertions here
+			// We need to merge the assertion to the test paying attention that the output
+			// of the method under test must be used in the assertions
+			for (CarvingAssertion assertion : carvedTest.getAssertions()) {
+				logger.info("Processing Assertion" + assertion);
+				// Iterate both at the same time
+
+				for (Pair<ExecutionFlowGraph, DataDependencyGraph> pair : zip(assertion.executionFlowGraphs,
+						assertion.dataDependencyGraphs)) {
+					int lastInvocationCount = carvedTest.getExecutionFlowGraph().getLastMethodInvocation()
+							.getInvocationCount();
+					// Update the ID of the method invocations
+					pair.getFirst().getOrderedMethodInvocations()
+							.forEach(mi -> mi.incrementInvocationCountBy(lastInvocationCount));
+					pair.getSecond().getAllMethodInvocations()
+							.forEach(mi -> mi.incrementInvocationCountBy(lastInvocationCount));
+					//
+					pair.getFirst().getOrderedMethodInvocations()
+							.forEach(mi -> carvedTest.getExecutionFlowGraph().enqueueMethodInvocations(mi));
+					//
+					// Add the nodes and the dependencies to the existing data graph, making sure if
+					// there are nodes we keep them...
+//					pair.getFirst().getOrderedMethodInvocations().stream().map( mi -> mi.setIncrementInvocationCountBy(lastInvocationCount));
+
+				}
+			}
+
+			BlockStmt methodBody = generateBlockStmtFrom(carvedTest.getExecutionFlowGraph(),
+					carvedTest.getDataDependencyGraph());
+
 			testMethod.setBody(methodBody);
 		}
 
@@ -272,12 +322,14 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 			ObjectInstance owner = methodInvocation.getOwner();
 			String variableName = getVariableFor(owner, methodBody);
 
-			if (methodInvocation.isSynthetic()) {
-				throw new NotImplementedException("Binding not defined for synthetic method call: " + methodInvocation);
-			} else {
-				NameExpr nameExpr = new NameExpr(variableName);
-				methodCallExpr = new MethodCallExpr(nameExpr, methodName);
-			}
+			// This is a check for fake methods but this triggers also for implementation of
+			// super()
+//			if (methodInvocation.isSynthetic()) {
+//				throw new NotImplementedException("Binding not defined for synthetic method call: " + methodInvocation);
+//			} else {
+			NameExpr nameExpr = new NameExpr(variableName);
+			methodCallExpr = new MethodCallExpr(nameExpr, methodName);
+//			}
 
 		} else {
 			// Static methods

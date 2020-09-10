@@ -349,8 +349,11 @@ public class BasicTestGenerator implements TestGenerator {
 			// Add the assertions using the AssertionGenerationPipeline (basically, add all
 			// the assertions that can be added).
 			if (!JimpleUtils.hasVoidReturnType(carvedTest.getMethodUnderTest().getMethodSignature())) {
-				if (JimpleUtils
-						.isPrimitive(JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature()))) {
+				// TODO We might not be able to handle the case of a NULL string since we
+				// consider String as primitive type, and primitives cannot be null...
+				if (JimpleUtils.isPrimitive(JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature())) || //
+								JimpleUtils.isString(JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature()))
+				) {
 					AssertionGenerator assertionGenerator = new PrimitiveValueAssertionGenerator();
 
 					CarvingAssertion returnValueAssertion = assertionGenerator.generateAssertionsFor(carvedTest,

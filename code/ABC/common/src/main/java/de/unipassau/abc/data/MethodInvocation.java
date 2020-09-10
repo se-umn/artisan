@@ -412,4 +412,8 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	public boolean isNecessary() {
 		return isNecessary;
 	}
+
+	public void incrementInvocationCountBy(int delta) {
+		this.invocationCount = this.invocationCount + delta;
+	}
 }
