@@ -1436,8 +1436,9 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 	@Override
 	public Collection<DataDependencyGraph> extrapolate(Set<MethodInvocation> methodInvocations) {
 		Collection<DataDependencyGraph> extrapolated = new ArrayList<DataDependencyGraph>();
-
+				
 		Graph<GraphNode, String> union = new DirectedSparseMultigraph<GraphNode, String>();
+		
 		// THIS IS REALLY ANNOYING ! We need to store the clones otherwise graph will
 		// not realize it is the same node ..
 		Map<GraphNode, GraphNode> cloneMap = new HashMap<GraphNode, GraphNode>();

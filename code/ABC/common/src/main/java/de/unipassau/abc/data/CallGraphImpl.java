@@ -13,8 +13,10 @@ import java.awt.Dimension;
 import java.awt.Paint;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -442,22 +444,80 @@ public class CallGraphImpl implements CallGraph {
 
 	@Override
 	public Collection<CallGraph> extrapolate(Set<MethodInvocation> methodInvocations) {
+//		Collection<CallGraph> extrapolated = new ArrayList<CallGraph>();
+//
+//		Graph<MethodInvocation, String> union = new DirectedSparseMultigraph<MethodInvocation, String>();
+//
+//		// Add all the nodes - clone them in the process
+//		for (MethodInvocation methodInvocation : methodInvocations) {
+//			union.addVertex(methodInvocation.clone());
+//		}
+//
+//		for (String edge : graph.getEdges()) {
+//			MethodInvocation source = graph.getSource(edge);
+//			MethodInvocation dest = graph.getDest(edge);
+//			// If BOTH source and dest are in the extrapolated graph, add the edge there
+//			if (union.containsVertex(source) && union.containsVertex(dest)) {
+//				// Clone the edge over, it's a string so it should be enough to add it
+//				union.addEdge(edge, source, dest, EdgeType.DIRECTED);
+//			}
+//		}
+		
 		Collection<CallGraph> extrapolated = new ArrayList<CallGraph>();
-
+		
 		Graph<MethodInvocation, String> union = new DirectedSparseMultigraph<MethodInvocation, String>();
+		
+		// THIS IS REALLY ANNOYING ! We need to store the clones otherwise graph will
+		// not realize it is the same node ..
+		Map<MethodInvocation, MethodInvocation> cloneMap = new HashMap<MethodInvocation, MethodInvocation>();
 
-		// Add all the nodes - clone them in the process
+		// Add all method invocation nodes - clone them in the process
 		for (MethodInvocation methodInvocation : methodInvocations) {
-			union.addVertex(methodInvocation.clone());
-		}
+			// Add the method invocation vertex and its neighbors, unless they are there
+			// already
+			MethodInvocation cloned = methodInvocation.clone();
+			union.addVertex(cloned);
+			cloneMap.put(cloned, methodInvocation);
 
-		for (String edge : graph.getEdges()) {
-			MethodInvocation source = graph.getSource(edge);
-			MethodInvocation dest = graph.getDest(edge);
-			// If BOTH source and dest are in the extrapolated graph, add the edge there
-			if (union.containsVertex(source) && union.containsVertex(dest)) {
-				// Clone the edge over, it's a string so it should be enough to add it
-				union.addEdge(edge, source, dest, EdgeType.DIRECTED);
+			for (MethodInvocation neighbor : graph.getPredecessors(methodInvocation)) {
+				MethodInvocation clonedNode = neighbor.clone();
+				cloneMap.put(clonedNode, neighbor);
+				union.addVertex(cloned);
+			}
+
+			for (MethodInvocation neighbor : graph.getSuccessors(methodInvocation)) {
+				MethodInvocation clonedNode = neighbor.clone();
+				cloneMap.put(clonedNode, neighbor);
+				union.addVertex(cloned);
+			}
+
+		}
+		// Add all the edges between the nodes
+		for (MethodInvocation source : union.getVertices()) {
+			for (MethodInvocation target : union.getVertices()) {
+
+				MethodInvocation originalSource = cloneMap.get(source);
+				MethodInvocation originalTarget = cloneMap.get(target);
+
+				if (!graph.containsVertex(originalSource)) {
+					logger.info("Graph does not contain " + source);
+					logger.info("ALL VERTICES " + graph.getVertices());
+
+				}
+
+				if (!graph.containsVertex(originalTarget)) {
+					logger.info("Graph does not contain " + target);
+					logger.info("ALL VERTICES " + graph.getVertices());
+
+				}
+
+				// Original grap here.. BUT, it works with == and not equals ! :(
+				Collection<String> edges = graph.findEdgeSet(originalSource, originalTarget);
+				if (edges != null) {
+					for (String edge : edges) {
+						union.addEdge(edge, source, target, EdgeType.DIRECTED);
+					}
+				}
 			}
 		}
 

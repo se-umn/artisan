@@ -609,31 +609,73 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 	// I suspect we need to use a different setup to let this freakying system do
 	// what is supposed to...
 	public Collection<ExecutionFlowGraph> extrapolate(Collection<MethodInvocation> methodInvocations) {
-		Collection<ExecutionFlowGraph> extrapolatedGraphs = new ArrayList<>();
+		Collection<ExecutionFlowGraph> extrapolated = new ArrayList<ExecutionFlowGraph>();
 
-		// XXX UGLY PATCH TO ENSURE THAT THE Necessary flag in propagated. Cannot understand why the other attributes are but this one Not...
-		Set<MethodInvocation> necessaryInvocations = new HashSet<MethodInvocation>();
-		// we store here all the data and then obtain the components from here
-		Graph<MethodInvocation, String> union = new DirectedSparseMultigraph<>();
+		Graph<MethodInvocation, String> union = new DirectedSparseMultigraph<MethodInvocation, String>();
 
-		// Add all the nodes - clone them in the process
+		// THIS IS REALLY ANNOYING ! We need to store the clones otherwise graph will
+		// not realize it is the same node ..
+		Map<MethodInvocation, MethodInvocation> cloneMap = new HashMap<MethodInvocation, MethodInvocation>();
+
+		// Add all method invocation nodes - clone them in the process
 		for (MethodInvocation methodInvocation : methodInvocations) {
+			// Add the method invocation vertex and its neighbors, unless they are there
+			// already
 			MethodInvocation cloned = methodInvocation.clone();
 			union.addVertex(cloned);
-			if( cloned.isNecessary()) {
-				necessaryInvocations.add( cloned );
+			cloneMap.put(cloned, methodInvocation);
+
+			for (MethodInvocation neighbor : graph.getPredecessors(methodInvocation)) {
+				MethodInvocation clonedNode = neighbor.clone();
+				cloneMap.put(clonedNode, neighbor);
+				union.addVertex(cloned);
 			}
-			
+
+			for (MethodInvocation neighbor : graph.getSuccessors(methodInvocation)) {
+				MethodInvocation clonedNode = neighbor.clone();
+				cloneMap.put(clonedNode, neighbor);
+				union.addVertex(cloned);
+			}
+
 		}
-		for (String edge : graph.getEdges()) {
-			MethodInvocation source = graph.getSource(edge);
-			MethodInvocation dest = graph.getDest(edge);
-			// If BOTH source and dest are in the extrapolated graph, add the edge there
-			if (union.containsVertex(source) && union.containsVertex(dest)) {
-				// Clone the edge over, it's a string so it should be enough to add it
-				union.addEdge(edge, source, dest, EdgeType.DIRECTED);
+		// Add all the edges between the nodes
+		for (MethodInvocation source : union.getVertices()) {
+			for (MethodInvocation target : union.getVertices()) {
+
+				MethodInvocation originalSource = cloneMap.get(source);
+				MethodInvocation originalTarget = cloneMap.get(target);
+
+				if (!graph.containsVertex(originalSource)) {
+					logger.info("Graph does not contain " + source);
+					logger.info("ALL VERTICES " + graph.getVertices());
+
+				}
+
+				if (!graph.containsVertex(originalTarget)) {
+					logger.info("Graph does not contain " + target);
+					logger.info("ALL VERTICES " + graph.getVertices());
+
+				}
+
+				// Original grap here.. BUT, it works with == and not equals ! :(
+				Collection<String> edges = graph.findEdgeSet(originalSource, originalTarget);
+				if (edges != null) {
+					for (String edge : edges) {
+						if (!union.addEdge(edge, source, target, EdgeType.DIRECTED)) {
+							logger.error("EDGE NOT ADDED");
+						}
+					}
+				}
 			}
 		}
+
+//		System.out.println("ExecutionFlowGraphImpl.extrapolate() DEBUG NECESSARY INVOCATIONS FROM CLUSTER ");
+//		List<MethodInvocation> mis = new ArrayList(union.getVertices());
+//		Collections.sort(mis);
+//		for (MethodInvocation mi : mis) {
+//			System.out.println((mi.isNecessary() ? "* " : "- ") + mi);
+//		}
+//		System.out.println("");
 
 		WeakComponentClusterer<MethodInvocation, String> clusterer = new WeakComponentClusterer<MethodInvocation, String>();
 		// TODO: For whatever freaking reason this creates new instances of the nodes,
@@ -646,14 +688,6 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 		// they will start from 0 and increment, each one. However, the cloned method
 		// invocations will retain their original value inside invocationCount
 
-//		System.out.println("ExecutionFlowGraphImpl.extrapolate() DEBUG NECESSARY INVOCATIONS FROM CLUSTER ");
-//		List<MethodInvocation> mis = new ArrayList(union.getVertices());
-//		Collections.sort(mis);
-//		for (MethodInvocation mi : mis) {
-//			System.out.println((mi.isNecessary() ? "* " : "- ") + mi);
-//		}
-//		System.out.println("");
-
 		// TODO It seems that the information about being a necessary method invocation
 		// (isNecessary) is gone at this. Instances in the cluster are NOT the ones
 		// inside union, so the clusterer somehow clone or copy them.
@@ -665,24 +699,30 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 			ExecutionFlowGraph executionFlowGraph = new ExecutionFlowGraphImpl();
 
 			for (MethodInvocation methodInvocation : orderedMethodInvocations) {
-				if( necessaryInvocations.contains( methodInvocation )) {
-					System.out.println("ExecutionFlowGraphImpl.extrapolate() FOUND A NECESSARY METHOD INVOCATION " + methodInvocation);
-					if( ! methodInvocation.isNecessary()) {
-						System.out.println("ExecutionFlowGraphImpl.extrapolate() FORCEFULLY SET NECESSARY FLAG");
-						methodInvocation.setNecessary( true );
-					} else {
-						System.out.println("ExecutionFlowGraphImpl.extrapolate() Already marked as NECESSARY");
-					}
-				}
+//				if( necessaryInvocations.contains( methodInvocation )) {
+//					System.out.println("ExecutionFlowGraphImpl.extrapolate() FOUND A NECESSARY METHOD INVOCATION " + methodInvocation);
+//					if( ! methodInvocation.isNecessary()) {
+//						System.out.println("ExecutionFlowGraphImpl.extrapolate() FORCEFULLY SET NECESSARY FLAG");
+//						methodInvocation.setNecessary( true );
+//					} else {
+//						System.out.println("ExecutionFlowGraphImpl.extrapolate() Already marked as NECESSARY");
+//					}
+//				}
 				executionFlowGraph.enqueueMethodInvocations(methodInvocation);
 			}
-			extrapolatedGraphs.add(executionFlowGraph);
+
+//			System.out.println("ExecutionFlowGraphImpl.extrapolate() DEBUG NECESSARY INVOCATIONS FROM CLUSTER ");
+//			List<MethodInvocation> mis2 = new ArrayList(executionFlowGraph.getOrderedMethodInvocations());
+//			Collections.sort(mis2);
+//			for (MethodInvocation mi : mis2) {
+//				System.out.println((mi.isNecessary() ? "* " : "- ") + mi);
+//			}
+//			System.out.println("");
+
+			extrapolated.add(executionFlowGraph);
 
 		}
-
-		// TODO Ensure that all nodes are indeed there ?
-
-		return extrapolatedGraphs;
+		return extrapolated;
 	}
 
 	// Insert the method invocation in the "right" place...Usually in front,
