@@ -20,7 +20,8 @@ public interface DataDependencyGraph {
 	public List<DataNode> getParametersOf(MethodInvocation methodInvocation);
 
 	/**
-	 * Method used during parsing to link the DataNode to the method invocation
+	 * Method used during parsing to link the DataNode to the method invocation. 
+	 * TODO Does positions start at 0 or 1? 
 	 * 
 	 * @param methodInvocation
 	 * @param actualParameter

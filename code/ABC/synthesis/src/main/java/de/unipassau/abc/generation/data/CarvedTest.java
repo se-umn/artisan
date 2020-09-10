@@ -1,5 +1,6 @@
 package de.unipassau.abc.generation.data;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -8,6 +9,7 @@ import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
+import de.unipassau.abc.generation.assertions.CarvingAssertion;
 
 public class CarvedTest {
 
@@ -30,6 +32,8 @@ public class CarvedTest {
 	private CatchBlock catchExpectedException;
 	private CatchBlock catchUnexpectedException;
 
+	private List<CarvingAssertion> assertions;
+
 	// Basic Tests
 	public CarvedTest(MethodInvocation methodInvocationUnderTest, ExecutionFlowGraph executionFlowGraph,
 			DataDependencyGraph dataDependencyGraph, CatchBlock catchExpectedException,
@@ -39,6 +43,8 @@ public class CarvedTest {
 		this.dataDependencyGraph = dataDependencyGraph;
 		this.catchExpectedException = catchExpectedException;
 		this.catchUnexpectedException = catchUnexpectedException;
+		//
+		this.assertions = new ArrayList<CarvingAssertion>();
 	}
 
 	public CarvedTest(MethodInvocation methodInvocationUnderTest, ExecutionFlowGraph executionFlowGraph,
@@ -46,6 +52,17 @@ public class CarvedTest {
 		this.methodInvocationUnderTest = methodInvocationUnderTest;
 		this.executionFlowGraph = executionFlowGraph;
 		this.dataDependencyGraph = dataDependencyGraph;
+		//
+		this.assertions = new ArrayList<CarvingAssertion>();
+	}
+
+	// TODO Not sure we need a setAssertions	
+	public void addAssertion(CarvingAssertion assertion) {
+		this.assertions.add(assertion);
+	}
+
+	public List<CarvingAssertion> getAssertions() {
+		return assertions;
 	}
 
 	public MethodInvocation getMethodUnderTest() {

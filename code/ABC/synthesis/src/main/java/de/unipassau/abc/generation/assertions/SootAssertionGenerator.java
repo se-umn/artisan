@@ -47,13 +47,13 @@ import soot.util.Chain;
  * @author gambi
  *
  */
-public class AssertionGenerator {
+public class SootAssertionGenerator {
 
 	public enum AssertVia {
 		XML, GETTERS, USAGE_INSTANCE, USAGE_CLASS;
 	}
 
-	private static final Logger logger = LoggerFactory.getLogger(AssertionGenerator.class);
+	private static final Logger logger = LoggerFactory.getLogger(SootAssertionGenerator.class);
 
 	/**
 	 * This generates different kinds of regression assertions. Based on content

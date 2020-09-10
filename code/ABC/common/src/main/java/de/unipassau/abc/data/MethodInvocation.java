@@ -200,7 +200,12 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
 	@Override
 	public String toString() {
-		return methodSignature + "_" + invocationCount;
+		if (logger.isDebugEnabled() || logger.isTraceEnabled()) {
+			return methodSignature + "_" + invocationCount + "\n" + "\t Actual Parameters: " + actualParameterInstances
+					+ "\n" + "\t Return Value: " + returnValue;
+		} else {
+			return methodSignature + "_" + invocationCount;
+		}
 	}
 
 	public void setStatic(boolean staticCall) {
@@ -350,7 +355,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	// Must be an object... cannot be a primitive type
 	protected ObjectInstance raisedException;
 
-	protected boolean isNecessary;
+	private boolean isNecessary;
 
 	public void setSyntheticMethod(boolean synthetic) {
 		this.isSynthetic = synthetic;

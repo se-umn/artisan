@@ -8,7 +8,9 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,8 +27,13 @@ import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.ExecutionFlowGraphImpl;
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
+import de.unipassau.abc.data.NullInstance;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.exceptions.ABCException;
+import de.unipassau.abc.generation.assertions.AssertionGenerator;
+import de.unipassau.abc.generation.assertions.CarvingAssertion;
+import de.unipassau.abc.generation.assertions.NullValueAssertionGenerator;
+import de.unipassau.abc.generation.assertions.PrimitiveValueAssertionGenerator;
 import de.unipassau.abc.generation.data.AndroidCarvedTest;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
@@ -72,12 +79,12 @@ public class BasicTestGenerator implements TestGenerator {
 		ExecutionFlowGraph executionFlowGraph = new ExecutionFlowGraphImpl();
 		DataDependencyGraph dataDependencyGraph = new DataDependencyGraphImpl();
 
-		// TODO Include Implicit oracles assertions, i.e., exception?
-		// TODO Include regression assertions on basic types.
-		// TODO Include mocking or Android-robolectric setup ?
-		// TODO Generate oracles, DO We need to carve the BODY of the method under test
-		// to see how parameters/objects are used by it?
 		MethodInvocation methodInvocationUnderTest = carvedExecution.methodInvocationUnderTest;
+
+//		// DEBUG: List the required methods
+//		System.out.println("BasicTestGenerator.generateCarvedTestFromCarvedExecution() Necessary method invocations:");
+//		carvedExecution.callGraphs.stream().map(cg -> cg.getAllMethodInvocations()).flatMap(Collection::stream).filter(mi->mi.isNecessary())
+//				.forEach(System.out::println);
 
 		/*
 		 * The carved execution contains a collection of (complete) call graphs, but in
@@ -96,6 +103,9 @@ public class BasicTestGenerator implements TestGenerator {
 		 */
 		if (!directlyCallableMethodInvocations.stream()
 				.anyMatch(mi -> mi.equals(carvedExecution.methodInvocationUnderTest))) {
+
+			logger.info("Method invocation under test " + carvedExecution.methodInvocationUnderTest
+					+ " is not visible. Try to recover ...");
 
 			// Try to recover this test? Or maybe this is an actual feature of the CARVER ?
 			/*
@@ -117,6 +127,10 @@ public class BasicTestGenerator implements TestGenerator {
 				MethodInvocation methodInvocationToReplace = listIterator.previous();
 				callGraph.replaceMethodInvocationWithExecution(methodInvocationToReplace);
 			}
+
+			// TODO FIXME I suspect that at this point we lost the information on relevant
+			// invocations because the methodInvocationUnderTest is not listed among the
+			// relevant method invocations ?!
 
 			/*
 			 * At this point we should get rid of the method invocations that became visible
@@ -331,6 +345,54 @@ public class BasicTestGenerator implements TestGenerator {
 				carvedTest = new CarvedTest(methodInvocationUnderTest, //
 						executionFlowGraph, dataDependencyGraph);
 			}
+
+			// Add the assertions using the AssertionGenerationPipeline (basically, add all
+			// the assertions that can be added).
+			if (!JimpleUtils.hasVoidReturnType(carvedTest.getMethodUnderTest().getMethodSignature())) {
+				if (JimpleUtils
+						.isPrimitive(JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature()))) {
+					AssertionGenerator assertionGenerator = new PrimitiveValueAssertionGenerator();
+
+					CarvingAssertion returnValueAssertion = assertionGenerator.generateAssertionsFor(carvedTest,
+							carvedExecution);
+
+					carvedTest.addAssertion(returnValueAssertion);
+
+				} else if (JimpleUtils
+						.isArray(JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature()))) {
+					throw new NotImplementedException("Assertions over arrays not yet implemented");
+				} else {
+					// Those are regular objects
+
+					// Assert whether the return value is null/not-null
+					AssertionGenerator assertionGenerator = new NullValueAssertionGenerator();
+					CarvingAssertion nullValueAssertion = assertionGenerator.generateAssertionsFor(carvedTest,
+							carvedExecution);
+					carvedTest.addAssertion(nullValueAssertion);
+
+					// Assert the value for boxed types that are NOT null
+					if (JimpleUtils.isBoxedPrimitive(
+							JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature()))
+							&& !((ObjectInstance) carvedExecution.methodInvocationUnderTest.getReturnValue())
+									.isNull()) {
+						CarvingAssertion returnValueAssertion = assertionGenerator.generateAssertionsFor(carvedTest,
+								carvedExecution);
+						carvedTest.addAssertion(returnValueAssertion);
+					}
+
+					// Assert the value for String types that are NOT null
+					if (JimpleUtils
+							.isString(JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature()))
+							&& !((ObjectInstance) carvedExecution.methodInvocationUnderTest.getReturnValue())
+									.isNull()) {
+						CarvingAssertion returnValueAssertion = assertionGenerator.generateAssertionsFor(carvedTest,
+								carvedExecution);
+						carvedTest.addAssertion(returnValueAssertion);
+					}
+
+				}
+			}
+
 		}
 
 		return carvedTest;
