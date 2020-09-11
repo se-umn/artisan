@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
@@ -27,7 +26,6 @@ import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.ExecutionFlowGraphImpl;
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
-import de.unipassau.abc.data.NullInstance;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.assertions.AssertionGenerator;
@@ -172,19 +170,6 @@ public class BasicTestGenerator implements TestGenerator {
 								+ directlyCallableMethodInvocation);
 			}
 		}
-
-		/*
-		 * Validation: if the carved tests contains dangling objects is not valid TODO
-		 * This might need to be moved by the end? Or at this point we need to have
-		 * mocking/stubbing in place already
-		 */
-		Set<ObjectInstance> danglingObjects = carvedExecution.dataDependencyGraphs.stream()
-				.map(cg -> cg.getDanglingObjects()).flatMap(Collection::stream).collect(Collectors.toSet());
-
-		// TODO TEMP ALESSIO !!
-//		if (!danglingObjects.isEmpty()) {
-//			throw new CarvingException("Carved Execution contains dangling Objects:" + danglingObjects);
-//		}
 
 		/*
 		 * Sort the method invocations by their original order of execution. This
@@ -411,6 +396,16 @@ public class BasicTestGenerator implements TestGenerator {
 
 				}
 			}
+		}
+
+		/*
+		 * Validate the test case: if the carved tests contains dangling objects is not
+		 * valid TODO This might need to be moved by the end? Or at this point we need
+		 * to have mocking/stubbing in place already
+		 */
+		Set<ObjectInstance> danglingObjects = carvedTest.getDataDependencyGraph().getDanglingObjects();
+		if (!danglingObjects.isEmpty()) {
+			throw new CarvingException("Carved Test contains dangling Objects:" + danglingObjects);
 		}
 
 		return carvedTest;
