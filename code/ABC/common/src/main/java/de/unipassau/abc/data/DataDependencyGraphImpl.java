@@ -1220,13 +1220,13 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 	public Set<ObjectInstance> getDanglingObjects() {
 		Set<ObjectInstance> danglingObjects = new HashSet<>();
 		for (ObjectInstance objectInstance : getObjectInstances()) {
-			// TODO For some reason, probably cloning, NullInstances are not recognized as such anymore?
+			// TODO For some reason, probably cloning, NullInstances are not recognized as
+			// such anymore?
 			if (objectInstance instanceof NullInstance) {
 				continue;
-			} else if ( objectInstance.getObjectId().endsWith("@0")) {
-				logger.debug("Found a pretending to be null instace: " + objectInstance);
+			} else if (objectInstance.getObjectId().endsWith("@0")) {
 				continue;
-			}else {
+			} else {
 				// Check the object and its aliases
 				Set<ObjectInstance> theObjectAndItsAliases = new HashSet<>();
 				theObjectAndItsAliases.add(objectInstance);
@@ -1439,8 +1439,12 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 
 	@Override
 	public Collection<DataDependencyGraph> extrapolate(Set<MethodInvocation> methodInvocationsToExtrapolate) {
+		Collection<DataDependencyGraph> extrapolated = new ArrayList<DataDependencyGraph>();
 
 		Graph<GraphNode, String> union = new DirectedSparseMultigraph<GraphNode, String>();
+
+		// THIS IS REALLY ANNOYING ! We need to store the clones otherwise graph will
+		// not realize it is the same node ..
 		Map<GraphNode, GraphNode> cloneMap = new HashMap<GraphNode, GraphNode>();
 
 		final Set<MethodInvocation> allMethodInvocations = graph.getVertices().stream()//
@@ -1508,8 +1512,6 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 				}
 			}
 		}
-
-		Collection<DataDependencyGraph> extrapolated = new ArrayList<DataDependencyGraph>();
 
 		// Find the weakly connected components
 		WeakComponentClusterer<GraphNode, String> clusterer = new WeakComponentClusterer<GraphNode, String>();

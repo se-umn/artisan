@@ -2,6 +2,27 @@ package de.unipassau.abc.generation.testwriters;
 
 import static com.github.javaparser.StaticJavaParser.parseClassOrInterfaceType;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.apache.commons.lang.NotImplementedException;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.NodeList;
@@ -24,6 +45,7 @@ import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
+
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.DataNode;
 import de.unipassau.abc.data.ExecutionFlowGraph;
@@ -31,9 +53,12 @@ import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodCallLiteralValue;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
+import de.unipassau.abc.data.Pair;
+import de.unipassau.abc.data.PlaceholderDataNode;
 import de.unipassau.abc.data.PrimitiveValue;
 import de.unipassau.abc.generation.SyntheticMethodSignatures;
 import de.unipassau.abc.generation.TestCaseWriter;
+import de.unipassau.abc.generation.assertions.CarvingAssertion;
 import de.unipassau.abc.generation.data.AndroidCarvedTest;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
@@ -41,20 +66,6 @@ import de.unipassau.abc.generation.utils.TestCase;
 import de.unipassau.abc.generation.utils.TestCaseOrganizer;
 import de.unipassau.abc.generation.utils.TypeUtils;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import org.apache.commons.lang.NotImplementedException;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.robolectric.RobolectricTestRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Generate the source code implementing the carved tests as tests were
@@ -95,6 +106,10 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 		}
 
 	}
+
+	// TODO I do not like to use this variable for temporary storing the method
+	// under test...
+	private MethodInvocation methodInvocationUnderTest;
 
 	public CompilationUnit generateJUnitTestCase(TestCase testCase) {
 		logger.info("Generate source code for " + testCase.getName());
@@ -153,6 +168,72 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 	private Map<String, AtomicInteger> declaredVariablesIndex = new HashMap<>();
 
 	/**
+	 * Generate a "self" contained block of code from the given carvedTest
+	 * 
+	 * @param executionFlowGraph
+	 * @param dataDependencyGraph
+	 * @return
+	 */
+	public BlockStmt generateBlockStmtFrom(CarvedTest carvedTest) {
+
+		ExecutionFlowGraph executionFlowGraph = carvedTest.getExecutionFlowGraph();
+		DataDependencyGraph dataDependencyGraph = carvedTest.getDataDependencyGraph();
+
+		BlockStmt blockStmt = new BlockStmt();
+		// TODO First declare all the variables for non-primitive-like types in the
+		// scope of this block ?
+		Set<ObjectInstance> objectInstances = new HashSet<ObjectInstance>(dataDependencyGraph.getObjectInstances());
+		for (ObjectInstance objectInstance : objectInstances) {
+			// Default initialization. Avoid variable not initialized variable
+			// warning/errors
+			declareVariableFor(objectInstance, blockStmt, new NullLiteralExpr());
+		}
+
+		// Next implement all the methods, making sure variables and parameters match
+		String referenceToActualValue = null;
+
+		for (MethodInvocation methodInvocation : executionFlowGraph.getOrderedMethodInvocations()) {
+			// Now we create each method calls making sure that variables and the like
+			// matches
+			if (methodInvocation.isConstructor()) {
+				String generatedVariable = generateConstructorCall(methodInvocation, blockStmt);
+				if (methodInvocation.equals(carvedTest.getMethodUnderTest())) {
+					referenceToActualValue = generatedVariable;
+				}
+			} else {
+				Optional<String> generatedVariable = generateMethodCall(methodInvocation, blockStmt);
+				// Method calls might be void, so no variable is generated after invoking
+				// them...
+				if (methodInvocation.equals(carvedTest.getMethodUnderTest()) && generatedVariable.isPresent()) {
+					referenceToActualValue = generatedVariable.get();
+				}
+
+			}
+		}
+
+		// Next implement all the assertions using REFERENCE TO ACTUAL VALUE for the
+		// assertions !
+		for (CarvingAssertion carvingAssertion : carvedTest.getAssertions()) {
+			for (Pair<ExecutionFlowGraph, DataDependencyGraph> pair : zip(carvingAssertion.executionFlowGraphs,
+					carvingAssertion.dataDependencyGraphs)) {
+				// TODO Join the variable instead of the value for primitives
+				ExecutionFlowGraph assertionExecutionGraph = pair.getFirst();
+				for (MethodInvocation methodInvocation : assertionExecutionGraph.getOrderedMethodInvocations()) {
+					// By design assertions goes by the end of the test
+					if (methodInvocation.isConstructor()) {
+						generateConstructorCall(methodInvocation, blockStmt);
+					} else {
+						generateMethodCall(methodInvocation, blockStmt);
+
+					}
+				}
+			}
+
+		}
+		return blockStmt;
+	}
+
+	/**
 	 * Generate a "self" contained block of code from the given data structures by
 	 * first declaring variables and the implementing the calls, one after the
 	 * other. The method takes care to define the bindings from synthetic methods
@@ -162,13 +243,16 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 	 * @param dataDependencyGraph
 	 * @return
 	 */
-	public BlockStmt generateBlockStmtFrom(ExecutionFlowGraph executionFlowGraph,
+	public BlockStmt generateBlockStmtFromGraphs(ExecutionFlowGraph executionFlowGraph,
 			DataDependencyGraph dataDependencyGraph) {
+
 		BlockStmt blockStmt = new BlockStmt();
-		// TODO First declare all the variables in the scope of this block ?
+		// TODO First declare all the variables for non-primitive-like types in the
+		// scope of this block ?
 		Set<ObjectInstance> objectInstances = new HashSet<ObjectInstance>(dataDependencyGraph.getObjectInstances());
 		for (ObjectInstance objectInstance : objectInstances) {
-			// Default initialization. Avoid variable not initialize warning/errors
+			// Default initialization. Avoid variable not initialized variable
+			// warning/errors
 			declareVariableFor(objectInstance, blockStmt, new NullLiteralExpr());
 		}
 
@@ -201,16 +285,27 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 		p.setType(capturedExceptionType);
 		catchClause.setParameter(p);
 
-		BlockStmt cb = generateBlockStmtFrom(catchBlock.getExecutionFlowGraph(), catchBlock.getDataDependencyGraph());
+		BlockStmt cb = generateBlockStmtFromGraphs(catchBlock.getExecutionFlowGraph(),
+				catchBlock.getDataDependencyGraph());
 		catchClause.setBody(cb);
 		return catchClause;
 	}
 
-	private void generateMethodBody(MethodDeclaration testMethod, CarvedTest carvedTest) {
-		BlockStmt methodBody = generateBlockStmtFrom(carvedTest.getExecutionFlowGraph(),
-				carvedTest.getDataDependencyGraph());
+	// MOVE THIS TO UTILITY CLASS
+	public static <A, B> List<Pair<A, B>> zip(List<A> as, List<B> bs) {
+		Iterator<A> it1 = as.iterator();
+		Iterator<B> it2 = bs.iterator();
+		List<Pair<A, B>> result = new ArrayList<>();
+		while (it1.hasNext() && it2.hasNext()) {
+			result.add(new Pair<A, B>(it1.next(), it2.next()));
+		}
+		return result;
+	}
 
+	private void generateMethodBody(MethodDeclaration testMethod, CarvedTest carvedTest) {
 		if (carvedTest.expectException()) {
+			BlockStmt methodBody = generateBlockStmtFrom(carvedTest);
+
 			// Build the try statement that encapsulate the entire method body
 			TryStmt tryStatement = new TryStmt();
 			tryStatement.setTryBlock(methodBody);
@@ -233,12 +328,14 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 			testMethod.setBody(wrappedMethodBody);
 
 		} else {
+			BlockStmt methodBody = generateBlockStmtFrom(carvedTest);
+
 			testMethod.setBody(methodBody);
 		}
 
 	}
 
-	private void generateConstructorCall(MethodInvocation methodInvocation, BlockStmt methodBody) {
+	private String generateConstructorCall(MethodInvocation methodInvocation, BlockStmt methodBody) {
 		/*
 		 * Despite it might seem better to update the previous variable declaration,
 		 * doing so it is tricky as arguments used in the constructor must be
@@ -252,38 +349,59 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 				JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature()));
 		ObjectCreationExpr constructorCall = new ObjectCreationExpr();
 		constructorCall.setType(type);
+		
 		for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
-			constructorCall.addArgument(getParameterFor(parameter, methodBody));
+
+			if( parameter instanceof PlaceholderDataNode ) {
+				PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
+				String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
+				constructorCall.addArgument( variable );
+			} else {
+				constructorCall.addArgument(getParameterFor(parameter, methodBody));	
+			}
 		}
 
 		AssignExpr variableAssignemt = new AssignExpr(new NameExpr(variableName), constructorCall, Operator.ASSIGN);
 		methodBody.addStatement(variableAssignemt);
 
+		// Here the variable name is the one returned by the constructor
+		return variableName;
+
 	}
 
-	private void generateMethodCall(MethodInvocation methodInvocation, BlockStmt methodBody) {
+	private Optional<String> generateMethodCall(MethodInvocation methodInvocation, BlockStmt methodBody) {
 
 		// TODO Handle return type that must be assigned to a variable probably
 		String methodName = JimpleUtils.getMethodName(methodInvocation.getMethodSignature());
 		MethodCallExpr methodCallExpr = null;
 
+		String variableName = null;
+		/**
+		 * Step 1: prepare the invocation of the method
+		 */
 		if (!methodInvocation.isStatic()) {
 			// Instance method calls
 			ObjectInstance owner = methodInvocation.getOwner();
-			String variableName = getVariableFor(owner, methodBody);
+			String variableNameOwner = getVariableFor(owner, methodBody);
 
-			if (methodInvocation.isSynthetic()) {
-				throw new NotImplementedException("Binding not defined for synthetic method call: " + methodInvocation);
-			} else {
-				NameExpr nameExpr = new NameExpr(variableName);
-				methodCallExpr = new MethodCallExpr(nameExpr, methodName);
-			}
+			// This is a check for fake methods but this triggers also for implementation of
+			// TODO Add a isFake check instead.
+			// super()
+//			if (methodInvocation.isSynthetic()) {
+//				throw new NotImplementedException("Binding not defined for synthetic method call: " + methodInvocation);
+//			} else {
+			NameExpr nameExpr = new NameExpr(variableNameOwner);
+			methodCallExpr = new MethodCallExpr(nameExpr, methodName);
+//			}
 
 		} else {
+			// TODO Here we use JUnit assertions, while we should be using Hamcrest
+			// https://stackoverflow.com/questions/56772801/assert-fail-equivalent-using-hamcrest
 			// Static methods
 			// Include the Type, but shoud we use TypeExpr instead?
 			if (methodInvocation.isSynthetic()) {
 				switch (methodInvocation.getMethodSignature()) {
+				// TODO I am not sure this is used at all
 				case SyntheticMethodSignatures.FAIL_WITH_MESSAGE:
 					methodCallExpr = new MethodCallExpr(
 							JimpleUtils.getFullyQualifiedMethodName("<org.junit.Assert: void fail(java.lang.String)>"));
@@ -298,19 +416,34 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 			}
 		}
 
+		/**
+		 * Step 2: add the parameters to make the invocation make sure that expected
+		 * return values are used correctly...
+		 */
 		for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
-			methodCallExpr.addArgument(getParameterFor(parameter, methodBody));
+			if( parameter instanceof PlaceholderDataNode ) {
+				PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
+				String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
+				methodCallExpr.addArgument( variable);
+			} else {
+				methodCallExpr.addArgument(getParameterFor(parameter, methodBody));	
+			}
+			
 		}
 
-		// If a method is exceptional it cannot return a value despite it is non-void
+		/**
+		 * Step 3 capture the return value into a "new?" variable. This probably should
+		 * be improved for reusing the "same" variables...
+		 */
 		if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())
 				&& !methodInvocation.isExceptional()) {
-			// Generate the left side of the invocation. We store values into new variables
-			// no matter what ?
-			declareVariableFor(methodInvocation.getReturnValue(), methodBody, methodCallExpr);
+			variableName = declareVariableFor(methodInvocation.getReturnValue(), methodBody, methodCallExpr);
+
 		} else {
 			methodBody.addStatement(methodCallExpr);
 		}
+
+		return Optional.ofNullable(variableName);
 
 	}
 
@@ -361,7 +494,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 	}
 
 	// TODO Contenxtualize on MethodBody/scope !
-	private void declareVariableFor(DataNode dataNode, BlockStmt methodBody, Expression initializer) {
+	private String declareVariableFor(DataNode dataNode, BlockStmt methodBody, Expression initializer) {
 		String variableType = TypeUtils.getActualTypeFor(dataNode);
 		// TODO Move to Utils methods as this is used in many places
 		String className = variableType.substring(variableType.lastIndexOf('.') + 1, variableType.length());
@@ -408,6 +541,8 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 		variableDeclarationExpr.setVariables(variableDeclarators);
 		expressionStmt.setExpression(variableDeclarationExpr);
 		methodBody.addStatement(expressionStmt);
+
+		return variableName;
 	}
 
 }

@@ -23,6 +23,12 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.ibm.icu.impl.duration.impl.DataRecord.EZeroHandling;
+import com.jcabi.log.Logger;
+
+import android.provider.ContactsContract.Contacts.Data;
+import android.telecom.Call;
+
 /**
  * Basic carver is a method carver, that is, it will produce a carved execution
  * whose last element is the invocation of the given method or methods
@@ -165,7 +171,10 @@ public class BasicCarver implements MethodCarver {
 		List<CarvedExecution> carvedExecutions = new ArrayList<CarvedExecution>();
 
 		/*
-		 * Collect and sort the method invocations necessary for the carving
+		 * Collect and sort the method invocations necessary for the carving. Note that
+		 * the findNecessaryMethodInvocations DOES NOT tag the method invocations as
+		 * necessary, as those will impact future carving activities. Instead, we clone
+		 * them and explicitly tag them as necessary.
 		 */
 		Set<MethodInvocation> necessaryMethodInvocations = findNecessaryMethodInvocations(methodInvocation).stream()
 				.map(t -> {
@@ -175,6 +184,8 @@ public class BasicCarver implements MethodCarver {
 					return clonedMethodInvocation;
 				}).collect(Collectors.toSet());
 
+//		System.out.println("BasicCarver.carve() Necessary method invocations:");
+//		necessaryMethodInvocations.stream().forEach(System.out::println);
 		/**
 		 * Starting from the set of necessary method invocations we create a
 		 * "consistent" execution up to what we can do. So there will be dangling
@@ -187,14 +198,36 @@ public class BasicCarver implements MethodCarver {
 		Set<MethodInvocation> allMethodInvocations = new HashSet<>();
 
 		/*
+		 * Make sure you consider the method invocations that we have tagged as
+		 * necessary method invocations here. We need them because they are tagged as
+		 * necessary.
+		 */
+		allMethodInvocations.addAll(necessaryMethodInvocations);
+
+//		System.out.println("");
+//		System.out.println("BasicCarver.carve() Necessary method invocations (FROM ALL METHOD INVOCATIONS):");
+//		allMethodInvocations.stream().filter(mi -> mi.isNecessary()).forEach(System.out::println);
+
+		/*
 		 * First collect all the method invocations that will be done as consequence of
 		 * invoking the necessaryMethodInvocations. In theory, executing those method
 		 * invocations should not require any additional carving.
 		 */
 		for (MethodInvocation necessaryMethodInvocation : necessaryMethodInvocations) {
-			allMethodInvocations.addAll(callGraph.getMethodInvocationsSubsumedBy(necessaryMethodInvocation));
+			// We need to be sure NOT to override the method invocations marked as relevant
+			// here
+			for (MethodInvocation mi : callGraph.getMethodInvocationsSubsumedBy(necessaryMethodInvocation)) {
+				if (!allMethodInvocations.contains(mi)) {
+					allMethodInvocations.add(mi);
+				}
+			}
 		}
+//		System.out.println("");
+//		System.out.println("BasicCarver.carve() Necessary method invocations (FROM ALL METHOD INVOCATIONS):");
+//		allMethodInvocations.stream().filter(mi -> mi.isNecessary()).forEach(System.out::println);
 
+		// ALESSIO: TODO Why the calls subsumed by necessary calls should be marked as
+		// necessary as well?
 		/*
 		 * Union of the necessary method invocation set and the set of method
 		 * invocations obtained by cloning the subsumed method invocations. Since the
@@ -204,13 +237,12 @@ public class BasicCarver implements MethodCarver {
 		 * TODO Assumption: addAll does not replace the objects that are ALREADY inside
 		 * the set, we need this to propagate the "isNecessary" tag.
 		 */
-		necessaryMethodInvocations
-				.addAll(allMethodInvocations.stream().map(t -> {
-					// Create a clone and mark it as necessary
-					MethodInvocation clonedMethodInvocation = t.clone();
-					clonedMethodInvocation.setNecessary(true);
-					return clonedMethodInvocation;
-				}).collect(Collectors.toSet()));
+//		necessaryMethodInvocations.addAll(allMethodInvocations.stream().map(t -> {
+//			// Create a clone and mark it as necessary
+//			MethodInvocation clonedMethodInvocation = t.clone();
+//			clonedMethodInvocation.setNecessary(true);
+//			return clonedMethodInvocation;
+//		}).collect(Collectors.toSet()));
 
 		/*
 		 * Next extract from the traces those fragments (connected components?) that
@@ -221,9 +253,37 @@ public class BasicCarver implements MethodCarver {
 		CarvedExecution carvedExecution = new CarvedExecution();
 		// How do we ensure that whatever we extrapolate from the graphs belong
 		// together? We order method invocations per id of the first call?
-		carvedExecution.executionFlowGraphs = this.executionFlowGraph.extrapolate(necessaryMethodInvocations);
-		carvedExecution.dataDependencyGraphs = this.dataDependencyGraph.extrapolate(necessaryMethodInvocations);
-		carvedExecution.callGraphs = this.callGraph.extrapolate(necessaryMethodInvocations);
+		carvedExecution.executionFlowGraphs = this.executionFlowGraph.extrapolate(allMethodInvocations);
+		carvedExecution.dataDependencyGraphs = this.dataDependencyGraph.extrapolate(allMethodInvocations);
+		carvedExecution.callGraphs = this.callGraph.extrapolate(allMethodInvocations);
+
+		// DEBUG CHECK FOR isNecessary
+//		System.out.println("BasicCarver.carve() DEBUG NECESSARY: ");
+//		for( ExecutionFlowGraph executionFlowGraph : carvedExecution.executionFlowGraphs ) {
+//			for( MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations() ) {
+//				System.out.println( ( mi.isNecessary() ? "*" : "-") + " " + mi );
+//			}
+//		}
+//		System.out.println("");
+//		System.out.println("BasicCarver.carve() DEBUG NECESSARY: ");
+//		for( DataDependencyGraph dataDependencyGraph : carvedExecution.dataDependencyGraphs ) {
+//			List<MethodInvocation> sorted = new ArrayList<MethodInvocation>( dataDependencyGraph.getAllMethodInvocations());
+//			Collections.sort(sorted);
+//			for( MethodInvocation mi : sorted ) {
+//				System.out.println( ( mi.isNecessary() ? "*" : "-") + " " + mi );
+//			}
+//		}
+//		System.out.println("");
+//		
+//		System.out.println("BasicCarver.carve() DEBUG NECESSARY: ");
+//		for( CallGraph callGraph: carvedExecution.callGraphs) {
+//			List<MethodInvocation> sorted = new ArrayList<MethodInvocation>( callGraph.getAllMethodInvocations());
+//			Collections.sort(sorted);
+//			for( MethodInvocation mi : sorted ) {
+//				System.out.println( ( mi.isNecessary() ? "*" : "-") + " " + mi );
+//			}
+//		}
+//		System.out.println("");
 
 		carvedExecution.methodInvocationUnderTest = methodInvocation;
 

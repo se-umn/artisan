@@ -85,8 +85,8 @@ public class JimpleUtils {
     return jimpleMethod.replaceFirst("<", "").split(" ")[0].replaceAll(":", "");
   }
 
-  public static String getReturnType(String jimpleMethod) {
-    return jimpleMethod.split(" ")[1];
+  public static String getReturnType(String methodSignature) {
+    return methodSignature.split(" ")[1];
   }
 
   public static boolean hasVoidReturnType(String jimpleMethod) {

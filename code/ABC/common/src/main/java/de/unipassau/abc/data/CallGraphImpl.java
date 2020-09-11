@@ -1,15 +1,5 @@
 package de.unipassau.abc.data;
 
-import com.google.common.base.Function;
-
-import android.telecom.Call;
-import edu.uci.ics.jung.algorithms.cluster.WeakComponentClusterer;
-import edu.uci.ics.jung.algorithms.layout.KKLayout;
-import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
-import edu.uci.ics.jung.graph.Graph;
-import edu.uci.ics.jung.graph.util.EdgeType;
-import edu.uci.ics.jung.visualization.VisualizationViewer;
-import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Paint;
@@ -23,9 +13,21 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+
 import javax.swing.JFrame;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Function;
+
+import edu.uci.ics.jung.algorithms.cluster.WeakComponentClusterer;
+import edu.uci.ics.jung.algorithms.layout.KKLayout;
+import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
+import edu.uci.ics.jung.graph.Graph;
+import edu.uci.ics.jung.graph.util.EdgeType;
+import edu.uci.ics.jung.visualization.VisualizationViewer;
+import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
 
 public class CallGraphImpl implements CallGraph {
 
@@ -446,60 +448,63 @@ public class CallGraphImpl implements CallGraph {
 
 	@Override
 	public Collection<CallGraph> extrapolate(Set<MethodInvocation> methodInvocations) {
+		Collection<CallGraph> extrapolated = new ArrayList<CallGraph>();
 
-		final Set<MethodInvocation> allMethodInvocations = graph.getVertices().stream()//
-				.filter(v -> MethodInvocation.class.isInstance(v))//
-				.map(MethodInvocation.class::cast)//
-				.collect(Collectors.toSet());
+		Graph<MethodInvocation, String> union = new DirectedSparseMultigraph<MethodInvocation, String>();
 
-		Graph<MethodInvocation, String> union = new DirectedSparseMultigraph<>();
-		Map<MethodInvocation, MethodInvocation> cloneMap = new HashMap<>();
+		// THIS IS REALLY ANNOYING ! We need to store the clones otherwise graph will
+		// not realize it is the same node ..
+		Map<MethodInvocation, MethodInvocation> cloneMap = new HashMap<MethodInvocation, MethodInvocation>();
 
-		// Add all the nodes - clone them in the process
+		// Add all method invocation nodes - clone them in the process
 		for (MethodInvocation methodInvocation : methodInvocations) {
-
-			// Avoid using incomplete information from methodInvocation
-			MethodInvocation originalMethodInvocation = allMethodInvocations.parallelStream()
-					.filter(mi -> mi.getInvocationCount() == methodInvocation.getInvocationCount())//
-					.findAny().orElse(null);
-
-			MethodInvocation cloned = originalMethodInvocation.clone();
+			// Add the method invocation vertex and its neighbors, unless they are there
+			// already
+			MethodInvocation cloned = methodInvocation.clone();
 			union.addVertex(cloned);
-			cloneMap.put(cloned, originalMethodInvocation);
+			cloneMap.put(cloned, methodInvocation);
+
+			for (MethodInvocation neighbor : graph.getPredecessors(methodInvocation)) {
+				MethodInvocation clonedNode = neighbor.clone();
+				cloneMap.put(clonedNode, neighbor);
+				union.addVertex(cloned);
+			}
+
+			for (MethodInvocation neighbor : graph.getSuccessors(methodInvocation)) {
+				MethodInvocation clonedNode = neighbor.clone();
+				cloneMap.put(clonedNode, neighbor);
+				union.addVertex(cloned);
+			}
+
 		}
-
 		// Add all the edges between the nodes
-		for (MethodInvocation clonedSource : union.getVertices()) {
-			// TODO Do not check a node with itself
-			for (MethodInvocation clonedTarget : union.getVertices()) {
+		for (MethodInvocation source : union.getVertices()) {
+			for (MethodInvocation target : union.getVertices()) {
 
-				MethodInvocation originalSource = cloneMap.get(clonedSource);
-				MethodInvocation originalTarget = cloneMap.get(clonedTarget);
+				MethodInvocation originalSource = cloneMap.get(source);
+				MethodInvocation originalTarget = cloneMap.get(target);
 
 				if (!graph.containsVertex(originalSource)) {
-					logger.info("Graph does not contain " + clonedSource);
-					logger.info("ALL VERTICES " + graph.getVertices());
+					logger.warn("Graph does not contain " + source);
+					logger.warn("ALL VERTICES " + graph.getVertices());
 
 				}
 
 				if (!graph.containsVertex(originalTarget)) {
-					logger.info("Graph does not contain " + clonedTarget);
-					logger.info("ALL VERTICES " + graph.getVertices());
-
+					logger.warn("Graph does not contain " + target);
+					logger.warn("ALL VERTICES " + graph.getVertices());
 				}
 
 				// Original grap here.. BUT, it works with == and not equals ! :(
 				Collection<String> edges = graph.findEdgeSet(originalSource, originalTarget);
 				if (edges != null) {
 					for (String edge : edges) {
-						union.addEdge(edge, clonedSource, clonedTarget, EdgeType.DIRECTED);
-						logger.trace("Adding dependency " + edge);
+						union.addEdge(edge, source, target, EdgeType.DIRECTED);
 					}
 				}
 			}
 		}
 
-		Collection<CallGraph> extrapolated = new ArrayList<CallGraph>();
 		// Find the weakly connected components
 		WeakComponentClusterer<MethodInvocation, String> clusterer = new WeakComponentClusterer<MethodInvocation, String>();
 		Set<Set<MethodInvocation>> clusters = clusterer.apply(union);
@@ -518,12 +523,12 @@ public class CallGraphImpl implements CallGraph {
 
 			for (MethodInvocation source : cluster) {
 				for (MethodInvocation target : cluster) {
-					
-					MethodInvocation originalSource = cloneMap.get(source );
+
+					MethodInvocation originalSource = cloneMap.get(source);
 					MethodInvocation originalTarget = cloneMap.get(target);
 
 					Collection<String> edges = graph.findEdgeSet(originalSource, originalTarget);
-					
+
 					if (edges != null) {
 						for (String edge : edges) {
 							callGraph.graph.addEdge(edge, source, target, EdgeType.DIRECTED);
