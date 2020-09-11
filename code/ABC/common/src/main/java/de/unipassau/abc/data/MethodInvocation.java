@@ -416,4 +416,5 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	public void incrementInvocationCountBy(int delta) {
 		this.invocationCount = this.invocationCount + delta;
 	}
+
 }

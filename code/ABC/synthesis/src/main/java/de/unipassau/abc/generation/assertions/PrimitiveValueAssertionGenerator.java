@@ -1,12 +1,6 @@
 package de.unipassau.abc.generation.assertions;
 
-import static org.junit.Assert.assertThat;
-
 import java.util.Arrays;
-import java.util.List;
-
-import org.hamcrest.Matchers;
-import org.hamcrest.core.Is;
 
 import de.unipassau.abc.carving.CarvedExecution;
 import de.unipassau.abc.data.DataDependencyGraph;
@@ -42,6 +36,7 @@ public class PrimitiveValueAssertionGenerator implements AssertionGenerator {
 //	
 //	<org.hamcrest.Matchers: org.hamcrest.Matcher is(java.lang.Class)>
 
+	// TODO Move this to some constants class or something... Even better a factory for MethodInvocations
 	private final static String ASSERT_THAT_SIGNATURE = "<org.hamcrest.MatcherAssert: void assertThat(java.lang.Object,org.hamcrest.Matcher)>";
 	private final static String EQUAL_TO_SIGNATURE = "<org.hamcrest.Matchers: org.hamcrest.Matcher equalTo(java.lang.Object)>";
 	private final static String IS_SIGNATURE = "<org.hamcrest.Matchers: org.hamcrest.Matcher is(org.hamcrest.Matcher)>";
@@ -70,8 +65,8 @@ public class PrimitiveValueAssertionGenerator implements AssertionGenerator {
 
 			// This is the value recorded from the trace, but we still
 			DataNode expectedReturnValue = originalMethodInvocation.getReturnValue();
-			// TODO Not sure this is actually there yet..
-			DataNode actualReturnValue = methodInvocationInsideTest.getReturnValue();
+			// 
+			DataNode actualReturnValue = DataNodeFactory.getPlaceholderFor(expectedReturnValue);
 
 			// invoke Matchers.equalTo(operand) with operand being the expectedReturnValue
 			// TODO This might be easier to wrap into a factory

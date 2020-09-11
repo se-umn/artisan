@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 public class DataNodeFactory {
 
 	private static final Logger logger = LoggerFactory.getLogger(DataNodeFactory.class);
-	// TODO Possibly build a cache ?
 
 	public static ObjectInstance getFromException(String exceptionAsString) {
 		if (exceptionAsString.split("@").length == 2) {
@@ -15,6 +14,11 @@ public class DataNodeFactory {
 		} else {
 			throw new RuntimeException("Cannot create a ObjectInstance from Exception: " + exceptionAsString);
 		}
+	}
+
+	public static DataNode getPlaceholderFor(DataNode originalDataNode) {
+		// TODO Enable to track ids and such
+		return new PlaceholderDataNode(originalDataNode);
 	}
 
 	/**

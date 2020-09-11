@@ -32,7 +32,7 @@ import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 public class BasicTestGeneratorTest {
 
 	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
+	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
 
 	private final static File ANDROID_JAR = new File(
 			"/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar");
@@ -136,17 +136,7 @@ public class BasicTestGeneratorTest {
 			System.out.println(cu);
 		}
 	}
-	
-	/**
-	 * This test is a bit trickier than the previous one. And it might not even be
-	 * considered valid to some extend. The issue is that the eval method of the
-	 * activity is invoked inside the sendResult method of the same activity.
-	 * Because send result is invoked
-	 * 
-	 * @throws FileNotFoundException
-	 * @throws IOException
-	 * @throws ABCException
-	 */
+
 	@Test
 	public void testAssertionOnPrimitives() throws FileNotFoundException, IOException, ABCException {
 		File traceFile = new File("./src/test/resources/abc.basiccalculator/testCalculate-trace.txt");
@@ -187,4 +177,5 @@ public class BasicTestGeneratorTest {
 			System.out.println(cu);
 		}
 	}
+
 }
