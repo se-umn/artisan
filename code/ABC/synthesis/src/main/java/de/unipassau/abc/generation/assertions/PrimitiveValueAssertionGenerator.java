@@ -70,8 +70,8 @@ public class PrimitiveValueAssertionGenerator implements AssertionGenerator {
 
 			// This is the value recorded from the trace, but we still
 			DataNode expectedReturnValue = originalMethodInvocation.getReturnValue();
-			// TODO Not sure this is actually there yet..
-			DataNode actualReturnValue = methodInvocationInsideTest.getReturnValue();
+			// 
+			DataNode actualReturnValue = DataNodeFactory.getPlaceholderFor(expectedReturnValue);
 
 			// invoke Matchers.equalTo(operand) with operand being the expectedReturnValue
 			// TODO This might be easier to wrap into a factory
