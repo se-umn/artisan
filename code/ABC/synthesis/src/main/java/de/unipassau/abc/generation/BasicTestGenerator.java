@@ -151,8 +151,7 @@ public class BasicTestGenerator implements TestGenerator {
 
 		}
 
-		// Check if, after the recovery, the metho under test is still not visible...
-		// THIS SHOULD NOT BE EVER POSSIBLE...
+		// Check if, after the recovery, the method under test is still not visible...
 		directlyCallableMethodInvocations.clear();
 		carvedExecution.callGraphs.forEach(callGraph -> directlyCallableMethodInvocations.addAll(callGraph.getRoots()));
 		if (!directlyCallableMethodInvocations.stream()
@@ -160,6 +159,7 @@ public class BasicTestGenerator implements TestGenerator {
 			throw new CarvingException("Target method invocation " + carvedExecution.methodInvocationUnderTest
 					+ "is not directly visible ");
 		}
+
 		/*
 		 * Validation: If the directlyCallableMethodInvocations contain private methods,
 		 * that's an error
@@ -172,6 +172,19 @@ public class BasicTestGenerator implements TestGenerator {
 								+ directlyCallableMethodInvocation);
 			}
 		}
+
+		/*
+		 * Validation: if the carved tests contains dangling objects is not valid TODO
+		 * This might need to be moved by the end? Or at this point we need to have
+		 * mocking/stubbing in place already
+		 */
+		Set<ObjectInstance> danglingObjects = carvedExecution.dataDependencyGraphs.stream()
+				.map(cg -> cg.getDanglingObjects()).flatMap(Collection::stream).collect(Collectors.toSet());
+
+		// TODO TEMP ALESSIO !!
+//		if (!danglingObjects.isEmpty()) {
+//			throw new CarvingException("Carved Execution contains dangling Objects:" + danglingObjects);
+//		}
 
 		/*
 		 * Sort the method invocations by their original order of execution. This
@@ -227,6 +240,7 @@ public class BasicTestGenerator implements TestGenerator {
 		CarvedTest carvedTest = null;
 
 		if (methodInvocationUnderTest.isExceptional()) {
+			// This is basically generating assertions...
 			// TODO Move the following logic into separated methods. Probably an assertion
 			// generator of some sort
 			/*
@@ -338,6 +352,8 @@ public class BasicTestGenerator implements TestGenerator {
 						catchExpectedException, catchUnexpectedException);
 			}
 		} else {
+
+			// Include assertions here
 			if (methodInvocationUnderTest instanceof AndroidMethodInvocation) {
 				carvedTest = new AndroidCarvedTest(methodInvocationUnderTest, //
 						executionFlowGraph, dataDependencyGraph);
@@ -345,15 +361,15 @@ public class BasicTestGenerator implements TestGenerator {
 				carvedTest = new CarvedTest(methodInvocationUnderTest, //
 						executionFlowGraph, dataDependencyGraph);
 			}
-
 			// Add the assertions using the AssertionGenerationPipeline (basically, add all
 			// the assertions that can be added).
 			if (!JimpleUtils.hasVoidReturnType(carvedTest.getMethodUnderTest().getMethodSignature())) {
 				// TODO We might not be able to handle the case of a NULL string since we
 				// consider String as primitive type, and primitives cannot be null...
-				if (JimpleUtils.isPrimitive(JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature())) || //
-								JimpleUtils.isString(JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature()))
-				) {
+				if (JimpleUtils
+						.isPrimitive(JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature())) || //
+						JimpleUtils.isString(
+								JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature()))) {
 					AssertionGenerator assertionGenerator = new PrimitiveValueAssertionGenerator();
 
 					CarvingAssertion returnValueAssertion = assertionGenerator.generateAssertionsFor(carvedTest,
@@ -395,7 +411,6 @@ public class BasicTestGenerator implements TestGenerator {
 
 				}
 			}
-
 		}
 
 		return carvedTest;

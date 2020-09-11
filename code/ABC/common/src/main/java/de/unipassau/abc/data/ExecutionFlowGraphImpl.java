@@ -55,11 +55,6 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 		graph = new DirectedSparseMultigraph<>();
 	}
 
-	// TODO Maybe change the name...and replace the next method
-	// TODO Why we need this information at this point if we update the method
-	// invocations. Because the graph return shallow copies of the objects maybe
-	// ?!
-
 	public void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl) {
 		MethodInvocation originalMethodInvocation = graph.getVertices().stream()
 				.filter(methodInvocation -> methodInvocation.equals(orig)).findFirst()
@@ -129,23 +124,7 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 			for (String outEdge : outEdges.keySet()) {
 				graph.addEdge(outEdge, methodInvocation, outEdges.get(outEdge), EdgeType.DIRECTED);
 			}
-
-			///
-
 		}
-
-		// if (graph.containsVertex(methodInvocation)) {
-		// for( MethodInvocation mi : graph.getVertices()){
-		// if( mi.equals( methodInvocation ) ){
-		// System.out.println( methodInvocation + " ==> " +
-		// methodInvocation.getOwner() );
-		// System.out.println( mi + " ==> " + mi.getOwner() );
-		// }
-		// }
-		// }
-
-		// Check that the information is really there !
-
 	}
 
 	public void enqueueMethodInvocations(MethodInvocation methodInvocation) {
@@ -604,10 +583,6 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 	 * cloned from the original graph.
 	 * 
 	 */
-	// TODO This method uses the Clusterer and for whatever reason that does not
-	// copy the entire data of the nodes.
-	// I suspect we need to use a different setup to let this freakying system do
-	// what is supposed to...
 	public Collection<ExecutionFlowGraph> extrapolate(Collection<MethodInvocation> methodInvocations) {
 		Collection<ExecutionFlowGraph> extrapolated = new ArrayList<ExecutionFlowGraph>();
 
@@ -648,7 +623,6 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 				if (!graph.containsVertex(originalSource)) {
 					logger.info("Graph does not contain " + source);
 					logger.info("ALL VERTICES " + graph.getVertices());
-
 				}
 
 				if (!graph.containsVertex(originalTarget)) {
@@ -668,14 +642,6 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 				}
 			}
 		}
-
-//		System.out.println("ExecutionFlowGraphImpl.extrapolate() DEBUG NECESSARY INVOCATIONS FROM CLUSTER ");
-//		List<MethodInvocation> mis = new ArrayList(union.getVertices());
-//		Collections.sort(mis);
-//		for (MethodInvocation mi : mis) {
-//			System.out.println((mi.isNecessary() ? "* " : "- ") + mi);
-//		}
-//		System.out.println("");
 
 		WeakComponentClusterer<MethodInvocation, String> clusterer = new WeakComponentClusterer<MethodInvocation, String>();
 		// TODO: For whatever freaking reason this creates new instances of the nodes,
@@ -699,25 +665,8 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 			ExecutionFlowGraph executionFlowGraph = new ExecutionFlowGraphImpl();
 
 			for (MethodInvocation methodInvocation : orderedMethodInvocations) {
-//				if( necessaryInvocations.contains( methodInvocation )) {
-//					System.out.println("ExecutionFlowGraphImpl.extrapolate() FOUND A NECESSARY METHOD INVOCATION " + methodInvocation);
-//					if( ! methodInvocation.isNecessary()) {
-//						System.out.println("ExecutionFlowGraphImpl.extrapolate() FORCEFULLY SET NECESSARY FLAG");
-//						methodInvocation.setNecessary( true );
-//					} else {
-//						System.out.println("ExecutionFlowGraphImpl.extrapolate() Already marked as NECESSARY");
-//					}
-//				}
 				executionFlowGraph.enqueueMethodInvocations(methodInvocation);
 			}
-
-//			System.out.println("ExecutionFlowGraphImpl.extrapolate() DEBUG NECESSARY INVOCATIONS FROM CLUSTER ");
-//			List<MethodInvocation> mis2 = new ArrayList(executionFlowGraph.getOrderedMethodInvocations());
-//			Collections.sort(mis2);
-//			for (MethodInvocation mi : mis2) {
-//				System.out.println((mi.isNecessary() ? "* " : "- ") + mi);
-//			}
-//			System.out.println("");
 
 			extrapolated.add(executionFlowGraph);
 
@@ -725,8 +674,6 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 		return extrapolated;
 	}
 
-	// Insert the method invocation in the "right" place...Usually in front,
-	// TODO but there might be more than one ?
 	public void insertTestSetupCall(MethodInvocation testSetupCall) {
 		System.out.println("ExecutionFlowGraph.insertTestSetupCall() " + testSetupCall);
 		graph.addVertex(testSetupCall);

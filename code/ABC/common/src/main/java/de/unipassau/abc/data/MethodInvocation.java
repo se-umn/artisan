@@ -200,7 +200,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
 	@Override
 	public String toString() {
-		if (logger.isDebugEnabled() || logger.isTraceEnabled()) {
+		if (logger.isTraceEnabled()) {
 			return methodSignature + "_" + invocationCount + "\n" + "\t Actual Parameters: " + actualParameterInstances
 					+ "\n" + "\t Return Value: " + returnValue;
 		} else {

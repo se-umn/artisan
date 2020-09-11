@@ -177,5 +177,4 @@ public class BasicTestGeneratorTest {
 			System.out.println(cu);
 		}
 	}
-
 }
