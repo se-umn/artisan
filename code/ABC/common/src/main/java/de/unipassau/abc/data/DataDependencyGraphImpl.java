@@ -1,31 +1,6 @@
 package de.unipassau.abc.data;
 
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Paint;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
-
-import javax.swing.JFrame;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Function;
-
 import de.unipassau.abc.ABCGlobalOptions;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.utils.GraphUtility;
@@ -36,11 +11,21 @@ import edu.uci.ics.jung.graph.Graph;
 import edu.uci.ics.jung.graph.util.EdgeType;
 import edu.uci.ics.jung.visualization.VisualizationViewer;
 import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import soot.Local;
 import soot.Scene;
 import soot.SootClass;
 import soot.Value;
 import soot.jimple.NullConstant;
+
+import javax.swing.*;
+import java.awt.*;
+import java.util.List;
+import java.util.Queue;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /**
  * @author gambi
@@ -491,10 +476,11 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 		ObjectInstance node = null;
 		if (!graph.containsVertex(objectInstance)) {
 			// TODO not sure what's this ...
-			node = handleDanglingObjectInstance((ObjectInstance) objectInstance);
+			node = handleDanglingObjectInstance(objectInstance);
 			graph.addVertex(node);
 		} else {
-			node = objectInstance;
+			// Let's assume searching by object id is always stable
+			node = getVertexById(objectInstance.getObjectId());
 		}
 
 		methodInvocation.setOwner(node);
