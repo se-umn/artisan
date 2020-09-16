@@ -1,32 +1,9 @@
 package de.unipassau.abc.generation;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.commons.lang.NotImplementedException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import de.unipassau.abc.carving.BasicCarver;
 import de.unipassau.abc.carving.CarvedExecution;
 import de.unipassau.abc.carving.exceptions.CarvingException;
-import de.unipassau.abc.data.AndroidMethodInvocation;
-import de.unipassau.abc.data.CallGraph;
-import de.unipassau.abc.data.DataDependencyGraph;
-import de.unipassau.abc.data.DataDependencyGraphImpl;
-import de.unipassau.abc.data.DataNode;
-import de.unipassau.abc.data.DataNodeFactory;
-import de.unipassau.abc.data.ExecutionFlowGraph;
-import de.unipassau.abc.data.ExecutionFlowGraphImpl;
-import de.unipassau.abc.data.JimpleUtils;
-import de.unipassau.abc.data.MethodInvocation;
-import de.unipassau.abc.data.ObjectInstance;
+import de.unipassau.abc.data.*;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.assertions.AssertionGenerator;
 import de.unipassau.abc.generation.assertions.CarvingAssertion;
@@ -36,6 +13,12 @@ import de.unipassau.abc.generation.data.AndroidCarvedTest;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
 import de.unipassau.abc.parsing.ParsedTrace;
+import org.apache.commons.lang.NotImplementedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class BasicTestGenerator implements TestGenerator {
 
@@ -339,7 +322,9 @@ public class BasicTestGenerator implements TestGenerator {
 		} else {
 
 			// Include assertions here
-			if (methodInvocationUnderTest instanceof AndroidMethodInvocation) {
+			boolean containsAndroidMethodInvocations = executionFlowGraph.getOrderedMethodInvocations()
+					.stream().anyMatch(mi -> mi instanceof AndroidMethodInvocation);
+			if (containsAndroidMethodInvocations) {
 				carvedTest = new AndroidCarvedTest(methodInvocationUnderTest, //
 						executionFlowGraph, dataDependencyGraph);
 			} else {
@@ -404,9 +389,9 @@ public class BasicTestGenerator implements TestGenerator {
 		 * to have mocking/stubbing in place already
 		 */
 		Set<ObjectInstance> danglingObjects = carvedTest.getDataDependencyGraph().getDanglingObjects();
-		if (!danglingObjects.isEmpty()) {
+		/*if (!danglingObjects.isEmpty()) {
 			throw new CarvingException("Carved Test contains dangling Objects:" + danglingObjects);
-		}
+		}*/
 
 		return carvedTest;
 	}
