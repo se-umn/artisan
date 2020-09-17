@@ -67,9 +67,7 @@ public class FieldTransformer extends AbstractStmtSwitch {
 
     public void instrumentFieldRef(Body body, SootField field, Value value, Stmt stmt) {
         
-        String invokeType = "FieldOperation";
-
-        String methodSignature = "<abc.Field: void syntheticFieldSetter(" + field.getDeclaringClass() + "@" + field.getDeclaringClass().hashCode() + ", " + field.getType() + ", " + field.getName() + ")>";
+        String methodSignature = "<abc.Field: void syntheticFieldSetter(" + field.getDeclaringClass() + ", " + field.getName() + ")>";
 
         List<Value> parameterList = new ArrayList<Value>();
 
@@ -78,19 +76,19 @@ public class FieldTransformer extends AbstractStmtSwitch {
         List<Unit> generatedMethodCall = new ArrayList<Unit>();
         List<Unit> generatedMethodReturn = new ArrayList<Unit>();
         
-		generatedMethodCall.addAll(wrapTraceStart(invokeType, methodSignature, parameterList, body));
+		generatedMethodCall.addAll(wrapTraceStart(field.getDeclaringClass().toString(), methodSignature, parameterList, body));
 		generatedMethodReturn.addAll(wrapTraceEnd(methodSignature, NullConstant.v(), value, body));
 
 		UtilInstrumenter.instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt, generatedMethodCall);
 		UtilInstrumenter.instrumentAfterWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt, generatedMethodReturn);
     }
 
-	public List<Unit> wrapTraceStart(String invokeType, String methodSignature, List<Value> parameterList, Body body) {
+	public List<Unit> wrapTraceStart(String owner, String methodSignature, List<Value> parameterList, Body body) {
 
         List<Unit> instrumentationCodeBefore = new ArrayList<Unit>();
         List<Value> onLibCallParameters = new ArrayList<Value>();
 
-        onLibCallParameters.add(NullConstant.v());
+        onLibCallParameters.add(StringConstant.v(owner));
         onLibCallParameters.add(StringConstant.v(methodSignature));
         onLibCallParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
 
