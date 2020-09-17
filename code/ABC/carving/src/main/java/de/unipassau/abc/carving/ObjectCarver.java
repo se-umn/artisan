@@ -3,12 +3,8 @@ package de.unipassau.abc.carving;
 import java.util.List;
 
 import de.unipassau.abc.carving.exceptions.CarvingException;
-import de.unipassau.abc.data.CallGraph;
-import de.unipassau.abc.data.DataDependencyGraph;
-import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
-import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
 
 /**
@@ -23,12 +19,10 @@ import de.unipassau.abc.exceptions.ABCException;
  */
 public interface ObjectCarver {
 
-	// TODO Do we need to say which parameter this was? Why? multiple instances of
-	// the same type used as parameter?
-	public List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carveAsParameter(
-			ObjectInstance parameter, MethodInvocation methodInvocation) throws CarvingException, ABCException;
+	public List<CarvedExecution> carveAsParameter(ObjectInstance parameter, MethodInvocation methodInvocation)
+			throws CarvingException, ABCException;
 
-	public List<Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> carveAsReturnValue(
-			ObjectInstance parameter, MethodInvocation methodInvocation) throws CarvingException, ABCException;
+	public List<CarvedExecution> carveAsReturnValue(ObjectInstance parameter, MethodInvocation methodInvocation)
+			throws CarvingException, ABCException;
 
 }

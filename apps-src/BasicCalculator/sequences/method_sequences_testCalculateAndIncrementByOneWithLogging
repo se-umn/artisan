@@ -1,0 +1,12 @@
+@SEQUENCE
+android.view.View: void setOnClickListener(android.view.View$OnClickListener)
+android.widget.TextView: java.lang.CharSequence getText()
+java.lang.CharSequence: java.lang.String toString()
+abc.basiccalculator.ResultActivity: void checkResult(java.lang.String)
+java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)
+java.lang.StringBuilder: java.lang.String toString()
+android.widget.TextView: void setText(java.lang.CharSequence)
+@SEQUENCE
+android.widget.TextView: java.lang.CharSequence getText()
+java.lang.CharSequence: java.lang.String toString()
+abc.basiccalculator.ResultActivity: void logMessage(java.lang.String)

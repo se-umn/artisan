@@ -29,7 +29,4 @@ public interface ParsedTrace {
 	// Mostly for testing
 	int getThreadCount();
 
-	// Ensure that whatever transient state is there, this will be reset;
-	public void reset();
-
 }

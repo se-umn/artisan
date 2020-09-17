@@ -8,7 +8,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -36,7 +35,7 @@ import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
  * Using strings inside the edge makes this really memory intensive (string
  * buffer, and CG goes nuts) Maybe we can optimize this? In the end, all those
  * objects are Immutable...
- * 
+ *
  * @author gambi
  *
  */
@@ -53,18 +52,39 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 
 	public ExecutionFlowGraphImpl() {
 		// graph = new SparseMultigraph<MethodInvocation, String>();
-		graph = new DirectedSparseMultigraph<MethodInvocation, String>();
+		graph = new DirectedSparseMultigraph<>();
 	}
 
-	// TODO Maybe change the name...and replace the next method
-	// TODO Why we need this information at this point if we update the method
-	// invocations. Because the graph return shallow copies of the objects maybe
-	// ?!
+	public void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl) {
+		MethodInvocation originalMethodInvocation = graph.getVertices().stream()
+				.filter(methodInvocation -> methodInvocation.equals(orig)).findFirst()
+				.orElseThrow(() -> new IllegalArgumentException("No such method invocation"));
 
-	public void reset() {
-		for (MethodInvocation mi : graph.getVertices()) {
-			mi.alreadyCarved = false;
+		if (firstMethodInvocation == originalMethodInvocation) {
+			firstMethodInvocation = repl;
 		}
+
+		if (lastMethodInvocation == originalMethodInvocation) {
+			lastMethodInvocation = repl;
+		}
+
+		Collection<String> inEdges = graph.getInEdges(originalMethodInvocation);
+		Collection<String> outEdges = graph.getOutEdges(originalMethodInvocation);
+
+		List<Pair<String, MethodInvocation>> inEdgesWithSources = inEdges.stream()
+				.map(edge -> new Pair<>(edge, graph.getOpposite(originalMethodInvocation, edge)))
+				.collect(Collectors.toList());
+		List<Pair<String, MethodInvocation>> outEdgesWithDestinations = outEdges.stream()
+				.map(edge -> new Pair<>(edge, graph.getOpposite(originalMethodInvocation, edge)))
+				.collect(Collectors.toList());
+
+		graph.removeVertex(originalMethodInvocation);
+		graph.addVertex(repl);
+
+		inEdgesWithSources.forEach(edgeNameMethodInvocationPair -> graph
+				.addEdge(edgeNameMethodInvocationPair.getFirst(), edgeNameMethodInvocationPair.getSecond(), repl));
+		outEdgesWithDestinations.forEach(edgeNameMethodInvocationPair -> graph
+				.addEdge(edgeNameMethodInvocationPair.getFirst(), repl, edgeNameMethodInvocationPair.getSecond()));
 	}
 
 	@Deprecated
@@ -104,23 +124,7 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 			for (String outEdge : outEdges.keySet()) {
 				graph.addEdge(outEdge, methodInvocation, outEdges.get(outEdge), EdgeType.DIRECTED);
 			}
-
-			///
-
 		}
-
-		// if (graph.containsVertex(methodInvocation)) {
-		// for( MethodInvocation mi : graph.getVertices()){
-		// if( mi.equals( methodInvocation ) ){
-		// System.out.println( methodInvocation + " ==> " +
-		// methodInvocation.getOwner() );
-		// System.out.println( mi + " ==> " + mi.getOwner() );
-		// }
-		// }
-		// }
-
-		// Check that the information is really there !
-
 	}
 
 	public void enqueueMethodInvocations(MethodInvocation methodInvocation) {
@@ -192,7 +196,7 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 	 * Return the calls in the Execution Flow Graph which match carveBy (include)
 	 * but not excludeBy (exclude). We also omit private method invocations since
 	 * those cannot be carved !
-	 * 
+	 *
 	 * @param carveBy
 	 * @param excludeBy
 	 * @return
@@ -229,14 +233,14 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 	 * Returns all the elements before the provided one including the provided one.
 	 * This can be also implemented differently with the index parameter on
 	 * invocation.
-	 * 
+	 *
 	 * @param methodInvocation
 	 * @return
 	 */
 	public Set<MethodInvocation> getMethodInvocationsBefore(MethodInvocation methodInvocation,
 			Predicate<MethodInvocation> predicate) {
 		boolean includeTheGivenMethodInvocation = true; // NOT SURE WHY ONE
-														// WOULD DO THIS..
+		// WOULD DO THIS..
 		return getMethodInvocationsBefore(methodInvocation, includeTheGivenMethodInvocation, predicate);
 	}
 
@@ -267,7 +271,7 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 	/**
 	 * Returns an ordered list of invocations registered BEFORE (inclusive) the
 	 * given one...
-	 * 
+	 *
 	 * @param methodInvocation
 	 * @return
 	 */
@@ -306,7 +310,7 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 	 * Returns all the elements before the provided one including the provided one.
 	 * This can be also implemented differently with the index parameter on
 	 * invocation.
-	 * 
+	 *
 	 * @param methodInvocation
 	 * @return
 	 */
@@ -576,70 +580,100 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 
 	/**
 	 * By default this will return a new graph object where nodes and esges are
-	 * cloned from the original graph. TODO Re
+	 * cloned from the original graph.
+	 * 
 	 */
 	public Collection<ExecutionFlowGraph> extrapolate(Collection<MethodInvocation> methodInvocations) {
-		Collection<ExecutionFlowGraph> extrapolatedGraphs = new ArrayList<ExecutionFlowGraph>();
+		Collection<ExecutionFlowGraph> extrapolated = new ArrayList<ExecutionFlowGraph>();
 
-		// we store here all the data and then obtain the components from here
 		Graph<MethodInvocation, String> union = new DirectedSparseMultigraph<MethodInvocation, String>();
 
-		// Add all the nodes - clone them in the process
-		for (MethodInvocation methodInvocation : methodInvocations) {
-			union.addVertex(methodInvocation.clone());
-		}
+		// THIS IS REALLY ANNOYING ! We need to store the clones otherwise graph will
+		// not realize it is the same node ..
+		Map<MethodInvocation, MethodInvocation> cloneMap = new HashMap<MethodInvocation, MethodInvocation>();
 
-		// For each pair of nodes if there's an edge in the graph connecting them, add
-		// the same edge here.
-//		for (MethodInvocation source : extrapolatedGraph.graph.getVertices()) {
-//			for (MethodInvocation target : extrapolatedGraph.graph.getVertices()) {
-//	/			// TODO Really not sure which of the two might be faster....
-//			}
-//		}
-		for (String edge : graph.getEdges()) {
-			MethodInvocation source = graph.getSource(edge);
-			MethodInvocation dest = graph.getDest(edge);
-			// If BOTH source and dest are in the extrapolated graph, add the edge there
-			if (union.containsVertex(source) && union.containsVertex(dest)) {
-				// Clone the edge over, it's a string so it should be enough to add it
-				union.addEdge(edge, source, dest, EdgeType.DIRECTED);
+		// Add all method invocation nodes - clone them in the process
+		for (MethodInvocation methodInvocation : methodInvocations) {
+			// Add the method invocation vertex and its neighbors, unless they are there
+			// already
+			MethodInvocation cloned = methodInvocation.clone();
+			union.addVertex(cloned);
+			cloneMap.put(cloned, methodInvocation);
+
+			for (MethodInvocation neighbor : graph.getPredecessors(methodInvocation)) {
+				MethodInvocation clonedNode = neighbor.clone();
+				cloneMap.put(clonedNode, neighbor);
+				union.addVertex(cloned);
+			}
+
+			for (MethodInvocation neighbor : graph.getSuccessors(methodInvocation)) {
+				MethodInvocation clonedNode = neighbor.clone();
+				cloneMap.put(clonedNode, neighbor);
+				union.addVertex(cloned);
+			}
+
+		}
+		// Add all the edges between the nodes
+		for (MethodInvocation source : union.getVertices()) {
+			for (MethodInvocation target : union.getVertices()) {
+
+				MethodInvocation originalSource = cloneMap.get(source);
+				MethodInvocation originalTarget = cloneMap.get(target);
+
+				if (!graph.containsVertex(originalSource)) {
+					logger.info("Graph does not contain " + source);
+					logger.info("ALL VERTICES " + graph.getVertices());
+				}
+
+				if (!graph.containsVertex(originalTarget)) {
+					logger.info("Graph does not contain " + target);
+					logger.info("ALL VERTICES " + graph.getVertices());
+
+				}
+
+				// Original grap here.. BUT, it works with == and not equals ! :(
+				Collection<String> edges = graph.findEdgeSet(originalSource, originalTarget);
+				if (edges != null) {
+					for (String edge : edges) {
+						if (!union.addEdge(edge, source, target, EdgeType.DIRECTED)) {
+							logger.error("EDGE NOT ADDED");
+						}
+					}
+				}
 			}
 		}
 
 		WeakComponentClusterer<MethodInvocation, String> clusterer = new WeakComponentClusterer<MethodInvocation, String>();
+		// TODO: For whatever freaking reason this creates new instances of the nodes,
+		// but do not invoke CLONE !
 		Set<Set<MethodInvocation>> clusters = clusterer.apply(union);
 
 		// Clusters at this points are partions of the nodes, nodes are clones of the
-		// original nodes, so we can build the sub graphs.
+		// original nodes, but somehow NOT all the so we can build the sub graphs.
 		// Note that the extrapolated graphs will have different edges;
 		// they will start from 0 and increment, each one. However, the cloned method
 		// invocations will retain their original value inside invocationCount
+
+		// TODO It seems that the information about being a necessary method invocation
+		// (isNecessary) is gone at this. Instances in the cluster are NOT the ones
+		// inside union, so the clusterer somehow clone or copy them.
+		// point?
 		for (Set<MethodInvocation> cluster : clusters) {
 
-			/*
-			 * All the nodes in each cluster are connected. In this graph the only
-			 * connection is "next". So if we sort them by id we can add them to the new
-			 * data structure.
-			 */
 			List<MethodInvocation> orderedMethodInvocations = cluster.stream().sorted().collect(Collectors.toList());
 
-			//
 			ExecutionFlowGraph executionFlowGraph = new ExecutionFlowGraphImpl();
 
 			for (MethodInvocation methodInvocation : orderedMethodInvocations) {
 				executionFlowGraph.enqueueMethodInvocations(methodInvocation);
 			}
-			extrapolatedGraphs.add(executionFlowGraph);
+
+			extrapolated.add(executionFlowGraph);
 
 		}
-
-		// TODO Ensure that all nodes are indeed there ?
-
-		return extrapolatedGraphs;
+		return extrapolated;
 	}
 
-	// Insert the method invocation in the "right" place...Usually in front,
-	// TODO but there might be more than one ?
 	public void insertTestSetupCall(MethodInvocation testSetupCall) {
 		System.out.println("ExecutionFlowGraph.insertTestSetupCall() " + testSetupCall);
 		graph.addVertex(testSetupCall);
@@ -662,21 +696,14 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 
 	public Set<MethodInvocation> getMethodInvocationsToExternalInterfaceBefore(
 			MethodInvocation methodInvocationToCarve) {
-		return new HashSet<MethodInvocation>(
-				getOrderedMethodInvocationsToExternalInterfaceBefore(methodInvocationToCarve));
+		return new HashSet<>(getOrderedMethodInvocationsToExternalInterfaceBefore(methodInvocationToCarve));
 	}
 
 	public List<MethodInvocation> getOrderedMethodInvocationsToExternalInterfaceBefore(
 			MethodInvocation methodInvocationToCarve) {
 		List<MethodInvocation> all = new ArrayList<>(getOrderedMethodInvocationsBefore(methodInvocationToCarve));
 		// Now remove everything not an external interface
-		Iterator<MethodInvocation> iterator = all.iterator();
-		while (iterator.hasNext()) {
-			MethodInvocation methodInvocation = iterator.next();
-			if (!methodInvocation.belongsToExternalInterface()) {
-				iterator.remove();
-			}
-		}
+		all.removeIf(methodInvocation -> !methodInvocation.belongsToExternalInterface());
 		return all;
 	}
 
@@ -750,7 +777,6 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 		} else {
 			logger.warn("Cannot dequeue " + toDrop + " as this is not the last invocation " + lastMethodInvocation);
 		}
-
 	}
 
 	public String prettyPrint() {
@@ -762,14 +788,11 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 	}
 
 	public void removeMethodInvocation(MethodInvocation toDrop) {
-		List<MethodInvocation> requiredMethodInvocations = new ArrayList<MethodInvocation>();
-		requiredMethodInvocations.addAll(getOrderedMethodInvocations());
+		List<MethodInvocation> requiredMethodInvocations = new ArrayList<>(getOrderedMethodInvocations());
 		if (requiredMethodInvocations.remove(toDrop)) {
-			this.refine(new HashSet<MethodInvocation>(requiredMethodInvocations));
+			this.refine(new HashSet<>(requiredMethodInvocations));
 		} else {
 			logger.warn("Cannot removeMethodInvocation " + toDrop);
-
 		}
 	}
-
 }

@@ -8,11 +8,13 @@ import java.util.function.Predicate;
 public interface ExecutionFlowGraph {
 
 	/**
+	 * Returns all the elements before the provided method inclusive of it that
+	 * match the given predicate. This means that the given method is include only
+	 * and only if it matches the predicate.
 	 * 
 	 * @param methodInvocation
 	 * @param predicate
-	 * @return the method invocations that happened before the given
-	 *         methodInvocation and matches the predicate
+	 * @return
 	 */
 	public Set<MethodInvocation> getMethodInvocationsBefore(MethodInvocation methodInvocation,
 			Predicate<MethodInvocation> predicate);
@@ -33,6 +35,8 @@ public interface ExecutionFlowGraph {
 	 */
 	public Collection<ExecutionFlowGraph> extrapolate(Collection<MethodInvocation> methodInvocations);
 
+	public void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl);
+
 	/**
 	 * Return a new subgraph that contains all the given methodInvocations enqueued
 	 * in the same order they are given. This effectively creates another graph
@@ -52,8 +56,6 @@ public interface ExecutionFlowGraph {
 	 * @param requiredMethodInvocations
 	 */
 	public void refine(Set<MethodInvocation> requiredMethodInvocations);
-
-	public void reset();
 
 	public List<MethodInvocation> getOrderedMethodInvocations();
 

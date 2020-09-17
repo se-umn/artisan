@@ -4,4 +4,6 @@ public interface DataNode extends GraphNode, Cloneable {
 
 	public DataNode clone();
 
+	public String getType();
+
 }

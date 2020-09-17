@@ -65,6 +65,7 @@ public class ObjectInstance implements DataNode, Cloneable {
 			this.objectId = objectId;
 		}
 		this.type = objectId.split("@")[0];
+
 	}
 
 	@Override
@@ -138,6 +139,10 @@ public class ObjectInstance implements DataNode, Cloneable {
 
 	public static void retype(ObjectInstance objectInstance, String newType) {
 		objectInstance.type = newType;
+	}
+
+	public boolean isNull() {
+		return (this instanceof NullInstance || objectId.endsWith("@0"));
 	}
 
 }

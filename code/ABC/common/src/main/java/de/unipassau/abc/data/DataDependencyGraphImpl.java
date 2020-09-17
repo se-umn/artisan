@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import javax.swing.JFrame;
 
@@ -76,17 +77,32 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 		additionalData = new HashMap<>();
 	}
 
+	@Override
+	public void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl) {
+		GraphNode originalNode = graph.getVertices().stream().filter(node -> node instanceof MethodInvocation)
+				.filter(methodInvocation -> methodInvocation.equals(orig)).findFirst()
+				.orElseThrow(() -> new IllegalArgumentException("No such method invocation"));
+
+		Collection<String> inEdges = graph.getInEdges(originalNode);
+		Collection<String> outEdges = graph.getOutEdges(originalNode);
+
+		List<Pair<String, GraphNode>> inEdgesWithSources = inEdges.stream()
+				.map(edge -> new Pair<>(edge, graph.getOpposite(originalNode, edge))).collect(Collectors.toList());
+		List<Pair<String, GraphNode>> outEdgesWithDestinations = outEdges.stream()
+				.map(edge -> new Pair<>(edge, graph.getOpposite(originalNode, edge))).collect(Collectors.toList());
+
+		graph.removeVertex(originalNode);
+		graph.addVertex(repl);
+
+		inEdgesWithSources.forEach(edgeNameMethodInvocationPair -> graph
+				.addEdge(edgeNameMethodInvocationPair.getFirst(), edgeNameMethodInvocationPair.getSecond(), repl));
+		outEdgesWithDestinations.forEach(edgeNameMethodInvocationPair -> graph
+				.addEdge(edgeNameMethodInvocationPair.getFirst(), repl, edgeNameMethodInvocationPair.getSecond()));
+	}
+
 	public void addMethodInvocationWithoutAnyDependency(MethodInvocation methodInvocation) {
 		if (!graph.containsVertex(methodInvocation)) {
 			graph.addVertex(methodInvocation);
-		}
-	}
-
-	public void reset() {
-		for (GraphNode gn : graph.getVertices()) {
-			if (gn instanceof MethodInvocation) {
-				((MethodInvocation) gn).alreadyCarved = false;
-			}
 		}
 	}
 
@@ -1204,7 +1220,11 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 	public Set<ObjectInstance> getDanglingObjects() {
 		Set<ObjectInstance> danglingObjects = new HashSet<>();
 		for (ObjectInstance objectInstance : getObjectInstances()) {
+			// TODO For some reason, probably cloning, NullInstances are not recognized as
+			// such anymore?
 			if (objectInstance instanceof NullInstance) {
+				continue;
+			} else if (objectInstance.getObjectId().endsWith("@0")) {
 				continue;
 			} else {
 				// Check the object and its aliases
@@ -1418,50 +1438,66 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 	}
 
 	@Override
-	public Collection<DataDependencyGraph> extrapolate(Set<MethodInvocation> methodInvocations) {
+	public Collection<DataDependencyGraph> extrapolate(Set<MethodInvocation> methodInvocationsToExtrapolate) {
 		Collection<DataDependencyGraph> extrapolated = new ArrayList<DataDependencyGraph>();
 
 		Graph<GraphNode, String> union = new DirectedSparseMultigraph<GraphNode, String>();
+
 		// THIS IS REALLY ANNOYING ! We need to store the clones otherwise graph will
 		// not realize it is the same node ..
 		Map<GraphNode, GraphNode> cloneMap = new HashMap<GraphNode, GraphNode>();
 
+		final Set<MethodInvocation> allMethodInvocations = graph.getVertices().stream()//
+				.filter(v -> MethodInvocation.class.isInstance(v))//
+				.map(MethodInvocation.class::cast)//
+				.collect(Collectors.toSet());
+
 		// Add all method invocation nodes - clone them in the process
-		for (MethodInvocation methodInvocation : methodInvocations) {
-			// Add the method invocation vertex and its neighbors, unless they are there
-			// already
-			MethodInvocation cloned = methodInvocation.clone();
+		for (MethodInvocation methodInvocation : methodInvocationsToExtrapolate) {
+			// Avoid using incomplete information from methodInvocation
+			MethodInvocation originalMethodInvocation = allMethodInvocations.parallelStream()
+					.filter(mi -> mi.getInvocationCount() == methodInvocation.getInvocationCount())//
+					.findAny().orElse(null);
+
+			//
+			MethodInvocation cloned = originalMethodInvocation.clone();
 			union.addVertex(cloned);
-			cloneMap.put(cloned, methodInvocation);
+			cloneMap.put(cloned, originalMethodInvocation);
 
-			for (GraphNode neighbor : graph.getPredecessors(methodInvocation)) {
+			logger.trace("Node " + originalMethodInvocation + " has the following predecessors:");
+
+			for (GraphNode neighbor : graph.getPredecessors(originalMethodInvocation)) {
+				logger.trace(" - " + neighbor);
 				GraphNode clonedNode = neighbor.clone();
 				cloneMap.put(clonedNode, neighbor);
-				union.addVertex(cloned);
+				union.addVertex(clonedNode);
 			}
 
-			for (GraphNode neighbor : graph.getSuccessors(methodInvocation)) {
+			logger.trace("Node " + originalMethodInvocation + " has the following successors:");
+			for (GraphNode neighbor : graph.getSuccessors(originalMethodInvocation)) {
+				logger.trace(" - " + neighbor);
 				GraphNode clonedNode = neighbor.clone();
 				cloneMap.put(clonedNode, neighbor);
-				union.addVertex(cloned);
+				union.addVertex(clonedNode);
 			}
-
 		}
-		// Add all the edges between the nodes
-		for (GraphNode source : union.getVertices()) {
-			for (GraphNode target : union.getVertices()) {
 
-				GraphNode originalSource = cloneMap.get(source);
-				GraphNode originalTarget = cloneMap.get(target);
+		// Add all the edges between the nodes
+		for (GraphNode clonedSource : union.getVertices()) {
+			// TODO Do not check a node with itself
+			for (GraphNode clonedTarget : union.getVertices()) {
+
+				GraphNode originalSource = cloneMap.get(clonedSource);
+				GraphNode originalTarget = cloneMap.get(clonedTarget);
 
 				if (!graph.containsVertex(originalSource)) {
-					logger.info("Graph does not contain " + source);
+					logger.info("Graph does not contain " + clonedSource);
 					logger.info("ALL VERTICES " + graph.getVertices());
 
 				}
 
 				if (!graph.containsVertex(originalTarget)) {
-					logger.info("Graph does not contain " + target);
+					logger.info("Graph does not contain " + clonedTarget);
 					logger.info("ALL VERTICES " + graph.getVertices());
 
 				}
@@ -1470,7 +1506,8 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 				Collection<String> edges = graph.findEdgeSet(originalSource, originalTarget);
 				if (edges != null) {
 					for (String edge : edges) {
-						union.addEdge(edge, source, target, EdgeType.DIRECTED);
+						union.addEdge(edge, clonedSource, clonedTarget, EdgeType.DIRECTED);
+						logger.trace("Adding dependency " + edge);
 					}
 				}
 			}
@@ -1486,17 +1523,22 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 		// they will start from 0 and increment.
 
 		for (Set<GraphNode> cluster : clusters) {
+			logger.trace("Processing cluster " + cluster);
 			// TODO Here probably one should use the INTERFACE not the implementation
 			DataDependencyGraphImpl dataDependencyGraph = new DataDependencyGraphImpl();
 			for (GraphNode vertex : cluster) {
 				// Add Data and Method Invocations to the graph
-				dataDependencyGraph.graph.addVertex(vertex);
+				if (!dataDependencyGraph.graph.addVertex(vertex)) {
+					logger.trace("ERROR: Cannot add vertex" + vertex);
+				}
 			}
 			// Connect them
-			// TODO This fails somehow to get null objects?
 			for (GraphNode source : dataDependencyGraph.graph.getVertices()) {
 				for (GraphNode dest : dataDependencyGraph.graph.getVertices()) {
-					Collection<String> edges = graph.findEdgeSet(source, dest);
+					GraphNode originalSource = cloneMap.get(source);
+					GraphNode originalTarget = cloneMap.get(dest);
+
+					Collection<String> edges = graph.findEdgeSet(originalSource, originalTarget);
 					if (edges != null) {
 						for (String edge : edges) {
 							dataDependencyGraph.graph.addEdge(edge, source, dest, EdgeType.DIRECTED);

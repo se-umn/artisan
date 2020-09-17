@@ -7,6 +7,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.apache.commons.lang.NotImplementedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import de.unipassau.abc.carving.BasicCarver;
 import de.unipassau.abc.carving.CarvedExecution;
@@ -23,6 +28,10 @@ import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.exceptions.ABCException;
+import de.unipassau.abc.generation.assertions.AssertionGenerator;
+import de.unipassau.abc.generation.assertions.CarvingAssertion;
+import de.unipassau.abc.generation.assertions.NullValueAssertionGenerator;
+import de.unipassau.abc.generation.assertions.PrimitiveValueAssertionGenerator;
 import de.unipassau.abc.generation.data.AndroidCarvedTest;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
@@ -30,12 +39,13 @@ import de.unipassau.abc.parsing.ParsedTrace;
 
 public class BasicTestGenerator implements TestGenerator {
 
+	private final static Logger logger = LoggerFactory.getLogger(BasicTestGenerator.class);
+
 	@Override
 	public Collection<CarvedTest> generateTests(Set<MethodInvocation> targetMethodsInvocations, ParsedTrace trace)
 			throws CarvingException, ABCException {
-
 		// NOT EASY TO FIND DUPLICATES :)
-		Collection<CarvedTest> carvedTests = new ArrayList<CarvedTest>();
+		Collection<CarvedTest> carvedTests = new ArrayList<>();
 
 		/*
 		 * Extract only the necessary invocations from the trace, using direct
@@ -67,23 +77,85 @@ public class BasicTestGenerator implements TestGenerator {
 		ExecutionFlowGraph executionFlowGraph = new ExecutionFlowGraphImpl();
 		DataDependencyGraph dataDependencyGraph = new DataDependencyGraphImpl();
 
-		// TODO Include Implicit oracles assertions, i.e., exception?
-		// TODO Include regression assertions on basic types.
-		// TODO Include mocking or Android-robolectric setup ?
-		// TODO Generate oracles, DO We need to carve the BODY of the method under test
-		// to see how parameters/objects are used by it?
 		MethodInvocation methodInvocationUnderTest = carvedExecution.methodInvocationUnderTest;
+
+//		// DEBUG: List the required methods
+//		System.out.println("BasicTestGenerator.generateCarvedTestFromCarvedExecution() Necessary method invocations:");
+//		carvedExecution.callGraphs.stream().map(cg -> cg.getAllMethodInvocations()).flatMap(Collection::stream).filter(mi->mi.isNecessary())
+//				.forEach(System.out::println);
 
 		/*
 		 * The carved execution contains a collection of (complete) call graphs, but in
 		 * the test we can only directly invoke the root(s) of those graphs, as all the
 		 * other invocations will be automatically executed (unless we breakpoint the
 		 * execution?).
-		 * 
+		 *
 		 */
-		List<MethodInvocation> directlyCallableMethodInvocations = new ArrayList<MethodInvocation>();
-		for (CallGraph callGraph : carvedExecution.callGraphs) {
-			directlyCallableMethodInvocations.addAll(callGraph.getRoots());
+		final List<MethodInvocation> directlyCallableMethodInvocations = new ArrayList<>();
+		carvedExecution.callGraphs.forEach(callGraph -> directlyCallableMethodInvocations.addAll(callGraph.getRoots()));
+
+		/*
+		 * Validation: If the directlyCallableMethodInvocations do not contain the
+		 * target method invocation the test needs some adjustment. For the moment,
+		 * simply raise an exception.
+		 */
+		if (!directlyCallableMethodInvocations.stream()
+				.anyMatch(mi -> mi.equals(carvedExecution.methodInvocationUnderTest))) {
+
+			logger.info("Method invocation under test " + carvedExecution.methodInvocationUnderTest
+					+ " is not visible. Try to recover ...");
+
+			// Try to recover this test? Or maybe this is an actual feature of the CARVER ?
+			/*
+			 * Recovery works as follow. Recursively replace the invocation of a parent
+			 * method with its execution until the mehtod invocation under test becomes
+			 * visible again. Next, remove the "un-necessary" method invocations from the
+			 * carve execution.
+			 */
+
+			CallGraph callGraph = carvedExecution.getCallGraphContainingTheMethodInvocationUnderTest();
+
+			// Reverse iteration
+			List<MethodInvocation> methodsSubsumingMethodInvocationUnderTest = callGraph
+					.getOrderedSubsumingMethodInvocationsFor(carvedExecution.methodInvocationUnderTest);
+			ListIterator<MethodInvocation> listIterator = methodsSubsumingMethodInvocationUnderTest
+					.listIterator(methodsSubsumingMethodInvocationUnderTest.size());
+
+			while (listIterator.hasPrevious()) {
+				MethodInvocation methodInvocationToReplace = listIterator.previous();
+				callGraph.replaceMethodInvocationWithExecution(methodInvocationToReplace);
+			}
+
+			// TODO FIXME I suspect that at this point we lost the information on relevant
+			// invocations because the methodInvocationUnderTest is not listed among the
+			// relevant method invocations ?!
+
+			/*
+			 * At this point we should get rid of the method invocations that became visible
+			 * after replacing their caller but are not strictly necessary for carving, but
+			 * have been included only because subsumed
+			 */
+
+			// THIS PROBABLY CAN BE DONE WITH SOME reduce/map magic...
+			List<MethodInvocation> unecessaryMethodInvocations = callGraph.getRoots().stream()
+					.filter(mi -> !mi.isNecessary()).collect(Collectors.toList());
+			for (MethodInvocation removeMe : unecessaryMethodInvocations) {
+				/*
+				 * Remove unnecessary method invocations and all the method invocations that are
+				 * subsumed from it
+				 */
+				callGraph.remove(removeMe);
+			}
+
+		}
+
+		// Check if, after the recovery, the method under test is still not visible...
+		directlyCallableMethodInvocations.clear();
+		carvedExecution.callGraphs.forEach(callGraph -> directlyCallableMethodInvocations.addAll(callGraph.getRoots()));
+		if (!directlyCallableMethodInvocations.stream()
+				.anyMatch(mi -> mi.equals(carvedExecution.methodInvocationUnderTest))) {
+			throw new CarvingException("Target method invocation " + carvedExecution.methodInvocationUnderTest
+					+ "is not directly visible ");
 		}
 
 		/*
@@ -93,7 +165,9 @@ public class BasicTestGenerator implements TestGenerator {
 		for (MethodInvocation directlyCallableMethodInvocation : directlyCallableMethodInvocations) {
 			if (directlyCallableMethodInvocation.isPrivate()) {
 				// TODO Describe
-				throw new CarvingException("Carved tests cannot make use of PRIVATE methods!");
+				throw new CarvingException(
+						"Carved tests cannot make use of PRIVATE methods! Offending method invocation: "
+								+ directlyCallableMethodInvocation);
 			}
 		}
 
@@ -114,7 +188,11 @@ public class BasicTestGenerator implements TestGenerator {
 			if (!methodInvocation.isStatic()) {
 				dataDependencyGraph.addDataDependencyOnOwner(methodInvocation, methodInvocation.getOwner());
 			}
-			if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())) {
+			/*
+			 * If the method invocation is exceptional, there's no return type there !
+			 */
+			if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())
+					&& !methodInvocation.isExceptional()) {
 				dataDependencyGraph.addDataDependencyOnReturn(methodInvocation, methodInvocation.getReturnValue());
 			}
 
@@ -147,6 +225,7 @@ public class BasicTestGenerator implements TestGenerator {
 		CarvedTest carvedTest = null;
 
 		if (methodInvocationUnderTest.isExceptional()) {
+			// This is basically generating assertions...
 			// TODO Move the following logic into separated methods. Probably an assertion
 			// generator of some sort
 			/*
@@ -159,7 +238,7 @@ public class BasicTestGenerator implements TestGenerator {
 
 			// Create the String message for the fail operation.
 			final String defaultFailMessage = "Expected exception was not thrown!";
-			DataNode dafatulFailMessageNode = DataNodeFactory.get("java.lang.String",
+			DataNode defaultFailMessageNode = DataNodeFactory.get("java.lang.String",
 					Arrays.toString(defaultFailMessage.getBytes()));
 
 			// Create the invocation to "fail" with message in case.
@@ -173,8 +252,8 @@ public class BasicTestGenerator implements TestGenerator {
 			// Attach the parameter to the method invocation. This is a quite dangerous
 			// duplication of information. We should probably rely only and only on the
 			// graphs !
-			List<DataNode> actualParameterInstances = new ArrayList<DataNode>();
-			actualParameterInstances.add(dafatulFailMessageNode);
+			List<DataNode> actualParameterInstances = new ArrayList<>();
+			actualParameterInstances.add(defaultFailMessageNode);
 			defaultFailMethodInvocation.setActualParameterInstances(actualParameterInstances);
 
 			// Add the execution by the end of the test
@@ -182,7 +261,7 @@ public class BasicTestGenerator implements TestGenerator {
 
 			// Make sure we include the data dependencies on the string
 			dataDependencyGraph.addMethodInvocationWithoutAnyDependency(defaultFailMethodInvocation);
-			dataDependencyGraph.addDataDependencyOnActualParameter(defaultFailMethodInvocation, dafatulFailMessageNode,
+			dataDependencyGraph.addDataDependencyOnActualParameter(defaultFailMethodInvocation, defaultFailMessageNode,
 					0);
 
 			// How do we tell that we want to catch that specific exception?
@@ -194,7 +273,7 @@ public class BasicTestGenerator implements TestGenerator {
 			DataDependencyGraph expectedExceptionCatchBlockDataDependencyGraph = new DataDependencyGraphImpl();
 
 			// If we reach the following block an exception was raised but this is not the
-			List<String> expectedExceptions = new ArrayList<String>();
+			List<String> expectedExceptions = new ArrayList<>();
 			expectedExceptions.add(expectedException.getType());
 			CatchBlock catchExpectedException = new CatchBlock(expectedExceptions,
 					expectedExceptionCatchBlockExecutionFlowGraph, expectedExceptionCatchBlockDataDependencyGraph);
@@ -233,26 +312,33 @@ public class BasicTestGenerator implements TestGenerator {
 			unexpectedExceptionCatchBlockDataDependencyGraph.addDataDependencyOnActualParameter(failMethodInvocation,
 					unexpectedExceptionFailMessageNode, 0);
 
-			List<String> unexpectedExceptions = new ArrayList<String>();
+			List<String> unexpectedExceptions = new ArrayList<>();
 			unexpectedExceptions.add("java.lang.Exception");
 			CatchBlock catchUnexpectedException = new CatchBlock(unexpectedExceptions,
 					unexpectedExceptionCatchBlockExecutionFlowGraph, unexpectedExceptionCatchBlockDataDependencyGraph);
 
+			boolean containsAndroidMethodInvocations = executionFlowGraph.getOrderedMethodInvocations().stream()
+					.anyMatch(methodInvocation -> methodInvocation instanceof AndroidMethodInvocation);
 			// Patch to enable Android Specific extensions. Probably we need a better way to
 			// do so
 			// TODO Note that the method invocation is not the ONLY way to eastablish
 			// whether or not the test case android related...
-			if (methodInvocationUnderTest instanceof AndroidMethodInvocation) {
-				carvedTest = new AndroidCarvedTest(methodInvocationUnderTest,
-						unexpectedExceptionCatchBlockExecutionFlowGraph,
-						unexpectedExceptionCatchBlockDataDependencyGraph);
+			if (containsAndroidMethodInvocations) {
+				/*
+				 * carvedTest = new AndroidCarvedTest(methodInvocationUnderTest,
+				 * unexpectedExceptionCatchBlockExecutionFlowGraph,
+				 * unexpectedExceptionCatchBlockDataDependencyGraph);
+				 */
+				carvedTest = new AndroidCarvedTest(methodInvocationUnderTest, executionFlowGraph, dataDependencyGraph,
+						catchExpectedException, catchUnexpectedException);
 			} else {
 				carvedTest = new CarvedTest(methodInvocationUnderTest, //
 						executionFlowGraph, dataDependencyGraph, // Test Body + Fail
 						catchExpectedException, catchUnexpectedException);
 			}
-
 		} else {
+
+			// Include assertions here
 			if (methodInvocationUnderTest instanceof AndroidMethodInvocation) {
 				carvedTest = new AndroidCarvedTest(methodInvocationUnderTest, //
 						executionFlowGraph, dataDependencyGraph);
@@ -260,6 +346,66 @@ public class BasicTestGenerator implements TestGenerator {
 				carvedTest = new CarvedTest(methodInvocationUnderTest, //
 						executionFlowGraph, dataDependencyGraph);
 			}
+			// Add the assertions using the AssertionGenerationPipeline (basically, add all
+			// the assertions that can be added).
+			if (!JimpleUtils.hasVoidReturnType(carvedTest.getMethodUnderTest().getMethodSignature())) {
+				// TODO We might not be able to handle the case of a NULL string since we
+				// consider String as primitive type, and primitives cannot be null...
+				if (JimpleUtils
+						.isPrimitive(JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature())) || //
+						JimpleUtils.isString(
+								JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature()))) {
+					AssertionGenerator assertionGenerator = new PrimitiveValueAssertionGenerator();
+
+					CarvingAssertion returnValueAssertion = assertionGenerator.generateAssertionsFor(carvedTest,
+							carvedExecution);
+
+					carvedTest.addAssertion(returnValueAssertion);
+
+				} else if (JimpleUtils
+						.isArray(JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature()))) {
+					throw new NotImplementedException("Assertions over arrays not yet implemented");
+				} else {
+					// Those are regular objects
+
+					// Assert whether the return value is null/not-null
+					AssertionGenerator assertionGenerator = new NullValueAssertionGenerator();
+					CarvingAssertion nullValueAssertion = assertionGenerator.generateAssertionsFor(carvedTest,
+							carvedExecution);
+					carvedTest.addAssertion(nullValueAssertion);
+
+					// Assert the value for boxed types that are NOT null
+					if (JimpleUtils.isBoxedPrimitive(
+							JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature()))
+							&& !((ObjectInstance) carvedExecution.methodInvocationUnderTest.getReturnValue())
+									.isNull()) {
+						CarvingAssertion returnValueAssertion = assertionGenerator.generateAssertionsFor(carvedTest,
+								carvedExecution);
+						carvedTest.addAssertion(returnValueAssertion);
+					}
+
+					// Assert the value for String types that are NOT null
+					if (JimpleUtils
+							.isString(JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature()))
+							&& !((ObjectInstance) carvedExecution.methodInvocationUnderTest.getReturnValue())
+									.isNull()) {
+						CarvingAssertion returnValueAssertion = assertionGenerator.generateAssertionsFor(carvedTest,
+								carvedExecution);
+						carvedTest.addAssertion(returnValueAssertion);
+					}
+
+				}
+			}
+		}
+
+		/*
+		 * Validate the test case: if the carved tests contains dangling objects is not
+		 * valid TODO This might need to be moved by the end? Or at this point we need
+		 * to have mocking/stubbing in place already
+		 */
+		Set<ObjectInstance> danglingObjects = carvedTest.getDataDependencyGraph().getDanglingObjects();
+		if (!danglingObjects.isEmpty()) {
+			throw new CarvingException("Carved Test contains dangling Objects:" + danglingObjects);
 		}
 
 		return carvedTest;

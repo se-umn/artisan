@@ -5,8 +5,10 @@ import java.awt.Dimension;
 import java.awt.Paint;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -38,14 +40,8 @@ public class CallGraphImpl implements CallGraph {
 	private Stack<MethodInvocation> stack;
 
 	public CallGraphImpl() {
-		graph = new DirectedSparseMultigraph<MethodInvocation, String>();
-		stack = new Stack<MethodInvocation>();
-	}
-
-	public void reset() {
-		for (MethodInvocation mi : graph.getVertices()) {
-			mi.alreadyCarved = false;
-		}
+		graph = new DirectedSparseMultigraph<>();
+		stack = new Stack<>();
 	}
 
 	public void push(MethodInvocation methodInvocation) {
@@ -85,7 +81,7 @@ public class CallGraphImpl implements CallGraph {
 	}
 
 	public Set<MethodInvocation> getRoots() {
-		Set<MethodInvocation> roots = new HashSet<MethodInvocation>();
+		Set<MethodInvocation> roots = new HashSet<>();
 		// A root in this graph is defined as a node which does not have incoming edges
 		// TODO This is because we only model call relation and not return into
 		for (MethodInvocation mi : graph.getVertices()) {
@@ -98,10 +94,10 @@ public class CallGraphImpl implements CallGraph {
 	}
 
 	public void visualize() {
-		VisualizationViewer<MethodInvocation, String> vv = new VisualizationViewer<MethodInvocation, String>(
+		VisualizationViewer<MethodInvocation, String> vv = new VisualizationViewer<>(
 				// new TreeLayout<>((Forest<MethodInvocation, String> )graph));
 				// // Does not work..
-				new KKLayout<MethodInvocation, String>(graph));
+				new KKLayout<>(graph));
 
 		vv.setPreferredSize(new Dimension(1000, 800));
 		vv.getRenderContext().setVertexLabelTransformer(new ToStringLabeller() {
@@ -116,20 +112,17 @@ public class CallGraphImpl implements CallGraph {
 				}
 			}
 		});
-		vv.getRenderContext().setVertexFillPaintTransformer(new Function<GraphNode, Paint>() {
-			@Override
-			public Paint apply(GraphNode node) {
-				if (node instanceof ValueNode) {
-					// TODO Not sure we can skip the visualization at all...
-					return Color.YELLOW;
-				} else if (node instanceof ObjectInstance) {
-					return Color.GREEN;
-				} else if (node instanceof MethodInvocation) {
-					MethodInvocation methodInvocation = (MethodInvocation) node;
-					return (methodInvocation.getInvocationType().equals("StaticInvokeExpr")) ? Color.ORANGE : Color.RED;
-				} else {
-					return Color.BLUE;
-				}
+		vv.getRenderContext().setVertexFillPaintTransformer((Function<GraphNode, Paint>) node -> {
+			if (node instanceof ValueNode) {
+				// TODO Not sure we can skip the visualization at all...
+				return Color.YELLOW;
+			} else if (node instanceof ObjectInstance) {
+				return Color.GREEN;
+			} else if (node instanceof MethodInvocation) {
+				MethodInvocation methodInvocation = (MethodInvocation) node;
+				return (methodInvocation.getInvocationType().equals("StaticInvokeExpr")) ? Color.ORANGE : Color.RED;
+			} else {
+				return Color.BLUE;
 			}
 		});
 
@@ -141,6 +134,69 @@ public class CallGraphImpl implements CallGraph {
 		frame.setVisible(true);
 
 	}
+
+	@Override
+	public void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl) {
+		MethodInvocation originalMethodInvocation = graph.getVertices().stream()
+				.filter(methodInvocation -> methodInvocation.equals(orig)).findFirst()
+				.orElseThrow(() -> new IllegalArgumentException("No such method invocation"));
+
+		Collection<String> inEdges = graph.getInEdges(originalMethodInvocation);
+		Collection<String> outEdges = graph.getOutEdges(originalMethodInvocation);
+
+		List<Pair<String, MethodInvocation>> inEdgesWithSources = inEdges.stream()
+				.map(edge -> new Pair<>(edge, graph.getOpposite(originalMethodInvocation, edge)))
+				.collect(Collectors.toList());
+		List<Pair<String, MethodInvocation>> outEdgesWithDestinations = outEdges.stream()
+				.map(edge -> new Pair<>(edge, graph.getOpposite(originalMethodInvocation, edge)))
+				.collect(Collectors.toList());
+
+		graph.removeVertex(originalMethodInvocation);
+		graph.addVertex(repl);
+
+		inEdgesWithSources.forEach(edgeNameMethodInvocationPair -> graph
+				.addEdge(edgeNameMethodInvocationPair.getFirst(), edgeNameMethodInvocationPair.getSecond(), repl));
+		outEdgesWithDestinations.forEach(edgeNameMethodInvocationPair -> graph
+				.addEdge(edgeNameMethodInvocationPair.getFirst(), repl, edgeNameMethodInvocationPair.getSecond()));
+	}
+
+	@Override
+	public void replaceMethodInvocationWithExecution(MethodInvocation methodInvocationToReplace) {
+		Collection<MethodInvocation> callers = getPredecessors(methodInvocationToReplace);
+		if (callers.size() > 1) {
+			throw new IllegalStateException(
+					"Call graph contains multiple callers for " + methodInvocationToReplace + ": " + callers);
+		} else if (callers.isEmpty()) {
+			/*
+			 * If the caller was at the root level we do not have to do anything except
+			 * removing it from this call graph. This will remove the node and the edges
+			 * attached to it, hence promoting the methods directly invoked by it by one
+			 * level
+			 */
+			this.graph.removeVertex(methodInvocationToReplace);
+		} else {
+			// Get method calling methodInvocationToReplace
+			MethodInvocation caller = callers.iterator().next();
+
+			// Collect the methods directly called by methodInvocationToReplace. No need for
+			// ordering
+			Collection<MethodInvocation> calleds = this.getSuccessors(methodInvocationToReplace);
+
+			// Connect the caller of methodInvocationToReplace to the method invocations it
+			// subsumes
+			for (MethodInvocation called : calleds) {
+				// Not sure we need to encode any specify information here...
+				this.graph.addEdge("Replaced-CallDependency-" + id.getAndIncrement(), caller, called,
+						EdgeType.DIRECTED);
+			}
+
+			// Finally, remove the methodInvocation
+			this.graph.removeVertex(methodInvocationToReplace);
+
+		}
+
+	}
+
 	// public boolean addVertices(String data){
 	// return graph.addVertex(data);
 	// }
@@ -151,14 +207,12 @@ public class CallGraphImpl implements CallGraph {
 	// return graph.containsVertex(data);
 	// }
 
-	// This cannot be made as list because call graph is a tree and a node might
-	// have multiple childreen
 	/**
 	 * For some reason, the graph library says that a give edge is UNDIRECTED, while
 	 * it is DIRECTED (we verify that at construction time). I suspect some sort of
 	 * buffer overflow or something... so NOW we need to double check all the
 	 * operations ?!
-	 * 
+	 *
 	 * @param methodInvocation
 	 * @return
 	 */
@@ -188,10 +242,11 @@ public class CallGraphImpl implements CallGraph {
 	}
 
 	public MethodInvocation peek() {
-		if (!stack.isEmpty())
+		if (!stack.isEmpty()) {
 			return stack.peek();
-		else
+		} else {
 			return null;
+		}
 	}
 
 	// Return the ordered list that starting from (main?) reaches
@@ -245,8 +300,8 @@ public class CallGraphImpl implements CallGraph {
 
 	/**
 	 * Return the parent of this method invocation if any
-	 * 
-	 * @param methodUnderInspection
+	 *
+	 * @param methodInvocation
 	 * @return
 	 */
 	public MethodInvocation getCallerOf(MethodInvocation methodInvocation) {
@@ -327,7 +382,7 @@ public class CallGraphImpl implements CallGraph {
 
 	}
 
-	private void remove(MethodInvocation node) {
+	public void remove(MethodInvocation node) {
 
 		for (MethodInvocation child : getSuccessors(node)) {
 			remove(child);
@@ -397,18 +452,56 @@ public class CallGraphImpl implements CallGraph {
 
 		Graph<MethodInvocation, String> union = new DirectedSparseMultigraph<MethodInvocation, String>();
 
-		// Add all the nodes - clone them in the process
-		for (MethodInvocation methodInvocation : methodInvocations) {
-			union.addVertex(methodInvocation.clone());
-		}
+		// THIS IS REALLY ANNOYING ! We need to store the clones otherwise graph will
+		// not realize it is the same node ..
+		Map<MethodInvocation, MethodInvocation> cloneMap = new HashMap<MethodInvocation, MethodInvocation>();
 
-		for (String edge : graph.getEdges()) {
-			MethodInvocation source = graph.getSource(edge);
-			MethodInvocation dest = graph.getDest(edge);
-			// If BOTH source and dest are in the extrapolated graph, add the edge there
-			if (union.containsVertex(source) && union.containsVertex(dest)) {
-				// Clone the edge over, it's a string so it should be enough to add it
-				union.addEdge(edge, source, dest, EdgeType.DIRECTED);
+		// Add all method invocation nodes - clone them in the process
+		for (MethodInvocation methodInvocation : methodInvocations) {
+			// Add the method invocation vertex and its neighbors, unless they are there
+			// already
+			MethodInvocation cloned = methodInvocation.clone();
+			union.addVertex(cloned);
+			cloneMap.put(cloned, methodInvocation);
+
+			for (MethodInvocation neighbor : graph.getPredecessors(methodInvocation)) {
+				MethodInvocation clonedNode = neighbor.clone();
+				cloneMap.put(clonedNode, neighbor);
+				union.addVertex(cloned);
+			}
+
+			for (MethodInvocation neighbor : graph.getSuccessors(methodInvocation)) {
+				MethodInvocation clonedNode = neighbor.clone();
+				cloneMap.put(clonedNode, neighbor);
+				union.addVertex(cloned);
+			}
+
+		}
+		// Add all the edges between the nodes
+		for (MethodInvocation source : union.getVertices()) {
+			for (MethodInvocation target : union.getVertices()) {
+
+				MethodInvocation originalSource = cloneMap.get(source);
+				MethodInvocation originalTarget = cloneMap.get(target);
+
+				if (!graph.containsVertex(originalSource)) {
+					logger.warn("Graph does not contain " + source);
+					logger.warn("ALL VERTICES " + graph.getVertices());
+
+				}
+
+				if (!graph.containsVertex(originalTarget)) {
+					logger.warn("Graph does not contain " + target);
+					logger.warn("ALL VERTICES " + graph.getVertices());
+				}
+
+				// Original grap here.. BUT, it works with == and not equals ! :(
+				Collection<String> edges = graph.findEdgeSet(originalSource, originalTarget);
+				if (edges != null) {
+					for (String edge : edges) {
+						union.addEdge(edge, source, target, EdgeType.DIRECTED);
+					}
+				}
 			}
 		}
 
@@ -430,7 +523,12 @@ public class CallGraphImpl implements CallGraph {
 
 			for (MethodInvocation source : cluster) {
 				for (MethodInvocation target : cluster) {
-					Collection<String> edges = graph.findEdgeSet(source, target);
+
+					MethodInvocation originalSource = cloneMap.get(source);
+					MethodInvocation originalTarget = cloneMap.get(target);
+
+					Collection<String> edges = graph.findEdgeSet(originalSource, originalTarget);
+
 					if (edges != null) {
 						for (String edge : edges) {
 							callGraph.graph.addEdge(edge, source, target, EdgeType.DIRECTED);
@@ -445,4 +543,5 @@ public class CallGraphImpl implements CallGraph {
 
 		return extrapolated;
 	}
+
 }

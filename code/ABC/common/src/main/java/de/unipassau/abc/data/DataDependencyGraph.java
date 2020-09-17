@@ -20,7 +20,8 @@ public interface DataDependencyGraph {
 	public List<DataNode> getParametersOf(MethodInvocation methodInvocation);
 
 	/**
-	 * Method used during parsing to link the DataNode to the method invocation
+	 * Method used during parsing to link the DataNode to the method invocation. 
+	 * TODO Does positions start at 0 or 1? 
 	 * 
 	 * @param methodInvocation
 	 * @param actualParameter
@@ -42,11 +43,6 @@ public interface DataDependencyGraph {
 	public Optional<DataNode> getReturnValue(MethodInvocation mi) throws ABCException;
 
 	/**
-	 * Ensure that we reset the transient state of the graph.
-	 */
-	public void reset();
-
-	/**
 	 * Return all the weakly connected components that can be formed considering the
 	 * given methodInvocations (and their dependencies)
 	 * 
@@ -54,6 +50,16 @@ public interface DataDependencyGraph {
 	 * @return
 	 */
 	public Collection<DataDependencyGraph> extrapolate(Set<MethodInvocation> methodInvocations);
+
+	/**
+	 * Return a set containing the object instances for which we cannot establish
+	 * provenance, that is, object instances that appear out-of-the-blue. Null
+	 * objects and objects that are modeled as primitive values (e.g., Strings) are
+	 * not considered here.
+	 * 
+	 * @return
+	 */
+	public Set<ObjectInstance> getDanglingObjects();
 
 	public void visualize();
 
@@ -67,11 +73,11 @@ public interface DataDependencyGraph {
 
 	public boolean verifyObjectInstanceProvenance();
 
-	public Set<ObjectInstance> getDanglingObjects();
-
 	public void addDataDependencyOnOwner(MethodInvocation controllerLifecycleMethod, ObjectInstance objectInstance);
 
 	public void addMethodInvocationWithoutAnyDependency(MethodInvocation controllerLifecycleMethod);
+
+	public void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl);
 
 	public void summarize(ExecutionFlowGraph executionFlowGraph);
 

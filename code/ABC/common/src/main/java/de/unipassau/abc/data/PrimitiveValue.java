@@ -41,11 +41,11 @@ public class PrimitiveValue implements ValueNode, Cloneable {
 		this.stringValue = stringValue;
 	}
 
+	// FOR ESTABLISHING THE EQUALITY OF PRIMITIVE VALUES WE DO NOT USE id !
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + id;
 		result = prime * result + ((stringValue == null) ? 0 : stringValue.hashCode());
 		result = prime * result + ((type == null) ? 0 : type.hashCode());
 		return result;
@@ -60,8 +60,6 @@ public class PrimitiveValue implements ValueNode, Cloneable {
 		if (getClass() != obj.getClass())
 			return false;
 		PrimitiveValue other = (PrimitiveValue) obj;
-		if (id != other.id)
-			return false;
 		if (stringValue == null) {
 			if (other.stringValue != null)
 				return false;
