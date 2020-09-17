@@ -42,7 +42,7 @@ public class FieldTransformer extends AbstractStmtSwitch {
 	 * (string) of an object instance, identified by a reference, is set to a given
 	 * value (identified by the return value)
 	 */
-	public final static String SIGNATURE = "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object, java.lang.String)>";
+	public final static String SIGNATURE = "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object,java.lang.String)>";
 
 	public FieldTransformer(final String packageName, final SootMethod currentlyInstrumentedMethod,
 			final Body currentlyInstrumentedMethodBody,
@@ -58,7 +58,7 @@ public class FieldTransformer extends AbstractStmtSwitch {
 		this.clsMonitor = Scene.v().getSootClass(utils.Constants.MONITOR_CLASS);
 		// TODO Move this to enum or something or at least the strings !
 		this.monitorOnSyntheticMethodCall = clsMonitor.getMethodByName("onSyntheticMethodCall");
-		this.monitorOnLibMethodReturnNormally = clsMonitor.getMethodByName("onLibMethodReturnNormally");
+		this.monitorOnLibMethodReturnNormally = clsMonitor.getMethodByName("onAppMethodReturnNormally");
 	}
 
 	@Override
@@ -105,40 +105,40 @@ public class FieldTransformer extends AbstractStmtSwitch {
 		 * <li>java.lang.Object[] methodParameters</li>
 		 * </ol>
 		 */
-		List<Unit> instrumentationCodeBefore = new ArrayList<>();
-
-		List<Value> monitorOnSyntheticCallParameters = new ArrayList<Value>();
-		// String packageName
-		monitorOnSyntheticCallParameters.add(StringConstant.v(packageName));
-		// Object methodOwner, this is null because the synthetic method is static
-		monitorOnSyntheticCallParameters.add(NullConstant.v());
-		// String methodSignature
-		monitorOnSyntheticCallParameters.add(StringConstant.v(SIGNATURE));
-		// java.lang.Object[] methodParameters
-		// PARAMATERS list of objects
-		List<Value> invocationActualParameters = new ArrayList<>();
-		invocationActualParameters.add(leftSidrOfFieldAssignment);
-		invocationActualParameters.add(nameOfTheField);
-		// This makes sure we correctly wrap primitives
-		Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter.generateParameterArray(
-				RefType.v("java.lang.Object"), invocationActualParameters, currentlyInstrumentedMethodBody);
-		// Append the parameter array to the parameters for the
-		// trace start
-		monitorOnSyntheticCallParameters.add(tmpArgsListAndInstructions.getFirst());
-		/*
-		 * Insert the instructions to create the array before using it
-		 */
-		instrumentationCodeBefore.addAll(tmpArgsListAndInstructions.getSecond());
-
-		// Prepare the call to monitorOnLibCall
-		final Stmt callTracerMethodStart = Jimple.v().newInvokeStmt(Jimple.v()
-				.newStaticInvokeExpr(monitorOnSyntheticMethodCall.makeRef(), monitorOnSyntheticCallParameters));
-		// Append the call to the instrumentation code
-		instrumentationCodeBefore.add(callTracerMethodStart);
-
-		// Inject the code (not sure we need to tag it or not...)
-		UtilInstrumenter.instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt,
-				instrumentationCodeBefore);
+//		List<Unit> instrumentationCodeBefore = new ArrayList<>();
+//
+//		List<Value> monitorOnSyntheticCallParameters = new ArrayList<Value>();
+//		// String packageName
+//		monitorOnSyntheticCallParameters.add(StringConstant.v(packageName));
+//		// Object methodOwner, this is null because the synthetic method is static
+//		monitorOnSyntheticCallParameters.add(NullConstant.v());
+//		// String methodSignature
+//		monitorOnSyntheticCallParameters.add(StringConstant.v(SIGNATURE));
+//		// java.lang.Object[] methodParameters
+//		// PARAMATERS list of objects
+//		List<Value> invocationActualParameters = new ArrayList<>();
+//		invocationActualParameters.add(leftSidrOfFieldAssignment);
+//		invocationActualParameters.add(nameOfTheField);
+//		// This makes sure we correctly wrap primitives
+//		Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter.generateParameterArray(
+//				RefType.v("java.lang.Object"), invocationActualParameters, currentlyInstrumentedMethodBody);
+//		// Append the parameter array to the parameters for the
+//		// trace start
+//		monitorOnSyntheticCallParameters.add(tmpArgsListAndInstructions.getFirst());
+//		/*
+//		 * Insert the instructions to create the array before using it
+//		 */
+//		instrumentationCodeBefore.addAll(tmpArgsListAndInstructions.getSecond());
+//
+//		// Prepare the call to monitorOnLibCall
+//		final Stmt callTracerMethodStart = Jimple.v().newInvokeStmt(Jimple.v()
+//				.newStaticInvokeExpr(monitorOnSyntheticMethodCall.makeRef(), monitorOnSyntheticCallParameters));
+//		// Append the call to the instrumentation code
+//		instrumentationCodeBefore.add(callTracerMethodStart);
+//
+//		// Inject the code (not sure we need to tag it or not...)
+//		UtilInstrumenter.instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt,
+//				instrumentationCodeBefore);
 
 		/**
 		 * Prepare the call to monitor.onLibMethodReturnNormally. This mimic the fake
@@ -155,10 +155,14 @@ public class FieldTransformer extends AbstractStmtSwitch {
 		// METHOD SIGNATURE as String
 		monitorOnReturnIntoParameters.add(StringConstant.v(SIGNATURE));
 		// METHOD CONTEXT as String is the method in which this unit is invoked
-		monitorOnSyntheticCallParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
-		// Add the RETURN VALUE
-		monitorOnReturnIntoParameters.add(rightSideOfFieldAssignment);
-		// Prepare the actual call to Monitor.onLibMethodReturnNormally
+		monitorOnReturnIntoParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
+		// Add the RETURN VALUE. This has to be wrapped as well
+		Pair<Value, List<Unit>> tmpReturnValueAndInstructions = UtilInstrumenter.generateReturnValue(rightSideOfFieldAssignment, currentlyInstrumentedMethodBody); 
+		
+		monitorOnReturnIntoParameters.add(tmpReturnValueAndInstructions.getFirst());
+		// Make sure that the wrapping instructions are inserted before calling monitor
+		instrumentationCodeAfter.addAll( tmpReturnValueAndInstructions.getSecond() );
+		
 		// TODO We assume that all set field never causes an exception. Maybe it does,
 		// but we cannot know at this point?
 		final Stmt onReturnIntoCall = Jimple.v().newInvokeStmt(Jimple.v()
