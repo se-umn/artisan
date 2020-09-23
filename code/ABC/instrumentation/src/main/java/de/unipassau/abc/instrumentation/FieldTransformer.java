@@ -78,10 +78,11 @@ public class FieldTransformer extends AbstractStmtSwitch {
 
         // Begin instrumentation
         if (stmt.getLeftOp() instanceof FieldRef) {
+        	System.out.println("\t\t\t WRAP FieldRef assignemnt " + stmt + " inside " + currentlyInstrumentedMethod.getSignature());
             instrumentFieldRef(stmt, stmt.getRightOp());
         }
 
-        System.out.println("\t\t\t WRAP FieldRef assignemnt " + stmt + " inside " + currentlyInstrumentedMethod.getSignature());
+        
     }
 
     public void instrumentFieldRef(AssignStmt stmt, Value value) {
