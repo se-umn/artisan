@@ -46,7 +46,6 @@ import soot.jimple.InvokeExpr;
 import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
 import soot.jimple.JimpleBody;
-import soot.jimple.NewExpr;
 import soot.jimple.NullConstant;
 import soot.jimple.ReturnStmt;
 import soot.jimple.ReturnVoidStmt;
@@ -54,10 +53,9 @@ import soot.jimple.SpecialInvokeExpr;
 import soot.jimple.Stmt;
 import soot.jimple.StringConstant;
 import soot.jimple.ThrowStmt;
-// InfoFlow
-import soot.jimple.infoflow.android.manifest.ProcessManifest;
 import soot.toolkits.graph.ExceptionalUnitGraph;
 import soot.util.Chain;
+import utils.Constants;
 
 /**
  * TODO Replace: opts.debugOut() with a proper logger
@@ -91,6 +89,9 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 	private static final boolean INSTRUMENT_ARRAY_OPERATIONS = System.getProperties()
 			.containsKey("abc.instrument.array.operations");
+
+	private static final boolean INSTRUMENT_FIELDS_OPERATIONS = System.getProperties()
+			.containsKey("abc.instrument.fields.operations");
 
 	private static final boolean INSTRUMENT_TRAPS = System.getProperties().containsKey("abc.instrument.traps");
 
@@ -429,6 +430,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		System.out.println("OUTPUT_INSTRUMENTED_CODE: " + this.OUTPUT_INSTRUMENTED_CODE);
 		System.out.println("MAKE_ANDROID_LIFE_CYCLE_EVENTS_EXPLICIT: " + this.MAKE_ANDROID_LIFE_CYCLE_EVENTS_EXPLICIT);
 		System.out.println("INSTRUMENT_ARRAY_OPERATIONS: " + this.INSTRUMENT_ARRAY_OPERATIONS);
+		System.out.println("INSTRUMENT_FIELD_OPERATIONS: " + this.INSTRUMENT_FIELDS_OPERATIONS);
 		System.out.println("INSTRUMENT_TRAPS: " + this.INSTRUMENT_TRAPS);
 
 		Iterator<SootClass> applicationClassesIterator = userClasses.iterator();
@@ -1003,14 +1005,21 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 	 * @param currentlyInstrumentedMethod
 	 * @param currentlyInstrumentedMethodBody
 	 * @param currentlyInstrumentedMethodBodyUnitChain
+	 * @throws XmlPullParserException
 	 */
 	private void instrumentMethodBody(final SootMethod currentlyInstrumentedMethod,
 			final Body currentlyInstrumentedMethodBody,
-			final PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain) {
+			final PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain) throws IOException, XmlPullParserException {
+
+		// BufferedWriter unitFileWriter = new BufferedWriter(new
+		// FileWriter("unit_log.txt"));
 
 		for (final Iterator<Unit> iter = currentlyInstrumentedMethodBodyUnitChain.snapshotIterator(); iter.hasNext();) {
 
 			final Unit currentUnit = iter.next();
+
+			// unitFileWriter.write(currentUnit.toString());
+			// unitFileWriter.newLine();
 
 			/*
 			 * Do not instrument our instrumentation ...
@@ -1025,6 +1034,13 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 			currentUnit.apply(new InstrumentLibCall(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
 					currentlyInstrumentedMethodBodyUnitChain, userClasses));
 
+			if (INSTRUMENT_FIELDS_OPERATIONS) {
+				/*
+				 * Capture field setting as fake operations
+				 */
+				currentUnit.apply(new FieldTransformer(Constants.getAPKName(), currentlyInstrumentedMethod,
+						currentlyInstrumentedMethodBody, currentlyInstrumentedMethodBodyUnitChain, userClasses));
+			}
 			/*
 			 * Make sure we properly report ArrayOperations. TODO Are we sure those apply
 			 * ONLY to AssignStmt?
@@ -1070,7 +1086,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		List<Value> methodStartParameters = new ArrayList<Value>();
 
 		// String apkName
-		methodStartParameters.add(StringConstant.v(getAPKName()));
+		methodStartParameters.add(StringConstant.v(Constants.getAPKName()));
 
 		// Object methodOwnerOrNull
 		if (currentlyInstrumentedMethod.isStatic()) {
@@ -1145,16 +1161,6 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 			break;
 		}
 
-	}
-
-	private String getAPKName() throws IOException, XmlPullParserException {
-		String apkPath = soot.options.Options.v().process_dir().get(0);
-		ProcessManifest manifest = new ProcessManifest(apkPath);
-		return manifest.getPackageName();
-		// GlobalRef.apkVersionCode = manifest.getVersionCode();
-		// GlobalRef.apkVersionName = manifest.getVersionName();
-		// GlobalRef.apkMinSdkVersion = manifest.getMinSdkVersion();
-		// GlobalRef.apkPermissions = manifest.getPermissions();
 	}
 
 	// Keep this method to have meaningful explanation why a class has been skipped
