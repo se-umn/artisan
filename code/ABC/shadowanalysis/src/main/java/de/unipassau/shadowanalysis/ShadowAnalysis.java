@@ -28,15 +28,15 @@ import java.util.Collection;
 public class ShadowAnalysis {
 
     public static List<String> processDir = new ArrayList<String>(Arrays.asList(
-                System.getProperty("user.home") + "/shadowanalysis/jars/robolectric-4.4.jar", 
-                System.getProperty("user.home") + "/shadowanalysis/jars/shadowapi-4.4.jar", 
-                System.getProperty("user.home") + "/shadowanalysis/jars/resources-4.4.jar", 
-                System.getProperty("user.home") + "/shadowanalysis/jars/utils-4.4.jar", 
-                System.getProperty("user.home") + "/shadowanalysis/jars/utils-reflector-4.4.jar", 
-                System.getProperty("user.home") + "/shadowanalysis/jars/buildSrc.jar", 
-                System.getProperty("user.home") + "/shadowanalysis/jars/processor-4.4.jar", 
-                System.getProperty("user.home") + "/shadowanalysis/jars/annotations-4.4.jar", 
-                System.getProperty("user.home") + "/shadowanalysis/jars/shadows-framework-4.4.jar"));
+                System.getProperty("user.dir") + "/jars/robolectric-4.4.jar", 
+                System.getProperty("user.dir") + "/jars/shadowapi-4.4.jar", 
+                System.getProperty("user.dir") + "/jars/resources-4.4.jar", 
+                System.getProperty("user.dir") + "/jars/utils-4.4.jar", 
+                System.getProperty("user.dir") + "/jars/utils-reflector-4.4.jar", 
+                System.getProperty("user.dir") + "/jars/buildSrc.jar", 
+                System.getProperty("user.dir") + "/jars/processor-4.4.jar", 
+                System.getProperty("user.dir") + "/jars/annotations-4.4.jar", 
+                System.getProperty("user.dir") + "/jars/shadows-framework-4.4.jar"));
 
     public static void setupSoot() {
         G.reset(); 
@@ -48,7 +48,6 @@ public class ShadowAnalysis {
 
     public static void main(String[] args) {
         setupSoot();
-        JSONObject jsonClasses = new JSONObject();
         Iterator<SootClass> classes = Scene.v().getApplicationClasses().iterator();
         while (classes.hasNext()) {
             JSONObject jsonClassDesc = new JSONObject();
