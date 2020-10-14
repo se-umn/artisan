@@ -7,10 +7,10 @@ import org.junit.Test;
 
 public class Poet117Test {
 
-  private static final String PACKAGE_NAME = "ca.rmen.android.poetassistant";
+  private static final String TARGET_PACKAGE_NAME = "ca.rmen.android.poetassistant";
 
   @Rule
-  public AbcRule r = new AbcRule(PACKAGE_NAME);
+  public AbcRule r = new AbcRule(TARGET_PACKAGE_NAME);
 
   @Test
   public void crash() throws IOException, InterruptedException {

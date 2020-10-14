@@ -28,7 +28,7 @@ public class AbcRule implements TestRule {
   public static final long TIMEOUT = 5000;
   private static final Pattern KEEPS_STOPPING_PATTERN = Pattern
       .compile("[A-Za-z\\s]+keeps stopping");
-  private String packageName;
+  private final String packageName;
   UiDevice device;
 
   public AbcRule(String packageName) {
