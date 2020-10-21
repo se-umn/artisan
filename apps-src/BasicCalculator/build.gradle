@@ -2,6 +2,7 @@
 
 buildscript {
     repositories {
+        mavenLocal()
         google()
         jcenter()
         mavenCentral()   
@@ -10,13 +11,14 @@ buildscript {
         classpath 'com.android.tools.build:gradle:3.5.2'
         // https://medium.com/@hhugoac/configuring-jacoco-for-testing-coverage-in-android-9bdad3dde705
         // https://proandroiddev.com/unified-code-coverage-for-android-revisited-44789c9b722f
-        classpath 'org.jacoco:org.jacoco.core:0.8.5'
+        classpath 'org.jacoco:org.jacoco.core:0.8.6'
 
     }
 }
 
 allprojects {
     repositories {
+        mavenLocal()
         google()
         jcenter()
         mavenCentral()

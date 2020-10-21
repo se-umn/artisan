@@ -79,6 +79,15 @@ public class Main {
 					.getJavaFileObjectsFromStrings(Arrays.asList(testFile.getAbsolutePath()));
 
 			List<String> optionList = new ArrayList<String>();
+			
+			// Include test-utils on the compilation classpath because we need the Carved annotation
+			for(String cpEntry : System.getProperty( "java.class.path" ).split(File.pathSeparator)) {
+				if(cpEntry.contains("test-utils")) {
+					theClassPath += File.pathSeparator + cpEntry;
+				}
+			}
+			
+			
 			optionList.addAll(Arrays.asList("-cp", theClassPath));
 			optionList.addAll(Arrays.asList("-d", sourceFolder.getAbsolutePath()));
 
