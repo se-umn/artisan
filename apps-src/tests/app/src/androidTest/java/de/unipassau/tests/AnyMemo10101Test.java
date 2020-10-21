@@ -11,10 +11,10 @@ import org.junit.runner.RunWith;
 @SdkSuppress(minSdkVersion = 18)
 public class AnyMemo10101Test {
 
-  private static final String PACKAGE_NAME = "org.liberty.android.fantastischmemo";
+  private static final String TARGET_PACKAGE_NAME = "org.liberty.android.fantastischmemo";
 
   @Rule
-  public AbcRule r = new AbcRule(PACKAGE_NAME);
+  public AbcRule r = new AbcRule(TARGET_PACKAGE_NAME);
 
   @Test
   public void crash() {

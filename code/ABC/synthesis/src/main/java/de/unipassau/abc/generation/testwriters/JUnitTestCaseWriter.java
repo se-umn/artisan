@@ -60,6 +60,7 @@ import java.util.Optional;
 import java.util.Set;
 import org.apache.commons.lang.NotImplementedException;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.slf4j.Logger;
@@ -74,6 +75,8 @@ import org.slf4j.LoggerFactory;
 public class JUnitTestCaseWriter implements TestCaseWriter {
 
 	private static final Logger logger = LoggerFactory.getLogger(JUnitTestCaseWriter.class);
+
+	public static final String ABC_CATEGORY = "de.unipassau.abc.Carved";
 
 	@Override
 	public void write(File outputFolder, TestCaseOrganizer testOrganizer, CarvedTest... carvedTests)
@@ -118,6 +121,11 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 		ClassOrInterfaceDeclaration testClass = cu.addClass(testCase.getName());
 
 		testClass.setModifiers(Modifier.Keyword.PUBLIC);
+
+		// Include the carved Category annotation
+		cu.addImport(ABC_CATEGORY);
+		ClassOrInterfaceType carvedCategoryAnnotation = parseClassOrInterfaceType(ABC_CATEGORY);
+		testClass.addSingleMemberAnnotation(Category.class, carvedCategoryAnnotation.getNameAsString() + ".class");
 
 		// If any of the tests in this test case requires a specific runner we need to
 		// add it to the class

@@ -10,10 +10,10 @@ import org.junit.runner.RunWith;
 @RunWith(AndroidJUnit4.class)
 @SdkSuppress(minSdkVersion = 18)
 public class BasicCalculator10Test {
-  private static final String PACKAGE_NAME = "de.unipassau.calculator";
+  private static final String TARGET_PACKAGE_NAME = "de.unipassau.calculator";
 
   @Rule
-  public AbcRule rule = new AbcRule(PACKAGE_NAME);
+  public AbcRule rule = new AbcRule(TARGET_PACKAGE_NAME);
 
   @Test
   public void nestedException() {

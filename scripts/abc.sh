@@ -389,12 +389,16 @@ function run-test() {
 
   # Build the tests
   local build_result=$("$tests_dir/gradlew" assembleAndroidTest)
-  local test_runner=$(realpath "$tests_dir/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk")
+
+  # Both apks must be installed on the device for the tests to work properly
+  local androidTestDebugApk=$(realpath "$tests_dir/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk")
+  local debugApk=$(realpath "$tests_dir/app/build/outputs/apk/debug/app-debug.apk")
   popd &> /dev/null || exit
-  ( >&2 echo "Test runner is $test_runner" )
+
   # The "testing" apk must be installed, afterwards it can be invoked to test apk under test
   # Check installed instrumentation with 'adb shell pm list instrumentation'
-  install-apk $test_runner
+  install-apk $androidTestDebugApk
+  install-apk $debugApk
 
   # Combine the test class name out of application name and version assuming they are correctly defined.
   # Other options are:
@@ -424,7 +428,7 @@ function run-test() {
   local traces=$(copy-traces "$package_name" | sort)
 
   IFS=$'\n'
-  read -rd '' -a trace_paths <<<"$traces"
+  read -rd '' -a trace_paths <<< "$traces"
   read -rd '' -a test_methods <<< "$test_methods"
 
   for i in "${!trace_paths[@]}"; do
