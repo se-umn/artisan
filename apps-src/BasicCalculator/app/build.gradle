@@ -51,12 +51,22 @@ android {
             returnDefaultValues = true
         }
         unitTests.all {
-            // All the usual Gradle options.
+            useJUnit {
+                if (carvedTests) {
+                    includeCategories 'de.unipassau.abc.Carved'
+                } else {
+                    excludeCategories 'de.unipassau.abc.Carved'
+                }
+            }
+
+           // All the usual Gradle options.
             testLogging {
                 events "passed", "skipped", "failed", "standardOut", "standardError"
                 outputs.upToDateWhen {false}
                 showStandardStreams = true
             }
+
+
             jacoco {
                 includeNoLocationClasses = true
             }
@@ -66,12 +76,6 @@ android {
                 //Get last path of default set path.
                 def junitXmlTestTaskName = file("$reports.junitXml.destination").name
                 def htmlTestTaskName = file("$reports.html.destination").name
-
-                print "junitXmlTestTaskName : " + junitXmlTestTaskName
-                print "htmlTestTaskName : " + htmlTestTaskName 
-                print "reports.junitXml " + reports.junitXml
-
-                
 
                 if ( carvedTests ) {
                     // reportDir = "${buildDir}/carved-tests/test-report"

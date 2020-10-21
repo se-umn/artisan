@@ -1,9 +1,8 @@
 package de.unipassau.abc.carving.utils;
 
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map.Entry;
-import java.util.stream.Collectors;
+import java.util.Set;
 
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
@@ -28,8 +27,8 @@ public class MethodInvocationSearcher {
 	 * @param parsedTrace
 	 * @return
 	 */
-	public Collection<MethodInvocation> findAllCarvableMethodInvocations(ParsedTrace parsedTrace) {
-		Collection<MethodInvocation> carvableMethodInvocations = new HashSet<MethodInvocation>();
+	public Set<MethodInvocation> findAllCarvableMethodInvocations(ParsedTrace parsedTrace) {
+		Set<MethodInvocation> carvableMethodInvocations = new HashSet<MethodInvocation>();
 
 		for (Entry<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> entry : parsedTrace
 				.getParsedTrace().entrySet()) {

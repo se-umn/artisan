@@ -36,7 +36,6 @@
 			<groupId>de.unipassau.abc</groupId>
 			<artifactId>test-utils</artifactId>
 			<version>1.0-SNAPSHOT</version>
-			<scope>test</scope>
 		</dependency>
 
 		<dependency>

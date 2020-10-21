@@ -21,9 +21,24 @@ public class BySingleTest implements TestCaseOrganizer {
 
 		Set<TestCase> testSuite = new HashSet<TestCase>();
 		for (CarvedTest carvedTest : carvedTests) {
-			TestCase testCase = new TestCase(
-					JimpleUtils.getClassNameForMethod(carvedTest.getMethodUnderTest().getMethodSignature()),
-					"Test" + JimpleUtils.getMethodName(carvedTest.getMethodUnderTest().getMethodSignature()),
+
+			String testClassName = "Test"
+					+ JimpleUtils.getSimpleClassNameForMethod(carvedTest.getMethodUnderTest().getMethodSignature());
+			String testPackageName = JimpleUtils
+					.getPackageNameForMethod(carvedTest.getMethodUnderTest().getMethodSignature());
+			// TODO This will not work with Multipoe
+			if (JimpleUtils.isConstructor(carvedTest.getMethodUnderTest().getMethodSignature())) {
+				testClassName += "Constructor";
+			} else if (JimpleUtils
+					.isConstructorOrClassConstructor(carvedTest.getMethodUnderTest().getMethodSignature())) {
+				testClassName += "StaticConstructor";
+			} else {
+				String methodName = JimpleUtils.getMethodName(carvedTest.getMethodUnderTest().getMethodSignature());
+				// Make sure we capitalize it correctly
+				testClassName += methodName.substring(0, 1).toUpperCase() + methodName.substring(1);
+			}
+
+			TestCase testCase = new TestCase(testPackageName, testClassName,
 					new HashSet<CarvedTest>(Arrays.asList(carvedTest)));
 
 			testSuite.add(testCase);
