@@ -1,3 +1,5 @@
+import java.nio.file.Files
+
 apply plugin: 'com.android.application'
 apply plugin: 'jacoco'
 
@@ -8,9 +10,15 @@ jacoco {
 
 tasks.withType(Test) {
     jacoco.includeNoLocationClasses = true
+    // This will break JDK 9 otherwise
+    jacoco.excludes = ['jdk.internal.*']
 }
 
+// General switch for tests types this control report generation but not yet unit test selection
+def carvedTests = project.hasProperty('carvedTests') ? project.getProperty('carvedTests') : false //Default value false
+
 android {
+
     compileSdkVersion 28
     buildToolsVersion "28.0.3"
     defaultConfig {
@@ -37,14 +45,13 @@ android {
         // Those two lines fail connectedAndroidTests
         // execution 'ANDROID_TEST_ORCHESTRATOR'
         // animationsDisabled true
-
         unitTests {
             includeAndroidResources = true
             //  unitTests.returnDefaultValues = true?
             returnDefaultValues = true
         }
         unitTests.all {
-        // All the usual Gradle options.
+            // All the usual Gradle options.
             testLogging {
                 events "passed", "skipped", "failed", "standardOut", "standardError"
                 outputs.upToDateWhen {false}
@@ -53,8 +60,48 @@ android {
             jacoco {
                 includeNoLocationClasses = true
             }
+
+            test {
+
+                //Get last path of default set path.
+                def junitXmlTestTaskName = file("$reports.junitXml.destination").name
+                def htmlTestTaskName = file("$reports.html.destination").name
+
+                print "junitXmlTestTaskName : " + junitXmlTestTaskName
+                print "htmlTestTaskName : " + htmlTestTaskName 
+                print "reports.junitXml " + reports.junitXml
+
+                
+
+                if ( carvedTests ) {
+                    // reportDir = "${buildDir}/carved-tests/test-report"
+                    // resultsDir = "${buildDir}/carved-tests/test-results"
+                    reports.junitXml.destination = file("${buildDir}/carved-tests/test-report/${junitXmlTestTaskName}")// file("../../output/$junitXmlTestTaskName")
+                    reports.html.destination = file("${buildDir}/carved-tests/test-results/${htmlTestTaskName}") // file("../../output/$htmlTestTaskName")
+                } else {
+                    // reportDir = "${buildDir}/original-tests/test-report"
+                    // resultsDir = "${buildDir}/original-tests/test-results"
+                    reports.junitXml.destination = file("${buildDir}/original-tests/test-report/${junitXmlTestTaskName}") // file("../../output/$junitXmlTestTaskName")
+                    reports.html.destination = file("${buildDir}/original-tests/test-results/${htmlTestTaskName}") // file("../../output/$htmlTestTaskName")
+                }
+
+            }
+
         }
+
+        
     } 
+
+    lintOptions {
+        if ( carvedTests ) {
+            htmlOutput = file("${buildDir}/carved-tests/lint/LINT-results.html")
+            xmlOutput = file("${buildDir}/carved-tests/lint/lint/LINT-results.xml")
+        } else {
+            htmlOutput = file("${buildDir}/original-tests/lint/LINT-results.html")
+            xmlOutput = file("${buildDir}/original-tests/lint/lint/LINT-results.xml")
+        }
+     
+    }
 }
 
 dependencies {
@@ -78,34 +125,21 @@ dependencies {
     androidTestImplementation 'androidx.test:rules:1.1.0'
 }
 
-// Note leaving the "createDebugCoverageReport" causes the Espresso test to run as well
-// task jacocoTestReport(type: JacocoReport, dependsOn: ['testDebugUnitTest', 'createDebugCoverageReport']) {
-// task jacocoTestReport(type: JacocoReport, dependsOn: ['testDebugUnitTest']) {
-
-//     reports {
-//         xml.enabled = true
-//         html.enabled = true
-//     }
-
-//     def fileFilter = ['**/R.class', '**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*', '**/*Test*.*', 'android/**/*.*']
-//     def debugTree = fileTree(dir: "$project.buildDir/intermediates/classes/debug", excludes: fileFilter)
-//     def mainSrc = "$project.projectDir/src/main/java"
-
-//     sourceDirectories = files([mainSrc])
-//     classDirectories = files([debugTree])
-//     executionData = fileTree(dir: project.buildDir, includes: [
-//             'jacoco/testDebugUnitTest.exec', 'outputs/code-coverage/connected/*coverage.ec'
-//     ])
-// }
-
-// task jacocoTestReport(type: JacocoReport, dependsOn: ['testDebugUnitTest', 'createDebugCoverageReport']) {
-task jacocoTestReport(type: JacocoReport, dependsOn: ['testDebugUnitTest']) {
+task jacocoTestsReport(type: JacocoReport, dependsOn: ['testDebugUnitTest']) {
     group = "Reporting"
-    description = "Generate Jacoco coverage reports after running tests."
+    description = "Generate Jacoco coverage reports after running the Original Tests."
 
     reports {
         xml.enabled = true
         html.enabled = true
+        if ( carvedTests ) {
+                html.destination file("${buildDir}/carved-tests/coverage/html")
+                xml.destination file("${buildDir}/carved-tests/coverage/xml")
+        } else {
+                html.destination file("${buildDir}/original-tests/coverage/html")
+                xml.destination file("${buildDir}/original-tests/coverage/xml")
+            }
+        
     }
 
     def fileFilter = ['androidx/**/*.*',
