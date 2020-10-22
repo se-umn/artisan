@@ -2,7 +2,8 @@
 
 buildscript {
     repositories {
-        mavenLocal()
+        // This breaks the entire thing. Do not use category but separate build folders 
+        // mavenLocal()
         google()
         jcenter()
         mavenCentral()   
@@ -18,7 +19,7 @@ buildscript {
 
 allprojects {
     repositories {
-        mavenLocal()
+        // mavenLocal()
         google()
         jcenter()
         mavenCentral()
