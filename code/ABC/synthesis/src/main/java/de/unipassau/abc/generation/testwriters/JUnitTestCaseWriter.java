@@ -76,7 +76,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
 	private static final Logger logger = LoggerFactory.getLogger(JUnitTestCaseWriter.class);
 
-	public static final String ABC_CATEGORY = "de.unipassau.abc.Carved";
+//	public static final String ABC_CATEGORY = "de.unipassau.abc.Carved";
 
 	@Override
 	public void write(File outputFolder, TestCaseOrganizer testOrganizer, CarvedTest... carvedTests)
@@ -122,10 +122,11 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
 		testClass.setModifiers(Modifier.Keyword.PUBLIC);
 
+		// TODO For the moment this creates problems because we need to put a jar on the classpath in gradle
 		// Include the carved Category annotation
-		cu.addImport(ABC_CATEGORY);
-		ClassOrInterfaceType carvedCategoryAnnotation = parseClassOrInterfaceType(ABC_CATEGORY);
-		testClass.addSingleMemberAnnotation(Category.class, carvedCategoryAnnotation.getNameAsString() + ".class");
+//		cu.addImport(ABC_CATEGORY);
+//		ClassOrInterfaceType carvedCategoryAnnotation = parseClassOrInterfaceType(ABC_CATEGORY);
+//		testClass.addSingleMemberAnnotation(Category.class, carvedCategoryAnnotation.getNameAsString() + ".class");
 
 		// If any of the tests in this test case requires a specific runner we need to
 		// add it to the class
