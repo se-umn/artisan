@@ -327,6 +327,48 @@ function instrument-apk() {
   echo "${instrumented_apk_file}"
 }
 
+function carve-and-generate-from-trace() {
+  # Ensures the required variables are in place
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${APK_SIGNER:?Please provide a value for APK_SIGNER in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${ANDROID_JAR:?Please provide a value for ANDROID_JAR in $config_file}
+
+  local apk_file="${1:?Missing apk file}"
+  local trace_file="${2:?Missing trace file}"
+  local output_to="${3:?Missing output folder}"
+
+  ${ABC_HOME}/synthesis/target/appassembler/bin/carve-and-generate --android-jar=${ANDROID_JAR} \
+      --trace-file=${trace_file} \
+      --apk=${apk_file} \
+      --output-to=${output_to}
+  # Does this produce a log "HERE" ?  
+}
+
+function carve-all(){
+    # Ensures the required variables are in place
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${APK_SIGNER:?Please provide a value for APK_SIGNER in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${ANDROID_JAR:?Please provide a value for ANDROID_JAR in $config_file}
+
+  local apk_file="${1:?Missing apk file}"
+  local trace_folder="${2:?Missing trace folder}"
+  local output_to="${3:?Missing output folder}"
+
+  for trace_file in $(find ${trace_folder} -iname "Trace*.txt"); do
+    test_name=$(echo -e $(basename ${trace_file}) | sed -e 's|Trace-\(.*\)-[1-9].*.txt|\1|')
+    (echo >&2 "Start carving tests from ${trace_file} for test ${test_name}")  
+    
+    carve-and-generate-from-trace ${apk_file}  ${trace_file} carved-tests/${test_name}
+
+    (echo >&2 "Done carving tests from ${trace_file}")
+    (echo >&2 "")
+  done
+}
+
 function copy-traces() {
   # Ensures the required variables are in place
   : ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
@@ -599,6 +641,9 @@ function __private_autocomplete() {
   elif [ "${command_name}" == "split-trace" ]; then
     echo "requires_one_file"
   elif [ "${command_name}" == "test-apk" ]; then
+    echo "requires_one_file"
+  elif [ "${command_name}" == "carve-and-generate-from-trace" ]; then
+    # Really this is requires 3 files...
     echo "requires_one_file"
   fi
 }
