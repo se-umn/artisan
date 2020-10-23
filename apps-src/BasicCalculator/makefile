@@ -3,10 +3,14 @@ ABC=/Users/gambi/bin/abc
 ABC_CFG="/Users/gambi/action-based-test-carving/scripts/.abc-config"
 JAVA_OPTS=" -Dabc.instrument.fields.operations -Dabc.taint.android.intents "
 
-.PHONY: clean-gradle
+.PHONY: clean-gradle clean-all
 
 clean-gradle:
 	$(GW) clean
+
+clean-all:
+	rm -v *.apk 
+	rm -rv espresso-tests-coverage unit-tests-coverage
 
 
 app-original.apk : 
@@ -55,3 +59,27 @@ carve-all : traces app-original.apk
 
 run-all-carved-tests : app/src/carvedTest
 	for testName in $$(find app/src/carvedTest -type d -depth 1 -exec basename {} \;); do $(GW) test -PcarvedTests -PtestName=$${testName} | tee $${testName}.log; done
+
+
+espresso-tests-coverage :
+	export ABC_CONFIG=$(ABC_CFG) && \
+	abc start-clean-emulator && \
+	$(GW) connectedAndroidTest && \
+	cp -r app/build/reports/coverage espresso-tests-coverage && \
+	$(ABC) stop-all-emulators
+
+unit-tests-coverage :
+	$(GW) clean jacocoTestReport && \
+	cp -r app/build/reports/jacoco/jacocoTestsReport unit-tests-coverage
+
+carved-test-coverage : 
+	{ \
+	set -e ; \
+	for testName in $$(find app/src/carvedTest -type d -depth 1 -exec basename {} \;); \
+	do $(GW) jacocoTestReport -PcarvedTests -PtestName=$${testName}; \
+	done \
+	} && \
+	mkdir -p carved-test-coverage && \
+	cp -r app/build/carvedTest/coverage carved-test-coverage
+
+

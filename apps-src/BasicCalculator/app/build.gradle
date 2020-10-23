@@ -18,6 +18,9 @@ tasks.withType(Test) {
 def carvedTests = project.hasProperty('carvedTests')// ? project.getProperty('carvedTests') : false //Default value false
 if (carvedTests){
     def testName = project.getProperty('testName')
+    println ""
+    println "* Processing Carved Test ${testName}"
+    println ""
 }
 
 
@@ -97,20 +100,11 @@ android {
                 if ( carvedTests ) {
                     // reportDir = "${buildDir}/carved-tests/test-report"
                     // resultsDir = "${buildDir}/carved-tests/test-results"
-                    reports.junitXml.destination = file("${buildDir}/carved-tests/${testName}/test-report/${junitXmlTestTaskName}")// file("../../output/$junitXmlTestTaskName")
-                    reports.html.destination = file("${buildDir}/carved-tests/${testName}/test-results/${htmlTestTaskName}") // file("../../output/$htmlTestTaskName")
-                } else {
-                    // reportDir = "${buildDir}/original-tests/test-report"
-                    // resultsDir = "${buildDir}/original-tests/test-results"
-                    reports.junitXml.destination = file("${buildDir}/original-tests/test-report/${junitXmlTestTaskName}") // file("../../output/$junitXmlTestTaskName")
-                    reports.html.destination = file("${buildDir}/original-tests/test-results/${htmlTestTaskName}") // file("../../output/$htmlTestTaskName")
-                }
-
+                    reports.junitXml.destination = file("${buildDir}/carvedTest/${testName}/test-report/${junitXmlTestTaskName}")// file("../../output/$junitXmlTestTaskName")
+                    reports.html.destination = file("${buildDir}/carvedTest/${testName}/test-results/${htmlTestTaskName}") // file("../../output/$htmlTestTaskName")
+                } 
             }
-
         }
-
-        
     } 
 
     compileOptions {
@@ -158,14 +152,11 @@ task jacocoTestsReport(type: JacocoReport, dependsOn: ['testDebugUnitTest']) {
     reports {
         xml.enabled = true
         html.enabled = true
+        // TODO Move this above 
         if ( carvedTests ) {
-                html.destination file("${buildDir}/carved-tests/coverage/html")
-                xml.destination file("${buildDir}/carved-tests/coverage/xml")
-        } else {
-                html.destination file("${buildDir}/original-tests/coverage/html")
-                xml.destination file("${buildDir}/original-tests/coverage/xml")
-            }
-        
+                html.destination file("${buildDir}/carvedTest/coverage/${testName}/html")
+                xml.destination file("${buildDir}/carvedTest/coverage/${testName}/xml")
+        }
     }
 
     def fileFilter = ['androidx/**/*.*',
