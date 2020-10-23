@@ -9,8 +9,10 @@ clean-gradle:
 	$(GW) clean
 
 clean-all:
-	rm -v *.apk 
-	rm -rv espresso-tests-coverage unit-tests-coverage
+	rm -v *.apk
+	rm -v *.log
+	rm -rv app/src/carvedTest
+	rm -rv espresso-tests-coverage unit-tests-coverage carved-test-coverage
 
 
 app-original.apk : 
@@ -53,32 +55,29 @@ trace-espresso-tests : app-instrumented.apk app-androidTest.apk
 	$(ABC) copy-traces abc.basiccalculator ./traces force-clean && \
 	$(ABC) stop-all-emulators
 
+
 carve-all : traces app-original.apk
 	export ABC_CONFIG=$(ABC_CFG) && \
 	$(ABC) carve-all app-original.apk traces app/src/carvedTest force-clean | tee carving.log
 
+
 run-all-carved-tests : app/src/carvedTest
-	for testName in $$(find app/src/carvedTest -type d -depth 1 -exec basename {} \;); do $(GW) test -PcarvedTests -PtestName=$${testName} | tee $${testName}.log; done
+	$(GW) clean testDebugUnitTest -PcarvedTests | tee carvedTests.log
 
 
 espresso-tests-coverage :
 	export ABC_CONFIG=$(ABC_CFG) && \
 	abc start-clean-emulator && \
-	$(GW) connectedAndroidTest && \
+	$(GW) clean connectedAndroidTest && \
 	cp -r app/build/reports/coverage espresso-tests-coverage && \
 	$(ABC) stop-all-emulators
 
-unit-tests-coverage :
+coverage-unit-tests :
 	$(GW) clean jacocoTestReport && \
 	cp -r app/build/reports/jacoco/jacocoTestsReport unit-tests-coverage
 
-carved-test-coverage : 
-	{ \
-	set -e ; \
-	for testName in $$(find app/src/carvedTest -type d -depth 1 -exec basename {} \;); \
-	do $(GW) jacocoTestReport -PcarvedTests -PtestName=$${testName}; \
-	done \
-	} && \
+coverage-carved-tests : 
+	$(GW) jacocoTestReport -PcarvedTests --info && \
 	mkdir -p carved-test-coverage && \
 	cp -r app/build/carvedTest/coverage carved-test-coverage
 

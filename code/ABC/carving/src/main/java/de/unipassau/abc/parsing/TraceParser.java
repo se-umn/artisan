@@ -75,10 +75,15 @@ public abstract class TraceParser {
 //					.replaceFirst("\\[", "");
 
 			/*
-			 * TODO Static calls might be reported with a null owner... I do not really like
-			 * this, but maybe we can distinguish them using the method token ?
+			 * Static calls have null owner, i.e., BaseType@0. This is not really optimal,
+			 * because we cannot distinguish calls made on null instances (NPE) from static
+			 * calls. Ideally, this should be the string "null" or an empty token [] TODO
+			 * Consider changing this
 			 */
-			String methodOwner = _tokens[3];
+			String methodOwner = null;
+			if (!JimpleUtils.isNull(_tokens[3])) {
+				methodOwner = _tokens[3];
+			}
 
 			// Method Signature this is the JIMPLE format
 			String methodSignature = _tokens[4];

@@ -22,7 +22,12 @@ public class MethodInvocationSearcher {
 
 	/**
 	 * Return the list of method invocations that can be carved. Carvable method
-	 * invocations are non-synthetic public method calls that belong to the app
+	 * invocations are non-synthetic public method calls that belong to the app.
+	 * Any method that contains $ will be ignored as well, as those are usually dynamically generated
+	 * 
+	 * For example, the static method:
+	 * 		<abc.basiccalculator.ResultActivity: android.widget.TextView access$000(abc.basiccalculator.ResultActivity)>;(abc.basiccalculator.ResultActivity@107229557);
+
 	 * 
 	 * @param parsedTrace
 	 * @return
@@ -34,6 +39,7 @@ public class MethodInvocationSearcher {
 				.getParsedTrace().entrySet()) {
 			entry.getValue().getFirst().getOrderedMethodInvocations().parallelStream()
 					.filter(mi -> !mi.isPrivate() && !mi.isSynthetic() && !mi.isLibraryCall())
+					.filter( mi -> ! mi.getMethodSignature().contains("$")) //
 					.forEachOrdered(carvableMethodInvocations::add);
 		}
 		return carvableMethodInvocations;
