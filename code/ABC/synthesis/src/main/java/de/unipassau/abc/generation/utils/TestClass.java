@@ -4,7 +4,7 @@ import java.util.Set;
 
 import de.unipassau.abc.generation.data.CarvedTest;
 
-public class TestCase {
+public class TestClass {
 
 	// List of tests to generate
 	private Set<CarvedTest> carvedTests;
@@ -13,7 +13,7 @@ public class TestCase {
 	// Package of the Test Class
 	private String packageName;
 
-	public TestCase(String packageName, String name, Set<CarvedTest> carvedTests) {
+	public TestClass(String packageName, String name, Set<CarvedTest> carvedTests) {
 		super();
 		this.packageName = packageName;
 		this.name = name;

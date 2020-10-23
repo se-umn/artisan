@@ -17,7 +17,7 @@ import de.unipassau.abc.generation.data.CarvedTest;
 public class ByClassUnderTest implements TestCaseOrganizer {
 
   @Override
-  public Set<TestCase> organize(CarvedTest... carvedTests) {
+  public Set<TestClass> organize(CarvedTest... carvedTests) {
 
     Map<String, Set<CarvedTest>> muts = new HashMap<>();
     for (CarvedTest carvedTest : carvedTests) {
@@ -28,11 +28,11 @@ public class ByClassUnderTest implements TestCaseOrganizer {
     }
 
     // Now make sure to define proper naming and packaging
-    Set<TestCase> testSuite = new HashSet<>();
+    Set<TestClass> testSuite = new HashSet<>();
 
     for (Entry<String, Set<CarvedTest>> testGroup : muts.entrySet()) {
       String packageName = testGroup.getKey().substring(0, testGroup.getKey().lastIndexOf("."));
-      TestCase testCase = new TestCase(packageName,
+      TestClass testCase = new TestClass(packageName,
           testGroup.getKey().substring(testGroup.getKey().lastIndexOf(".") + 1),
           testGroup.getValue());
       testSuite.add(testCase);

@@ -42,7 +42,7 @@ import de.unipassau.abc.generation.assertions.CarvingAssertion;
 import de.unipassau.abc.generation.data.AndroidCarvedTest;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
-import de.unipassau.abc.generation.utils.TestCase;
+import de.unipassau.abc.generation.utils.TestClass;
 import de.unipassau.abc.generation.utils.TestCaseOrganizer;
 import de.unipassau.abc.generation.utils.TypeUtils;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
@@ -76,15 +76,15 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
 	private static final Logger logger = LoggerFactory.getLogger(JUnitTestCaseWriter.class);
 
-	public static final String ABC_CATEGORY = "de.unipassau.abc.Carved";
-	
+//	public static final String ABC_CATEGORY = "de.unipassau.abc.Carved";
+
 	@Override
 	public void write(File outputFolder, TestCaseOrganizer testOrganizer, CarvedTest... carvedTests)
 			throws IOException {
 		// Group Carved Tests into Test Cases and generate the classes
 		Set<CompilationUnit> junitTestClasses = new HashSet<>();
 
-		for (TestCase testCase : testOrganizer.organize(carvedTests)) {
+		for (TestClass testCase : testOrganizer.organize(carvedTests)) {
 			junitTestClasses.add(generateJUnitTestCase(testCase));
 		}
 
@@ -111,7 +111,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 	// under test...
 	private MethodInvocation methodInvocationUnderTest;
 
-	public CompilationUnit generateJUnitTestCase(TestCase testCase) {
+	public CompilationUnit generateJUnitTestCase(TestClass testCase) {
 		logger.info("Generate source code for " + testCase.getName());
 
 		CompilationUnit cu = new CompilationUnit();
@@ -122,11 +122,11 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
 		testClass.setModifiers(Modifier.Keyword.PUBLIC);
 
-		// Include the categry annotation
-		// https://stackoverflow.com/questions/36082370/i-need-both-robolectric-and-mockito-in-my-test-each-one-proposes-their-own-test
-		cu.addImport(ABC_CATEGORY);
-		ClassOrInterfaceType carvedCategoryAnnotation = parseClassOrInterfaceType(ABC_CATEGORY);
-		testClass.addSingleMemberAnnotation(Category.class, carvedCategoryAnnotation.getNameAsString() + ".class");
+		// TODO For the moment this creates problems because we need to put a jar on the classpath in gradle
+		// Include the carved Category annotation
+//		cu.addImport(ABC_CATEGORY);
+//		ClassOrInterfaceType carvedCategoryAnnotation = parseClassOrInterfaceType(ABC_CATEGORY);
+//		testClass.addSingleMemberAnnotation(Category.class, carvedCategoryAnnotation.getNameAsString() + ".class");
 
 		// If any of the tests in this test case requires a specific runner we need to
 		// add it to the class
@@ -557,7 +557,8 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
 	private String declareControllerFor(ObjectInstance instance, BlockStmt methodBody, Expression initializer) {
 		final String activityType = instance.getType();
-		final String type = "ActivityController<" + activityType + ">";
+		// Make sure that we use fully qualified names or get the imports right
+		final String type = "org.robolectric.android.controller.ActivityController<" + activityType + ">";
 
 		if (!declaredVariablesIndex.containsKey(type)) {
 			declaredVariablesIndex.put(type, new AtomicInteger(0));
