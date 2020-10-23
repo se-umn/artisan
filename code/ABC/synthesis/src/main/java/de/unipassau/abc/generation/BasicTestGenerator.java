@@ -52,7 +52,8 @@ public class BasicTestGenerator implements TestGenerator {
 		BasicCarver carver = new BasicCarver(trace);
 
 		for (MethodInvocation targetMethodInvocation : targetMethodsInvocations) {
-			// TODO When carving multiple targes we can use carver.carve(List<methodInvocations>), this invalidate automatically
+			// TODO When carving multiple targes we can use
+			// carver.carve(List<methodInvocations>), this invalidate automatically
 			// the cache
 			carver.clearTheCache();
 
@@ -80,11 +81,6 @@ public class BasicTestGenerator implements TestGenerator {
 		DataDependencyGraph dataDependencyGraph = new DataDependencyGraphImpl();
 
 		MethodInvocation methodInvocationUnderTest = carvedExecution.methodInvocationUnderTest;
-
-//		// DEBUG: List the required methods
-//		System.out.println("BasicTestGenerator.generateCarvedTestFromCarvedExecution() Necessary method invocations:");
-//		carvedExecution.callGraphs.stream().map(cg -> cg.getAllMethodInvocations()).flatMap(Collection::stream).filter(mi->mi.isNecessary())
-//				.forEach(System.out::println);
 
 		/*
 		 * The carved execution contains a collection of (complete) call graphs, but in
@@ -217,9 +213,6 @@ public class BasicTestGenerator implements TestGenerator {
 				// SPY
 				throw new CarvingException(
 						"Method Invocation under test is not visible in the carved tests. This requires SPY-ing, which not yet implemented!");
-			} else {
-				//
-				// TODO Not yet there.... We focus primarily on exceptional behaviors
 			}
 		}
 
@@ -315,7 +308,8 @@ public class BasicTestGenerator implements TestGenerator {
 					unexpectedExceptionFailMessageNode, 0);
 
 			List<String> unexpectedExceptions = new ArrayList<>();
-			unexpectedExceptions.add("java.lang.Exception");
+			// We use Throwable to fix !97. It should be ok, in 99% of the cases, since application methods do not usually throw "Throwable"		
+			unexpectedExceptions.add("java.lang.Throwable");
 			CatchBlock catchUnexpectedException = new CatchBlock(unexpectedExceptions,
 					unexpectedExceptionCatchBlockExecutionFlowGraph, unexpectedExceptionCatchBlockDataDependencyGraph);
 
