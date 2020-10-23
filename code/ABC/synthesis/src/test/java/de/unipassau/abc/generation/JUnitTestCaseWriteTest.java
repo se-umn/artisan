@@ -28,7 +28,7 @@ import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.testwriters.JUnitTestCaseWriter;
-import de.unipassau.abc.generation.utils.TestCase;
+import de.unipassau.abc.generation.utils.TestClass;
 import de.unipassau.abc.parsing.ParsedTrace;
 import de.unipassau.abc.parsing.ParsingUtils;
 import de.unipassau.abc.parsing.TraceParser;
@@ -85,7 +85,7 @@ public class JUnitTestCaseWriteTest {
 
 		JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
 
-		TestCase testCase = new TestCase("abc.test", "DummyTest", carvedTests);
+		TestClass testCase = new TestClass("abc.test", "DummyTest", carvedTests);
 		CompilationUnit cu = writer.generateJUnitTestCase(testCase);
 		System.out.println("JUnitTestCaseWriteTest.smokeTest() " + cu);
 	}
@@ -157,7 +157,7 @@ public class JUnitTestCaseWriteTest {
 
 		JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
 
-		TestCase testCase = new TestCase("abc.test", "DummyTest", carvedTests);
+		TestClass testCase = new TestClass("abc.test", "DummyTest", carvedTests);
 		CompilationUnit cu = writer.generateJUnitTestCase(testCase);
 		System.out.println("JUnitTestCaseWriteTest.smokeTest() " + cu);
 	}

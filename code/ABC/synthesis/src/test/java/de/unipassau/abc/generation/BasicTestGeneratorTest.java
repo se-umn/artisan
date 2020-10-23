@@ -18,7 +18,7 @@ import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.testwriters.JUnitTestCaseWriter;
-import de.unipassau.abc.generation.utils.TestCase;
+import de.unipassau.abc.generation.utils.TestClass;
 import de.unipassau.abc.generation.utils.TestCaseOrganizer;
 import de.unipassau.abc.generation.utils.TestCaseOrganizers;
 import de.unipassau.abc.parsing.ParsedTrace;
@@ -76,11 +76,11 @@ public class BasicTestGeneratorTest {
 
 		// Group CarvedTests in classes
 		TestCaseOrganizer organizer = TestCaseOrganizers.byAllTestsTogether();
-		Set<TestCase> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+		Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
 
 		JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
 
-		for (TestCase testCase : testSuite) {
+		for (TestClass testCase : testSuite) {
 			CompilationUnit cu = writer.generateJUnitTestCase(testCase);
 			System.out.println(cu);
 		}
@@ -127,11 +127,11 @@ public class BasicTestGeneratorTest {
 
 		// Group CarvedTests in classes
 		TestCaseOrganizer organizer = TestCaseOrganizers.byAllTestsTogether();
-		Set<TestCase> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+		Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
 
 		JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
 
-		for (TestCase testCase : testSuite) {
+		for (TestClass testCase : testSuite) {
 			CompilationUnit cu = writer.generateJUnitTestCase(testCase);
 			System.out.println(cu);
 		}
@@ -168,11 +168,11 @@ public class BasicTestGeneratorTest {
 
 		// Group CarvedTests in classes
 		TestCaseOrganizer organizer = TestCaseOrganizers.byAllTestsTogether();
-		Set<TestCase> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+		Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
 
 		JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
 
-		for (TestCase testCase : testSuite) {
+		for (TestClass testCase : testSuite) {
 			CompilationUnit cu = writer.generateJUnitTestCase(testCase);
 			System.out.println(cu);
 		}
