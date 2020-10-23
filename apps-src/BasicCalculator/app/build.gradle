@@ -97,8 +97,8 @@ android {
                 if ( carvedTests ) {
                     // reportDir = "${buildDir}/carved-tests/test-report"
                     // resultsDir = "${buildDir}/carved-tests/test-results"
-                    reports.junitXml.destination = file("${buildDir}/carved-tests/test-report/${junitXmlTestTaskName}")// file("../../output/$junitXmlTestTaskName")
-                    reports.html.destination = file("${buildDir}/carved-tests/test-results/${htmlTestTaskName}") // file("../../output/$htmlTestTaskName")
+                    reports.junitXml.destination = file("${buildDir}/carved-tests/${testName}/test-report/${junitXmlTestTaskName}")// file("../../output/$junitXmlTestTaskName")
+                    reports.html.destination = file("${buildDir}/carved-tests/${testName}/test-results/${htmlTestTaskName}") // file("../../output/$htmlTestTaskName")
                 } else {
                     // reportDir = "${buildDir}/original-tests/test-report"
                     // resultsDir = "${buildDir}/original-tests/test-results"

@@ -123,6 +123,12 @@ function list-running-emulators() {
   ${ANDROID_ADB_EXE} devices | grep emulator | cut -f1
 }
 
+function stop-all-emulators() {
+  for emulator in $(list-running-emulators); do
+    stop-emulator ${emulator}
+  done
+}
+
 function stop-emulator() {
   # TODO This might be autocompleted with "list-running-emulators"
   : ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
@@ -356,13 +362,23 @@ function carve-all(){
 
   local apk_file="${1:?Missing apk file}"
   local trace_folder="${2:?Missing trace folder}"
-  local output_to="${3:?Missing output folder}"
+  local output_dir="${3:?Missing output folder}"
+
+  if [ -z "$4" ]
+  then
+    (echo >&2 "Do not clean existing carved tests folder")
+  else
+    (echo >&2 "Clean existing carved tests folder")
+    if [ -e $output_dir ]; then rm -rfv $output_dir; fi
+  fi
+
+  mkdir -p ${output_dir}
 
   for trace_file in $(find ${trace_folder} -iname "Trace*.txt"); do
     test_name=$(echo -e $(basename ${trace_file}) | sed -e 's|Trace-\(.*\)-[1-9].*.txt|\1|')
     (echo >&2 "Start carving tests from ${trace_file} for test ${test_name}")  
     
-    carve-and-generate-from-trace ${apk_file}  ${trace_file} carved-tests/${test_name}
+    carve-and-generate-from-trace ${apk_file} ${trace_file} ${output_dir}/${test_name}
 
     (echo >&2 "Done carving tests from ${trace_file}")
     (echo >&2 "")
@@ -375,10 +391,19 @@ function copy-traces() {
 
   local package_name="${1:?Missing package name}"
   # TODO ALESSIO: I do not really like this but leave it be for the moment
-  local output_dir="$ABC_HOME/carving/traces/$package_name"
-  local tmp_dir="$(mktemp -d)"
+  local output_dir="${2:-$ABC_HOME/carving/traces/$package_name}"
+  local force_clean=$3
 
+  if [ -z "$3" ]
+  then
+    (echo >&2 "Do not clean existing trace folder")
+  else
+    (echo >&2 "Clean existing trace folder")
+    if [ -e $output_dir ]; then rm -rfv $output_dir; fi
+  fi
   mkdir -p "$output_dir"
+
+  local tmp_dir="$(mktemp -d)"
 
   # Restart daemon with root access in order to be able to access app data
   ${ANDROID_ADB_EXE} root >/dev/null 2>&1
@@ -392,6 +417,7 @@ function copy-traces() {
 
     __log_verbose "Copying $filename to ${output_trace}"
     cp "$filename" "${output_trace}"
+    # This is necessary because other functions use this output
     echo "${output_trace}"
   done
 
