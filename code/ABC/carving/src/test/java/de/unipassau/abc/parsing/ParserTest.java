@@ -2,19 +2,21 @@ package de.unipassau.abc.parsing;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Set;
 
-import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.event.Level;
 
-import de.unipassau.abc.carving.exceptions.CarvingException;
+import de.unipassau.abc.carving.utils.MethodInvocationSearcher;
+import de.unipassau.abc.data.MethodInvocation;
+import de.unipassau.abc.exceptions.ABCException;
+import de.unipassau.abc.parsing.postprocessing.AndroidParsedTraceDecorator;
+import de.unipassau.abc.parsing.postprocessing.ParsedTraceDecorator;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 
-@Ignore
-public class DuafDroidParserTest {
+public class ParserTest {
 
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
@@ -22,63 +24,24 @@ public class DuafDroidParserTest {
 	@Rule
 	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
 
+	private final static File ANDROID_JAR = new File(
+			"/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar");
+
 	@Test
-	public void mainTestSingleThread() throws IOException, CarvingException {
+	public void smokeTest() throws IOException, ABCException {
 
-		File outputTo = new File("src/test/resources/android-28-traces/Notepad-Alessio/single"); // tempFolder.newFile("parsed.xml");
-		outputTo.mkdirs();
-		File traceFile = new File("src/test/resources/apps/Notepad-Alessio/traces/trace.log");
-		String apk = "/Users/gambi/MyDroidFax/apks/Notepad-Alessio.apk";
-		String androidJar = "/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar";
+		File traceFile = new File("./src/test/resources/abc.basiccalculator/Trace-testCalculateAndIncrementByOneWithLogging-1603438878387.txt");
+		File apk_file = new File("./src/test/resources/abc.basiccalculator/app-debug.apk");
 
-		String[] args = new String[] { "--trace-files", traceFile.getAbsolutePath(), "--store-artifacts-to",
-				outputTo.getAbsolutePath(), "--apk", apk, "--android-jar", androidJar };
+		ParsingUtils.setupSoot(ANDROID_JAR, apk_file);
 
-		Main.main(args);
+		TraceParser parser = new TraceParserImpl();
+		ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+		ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
+		ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
 
-//        // Check that this is actually happening
-//        XStream xStream = new XStream();
-//
-//        // Read all the files from the folder
-//        Map<String, Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>> parsedTraceFiles = new HashMap<>();
-//        for (File file : outputTo.listFiles(new FilenameFilter() {
-//
-//            @Override
-//            public boolean accept(File dir, String name) {
-//                return name.startsWith(traceFile.getName()) && name.endsWith(".parsed.xml");
-//            }
-//        })) {
-//            System.out.println("DuafDroidParserTest.mainTest() Reading from " + file);
-//            parsedTraceFiles.put(file.getAbsolutePath(),
-//                    (Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>) xStream.fromXML(file));
-//        }
-		ParsedTrace parsedTrace = ParsedTraceImpl.loadFromDirectory(outputTo);
-		Assert.assertEquals(1, parsedTrace.getThreadCount());
+		MethodInvocationSearcher mis = new MethodInvocationSearcher();
+		Set<MethodInvocation> targetMethodsInvocations = mis.findAllCarvableMethodInvocations(parsedTrace);
+
 	}
-
-	@Test // Note this takes minutes to complete since tracking AsynchTasks
-			// explodes (they use plenty of StringBuilder invocations)
-	// TODO This fails with OOM CG Overhead. I suspect that the code is not
-	// really optimized
-	public void mainTestMultiThread() throws IOException, CarvingException {
-
-		// File outputTo = tempFolder.newFolder("ABC-DuafDroidParserTest");
-		File outputTo = new File("src/test/resources/apps/org.ametro/parsed/multi");
-		outputTo.mkdirs();
-
-		File traceFile = new File("src/test/resources/apps/org.ametro/traces/trace.log");
-		String apk = "/Users/gambi/MyDroidFax/apks/filtered-apps/org.ametro/apk/org.ametro_40.apk";
-		String androidJar = "/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar";
-
-		String[] args = new String[] { "--trace-files", traceFile.getAbsolutePath(), "--store-artifacts-to",
-				outputTo.getAbsolutePath(), "--apk", apk, "--android-jar", androidJar };
-
-		Main.main(args);
-
-		// Check that this is actually happening
-		ParsedTrace parsedTrace = ParsedTraceImpl.loadFromDirectory(outputTo);
-
-		Assert.assertEquals(8, parsedTrace.getThreadCount());
-	}
-
 }
