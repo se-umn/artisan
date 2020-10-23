@@ -118,56 +118,61 @@ public class Main {
 
 		for (File traceFile : cli.getTraceFiles()) {
 
-			TraceParser parser = new TraceParserImpl();
-			ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
-			ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
-			ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+			try {
+				TraceParser parser = new TraceParserImpl();
+				ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+				ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
+				ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
 
-			MethodInvocationSearcher mis = new MethodInvocationSearcher();
-			Set<MethodInvocation> targetMethodsInvocations = mis.findAllCarvableMethodInvocations(parsedTrace);
+				MethodInvocationSearcher mis = new MethodInvocationSearcher();
+				Set<MethodInvocation> targetMethodsInvocations = mis.findAllCarvableMethodInvocations(parsedTrace);
 
-			int allCarvableTargets = targetMethodsInvocations.size();
+				int allCarvableTargets = targetMethodsInvocations.size();
 
-			System.out.println("Carvable targets ");
-			targetMethodsInvocations.forEach(System.out::println);
+				System.out.println("Carvable targets ");
+				targetMethodsInvocations.forEach(System.out::println);
 
-			BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
-			Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocations,
-					parsedTrace);
+				BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
+				Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocations,
+						parsedTrace);
 
-			int carvedTargets = carvedTests.size();
+				int carvedTargets = carvedTests.size();
 
-			System.out.println("Carved targets " + carvedTargets + " / " + allCarvableTargets);
+				System.out.println("Carved targets " + carvedTargets + " / " + allCarvableTargets);
 
-			// Put each test in a separate test case
-			TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
-			Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+				// Put each test in a separate test case
+				TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+				Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
 
-			// Write test cases to files and try to compile them
-			JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+				// Write test cases to files and try to compile them
+				JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
 
-			Map<TestClass, File> generatedTests = new HashMap<TestClass, File>();
+				Map<TestClass, File> generatedTests = new HashMap<TestClass, File>();
 
-			File sourceFolder = cli.getOutputDir();
+				File sourceFolder = cli.getOutputDir();
 
-			for (TestClass testCase : testSuite) {
-				try {
-					CompilationUnit cu = writer.generateJUnitTestCase(testCase);
-					File testFileFolder = new File(sourceFolder,
-							testCase.getPackageName().replaceAll("\\.", File.separator));
-					testFileFolder.mkdirs();
-					File testFile = new File(testFileFolder, testCase.getName() + ".java");
-					try (PrintStream out = new PrintStream(new FileOutputStream(testFile))) {
-						out.print(cu.toString());
+				for (TestClass testCase : testSuite) {
+					try {
+						CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+						File testFileFolder = new File(sourceFolder,
+								testCase.getPackageName().replaceAll("\\.", File.separator));
+						testFileFolder.mkdirs();
+						File testFile = new File(testFileFolder, testCase.getName() + ".java");
+						try (PrintStream out = new PrintStream(new FileOutputStream(testFile))) {
+							out.print(cu.toString());
+						}
+						generatedTests.put(testCase, testFile);
+					} catch (Exception e) {
+						System.err.println("Cannot generate test " + testCase.getName());
 					}
-					generatedTests.put(testCase, testFile);
-				} catch (Exception e) {
-					System.err.println("Cannot generate test " + testCase.getName());
 				}
+
+				System.out.println("Generated tests " + generatedTests.size() + " / " + carvedTargets);
+
+			} catch (Exception e) {
+				System.err.println("Error while processing trace " + traceFile);
+				e.printStackTrace();
 			}
-
-			System.out.println("Generated tests " + generatedTests.size() + " / " + carvedTargets);
-
 		}
 
 		// TODO At the moment compiling tests outside gradle has been proved tediuos and

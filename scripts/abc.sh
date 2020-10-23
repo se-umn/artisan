@@ -346,7 +346,7 @@ function carve-and-generate-from-trace() {
   local output_to="${3:?Missing output folder}"
 
   ${ABC_HOME}/synthesis/target/appassembler/bin/carve-and-generate --android-jar=${ANDROID_JAR} \
-      --trace-file=${trace_file} \
+      --trace-files=${trace_file} \
       --apk=${apk_file} \
       --output-to=${output_to}
   # Does this produce a log "HERE" ?  
@@ -373,16 +373,20 @@ function carve-all(){
   fi
 
   mkdir -p ${output_dir}
-
-  for trace_file in $(find ${trace_folder} -iname "Trace*.txt"); do
-    test_name=$(echo -e $(basename ${trace_file}) | sed -e 's|Trace-\(.*\)-[1-9].*.txt|\1|')
-    (echo >&2 "Start carving tests from ${trace_file} for test ${test_name}")  
-    
-    carve-and-generate-from-trace ${apk_file} ${trace_file} ${output_dir}/${test_name}
-
-    (echo >&2 "Done carving tests from ${trace_file}")
-    (echo >&2 "")
-  done
+  
+  # Build a string with all the trace files
+  trace_files=$(find traces -type f | tr "\n" " ")
+  
+  ${ABC_HOME}/synthesis/target/appassembler/bin/carve-and-generate --android-jar=${ANDROID_JAR} \
+      --trace-files=${trace_files} \
+      --apk=${apk_file} \
+      --output-to=${output_dir}
+  # Carve all of them, one by one
+  # carve-and-generate-from-trace ${apk_file} ${trace_files} ${output_dir}
+  # for trace_file in $(find ${trace_folder} -iname "Trace*.txt"); do
+  # test_name=$(echo -e $(basename ${trace_file}) | sed -e 's|Trace-\(.*\)-[1-9].*.txt|\1|')
+  # (echo >&2 "Start carving tests from ${trace_file} for test ${test_name}")  
+  # done
 }
 
 function copy-traces() {
@@ -669,7 +673,8 @@ function __private_autocomplete() {
   elif [ "${command_name}" == "test-apk" ]; then
     echo "requires_one_file"
   elif [ "${command_name}" == "carve-and-generate-from-trace" ]; then
-    # Really this is requires 3 files...
+    echo "requires_one_file"
+  elif [ "${command_name}" == "carve-all" ]; then
     echo "requires_one_file"
   fi
 }
