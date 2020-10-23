@@ -261,8 +261,17 @@ function rebuild-all(){
   # Store current folder in stack and cd to $ABC_HOME
   # NOTE: ABC_HOME should not be between double quotes (")
   pushd ${ABC_HOME}
-  mvn clean compile package install -DskipTests
+  mvn clean compile package install -DskipTests 
   # Return to original folder
+
+  pushd instrumentation
+    mvn package appassembler:assemble -DskipTests 
+  popd
+    
+  pushd synthesis
+    mvn package appassembler:assemble -DskipTests 
+  popd
+
   popd
 }
 
