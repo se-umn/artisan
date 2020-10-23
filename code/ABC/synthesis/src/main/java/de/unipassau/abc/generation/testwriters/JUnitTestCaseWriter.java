@@ -42,7 +42,7 @@ import de.unipassau.abc.generation.assertions.CarvingAssertion;
 import de.unipassau.abc.generation.data.AndroidCarvedTest;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
-import de.unipassau.abc.generation.utils.TestCase;
+import de.unipassau.abc.generation.utils.TestClass;
 import de.unipassau.abc.generation.utils.TestCaseOrganizer;
 import de.unipassau.abc.generation.utils.TypeUtils;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
@@ -84,7 +84,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 		// Group Carved Tests into Test Cases and generate the classes
 		Set<CompilationUnit> junitTestClasses = new HashSet<>();
 
-		for (TestCase testCase : testOrganizer.organize(carvedTests)) {
+		for (TestClass testCase : testOrganizer.organize(carvedTests)) {
 			junitTestClasses.add(generateJUnitTestCase(testCase));
 		}
 
@@ -111,7 +111,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 	// under test...
 	private MethodInvocation methodInvocationUnderTest;
 
-	public CompilationUnit generateJUnitTestCase(TestCase testCase) {
+	public CompilationUnit generateJUnitTestCase(TestClass testCase) {
 		logger.info("Generate source code for " + testCase.getName());
 
 		CompilationUnit cu = new CompilationUnit();

@@ -16,29 +16,24 @@ import de.unipassau.abc.generation.data.CarvedTest;
  */
 public class BySingleTest implements TestCaseOrganizer {
 
-	@Override
-	public Set<TestCase> organize(CarvedTest... carvedTests) {
+	private TestCaseNamer testCaseNamer;
 
-		Set<TestCase> testSuite = new HashSet<TestCase>();
+	public BySingleTest(TestCaseNamer testCaseNamer) {
+		this.testCaseNamer = testCaseNamer;
+	}
+
+	@Override
+	public Set<TestClass> organize(CarvedTest... carvedTests) {
+
+		Set<TestClass> testSuite = new HashSet<TestClass>();
 		for (CarvedTest carvedTest : carvedTests) {
 
-			String testClassName = "Test"
-					+ JimpleUtils.getSimpleClassNameForMethod(carvedTest.getMethodUnderTest().getMethodSignature());
+			String testClassName = testCaseNamer.generateTestClassName(carvedTest);
+
 			String testPackageName = JimpleUtils
 					.getPackageNameForMethod(carvedTest.getMethodUnderTest().getMethodSignature());
-			// TODO This will not work with Multipoe
-			if (JimpleUtils.isConstructor(carvedTest.getMethodUnderTest().getMethodSignature())) {
-				testClassName += "Constructor";
-			} else if (JimpleUtils
-					.isConstructorOrClassConstructor(carvedTest.getMethodUnderTest().getMethodSignature())) {
-				testClassName += "StaticConstructor";
-			} else {
-				String methodName = JimpleUtils.getMethodName(carvedTest.getMethodUnderTest().getMethodSignature());
-				// Make sure we capitalize it correctly
-				testClassName += methodName.substring(0, 1).toUpperCase() + methodName.substring(1);
-			}
 
-			TestCase testCase = new TestCase(testPackageName, testClassName,
+			TestClass testCase = new TestClass(testPackageName, testClassName,
 					new HashSet<CarvedTest>(Arrays.asList(carvedTest)));
 
 			testSuite.add(testCase);

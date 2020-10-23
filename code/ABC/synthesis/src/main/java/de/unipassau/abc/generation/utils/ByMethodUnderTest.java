@@ -22,7 +22,7 @@ import de.unipassau.abc.generation.data.CarvedTest;
 public class ByMethodUnderTest implements TestCaseOrganizer {
 
 	@Override
-	public Set<TestCase> organize(CarvedTest... carvedTests) {
+	public Set<TestClass> organize(CarvedTest... carvedTests) {
 
 		Map<MethodInvocation, Set<CarvedTest>> muts = new HashMap<MethodInvocation, Set<CarvedTest>>();
 		for (CarvedTest carvedTest : carvedTests) {
@@ -31,11 +31,11 @@ public class ByMethodUnderTest implements TestCaseOrganizer {
 		}
 
 		// Now make sure to define proper naming and packaging
-		Set<TestCase> testSuite = new HashSet<TestCase>();
+		Set<TestClass> testSuite = new HashSet<TestClass>();
 
 		for (Entry<MethodInvocation, Set<CarvedTest>> testGroup : muts.entrySet()) {
 			MethodInvocation methodInvocation = testGroup.getKey();
-			TestCase testCase = new TestCase(JimpleUtils.getPackage(methodInvocation.getMethodSignature()),
+			TestClass testCase = new TestClass(JimpleUtils.getPackage(methodInvocation.getMethodSignature()),
 					JimpleUtils.getMethodName(methodInvocation.getMethodSignature()), testGroup.getValue());
 
 			testSuite.add(testCase);

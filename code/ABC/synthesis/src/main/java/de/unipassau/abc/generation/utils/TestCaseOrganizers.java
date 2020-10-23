@@ -20,7 +20,7 @@ public class TestCaseOrganizers {
 		return new ByAllTestsTogether();
 	}
 
-	public static TestCaseOrganizer byEachTestAlone() {
-		return new BySingleTest();
+	public static TestCaseOrganizer byEachTestAlone(TestCaseNamer testCaseNamer) {
+		return new BySingleTest(testCaseNamer);
 	}
 }
