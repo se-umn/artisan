@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  This file is part of My Expenses.
+  My Expenses is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  My Expenses is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with My Expenses.  If not, see <http://www.gnu.org/licenses/>.
+ -->
+<resources>
+    <string name="whats_new_315_dark_theme_q">Le style sombre est lié à la valeur par défaut du système</string>
+    <string-array name="whats_new_313">
+        <item>Gestion améliorée des opérations récurrentes</item>
+        <item>Traduction en Kannada</item>
+    </string-array>
+    <string-array name="whats_new_312">
+        <item>Format de date personnalisé</item>
+        <item>Les étiquettes sont exportées vers CSV</item>
+        <item>L\'état réduit des groupes dans la liste des opérations est mémorisé</item>
+    </string-array>
+    <string-array name="whats_new_311">
+        <item>On peut chercher dans la liste des tiers (payeurs et bénéficiaires)</item>
+    </string-array>
+    <string-array name="whats_new_310">
+        <item>Les opérations peuvent être mises en correspondance avec plusieurs étiquettes</item>
+    </string-array>
+    <string-array name="whats_new_308">
+        <item>Plusieurs comptes peuvent désormais être exportés dans un seul fichier</item>
+        <item>Les métadonnées du compte sont maintenant synchronisées</item>
+        <item>Amélioration des widgets de l\'écran d\'accueil</item>
+    </string-array>
+    <string-array name="whats_new_307">
+        <item>Édition en masse</item>
+    </string-array>
+    <string-array name="whats_new_306">
+        <item>Budgétisation 2.0</item>
+    </string-array>
+    <string-array name="whats_new_305">
+        <item>Nouvelle implémentation pour la synchronisation via Dropbox et Drive</item>
+    </string-array>
+    <string-array name="whats_new_304">
+        <item>Télécharger les taux de change</item>
+    </string-array>
+    <string-array name="whats_new_303">
+        <item>Traduction en tamoul</item>
+        <item>Bouton Synchroniser maintenant dans le menu principal</item>
+        <item>La synchronisation immédiate suite aux modifications locales peut être désactivée</item>
+    </string-array>
+    <string-array name="whats_new_302">
+        <item>Icônes pour les catégories</item>
+    </string-array>
+    <string-array name="whats_new_301">
+        <item>Les comptes peuvent être fermés et / ou cachés</item>
+    </string-array>
+    <string-array name="whats_new_300">
+        <item>Traduction ukrainienne</item>
+        <item>Exportation CSV: séparateur de champ configurable</item>
+    </string-array>
+    <string name="ui_refinement">Raffinement de l\'interface utilisateur</string>
+    <string name="bug_fixes">Corrections des erreurs</string>
+    <string name="performance_enhancement">Amélioration de performance</string>
+    <string name="stability_improvements">Améliorations de la stabilité</string>
+</resources>

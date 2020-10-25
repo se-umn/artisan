@@ -1,0 +1,5 @@
+include ':ocr'
+include ':PlayLicensingOrig', ':transactionscontract'
+include ':myExpenses'
+include ':setupwizard'
+
