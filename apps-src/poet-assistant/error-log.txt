@@ -1,0 +1,28 @@
+2020-10-25 11:42:51.937 11819-11819/ca.rmen.android.poetassistant.test E/AndroidRuntime: FATAL EXCEPTION: main
+    Process: ca.rmen.android.poetassistant.test, PID: 11819
+    java.lang.RuntimeException: Unable to instantiate application ca.rmen.android.poetassistant.PoetAssistantApplication: java.lang.ClassNotFoundException: Didn't find class "ca.rmen.android.poetassistant.PoetAssistantApplication" on path: DexPathList[[zip file "/data/app/ca.rmen.android.poetassistant.test-52UcHCO-7thjKdX5XYLc7w==/base.apk"],nativeLibraryDirectories=[/data/app/ca.rmen.android.poetassistant.test-52UcHCO-7thjKdX5XYLc7w==/lib/x86_64, /system/lib64]]
+        at android.app.LoadedApk.makeApplication(LoadedApk.java:1069)
+        at android.app.ActivityThread.handleBindApplication(ActivityThread.java:5842)
+        at android.app.ActivityThread.access$1100(ActivityThread.java:199)
+        at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1650)
+        at android.os.Handler.dispatchMessage(Handler.java:106)
+        at android.os.Looper.loop(Looper.java:193)
+        at android.app.ActivityThread.main(ActivityThread.java:6669)
+        at java.lang.reflect.Method.invoke(Native Method)
+        at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:493)
+        at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:858)
+     Caused by: java.lang.ClassNotFoundException: Didn't find class "ca.rmen.android.poetassistant.PoetAssistantApplication" on path: DexPathList[[zip file "/data/app/ca.rmen.android.poetassistant.test-52UcHCO-7thjKdX5XYLc7w==/base.apk"],nativeLibraryDirectories=[/data/app/ca.rmen.android.poetassistant.test-52UcHCO-7thjKdX5XYLc7w==/lib/x86_64, /system/lib64]]
+        at dalvik.system.BaseDexClassLoader.findClass(BaseDexClassLoader.java:134)
+        at java.lang.ClassLoader.loadClass(ClassLoader.java:379)
+        at java.lang.ClassLoader.loadClass(ClassLoader.java:312)
+        at android.app.AppComponentFactory.instantiateApplication(AppComponentFactory.java:50)
+        at androidx.core.app.CoreComponentFactory.instantiateApplication(Unknown Source:0)
+        at android.app.Instrumentation.newApplication(Instrumentation.java:1120)
+        at android.app.LoadedApk.makeApplication(LoadedApk.java:1061)
+        at android.app.ActivityThread.handleBindApplication(ActivityThread.java:5842) 
+        at android.app.ActivityThread.access$1100(ActivityThread.java:199) 
+        at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1650) 
+        at android.os.Handler.dispatchMessage(Handler.java:106) 
+        at android.os.Looper.loop(Looper.java:193) 
+        at android.app.ActivityThread.main(ActivityThread.java:6669) 
+        at java.lang.reflect.Method.invoke(Native Method)
