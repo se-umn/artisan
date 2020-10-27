@@ -51,7 +51,8 @@ public class Monitor {
 	// Store trace info inside the phone memory
 	private static BufferedWriter traceFileOutputWriter;
 
-	private static boolean DEBUG = true;
+	// This is public to enable EspressoTest changing it using reflection, see MonitorRule
+	public static boolean DEBUG = false;
 
 	/*
 	 * We need a reliable way to match exceptions with method calls. Ideally, we
