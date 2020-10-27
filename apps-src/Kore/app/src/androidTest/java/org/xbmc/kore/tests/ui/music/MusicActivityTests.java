@@ -30,6 +30,8 @@ import org.xbmc.kore.testhelpers.EspressoTestUtils;
 import org.xbmc.kore.tests.ui.AbstractTestClass;
 import org.xbmc.kore.ui.sections.audio.MusicActivity;
 
+import abc.MonitorRule;
+
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
@@ -48,13 +50,22 @@ import static org.xbmc.kore.testhelpers.EspressoTestUtils.selectListItemPressBac
 import static org.xbmc.kore.testhelpers.EspressoTestUtils.selectListItemRotateDeviceAndCheckActionbarTitle;
 
 public class MusicActivityTests extends AbstractTestClass<MusicActivity> {
+//    @Rule
+//    public ActivityTestRule<MusicActivity> musicActivityActivityTestRule =
+//            new ActivityTestRule<>(MusicActivity.class);
+
+//    @Override
+//    protected ActivityTestRule<MusicActivity> getActivityTestRule() {
+//        return musicActivityActivityTestRule;
+//    }
+
     @Rule
-    public ActivityTestRule<MusicActivity> musicActivityActivityTestRule =
-            new ActivityTestRule<>(MusicActivity.class);
+    public MonitorRule<MusicActivity> musicActivityActivityTestRule =
+            new MonitorRule<>(MusicActivity.class);
 
     @Override
     protected ActivityTestRule<MusicActivity> getActivityTestRule() {
-        return musicActivityActivityTestRule;
+        return musicActivityActivityTestRule.getActivityTestRule();
     }
 
     @Override

@@ -29,6 +29,8 @@ import org.xbmc.kore.testhelpers.EspressoTestUtils;
 import org.xbmc.kore.tests.ui.AbstractTestClass;
 import org.xbmc.kore.ui.sections.video.MoviesActivity;
 
+import abc.MonitorRule;
+
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
@@ -44,13 +46,22 @@ import static org.xbmc.kore.testhelpers.EspressoTestUtils.selectListItemPressBac
 
 public class MoviesActivityTests extends AbstractTestClass<MoviesActivity> {
 
+//    @Rule
+//    public ActivityTestRule<MoviesActivity> mActivityRule = new ActivityTestRule<>(
+//            MoviesActivity.class);
+//
+//    @Override
+//    protected ActivityTestRule<MoviesActivity> getActivityTestRule() {
+//        return mActivityRule;
+//    }
+
     @Rule
-    public ActivityTestRule<MoviesActivity> mActivityRule = new ActivityTestRule<>(
+    public MonitorRule<MoviesActivity> mActivityRule = new MonitorRule<>(
             MoviesActivity.class);
 
     @Override
     protected ActivityTestRule<MoviesActivity> getActivityTestRule() {
-        return mActivityRule;
+        return mActivityRule.getActivityTestRule();
     }
 
     @Override

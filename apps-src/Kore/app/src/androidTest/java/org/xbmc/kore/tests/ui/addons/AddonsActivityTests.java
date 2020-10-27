@@ -32,6 +32,8 @@ import org.xbmc.kore.testhelpers.action.ViewActions;
 import org.xbmc.kore.tests.ui.AbstractTestClass;
 import org.xbmc.kore.ui.sections.addon.AddonsActivity;
 
+import abc.MonitorRule;
+
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.isRoot;
@@ -65,12 +67,20 @@ import static org.xbmc.kore.testhelpers.EspressoTestUtils.selectListItemPressBac
  * {@link org.xbmc.kore.ui.sections.addon.AddonsActivity} to become idle.
  */
 public class AddonsActivityTests extends AbstractTestClass<AddonsActivity> {
+//    @Rule
+//    public ActivityTestRule<AddonsActivity> mActivityRule = new ActivityTestRule<>(AddonsActivity.class);
+
+//    @Override
+//    protected ActivityTestRule<AddonsActivity> getActivityTestRule() {
+//        return mActivityRule;
+//    }
+
     @Rule
-    public ActivityTestRule<AddonsActivity> mActivityRule = new ActivityTestRule<>(AddonsActivity.class);
+    public MonitorRule<AddonsActivity> mActivityRule = new MonitorRule<>(AddonsActivity.class);
 
     @Override
     protected ActivityTestRule<AddonsActivity> getActivityTestRule() {
-        return mActivityRule;
+        return mActivityRule.getActivityTestRule();
     }
 
     @Override

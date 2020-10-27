@@ -29,6 +29,8 @@ import org.xbmc.kore.testhelpers.EspressoTestUtils;
 import org.xbmc.kore.tests.ui.AbstractTestClass;
 import org.xbmc.kore.ui.sections.video.TVShowsActivity;
 
+import abc.MonitorRule;
+
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
@@ -47,13 +49,22 @@ public class TVShowsActivityTests extends AbstractTestClass<TVShowsActivity> {
     private final String TV_SHOW_TITLE = "11.22.63";
     private final String EPISODE_TITLE = "The Rabbit Hole";
 
+//    @Rule
+//    public ActivityTestRule<TVShowsActivity> mActivityRule = new ActivityTestRule<>(
+//            TVShowsActivity.class);
+//
+//    @Override
+//    protected ActivityTestRule<TVShowsActivity> getActivityTestRule() {
+//        return mActivityRule;
+//    }
+
     @Rule
-    public ActivityTestRule<TVShowsActivity> mActivityRule = new ActivityTestRule<>(
+    public MonitorRule<TVShowsActivity> mActivityRule = new MonitorRule<>(
             TVShowsActivity.class);
 
     @Override
     protected ActivityTestRule<TVShowsActivity> getActivityTestRule() {
-        return mActivityRule;
+        return mActivityRule.getActivityTestRule();
     }
 
     @Override

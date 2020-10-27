@@ -33,6 +33,8 @@ import org.xbmc.kore.tests.ui.AbstractTestClass;
 import org.xbmc.kore.testutils.eventserver.MockEventServer;
 import org.xbmc.kore.ui.sections.remote.RemoteActivity;
 
+import abc.MonitorRule;
+
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.longClick;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
@@ -41,13 +43,21 @@ import static junit.framework.Assert.assertTrue;
 public class KodiPreV17Tests extends AbstractTestClass<RemoteActivity> {
     private static MockEventServer mockEventServer;
 
+//    @Rule
+//    public ActivityTestRule<RemoteActivity> remoteActivityActivityTestRule =
+//            new ActivityTestRule<>(RemoteActivity.class);
+//
+//    @Override
+//    protected ActivityTestRule<RemoteActivity> getActivityTestRule() {
+//        return remoteActivityActivityTestRule;
+//    }
     @Rule
-    public ActivityTestRule<RemoteActivity> remoteActivityActivityTestRule =
-            new ActivityTestRule<>(RemoteActivity.class);
+    public MonitorRule<RemoteActivity> remoteActivityActivityTestRule =
+        new MonitorRule<>(RemoteActivity.class);
 
     @Override
     protected ActivityTestRule<RemoteActivity> getActivityTestRule() {
-        return remoteActivityActivityTestRule;
+        return remoteActivityActivityTestRule.getActivityTestRule();
     }
 
     @Override

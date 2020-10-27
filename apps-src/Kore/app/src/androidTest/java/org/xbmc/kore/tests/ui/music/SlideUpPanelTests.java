@@ -45,6 +45,8 @@ import org.xbmc.kore.ui.widgets.RepeatModeButton;
 
 import java.util.concurrent.TimeoutException;
 
+import abc.MonitorRule;
+
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.Espresso.pressBack;
 import static androidx.test.espresso.action.ViewActions.click;
@@ -68,13 +70,22 @@ import static org.xbmc.kore.testutils.TestUtils.createVideoItem;
 
 public class SlideUpPanelTests extends AbstractTestClass<MusicActivity> {
 
+//    @Rule
+//    public ActivityTestRule<MusicActivity> musicActivityActivityTestRule =
+//            new ActivityTestRule<>(MusicActivity.class);
+//
+//    @Override
+//    protected ActivityTestRule<MusicActivity> getActivityTestRule() {
+//        return musicActivityActivityTestRule;
+//    }
+
     @Rule
-    public ActivityTestRule<MusicActivity> musicActivityActivityTestRule =
-            new ActivityTestRule<>(MusicActivity.class);
+    public MonitorRule<MusicActivity> musicActivityActivityTestRule =
+            new MonitorRule<>(MusicActivity.class);
 
     @Override
     protected ActivityTestRule<MusicActivity> getActivityTestRule() {
-        return musicActivityActivityTestRule;
+        return musicActivityActivityTestRule.getActivityTestRule();
     }
 
     @Override

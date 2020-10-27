@@ -32,6 +32,8 @@ import org.xbmc.kore.testhelpers.LoaderIdlingResource;
 import org.xbmc.kore.tests.ui.AbstractTestClass;
 import org.xbmc.kore.ui.sections.audio.MusicActivity;
 
+import abc.MonitorRule;
+
 import static org.xbmc.kore.testhelpers.EspressoTestUtils.clickAlbumsTab;
 import static org.xbmc.kore.testhelpers.EspressoTestUtils.clickArtistsTab;
 
@@ -48,13 +50,22 @@ public class RestoreSearchQueryViewPagerTest extends AbstractTestClass<MusicActi
 
     private LoaderIdlingResource loaderIdlingResource;
 
+//    @Rule
+//    public ActivityTestRule<MusicActivity> mActivityRule = new ActivityTestRule<>(
+//            MusicActivity.class);
+//
+//    @Override
+//    protected ActivityTestRule<MusicActivity> getActivityTestRule() {
+//        return mActivityRule;
+//    }
+
     @Rule
-    public ActivityTestRule<MusicActivity> mActivityRule = new ActivityTestRule<>(
+    public MonitorRule<MusicActivity> mActivityRule = new MonitorRule<>(
             MusicActivity.class);
 
     @Override
     protected ActivityTestRule<MusicActivity> getActivityTestRule() {
-        return mActivityRule;
+        return mActivityRule.getActivityTestRule();
     }
 
     @Override

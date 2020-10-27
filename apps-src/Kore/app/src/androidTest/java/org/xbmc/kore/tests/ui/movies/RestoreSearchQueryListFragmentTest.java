@@ -30,6 +30,8 @@ import org.xbmc.kore.testhelpers.EspressoTestUtils;
 import org.xbmc.kore.tests.ui.AbstractTestClass;
 import org.xbmc.kore.ui.sections.video.MoviesActivity;
 
+import abc.MonitorRule;
+
 @RunWith(AndroidJUnit4.class)
 public class RestoreSearchQueryListFragmentTest extends AbstractTestClass<MoviesActivity> {
 
@@ -37,13 +39,22 @@ public class RestoreSearchQueryListFragmentTest extends AbstractTestClass<Movies
     private final int SEARCH_QUERY_LIST_SIZE = 2;
     private final int COMPLETE_LIST_SIZE = 300;
 
+//    @Rule
+//    public ActivityTestRule<MoviesActivity> mActivityRule = new ActivityTestRule<>(
+//            MoviesActivity.class);
+//
+//    @Override
+//    protected ActivityTestRule<MoviesActivity> getActivityTestRule() {
+//        return mActivityRule;
+//    }
+
     @Rule
-    public ActivityTestRule<MoviesActivity> mActivityRule = new ActivityTestRule<>(
+    public MonitorRule<MoviesActivity> mActivityRule = new MonitorRule<>(
             MoviesActivity.class);
 
     @Override
     protected ActivityTestRule<MoviesActivity> getActivityTestRule() {
-        return mActivityRule;
+        return mActivityRule.getActivityTestRule();
     }
 
     @Override
