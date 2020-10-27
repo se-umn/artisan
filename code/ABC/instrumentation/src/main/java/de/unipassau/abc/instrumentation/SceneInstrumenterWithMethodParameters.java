@@ -328,7 +328,11 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		try {
 			clsMonitor = Scene.v().getSootClass(utils.Constants.MONITOR_CLASS);
 			clsMonitor.setApplicationClass();
-
+			// Make sure we include also supporting classes
+			SootClass stackElementClass = Scene.v().getSootClass(StackElement.class.getName());
+			stackElementClass.setApplicationClass();
+			
+			
 			// TODO Not sure we are actually using any of those
 			Scene.v().getSootClass("utils.MethodEventComparator").setApplicationClass();
 
