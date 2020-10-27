@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -145,6 +146,8 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 	private String appPackageName;
 
+	private List<Pattern> packageFilters = new ArrayList<Pattern>();
+
 	protected static boolean bProgramStartInClinit = false;
 //	protected static Options opts = new Options();
 
@@ -157,6 +160,12 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		 * Scene.v()
 		 */
 		this.appPackageName = appPackageName;
+	}
+
+	public void setPackageFilters(List<String> packageFilters) {
+		if (packageFilters != null) {
+			packageFilters.forEach(s -> this.packageFilters.add(Pattern.compile(s)));
+		}
 	}
 
 	/**
@@ -331,8 +340,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 			// Make sure we include also supporting classes
 			SootClass stackElementClass = Scene.v().getSootClass(StackElement.class.getName());
 			stackElementClass.setApplicationClass();
-			
-			
+
 			// TODO Not sure we are actually using any of those
 			Scene.v().getSootClass("utils.MethodEventComparator").setApplicationClass();
 
@@ -1013,7 +1021,8 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 	 */
 	private void instrumentMethodBody(final SootMethod currentlyInstrumentedMethod,
 			final Body currentlyInstrumentedMethodBody,
-			final PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain) throws IOException, XmlPullParserException {
+			final PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain)
+			throws IOException, XmlPullParserException {
 
 		// BufferedWriter unitFileWriter = new BufferedWriter(new
 		// FileWriter("unit_log.txt"));
@@ -1181,7 +1190,15 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 			System.out.println("\n\n Interface - not a class: " + currentlyInstrumentedSootClass.getName());
 			return true;
 		}
-		return false;
+
+		// If any of the specified filters matches then skip this
+		if (this.packageFilters.stream()
+				.anyMatch(p -> p.matcher(currentlyInstrumentedSootClass.getPackageName()).matches())) {
+			System.out.println("\n\n Matches custom package filter " + currentlyInstrumentedSootClass.getName());
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	/**

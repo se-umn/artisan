@@ -51,6 +51,8 @@ public class Monitor {
 	// Store trace info inside the phone memory
 	private static BufferedWriter traceFileOutputWriter;
 
+	private static boolean DEBUG = true;
+
 	/*
 	 * We need a reliable way to match exceptions with method calls. Ideally, we
 	 * should use the stack trace, but it is hard given the standard stack frame to
@@ -396,7 +398,7 @@ public class Monitor {
 		}
 	}
 
-	private static void registerCall(Object methodOwner, //
+	private synchronized static void registerCall(Object methodOwner, //
 			String methodSignature, //
 			String methodContext, //
 			boolean isLibCall) {
@@ -414,8 +416,11 @@ public class Monitor {
 		se.isLibCall = isLibCall;
 
 		stackTrace.get(threadData).push(se);
-//		Log.i(ABC_TAG, String.join("",
-//				Collections.nCopies(stackTrace.get(threadData).size(), "-") + "}" + se.methodSignature));
+		
+		if (DEBUG) {
+			Log.i(ABC_TAG, threadData + "--" + String.join("",
+					Collections.nCopies(stackTrace.get(threadData).size(), "-") + "}" + se.methodSignature));
+		}
 	}
 
 	/**
@@ -488,7 +493,7 @@ public class Monitor {
 
 	// TODO Most likely we need to check all the conditions not only the signature?
 	// What if two calls with the same signatures are here?
-	private static StackElement popMethodCall(String methodSignature) {
+	private synchronized static StackElement popMethodCall(String methodSignature) {
 		// Clean up the last LibCall data since it returned normally.
 		String threadData = getThreadData();
 
@@ -501,12 +506,21 @@ public class Monitor {
 		// Use the stack of active lib calls. Match by signature
 		StackElement activeCall = stackTrace.get(threadData).peek();
 
-//		Log.i(ABC_TAG,
-//				String.join("", Collections.nCopies(stackTrace.get(threadData).size(), "-") + "{" + methodSignature));
+		if (DEBUG) {
+			Log.i(ABC_TAG, threadData + "--" + String.join("",
+					Collections.nCopies(stackTrace.get(threadData).size(), "-") + "{" + methodSignature));
+		}
 
 		if (!activeCall.methodSignature.equals(methodSignature)) {
 			android.util.Log.e(ABC_TAG, "Mismatch for active call " + activeCall.methodSignature + " on thread "
 					+ threadData + ". Got: " + methodSignature);
+			// Print stack data
+			android.util.Log.e(ABC_TAG, "Stack content is:");
+			while (!stackTrace.get(threadData).isEmpty()) {
+				StackElement se = stackTrace.get(threadData).pop();
+				android.util.Log.e(ABC_TAG, se.methodSignature);
+			}
+
 			throw new RuntimeException("Mismatch for active call " + activeCall.methodSignature + " on thread "
 					+ threadData + ". Got: " + methodSignature);
 		}
@@ -517,7 +531,7 @@ public class Monitor {
 	}
 
 	// This parameter is not really useful here
-	private static StackElement peekMethodCall(String methodSignature) {
+	private synchronized static StackElement peekMethodCall(String methodSignature) {
 		// Clean up the last LibCall data since it returned normally.
 		String threadData = getThreadData();
 
@@ -628,7 +642,7 @@ public class Monitor {
 
 				returnInto_impl(lastMethodCall.methodOwner, lastMethodCall.methodSignature,
 						lastMethodCall.methodContext, exception, METHOD_END_TOKEN_FROM_EXCEPTION);
-			} 
+			}
 //			else {
 //				android.util.Log.i(ABC_TAG, "Captured exception raised by APP method " + lastMethodCall.methodSignature
 //						+ " in context " + lastMethodCall.methodContext + " inside method " + methodSignature);
