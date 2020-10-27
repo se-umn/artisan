@@ -16,9 +16,11 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Stack;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
@@ -49,16 +51,16 @@ public class Monitor {
 	// Store trace info inside the phone memory
 	private static BufferedWriter traceFileOutputWriter;
 
-//	/* for DUAF/Soot to access this class */
-//	public static void __link() {
-//	}
+	// This is public to enable EspressoTest changing it using reflection, see MonitorRule
+	public static boolean DEBUG = false;
 
-	// Book keep for each thread the active libCall if any. This is to
-	// reverse-engineering if any of those libCall raised an exception
-	// TODO Do we need all those elements?
-	protected static Map<String, Object> methodOwnerOfLastLibCall = new HashMap<String, Object>();
-	protected static Map<String, String> methodSignatureOfLastLibCall = new HashMap<String, String>();
-	protected static Map<String, String> methodContextOfLastLibCall = new HashMap<String, String>();
+	/*
+	 * We need a reliable way to match exceptions with method calls. Ideally, we
+	 * should use the stack trace, but it is hard given the standard stack frame to
+	 * match every past call. So we implement a stack on our own. This seems a bit
+	 * over-killing but I have no other ideas ATM
+	 */
+	protected static Map<String, Stack<StackElement>> stackTrace = new HashMap<String, Stack<StackElement>>();
 
 	// Thread-locale data to store whether an exception is thrown (and not yet
 	// handled)
@@ -99,11 +101,11 @@ public class Monitor {
 	 * debug flag: e.g. for dumping event sequence to human-readable format for
 	 * debugging purposes, etc.
 	 */
-	protected static boolean debugOut = true;
+//	protected static boolean debugOut = true;
 
-	public static void turnDebugOut(boolean b) {
-		debugOut = b;
-	}
+//	public static void turnDebugOut(boolean b) {
+//		debugOut = b;
+//	}
 
 	/* The "DynCGequenceOnly" option will be set by EARun via this setter */
 //	public static void setDynCGequenceOnly(boolean b) {
@@ -258,6 +260,9 @@ public class Monitor {
 			if (!bInitialized) {
 				initialize(packageName);
 			}
+
+			registerCall(methodOwner, methodSignature, null, false);
+
 			enter_impl(methodOwner, methodSignature, methodParameters, METHOD_START_TOKEN);
 		} catch (Throwable t) {
 			android.util.Log.e(ABC_TAG, "ERROR params: \n" //
@@ -295,6 +300,9 @@ public class Monitor {
 			if (!bInitialized) {
 				initialize(packageName);
 			}
+
+			registerCall(methodOwner, methodSignature, null, false);
+
 			enter_impl(methodOwner, methodSignature, methodParameters, SYNTHETIC_METHOD_START_TOKEN);
 		} catch (Throwable t) {
 			android.util.Log.e(ABC_TAG, "ERROR params: \n" //
@@ -333,6 +341,9 @@ public class Monitor {
 			if (!bInitialized) {
 				initialize(packageName);
 			}
+			//
+			registerCall(methodOwner, methodSignature, null, false);
+
 			enter_impl(methodOwner, methodSignature, methodParameters, PRIVATE_METHOD_START_TOKEN);
 		} catch (Throwable t) {
 			android.util.Log.e(ABC_TAG, "ERROR params: \n" //
@@ -368,11 +379,11 @@ public class Monitor {
 		// Ensure locking.
 		lock.lock();
 		try {
-			// Store info on the LAST invoked event for the thread
-			String threadData = getThreadData();
-			methodOwnerOfLastLibCall.put(threadData, methodOwner);
-			methodSignatureOfLastLibCall.put(threadData, methodSignature);
-			methodContextOfLastLibCall.put(threadData, methodContext);
+
+			if (isLogEverything() && !isStringMethod(methodSignature)) {
+				// Should we consider all the calls instead?
+				registerCall(methodOwner, methodSignature, methodContext, true);
+			}
 
 			libCall_impl(methodOwner, methodSignature, methodContext, methodParameters);
 		} catch (Throwable t) {
@@ -385,6 +396,31 @@ public class Monitor {
 			throw t;
 		} finally {
 			lock.unlock();
+		}
+	}
+
+	private synchronized static void registerCall(Object methodOwner, //
+			String methodSignature, //
+			String methodContext, //
+			boolean isLibCall) {
+		// Store info on the LAST invoked event for the thread
+		String threadData = getThreadData();
+
+		if (!stackTrace.containsKey(threadData)) {
+			stackTrace.put(threadData, new Stack<StackElement>());
+		}
+
+		StackElement se = new StackElement();
+		se.methodOwner = methodOwner;
+		se.methodSignature = methodSignature;
+		se.methodContext = methodContext;
+		se.isLibCall = isLibCall;
+
+		stackTrace.get(threadData).push(se);
+		
+		if (DEBUG) {
+			Log.i(ABC_TAG, threadData + "--" + String.join("",
+					Collections.nCopies(stackTrace.get(threadData).size(), "-") + "}" + se.methodSignature));
 		}
 	}
 
@@ -439,34 +475,75 @@ public class Monitor {
 		lock.lock();
 		try {
 
-			// Clean up the last LibCall data since it returned normally
-			String threadData = getThreadData();
-
-			if (!methodSignatureOfLastLibCall.containsKey(threadData)) {
-				android.util.Log.w(ABC_TAG, "Missing onLibMethodStart for " + threadData + " -- " + methodSignature);
-			}
-			if (!methodSignatureOfLastLibCall.get(threadData).equals(methodSignature)) {
-				android.util.Log.w(ABC_TAG, "Mismatch for onLibMethodReturnNormally " + threadData + "expecting  "
-						+ methodSignatureOfLastLibCall.get(threadData) + " but got " + methodSignature);
-			}
-			// Optimistic implementation
-			methodSignatureOfLastLibCall.remove(threadData);
-			methodOwnerOfLastLibCall.remove(threadData);
-			methodContextOfLastLibCall.remove(threadData);
-
 			returnInto_impl(methodOwner, methodSignature, methodContext, returnValue, METHOD_END_TOKEN);
 
-		} catch (Throwable t) {
+		} catch (
+
+		Throwable t) {
 			android.util.Log.e(ABC_TAG, "ERROR params: \n" //
-					+ methodOwner + "\n" //
-					+ methodSignature + "\n" //
-					+ methodContext + "\n" //
-					+ returnValue + "\n", //
+					+ "methodOwner " + methodOwner + "\n" //
+					+ "methodSignature " + methodSignature + "\n" //
+					+ "methodContext " + methodContext + "\n" //
+					+ "returnValue " + returnValue + "\n", //
 					t);
 			throw t;
 		} finally {
 			lock.unlock();
 		}
+	}
+
+	// TODO Most likely we need to check all the conditions not only the signature?
+	// What if two calls with the same signatures are here?
+	private synchronized static StackElement popMethodCall(String methodSignature) {
+		// Clean up the last LibCall data since it returned normally.
+		String threadData = getThreadData();
+
+		if (!stackTrace.containsKey(threadData)) {
+			android.util.Log.e(ABC_TAG,
+					"Cannot find active lib calls for " + threadData + " while processing " + methodSignature);
+			throw new RuntimeException("Cannot find active lib calls for " + threadData);
+		}
+
+		// Use the stack of active lib calls. Match by signature
+		StackElement activeCall = stackTrace.get(threadData).peek();
+
+		if (DEBUG) {
+			Log.i(ABC_TAG, threadData + "--" + String.join("",
+					Collections.nCopies(stackTrace.get(threadData).size(), "-") + "{" + methodSignature));
+		}
+
+		if (!activeCall.methodSignature.equals(methodSignature)) {
+			android.util.Log.e(ABC_TAG, "Mismatch for active call " + activeCall.methodSignature + " on thread "
+					+ threadData + ". Got: " + methodSignature);
+			// Print stack data
+			android.util.Log.e(ABC_TAG, "Stack content is:");
+			while (!stackTrace.get(threadData).isEmpty()) {
+				StackElement se = stackTrace.get(threadData).pop();
+				android.util.Log.e(ABC_TAG, se.methodSignature);
+			}
+
+			throw new RuntimeException("Mismatch for active call " + activeCall.methodSignature + " on thread "
+					+ threadData + ". Got: " + methodSignature);
+		}
+		// If the last active lib call matches, remove it and the other elements from
+		// the stack. This is getting close to a execution stack with frames...
+		return stackTrace.get(threadData).pop();
+
+	}
+
+	// This parameter is not really useful here
+	private synchronized static StackElement peekMethodCall(String methodSignature) {
+		// Clean up the last LibCall data since it returned normally.
+		String threadData = getThreadData();
+
+		if (!stackTrace.containsKey(threadData)) {
+			android.util.Log.e(ABC_TAG,
+					"Cannot find active lib calls for " + threadData + " while processing " + methodSignature);
+			throw new RuntimeException("Cannot find active lib calls for " + threadData);
+		}
+
+		return stackTrace.get(threadData).peek();
+
 	}
 
 	/**
@@ -536,7 +613,7 @@ public class Monitor {
 
 	/**
 	 * This method is triggered when an app method captures an exception in one of
-	 * its traps
+	 * its traps. We need to understand who raised this exception
 	 * 
 	 * @param methodOwner     The object owning the method that contains this trap
 	 * @param methodSignature Method containing the trap handling the exception
@@ -550,32 +627,27 @@ public class Monitor {
 			Object exception) throws Throwable {
 		lock.lock();
 		try {
+
 			// Clear the data. Note that the exception received as input should match with
 			// the one stored here
+			// TODO Not sure what's the point here.
 			String threadData = getThreadData();
 			thrownExceptions.remove(threadData);
 
-			/*
-			 * If the current method captures an exception and the last libCall method did
-			 * not returned normally, we conclude that the last libCall method generated the
-			 * exception (so we could NOT log it's normal return)
-			 */
-			// Note that we use the signature because for static methods owner is null
-			if (methodSignatureOfLastLibCall.containsKey(threadData)) {
-				/*
-				 * If lastMethodContext is not empty, it means that a method previously invoked
-				 * did not finished. Hence, the exception was thrown in there otherwise the
-				 * exception was throw in the current method (using throw)
-				 */
-				Object libCallMethodOwner = methodOwnerOfLastLibCall.remove(threadData);
-				String libCallMethodSignature = methodSignatureOfLastLibCall.remove(threadData);
-				String libCallMethodContext = methodContextOfLastLibCall.remove(threadData);
+			StackElement lastMethodCall = peekMethodCall(methodSignature);
 
-				// Log that the last LibCall Method exited exceptionally. The exception is
-				// exactly the same that was captured
-				returnInto_impl(libCallMethodOwner, libCallMethodSignature, libCallMethodContext, exception,
-						METHOD_END_TOKEN_FROM_EXCEPTION);
+			if (lastMethodCall.isLibCall) {
+
+//				android.util.Log.i(ABC_TAG, "Captured exception raised by LIB method " + lastMethodCall.methodSignature
+//						+ " in context " + lastMethodCall.methodContext + " inside method " + methodSignature);
+
+				returnInto_impl(lastMethodCall.methodOwner, lastMethodCall.methodSignature,
+						lastMethodCall.methodContext, exception, METHOD_END_TOKEN_FROM_EXCEPTION);
 			}
+//			else {
+//				android.util.Log.i(ABC_TAG, "Captured exception raised by APP method " + lastMethodCall.methodSignature
+//						+ " in context " + lastMethodCall.methodContext + " inside method " + methodSignature);
+//			}
 
 		} catch (Throwable t) {
 			android.util.Log.e(ABC_TAG, "ERROR !", t);
@@ -687,6 +759,10 @@ public class Monitor {
 			Object returnValue, String token) throws IOException {
 		if (isLogEverything() && !isStringMethod(methodSignature)) {
 			synchronized (g_counter) {
+
+				// Since we return pop this call from the stack
+				popMethodCall(methodSignature);
+
 //				Integer curTS = (Integer) L.get(methodSignature);
 //				if (null == curTS) {
 //					curTS = 0;

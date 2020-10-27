@@ -63,7 +63,8 @@ export JAVA_OPTS=${JAVA_OPTS}" -Dabc.output.instrumented.code"
 ${SCRIPT_LOCATION}/../target/appassembler/bin/instrument-apk \
             --apk ${APK} \
             --android-jar ${ANDROID_JAR} \
-            --output-to ${OUTPUT_DIR} > ${LOG_FILE} 2>&1
+            --output-to ${OUTPUT_DIR} \
+            ${INSTRUMENTATION_OPTS} > ${LOG_FILE} 2>&1
 
 # For some weird reason the output is changed and an additional '.' was printed by the end of the name?
 INSTRUMENTED_APK_FILE=$(cat ${LOG_FILE} | grep "Writing APK to" | awk '{print $NF}' | sed -e 's|"||' -e 's|".||g')

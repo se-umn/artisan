@@ -36,6 +36,8 @@ import org.xbmc.kore.ui.sections.remote.RemoteActivity;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
+import abc.MonitorRule;
+
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.swipeLeft;
 import static androidx.test.espresso.action.ViewActions.swipeRight;
@@ -56,14 +58,24 @@ public class PlaylistTests extends AbstractTestClass<RemoteActivity> {
 
     private static final int PLAYLIST_SIZE = 10;
 
+//    @Rule
+//    public ActivityTestRule<RemoteActivity> remoteActivityActivityTestRule =
+//            new ActivityTestRule<>(RemoteActivity.class);
+//
+//    @Override
+//    protected ActivityTestRule<RemoteActivity> getActivityTestRule() {
+//        return remoteActivityActivityTestRule;
+//    }
+
     @Rule
-    public ActivityTestRule<RemoteActivity> remoteActivityActivityTestRule =
-            new ActivityTestRule<>(RemoteActivity.class);
+    public MonitorRule<RemoteActivity> remoteActivityActivityTestRule =
+            new MonitorRule<>(RemoteActivity.class);
 
     @Override
     protected ActivityTestRule<RemoteActivity> getActivityTestRule() {
-        return remoteActivityActivityTestRule;
+        return remoteActivityActivityTestRule.getActivityTestRule();
     }
+
 
     @Override
     protected void setSharedPreferences(Context context) {

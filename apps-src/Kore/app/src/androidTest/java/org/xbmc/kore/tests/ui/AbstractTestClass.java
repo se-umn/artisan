@@ -50,12 +50,15 @@ import org.xbmc.kore.utils.LogUtils;
 
 import java.io.IOException;
 
+import abc.MonitorRule;
+
 @RunWith(AndroidJUnit4.class)
 @Ignore
 abstract public class AbstractTestClass<T extends AppCompatActivity> {
     private static final String TAG = LogUtils.makeLogTag(AbstractTestClass.class);
 
     abstract protected ActivityTestRule<T> getActivityTestRule();
+//    abstract protected MonitorRule<T> getActivityTestRule();
 
     /**
      * Method that can be used to change the shared preferences.
@@ -66,6 +69,8 @@ abstract public class AbstractTestClass<T extends AppCompatActivity> {
 
     private LoaderIdlingResource loaderIdlingResource;
     private ActivityTestRule<T> activityTestRule;
+//    private MonitorRule<T> activityTestRule;
+
     private static MockTcpServer server;
     private static JSONConnectionHandlerManager manager;
     private static PlayerHandler playerHandler;
