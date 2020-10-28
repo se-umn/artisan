@@ -334,6 +334,10 @@ function instrument-apk() {
   # TODO. Maybe we need to move that script here? Maybe we need to use make ?
   export APK_SIGNER=${APK_SIGNER}
   export ANDROID_JAR=${ANDROID_JAR}
+  if [ ! -z "${INSTRUMENTATION_OPTS}" ]; then
+    (echo >&2 "** Exporting INSTRUMENTATION_OPTS: " ${INSTRUMENTATION_OPTS})
+    export INSTRUMENTATION_OPTS=${INSTRUMENTATION_OPTS}
+  fi
 
   local instrumented_apk_file=$(${ABC_HOME}/instrumentation/scripts/instrument-apk.sh ${apk_file})
   # THIS PRODUCES A LOG "HERE". TODO Shall we move the log the location of the instrumented apk ?
