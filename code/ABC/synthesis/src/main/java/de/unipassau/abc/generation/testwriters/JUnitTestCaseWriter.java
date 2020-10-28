@@ -42,8 +42,8 @@ import de.unipassau.abc.generation.assertions.CarvingAssertion;
 import de.unipassau.abc.generation.data.AndroidCarvedTest;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
-import de.unipassau.abc.generation.utils.TestClass;
 import de.unipassau.abc.generation.utils.TestCaseOrganizer;
+import de.unipassau.abc.generation.utils.TestClass;
 import de.unipassau.abc.generation.utils.TypeUtils;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
 import java.io.File;
@@ -60,7 +60,6 @@ import java.util.Optional;
 import java.util.Set;
 import org.apache.commons.lang.NotImplementedException;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.slf4j.Logger;
@@ -422,8 +421,21 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 		final MethodCallExpr robolectricLifecycleCall = new MethodCallExpr(new NameExpr(controllerVariableName),
 				robolectricLifecycleMethodName);
 		final String ownerVariableName = getVariableFor(owner, methodBody);
-		methodBody.addStatement(robolectricLifecycleCall);
 
+		// Add arguments if needed
+    for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
+      if (parameter instanceof PlaceholderDataNode) {
+        // No idea what this is used for, but this is checked for while
+        // creating parameters in other places too
+        PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
+        String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
+        robolectricLifecycleCall.addArgument(variable);
+      } else {
+        robolectricLifecycleCall.addArgument(getParameterFor(parameter, methodBody));
+      }
+    }
+
+		methodBody.addStatement(robolectricLifecycleCall);
 		return ownerVariableName;
 	}
 
