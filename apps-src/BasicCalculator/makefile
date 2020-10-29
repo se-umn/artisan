@@ -1,17 +1,21 @@
-GW=./gradlew
-ABC=/Users/gambi/bin/abc
-ABC_CFG="/Users/gambi/action-based-test-carving/scripts/.abc-config"
-JAVA_OPTS=" -Dabc.instrument.fields.operations -Dabc.taint.android.intents "
 
+### MAIN VARIABLES
+GW="./gradlew"
+ABC="../../scripts/abc.sh"
+ABC_CFG="../../scripts/.abc-config"
+JAVA_OPTS=" -Dabc.instrument.fields.operations -Dabc.taint.android.intents "
+ADB := $(shell $(ABC) show-config  ANDROID_ADB_EXE | sed -e "s|ANDROID_ADB_EXE=||")
 ESPRESSO_TESTS := $(shell cat tests.txt | tr " " "_" | sed -e 's|^\(.*\)$$|\1.testlog|')
 
 .PHONY: clean-gradle clean-all run-espresso-tests trace-espresso-tests
 
+show :
+	$(info $(ADB))
 
-clean-gradle:
+clean-gradle :
 	$(GW) clean
 
-clean-all:
+clean-all :
 	rm -v *.apk
 	rm -v *.log
 	rm -v *.testlog
@@ -32,7 +36,7 @@ app-instrumented.apk : app-original.apk
 	export ABC_CONFIG=$(ABC_CFG) && \
 	export JAVA_OPTS=$(JAVA_OPTS) && \
 	$(ABC) instrument-apk app-original.apk && \
-	mv -v /Users/gambi/action-based-test-carving/code/ABC/instrumentation/instrumented-apks/app-original.apk app-instrumented.apk
+	mv -v ../../code/ABC/instrumentation/instrumented-apks/app-original.apk app-instrumented.apk
 
 app-androidTest.apk :
 	export ABC_CONFIG=$(ABC_CFG) && \
@@ -52,7 +56,7 @@ stop-emulator:
 espresso-tests.log : app-original.apk app-androidTest.apk running-emulator
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-original.apk
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-androidTest.apk	
-	/Users/gambi/Library/Android/sdk/platform-tools/adb shell am instrument -w -r abc.basiccalculator.test/androidx.test.runner.AndroidJUnitRunner | tee espresso-tests.log 
+	$(ADB) shell am instrument -w -r abc.basiccalculator.test/androidx.test.runner.AndroidJUnitRunner | tee espresso-tests.log 
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	rm running-emulator
 
@@ -68,7 +72,7 @@ traces : $(ESPRESSO_TESTS) app-androidTest.apk app-instrumented.apk running-emul
 	echo "Tracing test $(shell echo "$(@)" | tr "_" "#" | sed -e "s|.testlog||")"
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-instrumented.apk
 	export ABC_CONFIG=$(ABC_CFG) &&$(ABC) install-apk app-androidTest.apk
-	/Users/gambi/Library/Android/sdk/platform-tools/adb shell am instrument -w -e class $(shell echo "$(@)" | tr "_" "#" | sed -e "s|.testlog||") abc.basiccalculator.test/androidx.test.runner.AndroidJUnitRunner | tee $(@)
+	$(ADB) shell am instrument -w -e class $(shell echo "$(@)" | tr "_" "#" | sed -e "s|.testlog||") abc.basiccalculator.test/androidx.test.runner.AndroidJUnitRunner | tee $(@)
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) copy-traces abc.basiccalculator ./traces/$(shell echo "$(@)" | sed -e "s|.testlog||") force-clean
 
 carve-all : traces app-original.apk
