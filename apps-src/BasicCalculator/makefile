@@ -34,6 +34,13 @@ app-instrumented.apk : app-original.apk
 	$(ABC) instrument-apk app-original.apk && \
 	mv -v /Users/gambi/action-based-test-carving/code/ABC/instrumentation/instrumented-apks/app-original.apk app-instrumented.apk
 
+app-androidTest.apk :
+	export ABC_CONFIG=$(ABC_CFG) && \
+	$(GW) assembleAndroidTest && \
+	mv ./app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk app-androidTest-unsigned.apk && \
+	$(ABC) sign-apk app-androidTest-unsigned.apk && \
+	mv -v app-androidTest-unsigned.apk app-androidTest.apk
+
 running-emulator:
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator
 	touch running-emulator
@@ -42,16 +49,7 @@ stop-emulator:
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	rm running-emulator
 
-app-androidTest.apk :
-	export ABC_CONFIG=$(ABC_CFG) && \
-	$(GW) assembleAndroidTest && \
-	mv ./app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk app-androidTest-unsigned.apk && \
-	$(ABC) sign-apk app-androidTest-unsigned.apk && \
-	mv -v app-androidTest-unsigned.apk app-androidTest.apk
-
-
-# 	This is phony
-run-espresso-tests : app-original.apk app-androidTest.apk running-emulator
+espresso-tests.log : app-original.apk app-androidTest.apk running-emulator
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-original.apk
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-androidTest.apk	
 	/Users/gambi/Library/Android/sdk/platform-tools/adb shell am instrument -w -r abc.basiccalculator.test/androidx.test.runner.AndroidJUnitRunner | tee espresso-tests.log 
@@ -60,15 +58,12 @@ run-espresso-tests : app-original.apk app-androidTest.apk running-emulator
 
 # 	This is phony
 #    It depends on all the espresso files listed in the tests.txt file
-trace-espresso-tests : $(ESPRESSO_TESTS) app-androidTest.apk app-instrumented.apk running-emulator
+traces : $(ESPRESSO_TESTS) app-androidTest.apk app-instrumented.apk running-emulator
 	# Once execution of the dependent target is over we tear down the emulator
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	rm running-emulator
 
 # TODO Not sure how to declare variables in the scope of a make target...
-# %.testlog ?
-# Does this always rerun no matter what?
-# $(ESPRESSO_TESTS): app-androidTest.apk app-instrumented.apk running-emulator
 %.testlog: app-androidTest.apk app-instrumented.apk running-emulator
 	echo "Tracing test $(shell echo "$(@)" | tr "_" "#" | sed -e "s|.testlog||")"
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-instrumented.apk
@@ -76,15 +71,17 @@ trace-espresso-tests : $(ESPRESSO_TESTS) app-androidTest.apk app-instrumented.ap
 	/Users/gambi/Library/Android/sdk/platform-tools/adb shell am instrument -w -e class $(shell echo "$(@)" | tr "_" "#" | sed -e "s|.testlog||") abc.basiccalculator.test/androidx.test.runner.AndroidJUnitRunner | tee $(@)
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) copy-traces abc.basiccalculator ./traces/$(shell echo "$(@)" | sed -e "s|.testlog||") force-clean
 
-
 carve-all : traces app-original.apk
 	export ABC_CONFIG=$(ABC_CFG) && \
 	$(ABC) carve-all app-original.apk traces app/src/carvedTest force-clean | tee carving.log
 
-
+# DO WE NEED THE SAME APPROACH AS ESPRESSO TESTS?
 run-all-carved-tests : app/src/carvedTest
 	$(GW) clean testDebugUnitTest -PcarvedTests | tee carvedTests.log
 
+### ### ### ### ### ### ### 
+### Coverage targets
+### ### ### ### ### ### ### 
 
 espresso-tests-coverage :
 	export ABC_CONFIG=$(ABC_CFG) && \
@@ -101,5 +98,3 @@ coverage-carved-tests :
 	$(GW) jacocoTestReport -PcarvedTests --info && \
 	mkdir -p carved-test-coverage && \
 	cp -r app/build/carvedTest/coverage carved-test-coverage
-
-
