@@ -2,7 +2,7 @@ package de.unipassau.abc.utils;
 
 import java.util.List;
 
-import de.unipassau.abc.data.DataDependencyGraph;
+import de.unipassau.abc.data.DataDependencyGraphImpl;
 import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.GraphNode;
 import de.unipassau.abc.data.MethodInvocation;
@@ -64,7 +64,7 @@ public class GraphUtility {
 		return true;
 	}
 
-	public static boolean areDataDependencyGraphsEquivalent(DataDependencyGraph second, DataDependencyGraph second2) {
+	public static boolean areDataDependencyGraphsEquivalent(DataDependencyGraphImpl second, DataDependencyGraphImpl second2) {
 		// TODO This way only exec graph matter
 		return true;
 	}

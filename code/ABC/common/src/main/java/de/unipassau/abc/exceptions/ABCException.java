@@ -1,15 +1,16 @@
 package de.unipassau.abc.exceptions;
 
+import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.ObjectInstance;
-import de.unipassau.abc.data.Pair;
+import de.unipassau.abc.data.Triplette;
 
 public class ABCException extends Exception {
 
 	private static final long serialVersionUID = 2527692252566022668L;
 
-	private Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest;
+	private Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedTest;
 	private ObjectInstance brokenInstance;
 
 	public ABCException() {
@@ -24,11 +25,11 @@ public class ABCException extends Exception {
 		super(message, cause);
 	}
 
-	public void setCarvedTest(Pair<ExecutionFlowGraph, DataDependencyGraph> carvedTest) {
+	public void setCarvedTest(Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> carvedTest) {
 		this.carvedTest = carvedTest;
 	}
 
-	public Pair<ExecutionFlowGraph, DataDependencyGraph> getCarvedTest() {
+	public Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> getCarvedTest() {
 		return carvedTest;
 	}
 

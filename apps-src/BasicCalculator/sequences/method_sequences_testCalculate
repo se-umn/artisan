@@ -1,0 +1,18 @@
+@SEQUENCE
+java.lang.Number: int intValue()
+java.lang.StringBuilder: java.lang.StringBuilder append(java.lang.String)
+java.lang.StringBuilder: java.lang.String toString()
+java.lang.Integer: int parseInt(java.lang.String)
+android.content.Intent: android.content.Intent putExtra(java.lang.String,int)
+android.app.Activity: void startActivity(android.content.Intent)
+@SEQUENCE
+android.app.Activity: android.view.View findViewById(int)
+android.view.View: void setOnClickListener(android.view.View$OnClickListener)
+android.widget.TextView: java.lang.CharSequence getText()
+java.lang.CharSequence: java.lang.String toString()
+abc.basiccalculator.ResultActivity: void checkResult(java.lang.String)
+@SEQUENCE
+abc.basiccalculator.ResultActivity: void onCreate(android.os.Bundle)
+android.app.Activity: void setContentView(int)
+android.app.Activity: android.content.Intent getIntent()
+android.content.Intent: int getIntExtra(java.lang.String,int)

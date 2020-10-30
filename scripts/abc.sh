@@ -123,6 +123,12 @@ function list-running-emulators() {
   ${ANDROID_ADB_EXE} devices | grep emulator | cut -f1
 }
 
+function stop-all-emulators() {
+  for emulator in $(list-running-emulators); do
+    stop-emulator ${emulator}
+  done
+}
+
 function stop-emulator() {
   # TODO This might be autocompleted with "list-running-emulators"
   : ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
@@ -149,7 +155,22 @@ function __private_get_package_name_from_apk_file() {
   local apk_file="${1:?Missing apk file to install}"
 
   ${ANDROID_AAPT_EXE} dump badging ${apk_file} | grep "package: name" | awk '{print $2}' | sed -e "s|name=||" -e "s|'||g"
+}
 
+function __private_get_version_from_apk_file() {
+  : ${ANDROID_AAPT_EXE:?Please provide a value for ANDROID_AAPT_EXE in $config_file }
+
+  local apk_file="${1:?Missing apk file to install}"
+
+  ${ANDROID_AAPT_EXE} dump badging ${apk_file} | grep "versionName=" | awk '{print $4}' | sed -e "s|versionName=||" -e "s|'||g" -e "s|\.||g"
+}
+
+function __private_get_application_label_from_apk_file() {
+  : ${ANDROID_AAPT_EXE:?Please provide a value for ANDROID_AAPT_EXE in $config_file }
+
+  local apk_file="${1:?Missing apk file to install}"
+
+  ${ANDROID_AAPT_EXE} dump badging ${apk_file} | grep "application-label:" | awk '{print $1}' | sed -e "s|application-label:||" -e "s|'||g"
 }
 
 function install-apk() {
@@ -167,7 +188,11 @@ function install-apk() {
     ${ANDROID_ADB_EXE} uninstall ${package_name} >/dev/null 2>&1
   fi
 
-  ${ANDROID_ADB_EXE} install ${apk_file} >/dev/null 2>&1
+  if [[ $VERBOSE -eq 1 ]]; then
+    (echo >&2 ${ANDROID_ADB_EXE} install ${apk_file})
+  else
+    ${ANDROID_ADB_EXE} install ${apk_file} >/dev/null 2>&1
+  fi
 }
 
 function split-trace() {
@@ -229,6 +254,27 @@ function beautify() {
     awk '{printf "%-8d%-8s\n", NR, $0}' >${beautified_file}
 }
 
+function rebuild-all(){
+  # Ensures the required variables are in place
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+
+  # Store current folder in stack and cd to $ABC_HOME
+  # NOTE: ABC_HOME should not be between double quotes (")
+  pushd ${ABC_HOME}
+  mvn clean compile package install -DskipTests 
+  # Return to original folder
+
+  pushd instrumentation
+    mvn package appassembler:assemble -DskipTests 
+  popd
+    
+  pushd synthesis
+    mvn package appassembler:assemble -DskipTests 
+  popd
+
+  popd
+}
+
 function rebuild-instrument() {
   # Ensures the required variables are in place
   : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
@@ -237,9 +283,41 @@ function rebuild-instrument() {
   # NOTE: ABC_HOME should not be between double quotes (")
   pushd ${ABC_HOME}
   cd instrumentation
-  mvn clean compile package appassembler:assemble -DskipTests
+  mvn clean compile package install appassembler:assemble -DskipTests
   # Return to original folder
   popd
+}
+
+function rebuild-carving() {
+  # Ensures the required variables are in place
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+
+  # Store current folder in stack and cd to $ABC_HOME
+  # NOTE: ABC_HOME should not be between double quotes (")
+  pushd ${ABC_HOME}
+  cd carving
+  mvn clean compile package install appassembler:assemble -DskipTests
+  # Return to original folder
+  popd
+}
+
+function sign-apk() {
+  # Ensures the required variables are in place
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${APK_SIGNER:?Please provide a value for APK_SIGNER in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  
+  local apk_file="${1:?Missing apk file to instrument}"
+
+  # The instrumentation script also check if the project requires to be rebuild
+  # TODO. Maybe we need to move that script here? Maybe we need to use make ?
+  export APK_SIGNER=${APK_SIGNER}
+  
+  local signed_apk_file=$(${ABC_HOME}/instrumentation/scripts/sign-apk.sh ${apk_file})
+
+  (echo >&2 "** Signed APK is:")
+  echo "${signed_apk_file}"
 }
 
 function instrument-apk() {
@@ -247,12 +325,15 @@ function instrument-apk() {
   : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
   # This sets the env variable required by "instrument-apk.sh"
   : ${APK_SIGNER:?Please provide a value for APK_SIGNER in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${ANDROID_JAR:?Please provide a value for ANDROID_JAR in $config_file}
 
   local apk_file="${1:?Missing apk file to instrument}"
 
   # The instrumentation script also check if the project requires to be rebuild
   # TODO. Maybe we need to move that script here? Maybe we need to use make ?
   export APK_SIGNER=${APK_SIGNER}
+  export ANDROID_JAR=${ANDROID_JAR}
 
   local instrumented_apk_file=$(${ABC_HOME}/instrumentation/scripts/instrument-apk.sh ${apk_file})
   # THIS PRODUCES A LOG "HERE". TODO Shall we move the log the location of the instrumented apk ?
@@ -261,48 +342,60 @@ function instrument-apk() {
   echo "${instrumented_apk_file}"
 }
 
-function run-test() {
+function carve-and-generate-from-trace() {
   # Ensures the required variables are in place
-  : ${MONKEYRUNNER_EXE:?Please provide a value for MONKEYRUNNER_EXE in $config_file}
-  : ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${APK_SIGNER:?Please provide a value for APK_SIGNER in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${ANDROID_JAR:?Please provide a value for ANDROID_JAR in $config_file}
 
-  # Mandatory. The file that contains instructions to be run with monkeyrunner
-  local instructions_file="${1:?Missing an instructions file}"
-  local apk_file="${2:?Missing an APK file}"
+  local apk_file="${1:?Missing apk file}"
+  local trace_file="${2:?Missing trace file}"
+  local output_to="${3:?Missing output folder}"
 
-  if [ ! -e ${instructions_file} ]; then
-    (echo >&2 "The provided test file ${instructions_file} does not exist.")
-    return -1
+  ${ABC_HOME}/synthesis/target/appassembler/bin/carve-and-generate --android-jar=${ANDROID_JAR} \
+      --trace-files=${trace_file} \
+      --apk=${apk_file} \
+      --output-to=${output_to}
+  # Does this produce a log "HERE" ?  
+}
+
+function carve-all(){
+    # Ensures the required variables are in place
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${APK_SIGNER:?Please provide a value for APK_SIGNER in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${ANDROID_JAR:?Please provide a value for ANDROID_JAR in $config_file}
+
+  local apk_file="${1:?Missing apk file}"
+  local trace_folder="${2:?Missing trace folder}"
+  local output_dir="${3:?Missing output folder}"
+
+  if [ -z "$4" ]
+  then
+    (echo >&2 "Do not clean existing carved tests folder")
+  else
+    (echo >&2 "Clean existing carved tests folder")
+    if [ -e $output_dir ]; then rm -rfv $output_dir; fi
   fi
 
-  if [ ! -e ${apk_file} ]; then
-    (echo >&2 "The provided APK ${apk_file} does not exist.")
-    return -1
-  fi
-
-  # Application directory
-  local apk_dir=${instructions_file%/*}
-
-  # Reads the package name of the application
-  local package_name=$(__private_get_package_name_from_apk_file ${apk_file})
-
-  # Gets the path of the droixbench playback script
-  local playback_script=$(realpath "$ABC_HOME/../../apks/automated-testing/monkey_playback.py")
-
-  start-clean-emulator
-
-  # Checks if app is installed. Assumes that the directory contains exactly one apk file
-  # if [ -z "$(${ANDROID_ADB_EXE} shell pm list packages $package_name)" ]; then
-  (echo >&2 "(Re)Installing the APK")
-  install-apk "$apk_file"
-  # fi
-
-  (echo >&2 "Running ${green}${instructions_file}${reset}")
-  ${MONKEYRUNNER_EXE} "$playback_script" "$instructions_file" "$package_name" "$ANDROID_ADB_EXE" >run-test.log 2>&1
-
-  (echo >&2 "Test completed")
-
-  copy-traces "$package_name"
+  mkdir -p ${output_dir}
+  
+  # Build a string with all the trace files
+  trace_files=$(find traces -type f | tr "\n" " ")
+  
+  ${ABC_HOME}/synthesis/target/appassembler/bin/carve-and-generate --android-jar=${ANDROID_JAR} \
+      --trace-files=${trace_files} \
+      --apk=${apk_file} \
+      --output-to=${output_dir}
+  # Carve all of them, one by one
+  # carve-and-generate-from-trace ${apk_file} ${trace_files} ${output_dir}
+  # for trace_file in $(find ${trace_folder} -iname "Trace*.txt"); do
+  # test_name=$(echo -e $(basename ${trace_file}) | sed -e 's|Trace-\(.*\)-[1-9].*.txt|\1|')
+  # (echo >&2 "Start carving tests from ${trace_file} for test ${test_name}")  
+  # done
 }
 
 function copy-traces() {
@@ -311,10 +404,19 @@ function copy-traces() {
 
   local package_name="${1:?Missing package name}"
   # TODO ALESSIO: I do not really like this but leave it be for the moment
-  local output_dir="$ABC_HOME/carving/traces/$package_name"
-  local tmp_dir="$(mktemp -d)"
+  local output_dir="${2:-$ABC_HOME/carving/traces/$package_name}"
+  local force_clean=$3
 
+  if [ -z "$3" ]
+  then
+    (echo >&2 "Do not clean existing trace folder")
+  else
+    (echo >&2 "Clean existing trace folder")
+    if [ -e $output_dir ]; then rm -rfv $output_dir; fi
+  fi
   mkdir -p "$output_dir"
+
+  local tmp_dir="$(mktemp -d)"
 
   # Restart daemon with root access in order to be able to access app data
   ${ANDROID_ADB_EXE} root >/dev/null 2>&1
@@ -328,6 +430,7 @@ function copy-traces() {
 
     __log_verbose "Copying $filename to ${output_trace}"
     cp "$filename" "${output_trace}"
+    # This is necessary because other functions use this output
     echo "${output_trace}"
   done
 
@@ -337,10 +440,87 @@ function copy-traces() {
   (echo >&2 "Done Copying")
 }
 
-function test-apk() {
+function run-test() {
+  # Ensures the required variables are in place
   : ${MONKEYRUNNER_EXE:?Please provide a value for MONKEYRUNNER_EXE in $config_file}
   : ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
 
+  # Mandatory. The file that contains instructions to be run with monkeyrunner
+  local apk_file="${1:?Missing an APK file}"
+
+  if [ ! -e ${apk_file} ]; then
+    (echo >&2 "The provided APK ${apk_file} does not exist.")
+    return -1
+  fi
+
+  # Application directory
+  local apk_dir=${apk_file%/*}
+
+  # Reads the package name of the application
+  local package_name=$(__private_get_package_name_from_apk_file ${apk_file})
+
+  start-clean-emulator
+
+  # Checks if app is installed. Assumes that the directory contains exactly one apk file
+  (echo >&2 "(Re)Installing the APK")
+  install-apk "$apk_file"
+
+  local tests_dir=$(realpath "${ABC_HOME}/../../apps-src/tests")
+  pushd ${tests_dir} &> /dev/null || ((echo >&2 "Tests directory $tests_dir does not exist") && exit)
+
+  # Build the tests
+  local build_result=$("$tests_dir/gradlew" assembleAndroidTest)
+
+  # Both apks must be installed on the device for the tests to work properly
+  local androidTestDebugApk=$(realpath "$tests_dir/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk")
+  local debugApk=$(realpath "$tests_dir/app/build/outputs/apk/debug/app-debug.apk")
+  popd &> /dev/null || exit
+
+  # The "testing" apk must be installed, afterwards it can be invoked to test apk under test
+  # Check installed instrumentation with 'adb shell pm list instrumentation'
+  install-apk $androidTestDebugApk
+  install-apk $debugApk
+
+  # Combine the test class name out of application name and version assuming they are correctly defined.
+  # Other options are:
+  # 1) Create a hard-written list of apk-specific test methods / classes (adb supports such a list directly)
+  # 2) Create some sort of marker annotation, which means creating an annotation for every single apk
+  # https://developer.android.com/reference/androidx/test/runner/AndroidJUnitRunner
+  local apk_version=$(__private_get_version_from_apk_file ${apk_file})
+  local apk_name=$(__private_get_application_label_from_apk_file ${apk_file})
+
+  __log_verbose "APK name is ${apk_name}, version: ${apk_version}"
+
+  local test_name="de.unipassau.tests.${apk_name}${apk_version}Test"
+  if [ ! -z "$2" ]; then
+    # Run only one test method
+    test_name="$test_name#$2"
+  fi
+
+  # Run specific test class/method that contains UI tests for the apk under test.
+  # UIautomator test log contains each test method twice
+  local test_methods=$(${ANDROID_ADB_EXE} shell am instrument \
+      -w -r -e debug false -e class ${test_name} \
+      -e apk-path ${apk_file} \
+      de.unipassau.tests.test/androidx.test.runner.AndroidJUnitRunner | grep 'test=' \
+      | awk 'NR % 2 == 0 {print $2}' | sed -e 's/test=//g')
+
+  (echo >&2 "Test(s) completed")
+  local traces=$(copy-traces "$package_name" | sort)
+
+  IFS=$'\n'
+  read -rd '' -a trace_paths <<< "$traces"
+  read -rd '' -a test_methods <<< "$test_methods"
+
+  for i in "${!trace_paths[@]}"; do
+    echo "${test_methods[${i}]}:${trace_paths[${i}]}"
+  done
+}
+
+function test-apk() {
+  # Ensures the required variables are in place
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+  : ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
   local ORIGINAL_APK="${1:?Missing APK}"
   local INSTRUMENTED_APK=$(instrument-apk ${ORIGINAL_APK})
 
@@ -349,36 +529,34 @@ function test-apk() {
   fi
 
   local apk_dir=$(dirname "$ORIGINAL_APK")
+  pushd $apk_dir || exit
+  # Clean up
+  make &> /dev/null
+  popd
 
-  # Clean previous traces
-  rm -f "$apk_dir/*.test-trace-*"
+  for entry in $(run-test $INSTRUMENTED_APK); do
+    local method_name=$(echo $entry | cut -d ':' -f 1)
+    local TRACE=$(echo $entry | cut -d ':' -f 2)
+    local trace_path=$(echo "$TRACE" | sed -e "s/Trace-/Trace-${method_name}-/g")
+    echo "Test name: ${green}${method_name}${reset}"
+    # Copy the trace in the test folder using the test name as template
+    cp -v "${TRACE}" "${apk_dir}/$(basename ${trace_path})-trace"
 
-  for TEST in $(find "$apk_dir" -type f -iname "*.test"); do
-    # This might generate more traces?
-    local i=1
-    for TRACE in $(run-test "${TEST}" "${INSTRUMENTED_APK}"); do
-      # Copy the trace in the test folder using the test name as template
-      cp -v "${TRACE}" "${TEST}-trace-${i}"
+    split-trace "$TRACE" &>/dev/null
 
-      split-trace "$TRACE" &>/dev/null
-
-      for SPLIT in "$TRACE"-split*; do
-
-        # Actually check that the number of lines in the trace are even
-        local number_of_line=$(wc -l ${SPLIT} | awk '{print $1}')
-        if [ ! $((number_of_line % 2)) -eq 0 ]; then
-          # https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
-          thread_name=$(echo "$SPLIT" | awk 'match($0, /(split\-)[a-zA-Z 0-9 \- _]+$/) {print substr($0, RSTART + 7, RLENGTH)}' | tr "_" " ")
-          VERDICT="${red}FAIL${reset}: expected an even number of lines in thread $thread_name but got ${number_of_line}"
-          break
-        else
-          VERDICT="${green}PASS${reset}"
-        fi
-      done
-      ((++i))
-      (echo >&2 "${VERDICT}")
+    for SPLIT in "$TRACE"-split*; do
+      # Actually check that the number of lines in the trace are even
+      local number_of_line=$(wc -l ${SPLIT} | awk '{print $1}')
+      if [ ! $((number_of_line % 2)) -eq 0 ]; then
+        # https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
+        thread_name=$(echo "$SPLIT" | awk 'match($0, /(split\-)[a-zA-Z 0-9 \- _]+$/) {print substr($0, RSTART + 7, RLENGTH)}' | tr "_" " ")
+        VERDICT="${red}FAIL${reset}: expected an even number of lines in thread $thread_name but got ${number_of_line}"
+        break
+      else
+        VERDICT="${green}PASS${reset}"
+      fi
     done
-    (echo >&2 "Done Test: ${TEST}")
+    (echo >&2 "${VERDICT}")
   done
 }
 
@@ -480,31 +658,32 @@ function show-config() {
 
 function help() {
   # We output the message to std but the command to std out to enable autocompletion
-  (echo >&2 "AVAILABLE COMMANDS")
-  cat $0 | grep function | grep -v "__private" | grep -v "\#" | sed -e '/^ /d' -e 's|function \(.*\)(){|\1|g'
+  (echo >&2 "AVAILABLE COMMANDS...")
+  cat $0 | grep function | grep -v "__" | grep -v "\#" | sed -e '/^ /d' -e 's|^function ||' -e 's|^\(.*\)().*|\1|g'
 }
 
 function __private_autocomplete() {
   local command_name=$1
   if [ "${command_name}" == "beautify" ]; then
     echo "requires_one_file"
-  fi
-  if [ "${command_name}" == "instrument-apk" ]; then
+  elif [ "${command_name}" == "instrument-apk" ]; then
     echo "requires_one_file"
-  fi
-  if [ "${command_name}" == "run-test" ]; then
+  elif [ "${command_name}" == "run-test" ]; then
     # TODO actually requires two files
     echo "requires_one_file"
-  fi
-  if [ "${command_name}" == "install-apk" ]; then
+  elif [ "${command_name}" == "install-apk" ]; then
     echo "requires_one_file"
-  fi
-
-  if [ "${command_name}" == "copy-traces" ]; then
+  elif [ "${command_name}" == "sign-apk" ]; then
     echo "requires_one_file"
-  fi
-
-  if [ "${command_name}" == "split-trace" ]; then
+  elif [ "${command_name}" == "copy-traces" ]; then
+    echo "requires_one_file"
+  elif [ "${command_name}" == "split-trace" ]; then
+    echo "requires_one_file"
+  elif [ "${command_name}" == "test-apk" ]; then
+    echo "requires_one_file"
+  elif [ "${command_name}" == "carve-and-generate-from-trace" ]; then
+    echo "requires_one_file"
+  elif [ "${command_name}" == "carve-all" ]; then
     echo "requires_one_file"
   fi
 }

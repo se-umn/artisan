@@ -29,7 +29,7 @@ public class JimpleUtils {
 
 	/**
 	 * Return parameter type names
-	 * 
+	 *
 	 * @param jimpleMethod
 	 * @return
 	 */
@@ -83,8 +83,17 @@ public class JimpleUtils {
 		return jimpleMethod.replaceFirst("<", "").split(" ")[0].replaceAll(":", "");
 	}
 
-	public static String getReturnType(String jimpleMethod) {
-		return jimpleMethod.split(" ")[1];
+	public static String getSimpleClassNameForMethod(String jimpleMethod) {
+		String[] tokens = getClassNameForMethod(jimpleMethod).split("\\.");
+		return tokens[tokens.length - 1];
+	}
+
+	public static String getPackageNameForMethod(String jimpleMethod) {
+		return getClassNameForMethod(jimpleMethod).replace("." + getSimpleClassNameForMethod(jimpleMethod), "");
+	}
+
+	public static String getReturnType(String methodSignature) {
+		return methodSignature.split(" ")[1];
 	}
 
 	public static boolean hasVoidReturnType(String jimpleMethod) {
@@ -149,7 +158,7 @@ public class JimpleUtils {
 	 * We adopt a naive approach and LITERALLY compare methods, this might not work
 	 * in general but should be good enough. Note that for the test Method we
 	 * forcefully insert the body.insertIdentityStmtsz
-	 * 
+	 *
 	 * @param testClass
 	 * @param testMethod
 	 * @return
@@ -178,9 +187,9 @@ public class JimpleUtils {
 
 	public static boolean isNull(String string) {
 		try {
-			if (string == null)
+			if (string == null) {
 				return true;
-			else {
+			} else {
 				return string.split("@")[1].equals("0");
 			}
 		} catch (Throwable e) {
@@ -223,11 +232,9 @@ public class JimpleUtils {
 		return methodSignature.contains("<init>");
 	}
 
-	private final static List<String> boxedPrimitiveTypes = Arrays
-			.asList(new String[] { Byte.class.getName(), Short.class.getName(), Integer.class.getName(),
-					Long.class.getName(), Float.class.getName(), Double.class.getName(), Boolean.class.getName(),
-
-			});
+	private final static List<String> boxedPrimitiveTypes = Arrays.asList(Byte.class.getName(), Short.class.getName(),
+			Integer.class.getName(), Long.class.getName(), Float.class.getName(), Double.class.getName(),
+			Boolean.class.getName());
 
 	public static boolean isBoxedPrimitive(String type) {
 		return boxedPrimitiveTypes.contains(type);
@@ -260,22 +267,25 @@ public class JimpleUtils {
 	}
 
 	// Those are taken from ActivityController from Robolectrics
-	private static final List<String> interestingAndroidLifecycleCallbacks = Arrays.asList(
-			new String[] { "onAttach", "onCreate", "onDestroy", "onPause", "onPostCreate", "onPostResume", "onRestart",
-					"onRestoreInstanceState", "onResume", "onSaveInstanceState", "onStart", "onStop", "onUserLeaving",//
-			// "onActivityResult" -> This one should require not explicit threatment since
-			// they are data dependent on Intent?
-			});
+	private static final List<String> interestingAndroidLifecycleCallbacks = Arrays.asList("onAttach", "onCreate",
+			"onDestroy", "onPause", "onPostCreate", "onPostResume", "onRestart", "onRestoreInstanceState", "onResume",
+			"onSaveInstanceState", "onStart", "onStop", "onUserLeaving"//
+	// "onActivityResult" -> This one should require not explicit threatment since
+	// they are data dependent on Intent?
+	);
 
 	// Those are copied from android.support.v4.app.Fragment, there might be
 	// more ?
-	private static final List<String> interestingFragmentLifecycleCallbacks = Arrays
-			.asList(new String[] { "onActivityCreated", "onActivityResult", "onAttach", "onAttachFragment",
-					"onConfigurationChanged", "onCreate", "onCreateContextMenu", "onCreateOptionsMenu", "onDestroy",
-					"onDestroyOptionsMenu", "onDestroyView", "onDetach", "onHiddenChanged", "onInflate", "onLowMemory",
-					"onMultiWindowModeChanged", "onOptionsMenuClosed", "onPause", "onPictureInPictureModeChanged",
-					"onPrepareOptionsMenu", "onRequestPermissionsResult", "onResume", "onSaveInstanceState", "onStart",
-					"onStop", "onViewCreated", "onViewStateRestored" });
+	private static final List<String> interestingFragmentLifecycleCallbacks = Arrays.asList("onActivityCreated",
+			"onActivityResult", "onAttach", "onAttachFragment", "onConfigurationChanged", "onCreate",
+			"onCreateContextMenu", "onCreateOptionsMenu", "onDestroy", "onDestroyOptionsMenu", "onDestroyView",
+			"onDetach", "onHiddenChanged", "onInflate", "onLowMemory", "onMultiWindowModeChanged",
+			"onOptionsMenuClosed", "onPause", "onPictureInPictureModeChanged", "onPrepareOptionsMenu",
+			"onRequestPermissionsResult", "onResume", "onSaveInstanceState", "onStart", "onStop", "onViewCreated",
+			"onViewStateRestored");
+
+	private static final List<String> androidPackagePrefixes = Arrays.asList("android.", "com.google.android.",
+			"androidx.");
 
 	public static boolean isActivityLifecycle(String methodSignature) {
 		return interestingAndroidLifecycleCallbacks.contains(getMethodName(methodSignature));
@@ -285,8 +295,14 @@ public class JimpleUtils {
 		return interestingFragmentLifecycleCallbacks.contains(getMethodName(methodSignature));
 	}
 
+	public static boolean isAndroidMethod(String methodSignature) {
+		String classSignature = getClassNameForMethod(methodSignature);
+		return androidPackagePrefixes.stream().map(classSignature::startsWith).reduce(false,
+				(res, curr) -> res || curr);
+	}
+
 	public static String getPackage(String methodSignature) {
-		String packageName = JimpleUtils.getClassNameForMethod(methodSignature);
+		String packageName = getClassNameForMethod(methodSignature);
 		packageName = packageName.substring(0, packageName.lastIndexOf('.'));
 		return packageName;
 	}

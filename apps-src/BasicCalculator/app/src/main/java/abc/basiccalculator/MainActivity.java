@@ -3,6 +3,7 @@ package abc.basiccalculator;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 
@@ -13,7 +14,10 @@ import net.objecthunter.exp4j.tokenizer.UnknownFunctionOrVariableException;
 public class MainActivity extends Activity {
 
     public static final String RESULT_MESSAGE = "result";
-    public static final String ERRONEOUS_INPUT = "13";
+    public static final String THROWN_ILLIGAL_ARGUMENT_EXCEPTION_INPUT = "13";
+    public static final String NULL_POINTER_EXCEPTION_INPUT = "17";
+    public static final String ERROR_STRING = "ERROR";
+    public View nullView = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,27 +34,44 @@ public class MainActivity extends Activity {
         EditText inputField = findViewById(R.id.input);
         String input = inputField.getText().toString();
 
-        Number number = eval(input);
-        double result = number.doubleValue();
-        intent.putExtra(RESULT_MESSAGE, result);
-        startActivity(intent);
+        String result = eval(input);
+        if(!result.equals(ERROR_STRING)) {
+            intent.putExtra(RESULT_MESSAGE, Integer.parseInt(result));
+            startActivity(intent);
+        }
+        else{
+            inputField.setText(ERROR_STRING);
+        }
+
     }
 
-    private Number eval(String input) {
+    /**
+        This method was originally private, not it is public only to illustrate how carving can deal with hidden methods (see #167)
+     */
+    public String eval(String input) {
+        String result = "";
         if (input.isEmpty()) {
             return null;
-        } else if (input.equals(ERRONEOUS_INPUT)) {
+        } else if (input.equals(THROWN_ILLIGAL_ARGUMENT_EXCEPTION_INPUT)) {
+            Log.d("BasicCalculator", "thrown illigal argument exception");
             throw new IllegalArgumentException("A simple exception");
+        } else if (input.equals(NULL_POINTER_EXCEPTION_INPUT)){
+            Log.d("BasicCalculator", "null pointer exception");
+            this.nullView.getId();
         }
-
-        Number result;
+        Number opResult = null;
         try {
             Expression e = new ExpressionBuilder(input).build();
-            result = e.evaluate();
-        } catch (UnknownFunctionOrVariableException ufve) {
-            throw new IllegalArgumentException("Unknown function or variable", ufve);
+            opResult = e.evaluate();
+            result = opResult.intValue()+"";
+        } catch (IllegalArgumentException iae) {
+            Log.d("BasicCalculator", "illigal argument exception");
         }
-
+        finally{
+            if(opResult==null){
+                result = ERROR_STRING;
+            }
+        }
         return result;
     }
 

@@ -1,60 +1,89 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-	<modelVersion>4.0.0</modelVersion>
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
-	<parent>
-		<groupId>de.unipassau.abc</groupId>
-		<artifactId>abc-parent</artifactId>
-		<version>1.0-SNAPSHOT</version>
-	</parent>
+    <parent>
+        <groupId>de.unipassau.abc</groupId>
+        <artifactId>abc-parent</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
 
-	<artifactId>carving</artifactId>
-	<packaging>jar</packaging>
+    <artifactId>carving</artifactId>
+    <packaging>jar</packaging>
 
-	<name>Trace Parsing and Test Carving of Android apps of the ABC Framework for Action-Based Test Carving</name>
+    <name>Trace Parsing and Test Carving of Android apps of the ABC Framework for Action-Based Test Carving</name>
 
-	<build>
-		<pluginManagement>
-			<plugins>
-				<plugin>
-					<groupId>org.codehaus.mojo</groupId>
-					<artifactId>appassembler-maven-plugin</artifactId>
-					<version>1.10</version>
-					<configuration>
-						<programs>
-							<program>
-								<mainClass>de.unipassau.abc.parsing.TraceParserImpl</mainClass>
-								<id>parse-trace</id>
-								<jvmSettings>
-									<initialMemorySize>200m</initialMemorySize>
-									<maxMemorySize>1g</maxMemorySize>
-									<maxStackSize>512m</maxStackSize>
-								</jvmSettings>
-							</program>
-						</programs>
-						<copyConfigurationDirectory>true</copyConfigurationDirectory>
-					</configuration>
-				</plugin>
-			</plugins>
-		</pluginManagement>
-	</build>
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>appassembler-maven-plugin</artifactId>
+                    <version>1.10</version>
+                    <configuration>
+                        <programs>
+                            <program>
+                                <mainClass>de.unipassau.abc.parsing.Main</mainClass>
+                                <id>parse-trace</id>
+                                <jvmSettings>
+                                    <initialMemorySize>200m</initialMemorySize>
+                                    <maxMemorySize>1g</maxMemorySize>
+                                    <maxStackSize>512m</maxStackSize>
+                                </jvmSettings>
+                            </program>
+                            <program>
+                                <mainClass>de.unipassau.abc.parsing.TraceVerifier</mainClass>
+                                <id>verify-trace</id>
+                                <jvmSettings>
+                                    <initialMemorySize>200m</initialMemorySize>
+                                    <maxMemorySize>1g</maxMemorySize>
+                                    <maxStackSize>512m</maxStackSize>
+                                </jvmSettings>
+                            </program>
+                        </programs>
+                        <copyConfigurationDirectory>true</copyConfigurationDirectory>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
 
-	<dependencies>
-		<dependency>
-			<groupId>de.unipassau.abc</groupId>
-			<artifactId>common</artifactId>
-			<version>1.0-SNAPSHOT</version>
-		</dependency>
-		<dependency>
-			<groupId>de.unipassau.abc</groupId>
-			<artifactId>test-utils</artifactId>
-			<version>1.0-SNAPSHOT</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-simple</artifactId>
-		</dependency>
-	</dependencies>
+    <dependencies>
+        <dependency>
+            <groupId>de.unipassau.abc</groupId>
+            <artifactId>common</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>de.unipassau.abc</groupId>
+            <artifactId>instrumentation</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>de.unipassau.abc</groupId>
+            <artifactId>test-utils</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+        </dependency>
+
+        <!-- Graph Query Language to implement the carving directives -->
+        <dependency>
+            <groupId>org.apache.tinkerpop</groupId>
+            <artifactId>gremlin-core</artifactId>
+            <version>3.4.7</version>
+        </dependency>
+        <!-- Local Graph Implementation, might be replaced by JanusGraph -->
+        <dependency>
+            <groupId>org.apache.tinkerpop</groupId>
+            <artifactId>tinkergraph-gremlin</artifactId>
+            <version>3.4.7</version>
+        </dependency>
+
+
+    </dependencies>
 </project>

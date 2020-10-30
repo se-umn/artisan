@@ -35,6 +35,9 @@ public class Main {
 		@Option(longName = "android-jar")
 		public File getAndroidJar();
 
+		@Option(longName = "filter-package", defaultValue = {})
+		public List<String> getPackageFilters();
+
 	}
 
 	public static void main(String args[]) throws IOException, XmlPullParserException {
@@ -48,16 +51,27 @@ public class Main {
 
 		// Setup soot
 		G.reset();
+		/*
+		 * In https://github.com/soot-oss/soot/issues/1152 soot does not seem to be able
+		 * to correctly repackage few apps even if no instrumentation takes place.
+		 * AnyMemo10.10.1 might be one of those The command suggested is:
+		 * 
+		 * java -cp sootclasses-trunk-jar-with-dependencies.jar soot.Main -src-prec apk
+		 * -f dex -android-jars $ANDROID_HOME/platforms -process-dir
+		 * com.totrix.glmobile.apk -process-multiple-dex -w -allow-phantom-refs
+		 */
 
 		Options.v().set_allow_phantom_refs(true);
 
 		// Input is an APK
 		soot.options.Options.v().set_src_prec(soot.options.Options.src_prec_apk);
+
 		// Specifiy the APK
 		List<String> necessaryJar = new ArrayList<String>();
 		necessaryJar.add(cli.getAPK().getAbsolutePath());
 		Options.v().set_process_dir(necessaryJar);
 
+		//
 		// Output is an APK, too//-f J
 		Options.v().set_output_format(soot.options.Options.output_format_dex);
 		Options.v().set_force_overwrite(true);
@@ -71,10 +85,21 @@ public class Main {
 		ProcessManifest processMan = new ProcessManifest(cli.getAPK().getAbsolutePath());
 		String appPackageName = processMan.getPackageName();
 
-		SceneInstrumenterWithMethodParameters icgins = new SceneInstrumenterWithMethodParameters(appPackageName);
-		PackManager.v().getPack("wjtp").add(new Transform("wjtp.mt", icgins));
+		System.out.println("Main.main() DEBUG: MIN SDK VERSION = " + processMan.getMinSdkVersion());
+		System.out.println("Main.main() DEBUG: MIN SDK VERSION = " + processMan.targetSdkVersion());
+		if (processMan.getMinSdkVersion() > 22) {
+			// This breaks if the minSdkVersion is smaller than 22
+			Options.v().set_process_multiple_dex(true);
+		}
 
-		// Tell Soot about the classes our instrumentation needs:
+		// This is where the instrumentation takes place.
+		SceneInstrumenterWithMethodParameters abcInstrumentation = new SceneInstrumenterWithMethodParameters(
+				appPackageName);
+		abcInstrumentation.setPackageFilters(cli.getPackageFilters());
+
+		PackManager.v().getPack("wjtp").add(new Transform("wjtp.mt", abcInstrumentation));
+
+		// Make sure Soot knows the classes our instrumentation will use:
 		Scene.v().addBasicClass(utils.Constants.MONITOR_CLASS);
 		// TODO Where is this really used?
 		Scene.v().addBasicClass("utils.logicClock");
@@ -84,9 +109,8 @@ public class Main {
 
 		String[] sootArgs = new String[] { //
 				"-w", // This should be the same as setting the "Whole program analysis" flag
-				"-cp", sootCP, // The classpath that Soot uses for its analysis
-				"-debug"
-		};
+				"-cp", sootCP }; // The classpath that Soot uses for its analysis
+//				"-debug" };
 
 		soot.Main.main(sootArgs);
 	}

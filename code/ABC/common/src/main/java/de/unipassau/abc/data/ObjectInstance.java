@@ -1,47 +1,59 @@
 package de.unipassau.abc.data;
 
-public class ObjectInstance implements DataNode {
+public class ObjectInstance implements DataNode, Cloneable {
 
-	static class StaticObjectInstance extends ObjectInstance {
-
-		private String type;
-
-		public StaticObjectInstance(String objectId, String type) {
-			super(objectId);
-			this.type = type;
-		}
-
-		public String getType() {
-			return this.type;
-		}
-
-	}
-
-	public final static ObjectInstance systemErr = new StaticObjectInstance("java.lang.System.err@0",
-			System.err.getClass().getName());
-
-	// Special Instances are handled via subclasses
-	public final static ObjectInstance systemIn = new StaticObjectInstance("java.lang.System.in@0",
-			// System.in.getClass().getName()
-			"java.io.InputStream");
-	public final static ObjectInstance systemOut = new StaticObjectInstance("java.lang.System.out@0",
-			System.out.getClass().getName());
+	// TODO At some point we need to figure out of to handle static
+	// classes/singletons and the like
+//	static class StaticObjectInstance extends ObjectInstance {
+//
+//		private String type;
+//
+//		public StaticObjectInstance(String objectId, String type) {
+//			super(objectId);
+//			this.type = type;
+//		}
+//
+//		public String getType() {
+//			return this.type;
+//		}
+//
+//	}
+//
+//	public final static ObjectInstance systemErr = new StaticObjectInstance("java.lang.System.err@0",
+//			System.err.getClass().getName());
+//
+//	// Special Instances are handled via subclasses
+//	public final static ObjectInstance systemIn = new StaticObjectInstance("java.lang.System.in@0",
+//			// System.in.getClass().getName()
+//			"java.io.InputStream");
+//	public final static ObjectInstance systemOut = new StaticObjectInstance("java.lang.System.out@0",
+//			System.out.getClass().getName());
 
 	// TODO How to flag this ? -> Call chain to init of android or type
 	// inference with soot or something...
 	// DuckTyping
+	@Deprecated
 	private boolean isAndroidActivity = false;
+
+	@Deprecated
+	private boolean isAndroidFragment;
 
 	private String objectId;
 
 	private String type;
 
-	// This is for boxed primitives...
 	private String stringValue;
 
-	private boolean isAndroidFragment;
+	public ObjectInstance clone() {
+		ObjectInstance cloned = new ObjectInstance(objectId);
+		cloned.isAndroidActivity = isAndroidActivity;
+		cloned.isAndroidFragment = isAndroidFragment;
+		cloned.objectId = objectId;
+		cloned.stringValue = stringValue;
+		cloned.type = type;
+		return cloned;
+	}
 
-	// Maybe a subclass for handling boxed primitives and classes ?
 	public ObjectInstance(String objectId) {
 		if (objectId == null)
 			throw new IllegalArgumentException("ObjectInstance cannot have null objectId");
@@ -53,6 +65,7 @@ public class ObjectInstance implements DataNode {
 			this.objectId = objectId;
 		}
 		this.type = objectId.split("@")[0];
+
 	}
 
 	@Override
@@ -126,6 +139,10 @@ public class ObjectInstance implements DataNode {
 
 	public static void retype(ObjectInstance objectInstance, String newType) {
 		objectInstance.type = newType;
+	}
+
+	public boolean isNull() {
+		return (this instanceof NullInstance || objectId.endsWith("@0"));
 	}
 
 }

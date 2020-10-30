@@ -24,6 +24,9 @@ public class MainTest {
             "--android-jar", androidJAR.getAbsolutePath(), //
             "--output-to", outputDIR.getAbsolutePath() };
 
+//        System.setProperty("abc.taint.android.intents", "true");
+        System.setProperty( "abc.instrument.fields.operations", "true");
+        
         Main m = new Main();
         m.main(args);
     }

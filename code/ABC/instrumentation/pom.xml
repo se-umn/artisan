@@ -16,29 +16,27 @@
 	<name>Soot based instrumentation of Android apps of the ABC Framework for Action-Based Test Carving</name>
 
 	<build>
-		<pluginManagement>
-			<plugins>
-				<plugin>
-					<groupId>org.codehaus.mojo</groupId>
-					<artifactId>appassembler-maven-plugin</artifactId>
-					<version>1.10</version>
-					<configuration>
-						<programs>
-							<program>
-								<mainClass>de.unipassau.abc.instrumentation.Main</mainClass>
-								<id>instrument-apk</id>
-								<jvmSettings>
-									<initialMemorySize>200m</initialMemorySize>
-									<maxMemorySize>1g</maxMemorySize>
-									<maxStackSize>512m</maxStackSize>
-								</jvmSettings>
-							</program>
-						</programs>
-						<copyConfigurationDirectory>true</copyConfigurationDirectory>
-					</configuration>
-				</plugin>
-			</plugins>
-		</pluginManagement>
+		<plugins>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>appassembler-maven-plugin</artifactId>
+				<version>1.10</version>
+				<configuration>
+					<programs>
+						<program>
+							<mainClass>de.unipassau.abc.instrumentation.Main</mainClass>
+							<id>instrument-apk</id>
+							<jvmSettings>
+								<initialMemorySize>200m</initialMemorySize>
+								<maxMemorySize>1g</maxMemorySize>
+								<maxStackSize>512m</maxStackSize>
+							</jvmSettings>
+						</program>
+					</programs>
+					<copyConfigurationDirectory>true</copyConfigurationDirectory>
+				</configuration>
+			</plugin>
+		</plugins>
 	</build>
 
 	<dependencies>
@@ -55,51 +53,39 @@
 		</dependency>
 
 		<!-- Need quite some clean up ! -->
-		<dependency>
-			<groupId>tmp</groupId>
-			<artifactId>duafdroid</artifactId>
-			<version>unkown</version>
-		</dependency>
-		<dependency>
-			<groupId>tmp</groupId>
-			<artifactId>soot-infoflow</artifactId>
-			<version>unkown</version>
-		</dependency>
+		<!-- <dependency> <groupId>tmp</groupId> <artifactId>duafdroid</artifactId> 
+			<version>unkown</version> </dependency> -->
+		<!-- TODO Are the following needed? -->
+		<!-- <dependency> <groupId>tmp</groupId> <artifactId>soot-infoflow</artifactId> 
+			<version>unkown</version> </dependency> -->
+
+		<!-- THIS ONE IS USED ONLYT TO GET THE ProcessManifest class -->
 		<dependency>
 			<groupId>tmp</groupId>
 			<artifactId>soot-infoflow-android</artifactId>
 			<version>unkown</version>
 		</dependency>
-		<dependency>
-			<groupId>tmp</groupId>
-			<artifactId>util-2.0.7-dev</artifactId>
-			<version>unkown</version>
-		</dependency>
-		<dependency>
-			<groupId>tmp</groupId>
-			<artifactId>xmlpull_1_0_5</artifactId>
-			<version>unkown</version>
-		</dependency>
-		<dependency>
-			<groupId>de.upb.cs.swt</groupId>
-			<artifactId>axml</artifactId>
-			<version>2.0.0</version>
-		</dependency>
+		<!-- <dependency> <groupId>tmp</groupId> <artifactId>util-2.0.7-dev</artifactId> 
+			<version>unkown</version> </dependency> -->
+		<!-- THIS MIGHT BE NEEDED BY INFO-FLOW -->
+		<!-- <dependency> <groupId>tmp</groupId> <artifactId>xmlpull_1_0_5</artifactId> 
+			<version>unkown</version> </dependency> -->
+		<!-- <dependency> <groupId>de.upb.cs.swt</groupId> <artifactId>axml</artifactId> 
+			<version>2.0.0</version> </dependency> -->
+
 		<dependency>
 			<groupId>commons-cli</groupId>
 			<artifactId>commons-cli</artifactId>
 			<version>1.3.1</version>
 		</dependency>
+
 		<dependency>
 			<groupId>org.jgrapht</groupId>
 			<artifactId>jgrapht-ext</artifactId>
 			<version>0.9.2</version>
 		</dependency>
-		<dependency>
-			<groupId>com.jcraft</groupId>
-			<artifactId>jsch</artifactId>
-			<version>0.1.53</version>
-		</dependency>
+		<!-- <dependency> <groupId>com.jcraft</groupId> <artifactId>jsch</artifactId> 
+			<version>0.1.53</version> </dependency> -->
 		<dependency>
 			<groupId>org.jgrapht</groupId>
 			<artifactId>jgrapht-ext</artifactId>
@@ -107,10 +93,20 @@
 			<classifier>uber</classifier>
 		</dependency>
 		<!-- Soot for Instrumentation, Static Analysis and Code Generation -->
+		<!-- <dependency> <groupId>sable</groupId> <artifactId>soot</artifactId> 
+			<version>2.6.0-SNAPSHOT</version> </dependency> -->
 		<dependency>
-			<groupId>sable</groupId>
+			<groupId>org.soot-oss</groupId>
 			<artifactId>soot</artifactId>
-			<version>2.6.0-SNAPSHOT</version>
+			<version>4.2.1</version>
 		</dependency>
+		<!-- PLOT UNIT GRAPHS for DEBUGGING -->
+		<!-- https://mvnrepository.com/artifact/org.graphstream/gs-core -->
+		<dependency>
+			<groupId>org.graphstream</groupId>
+			<artifactId>gs-core</artifactId>
+			<version>1.3</version>
+		</dependency>
+
 	</dependencies>
 </project>

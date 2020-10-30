@@ -7,10 +7,11 @@
 */
 package utils;
 
-import java.io.*;
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import android.content.Intent;
+import de.unipassau.abc.instrumentation.Monitor;
 
 /** the logic clock used for Lamport timestamping */
 public class logicClock {
@@ -84,7 +85,7 @@ public class logicClock {
 				// no sender info is received
 				return;
 			}
-			dynCG.Monitor.onRecvSenderID(sender);
+//			Monitor.onRecvSenderID(sender);
 		}
 		
 		// remove the clock payload to avoid interfering the original ICC

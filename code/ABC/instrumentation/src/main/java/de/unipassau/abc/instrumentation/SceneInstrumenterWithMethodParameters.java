@@ -18,22 +18,14 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.xmlpull.v1.XmlPullParserException;
 
-import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.Pair;
-//
-//import dua.Extension;
-//import dua.global.ProgramFlowGraph;
-//import dua.method.CFG;
-//import dua.method.CallSite;
-//import dynCG.Options;
-//
-import profile.InstrumManager;
-import profile.UtilInstrum;
+import dev.navids.soottutorial.visual.Visualizer;
 import soot.Body;
+import soot.IntType;
 import soot.Local;
 import soot.PatchingChain;
 import soot.RefType;
@@ -44,64 +36,108 @@ import soot.SootMethod;
 import soot.Trap;
 import soot.Type;
 import soot.Unit;
+import soot.UnitPatchingChain;
 import soot.Value;
 import soot.VoidType;
 import soot.jimple.AbstractStmtSwitch;
-import soot.jimple.ArrayRef;
 import soot.jimple.AssignStmt;
 import soot.jimple.IdentityStmt;
-import soot.jimple.InstanceInvokeExpr;
+import soot.jimple.IntConstant;
 import soot.jimple.InvokeExpr;
 import soot.jimple.InvokeStmt;
 import soot.jimple.Jimple;
 import soot.jimple.JimpleBody;
-import soot.jimple.NewArrayExpr;
 import soot.jimple.NullConstant;
 import soot.jimple.ReturnStmt;
 import soot.jimple.ReturnVoidStmt;
+import soot.jimple.SpecialInvokeExpr;
 import soot.jimple.Stmt;
 import soot.jimple.StringConstant;
 import soot.jimple.ThrowStmt;
-import soot.jimple.infoflow.android.manifest.ProcessManifest;
 import soot.toolkits.graph.ExceptionalUnitGraph;
 import soot.util.Chain;
+import utils.Constants;
 
 /**
- * TODO Get rid of the "old" dua thingy if possible, in the end we are just
- * running our own instrumentation code and nothing more ! TODO Array
- * instantiation and access must be transformed into
- *
  * TODO Replace: opts.debugOut() with a proper logger
  *
- * ABC.array <init>(type, size) ABC.array Type get(position) ABC.array Type
- * set(position)
- *
+ * TODO Update the logic of Monitor to correctly report and handle exceptions.
+ * Now the logic is different: - App methods can exit normally or exceptionally
+ * - LibCalls are more tricky we need to match them with "open" methods? -
+ * 
+ * Monitor.
+ * 
+ * TODO Rename this class!
  *
  * @author gambi
  *
  */
 public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
+	// MOVE THIS INTO A SEPARATE CLAS
+	public final static String INTENT_TAINT_TAG = "INTENT_TAINT_TAG";
+
+	private static final boolean MAKE_ANDROID_LIFE_CYCLE_EVENTS_EXPLICIT = System.getProperties()
+			.containsKey("abc.make.android.lifecycle.events.explicit");
+
+	// TODO Consider distribute the instrumentation logic across several
+	// workers/tasks to be registered to soot
+	private static final boolean TAINT_ANDROID_INTENTS = System.getProperties()
+			.containsKey("abc.taint.android.intents");
+
+	private static final boolean OUTPUT_INSTRUMENTED_CODE = System.getProperties()
+			.containsKey("abc.output.instrumented.code");
+
+	private static final boolean INSTRUMENT_ARRAY_OPERATIONS = System.getProperties()
+			.containsKey("abc.instrument.array.operations");
+
+	private static final boolean INSTRUMENT_FIELDS_OPERATIONS = System.getProperties()
+			.containsKey("abc.instrument.fields.operations");
+
+	private static final boolean INSTRUMENT_TRAPS = System.getProperties().containsKey("abc.instrument.traps");
+
+	private static final boolean DEBUG = System.getProperties().containsKey("abc.debug");
+
 	// Class which is invoked dynamically from the inserted probes
+	// TODO THe following is not refactoring safe !!!
 	protected SootClass clsMonitor;
 
 	// Methods of the clsMonitor class invoked by the probes
+	// TODO Are those really called?
 	protected SootMethod monitorInitialize;
+//	protected SootMethod monitorOnTerminateApp;
 
-	protected SootMethod monitorOnEnter;
-	protected SootMethod monitorOnLibCall;
-	protected SootMethod monitorOnEnterSynthetic;
-	protected SootMethod monitorOnEnterPrivate;
+	// Those are methods that can be called by the tests, so can be carved
+	protected SootMethod monitorOnAppMethodCall;
+	// Those are methods that cannot be called by the tests, so cannot be carved
+	protected SootMethod monitorOnPrivateAppMethodCall;
+	// Those are calls to external libs that can be called by the tests, but cannot
+	// be carved
+	protected SootMethod monitorOnLibMethodCall;
 
-	// Not used ?
-	protected SootMethod monitorOnEnterStatic;
+	// Calling one of the method we fake to uniform the representation
+	protected SootMethod monitorOnSyntheticMethodCall;
+
+	// TODO Not sure we really need those...
+	// protected SootMethod monitorOnEnterStatic;
 	// protected SootMethod monitorOnLibCallStatic;
 
-	protected SootMethod monitorOnReturnInto;
-	protected SootMethod monitorOnTerminateApp;
-	//
-	protected SootMethod monitorOnReturnIntoFromException;
-	protected SootMethod monitorOnReturnIntoFromExceptionCaught;
+	// This applies to AppMethods and LibMethods - return or returnVoid
+	// Keep those separated to improve readability and debugging
+	// protected SootMethod monitorOnMethodReturnNormally;
+	protected SootMethod monitorOnAppMethodReturnNormally;
+	protected SootMethod monitorOnLibMethodReturnNormally;
+
+	// Monitor when an app method exits exceptionally - throw as exit point
+	protected SootMethod monitorOnAppMethodReturnExceptionally;
+
+	// Monitor when an app method ends exceptionally (this can be either from a
+	// known or an unknown exception)
+	// This is results from throwing an exception - any throw
+	protected SootMethod monitorOnAppMethodThrowException;
+
+	// Monitor when an app method capture an exception (via a trap)
+	protected SootMethod monitorOnAppMethodCaptureException;
 
 	private List<SootClass> userClasses;
 
@@ -110,6 +146,8 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 	private String appPackageName;
 
+	private List<Pattern> packageFilters = new ArrayList<Pattern>();
+
 	protected static boolean bProgramStartInClinit = false;
 //	protected static Options opts = new Options();
 
@@ -117,9 +155,179 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 	public static boolean g_instr3rdparty = false;
 
 	public SceneInstrumenterWithMethodParameters(String appPackageName) {
-		// At this moment, soot did not run so there's no class loaded into the
-		// Scene.v()
+		/*
+		 * At this moment, soot did not run so there's no class loaded into the
+		 * Scene.v()
+		 */
 		this.appPackageName = appPackageName;
+	}
+
+	public void setPackageFilters(List<String> packageFilters) {
+		if (packageFilters != null) {
+			packageFilters.forEach(s -> this.packageFilters.add(Pattern.compile(s)));
+		}
+	}
+
+	/**
+	 * This is the method invoked by Soot
+	 */
+	@Override
+	protected void internalTransform(String arg0, Map<String, String> arg1) {
+		// TODO This might be improved:
+		System.out.println("SceneInstrumenterWithMethodParameters.internalTransform() RUNNING ");
+		this.run();
+
+	}
+
+	public void run() {
+		g_instr3rdparty = false;
+
+		loadUserClasses();
+
+		initMonitorClass();
+
+		// We can include additional calls here and make sure they will appear in the
+		// trace
+		if (TAINT_ANDROID_INTENTS) {
+			taintAndroidIntents();
+		}
+
+		try {
+			instrument();
+		} catch (IOException | XmlPullParserException e) {
+			throw new RuntimeException(e);
+		}
+
+	}
+
+	/**
+	 * For each intent that is creates include an additional putExtra/getExtra with
+	 * the following KEYWORD: ABC_INTENT_ID to map the intents across invocations
+	 */
+	public void taintAndroidIntents() {
+		// TODO Move it to a separate class?
+
+		System.out.println("---- SceneInstrumenterWithMethodParameters.taintAndroidIntents() ----");
+
+		Iterator<SootClass> applicationClassesIterator = userClasses.iterator();
+		if (userClasses.size() == 0) {
+			System.out.println("\n\n NO USER CLASSES DEFINED !");
+		}
+
+		while (applicationClassesIterator.hasNext()) {
+
+			SootClass currentlyInstrumentedSootClass = (SootClass) applicationClassesIterator.next();
+
+			if (skipClass(currentlyInstrumentedSootClass)) {
+				continue;
+			}
+
+			/*
+			 * Traverse all methods of this class and check whether or not a new Intent is
+			 * created
+			 */
+			Iterator<SootMethod> methodsIterator = currentlyInstrumentedSootClass.getMethods().iterator();
+			while (methodsIterator.hasNext()) {
+
+				SootMethod currentlyInstrumentedMethod = (SootMethod) methodsIterator.next();
+
+				if (skipMethod(currentlyInstrumentedMethod)) {
+					continue;
+				}
+
+				/*
+				 * Forces soot to (re)load the entire class body using retrieveActiveBody()
+				 */
+				final Body currentlyInstrumentedMethodBody = currentlyInstrumentedMethod.retrieveActiveBody();
+
+				/*
+				 * Go over the units of the method looking for Intent instantiations
+				 */
+
+				SootClass intentClass = Scene.v().getSootClass("android.content.Intent");
+
+				SootMethod putExtraIntMethod = intentClass
+						.getMethod("android.content.Intent putExtra(java.lang.String,int)");
+				SootMethod getExtraIntMethod = intentClass.getMethod("int getIntExtra(java.lang.String,int)");
+
+				Scene.v().loadClassAndSupport("java.lang.System");
+				SootMethod identityHashCodeMethod = Scene.v()
+						.getMethod("<java.lang.System: int identityHashCode(java.lang.Object)>");
+
+				UnitPatchingChain currentlyInstrumentedMethodBodyUnitChain = currentlyInstrumentedMethodBody.getUnits();
+				for (final Iterator<Unit> iter = currentlyInstrumentedMethodBodyUnitChain.snapshotIterator(); iter
+						.hasNext();) {
+
+					final Unit currentUnit = iter.next();
+
+					currentUnit.apply(new AbstractStmtSwitch() {
+
+						@Override
+						public void caseInvokeStmt(InvokeStmt stmt) {
+							InvokeExpr invocation = stmt.getInvokeExpr();
+							// Probably wont work if we use a subclass of intent?
+							if (invocation.getMethod().isConstructor()) {
+
+								Value intent = ((SpecialInvokeExpr) invocation).getBase();
+
+								if (intent.getType().equals(intentClass.getType())) {
+
+									System.out.println(" Found Instantiation of Intent " + intent + "at "
+											+ currentlyInstrumentedMethod);
+
+									List<Unit> instrumentationCode = new ArrayList<>();
+
+									Local intentHashCode = UtilInstrumenter
+											.generateFreshLocal(currentlyInstrumentedMethodBody, IntType.v());
+
+									instrumentationCode.add(Jimple.v().newAssignStmt(intentHashCode,
+											Jimple.v().newStaticInvokeExpr(identityHashCodeMethod.makeRef(), intent)));
+//
+									instrumentationCode.add(Jimple.v().newInvokeStmt(//
+											Jimple.v().newVirtualInvokeExpr(//
+													(Local) intent, //
+													putExtraIntMethod.makeRef(), //
+													StringConstant.v(INTENT_TAINT_TAG), //
+													intentHashCode)));
+//
+									UtilInstrumenter.instrumentAfter(currentlyInstrumentedMethodBodyUnitChain, stmt,
+											instrumentationCode);
+								}
+							}
+						}
+
+						@Override
+						public void caseAssignStmt(AssignStmt stmt) {
+							/*
+							 * If an Intent is assigned as a result of a method invocation, we make sure to
+							 * trace the call as this is an Intent definition (use)
+							 */
+
+							Value leftSide = stmt.getLeftOp();
+
+							if (leftSide.getType().equals(intentClass.getType()) && stmt.containsInvokeExpr()) {
+
+								List<Unit> instrumentationCode = new ArrayList<>();
+
+								InvokeExpr intentDefinition = stmt.getInvokeExpr();
+								System.err.println(" Found Assignment of Intent from " + intentDefinition);
+
+								instrumentationCode.add(Jimple.v().newInvokeStmt(//
+										Jimple.v().newVirtualInvokeExpr(//
+												(Local) leftSide, //
+												getExtraIntMethod.makeRef(), //
+												StringConstant.v(INTENT_TAINT_TAG), IntConstant.v(-1))));
+
+								UtilInstrumenter.instrumentAfter(currentlyInstrumentedMethodBodyUnitChain, stmt,
+										instrumentationCode);
+
+							}
+						}
+					});
+				}
+			}
+		}
+
 	}
 
 	/**
@@ -129,44 +337,41 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		try {
 			clsMonitor = Scene.v().getSootClass(utils.Constants.MONITOR_CLASS);
 			clsMonitor.setApplicationClass();
+			// Make sure we include also supporting classes
+			SootClass stackElementClass = Scene.v().getSootClass(StackElement.class.getName());
+			stackElementClass.setApplicationClass();
 
 			// TODO Not sure we are actually using any of those
 			Scene.v().getSootClass("utils.MethodEventComparator").setApplicationClass();
 
-			// This is used also outside monitorICCC so we need to explicitly
-			// load
-			// it into soot
+			// TODO Eventually we need to get rid of this one!
 			Scene.v().getSootClass("utils.logicClock").setApplicationClass();
 
+			// Get a reference to the methods of the monitor class to inject them
+			// TODO Refactor this to be simpler and more usable. Maybe some class to
+			// encapsulate this weird logic...
+
 			monitorInitialize = clsMonitor.getMethodByName("initialize");
-
-			// A method of our application was called
-			monitorOnEnter = clsMonitor.getMethodByName("enter");
-			monitorOnEnterStatic = clsMonitor.getMethodByName("enterStatic");
-
-			monitorOnEnterSynthetic = clsMonitor.getMethodByName("enterSynthetic");
-			monitorOnEnterPrivate = clsMonitor.getMethodByName("enterPrivate");
-			// TODO A method of our application returned
-			// monitorOnEnter = clsMonitor.getMethodByName("returns");
-
-			// A method of our application called an external library or a
-			// system
-			// library (?)
-			monitorOnLibCall = clsMonitor.getMethodByName("libCall");
-			// monitorOnLibCallStatic =
-			// clsMonitor.getMethodByName("libCallStatic");
-
-			// Generic Method to log a return
-			monitorOnReturnInto = clsMonitor.getMethodByName("returnInto");
-
 			// Our application terminated
-			monitorOnTerminateApp = clsMonitor.getMethodByName("terminate");
+//			monitorOnTerminateApp = clsMonitor.getMethodByName("terminate");
 
+			// A method of the instrumented app was called
+			monitorOnAppMethodCall = clsMonitor.getMethodByName("onAppMethodCall");
+			monitorOnSyntheticMethodCall = clsMonitor.getMethodByName("onSyntheticMethodCall");
+			monitorOnPrivateAppMethodCall = clsMonitor.getMethodByName("onPrivateAppMethodCall");
+			// A method that does not belong to the app was called
+			monitorOnLibMethodCall = clsMonitor.getMethodByName("onLibMethodCall");
+
+			// Generic Method to log a method that returns normally
+//			monitorOnMethodReturnNormally = clsMonitor.getMethodByName("onMethodReturnNormally");
+			monitorOnAppMethodReturnNormally = clsMonitor.getMethodByName("onAppMethodReturnNormally");
+			monitorOnLibMethodReturnNormally = clsMonitor.getMethodByName("onLibMethodReturnNormally");
 			// An exception returned in a catch method of our application
-			monitorOnReturnIntoFromException = clsMonitor.getMethodByName("returnIntoFromException");
-			
-			monitorOnReturnIntoFromExceptionCaught = clsMonitor.getMethodByName("returnIntoFromExceptionCaught");
-			
+			monitorOnAppMethodReturnExceptionally = clsMonitor.getMethodByName("onAppMethodReturnExceptionally");
+
+			monitorOnAppMethodCaptureException = clsMonitor.getMethodByName("onAppMethodCaptureException");
+			monitorOnAppMethodThrowException = clsMonitor.getMethodByName("onAppMethodThrowException");
+
 		} catch (Throwable t) {
 			t.printStackTrace();
 
@@ -181,20 +386,6 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		}
 	}
 
-	public void run() {
-		g_instr3rdparty = false;
-
-		loadUserClasses();
-
-		initMonitorClass();
-
-		try {
-			instrument();
-		} catch (IOException | XmlPullParserException e) {
-			throw new RuntimeException(e);
-		}
-	}
-
 	/**
 	 * Instrumentation:</br>
 	 * <ul>
@@ -205,6 +396,40 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 	 * <li>TODO Handle Exceptions</li>
 	 * </ul>
 	 *
+	 * We first analyze the body of the method and ensure we wrap it with a
+	 * try/catch/finally to capture unhandled exceptions. This step must ensure that
+	 * we do not tamper with the existing traps mechanisms: that is, we do not have
+	 * to violate the method signature making it impossible to throw explicit
+	 * exceptions. Capturing the entire method body + traps within an BIG
+	 * try/catch(Throwable t){ throw t; } which simply rethrows the throwable
+	 * captured should not change the semantic. So eventually we need to create a
+	 * new trap after the LAST trap/unit of the body and a new EXIT point. Actually,
+	 * this will be the SOLE "exceptional" exit point of the method, so how do we
+	 * distinguish whether or not the exception here was expected (matching the
+	 * declared ones) or unexpected? Do we care? In theory, we do not for the sake
+	 * of the current method as this results in a method that ends exceptionally in
+	 * any case.
+	 * 
+	 * TODO: How do we handle the existing finally blocks?
+	 * 
+	 * 
+	 * We instrument the methods' start > monitorAppMethodStart
+	 * 
+	 * We instrument the methods' body (libCall only!) > monitorLibMethodStart >
+	 * monitorLibMethodEnd
+	 * 
+	 * We instrument the methods' traps TODO - We need this to track the exceptions.
+	 * For each trap we simply notify the monitor about the captured exception. This
+	 * includes also the "outer" catch-all trap However, this changes the definition
+	 * of the traps (begin->end), so if there are "chained traps", and they are
+	 * always there because of step #1, we need to ensure we are correctly shifting
+	 * them! TODO > monitorAppMethodCapturException
+	 * 
+	 * Finally, we instrument the methods' ends:- Those should be a set of return
+	 * stmt - The ONLY throw statement in the outer Trap >
+	 * monitorAppMethodExitNormally > monitorAppMethodExitExceptionally
+	 *
+	 *
 	 * @throws XmlPullParserException
 	 * @throws IOException
 	 */
@@ -212,31 +437,21 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 	public void instrument() throws IOException, XmlPullParserException {
 
 		System.out.println("---- SceneInstrumenterWithMethodParameters.instrument() ----");
+		System.out.println("Options.");
+		// TODO Reorganize how we handle options and command line argumentes
+		System.out.println("OUTPUT_INSTRUMENTED_CODE: " + this.OUTPUT_INSTRUMENTED_CODE);
+		System.out.println("MAKE_ANDROID_LIFE_CYCLE_EVENTS_EXPLICIT: " + this.MAKE_ANDROID_LIFE_CYCLE_EVENTS_EXPLICIT);
+		System.out.println("INSTRUMENT_ARRAY_OPERATIONS: " + this.INSTRUMENT_ARRAY_OPERATIONS);
+		System.out.println("INSTRUMENT_FIELD_OPERATIONS: " + this.INSTRUMENT_FIELDS_OPERATIONS);
+		System.out.println("INSTRUMENT_TRAPS: " + this.INSTRUMENT_TRAPS);
 
-		// Record the entry methods/classes for this application.
-		// TODO Problem is, there's none, so we never call monitor terminate.
-		// Which might or might not be good...
-		Set<SootMethod> entryMethods = utils.utils.getEntryMethods(true);
-
-		List<SootClass> classesContainingTheEntryMethods = null;
-		classesContainingTheEntryMethods = new ArrayList<SootClass>();
-		for (SootMethod entryMethod : entryMethods) {
-			classesContainingTheEntryMethods.add(entryMethod.getDeclaringClass());
-		}
-		System.out.println("\n ENTRY METHODS");
-		for (SootMethod entryMethod : entryMethods) {
-			System.out.println("\t " + entryMethod.getSignature());
-		}
-		/*
-		 * Iterate over all the user classes. Those include any class which is generated
-		 * to fit android (i.e., 1 class 1 smali). TODO Do we really need this program
-		 * flow graph object?
-		 */
 		Iterator<SootClass> applicationClassesIterator = userClasses.iterator();
 		if (userClasses.size() == 0) {
 			System.out.println("\n\n NO USER CLASSES DEFINED !");
 		}
+
 		while (applicationClassesIterator.hasNext()) {
+
 			SootClass currentlyInstrumentedSootClass = (SootClass) applicationClassesIterator.next();
 
 			if (skipClass(currentlyInstrumentedSootClass)) {
@@ -247,10 +462,17 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 				System.out.println("\n\n INSTRUMENTING CLASS " + currentlyInstrumentedSootClass.getName());
 			}
 
-			/*
-			 * This explicitly tag the synthetic methods and its calls
-			 */
-			makeInterestingLifeCycleEventsExplicit(currentlyInstrumentedSootClass);
+			if (MAKE_ANDROID_LIFE_CYCLE_EVENTS_EXPLICIT) {
+				/*
+				 * Create dummy methods about android life-cycle so they can be logged if
+				 * necessary
+				 */
+				System.out.println("\t MAKE ANDROID EVENT EXPLICITY:");
+				makeAndroidActivityEventsExplicit(currentlyInstrumentedSootClass);
+			}
+
+			// Process fields and make sure there's getter and setter attached to them as
+			// syntetic operations
 
 			/*
 			 * Traverse all methods of this class at include the monitor initialize and the
@@ -272,12 +494,10 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 				 */
 				Body currentlyInstrumentedMethodBody = currentlyInstrumentedMethod.retrieveActiveBody();
 
-//				if (opts.debugOut()) {
 				System.out.println("\t INSTRUMENTING ");
 				for (Unit u : currentlyInstrumentedMethodBody.getUnits()) {
 					System.out.println("\t\t " + u);
 				}
-//				}
 
 				/*
 				 * Global variables
@@ -285,28 +505,64 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 				PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain = currentlyInstrumentedMethodBody
 						.getUnits();
 
-				instrumentMethodTraps(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
-						currentlyInstrumentedMethodBodyUnitChain);
-
 				/*
 				 * Be sure that for every trap there's a call to returnFromException and the
 				 * other methods. Do it before wrapTryCatchAllBlocks and the other methods in
 				 * order to avoid logging the exception twice?
 				 */
-
 				// Wrap the entire method in a big try/catch/re-throw
+				// TODO HOW DO WE HANDLE FINAL BLOCKS?
+				System.out.println("\t WRAP METHOD INSIDE TRY-CATCH-ALL");
 				wrapTryCatchAllBlocks(currentlyInstrumentedMethod);
 
-//				if (opts.debugOut()) {
-				System.out.println("\t FORCE Try-Finally over the method:");
-//				for (Unit u : currentlyInstrumentedMethodBody.getUnits()) {
-//					System.out.println("\t\t " + u);
-//				}
-
-				
 				// TODO - Instrument FINAL blocks?
 				// boolean hasFinally =
 				// getFinally(currentlyInstrumentedMethodBody.toString());
+
+				/*
+				 * To Ensure we log app methods being called we insert an methodEnter probe at
+				 * the beginning of the currentlyInstrumentedMethod. Private methods are tagged
+				 * as such
+				 */
+				System.out.println("\t INSTRUMENTING METHOD ENTRY POINT");
+				instumentMethodBegins(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
+						currentlyInstrumentedMethodBodyUnitChain);
+
+				/*
+				 * Instrument the all calls to methods that do not belong to the app, including
+				 * thoses inside trap handlers !
+				 * 
+				 * TODO Does this instrument also trap handlers' body ?!
+				 * 
+				 */
+				System.out.println("\t INSTRUMENTING METHOD BODY");
+				instrumentMethodBody(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
+						currentlyInstrumentedMethodBodyUnitChain);
+
+				/*
+				 * Inject code that store the thrown exception. So we log the fact that the
+				 * method is about to throw an exception before possibly logging it will end
+				 * exceptionally
+				 * 
+				 */
+				System.out.println("\t INSTRUMENTING THROWS");
+				instrumentMethodThrows(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
+						currentlyInstrumentedMethodBodyUnitChain);
+
+				/*
+				 * Inject instrumentation code before any return/throw statement in the method.
+				 */
+
+				System.out.println("\t INSTRUMENTING METHOD EXIT-POINTS");
+				instrumentMethodEnds(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
+						currentlyInstrumentedMethodBodyUnitChain);
+
+				/*
+				 * Inject instrumentation code after capturing an exception
+				 */
+				System.out.println("\t INSTRUMENTING TRAPS");
+				instrumentMethodTraps(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
+						currentlyInstrumentedMethodBodyUnitChain);
 
 				/*
 				 * To ensure monitor is initialized we inject initialization code. Note that we
@@ -314,26 +570,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 				 * the method (possibly BEFORE the methodBegins probe!). THIS IS NEED IF THERE"S
 				 * CLINIT IN THE ENTRY CLASSES< BUT WE DO NOT HAVE ENTRY CLASSES SOMEHOW ?
 				 */
-				/*
-				 * To Ensure we log app methods being called we insert an methodEnter probe at
-				 * the beginning of the currentlyInstrumentedMethod. Private methods are tagged
-				 * as such
-				 */
-				instumentMethodBegins(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
-						currentlyInstrumentedMethodBodyUnitChain);
-				/*
-				 * Inject instrumentation code before any return/throw statement in the method.
-				 * This might also require to explicitly introdyce try/catch statements to
-				 * capture (and rethrow) also undeclared exceptions
-				 */
 
-				instrumentMethodEnds(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
-						currentlyInstrumentedMethodBodyUnitChain);
-
-				/*
-				 * Instrument the methods which do not belong to user called but are called by
-				 * the currentlyInstrumentedMethod
-				 */
 				// int nCurCallsite = -> TODO Not sure how to use this and why
 				// we care...
 				/*
@@ -349,8 +586,6 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 				// currentlyInstrumentedMethodBodyUnitChain);
 
 				// Use plain old soot instrumentation
-				instrumentMethodBody(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
-						currentlyInstrumentedMethodBodyUnitChain);
 
 				/*
 				 * TODO: To Ensure we log app when the app is terminated using System.exit we
@@ -361,31 +596,92 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 				// currentlyInstrumentedMethodBodyUnitChain);
 
 				// PRINT THE INSTRUMENTED CODE
-//				if (opts.debugOut()) {
-				System.out.println("\n\t INSTRUMENTED");
-				// Print the units of this method
-				for (Unit u : currentlyInstrumentedMethodBody.getUnits()) {
-					System.out.println((u.getTags().contains(ABCTag.TAG) ? "**" : "") + "\t\t " + u);
+				if (OUTPUT_INSTRUMENTED_CODE) {
+					System.out.println("\n\t INSTRUMENTED");
+					// Print the units of this method
+					for (Unit u : currentlyInstrumentedMethodBody.getUnits()) {
+						System.out.println((u.getTags().contains(ABCTag.TAG) ? "**" : "") + "\t\t " + u);
+					}
 				}
-//				}
 
 			} // -- while (meIt.hasNext())
 
 		} // -- while (clsIt.hasNext())
 
-		// important warning concerning the later runs of the instrumented
-		// subject
-		if (bProgramStartInClinit) {
-			System.out.println("\n***NOTICE***: program start event probe has been inserted in EntryClass::<clinit>(), "
-					+ "the instrumented subject MUST thereafter run independently rather than via EARun!");
-		}
 	} // --
 
 	/**
-	 * For each trap (catch block) insert code which logs the exception as first
-	 * action in the trap
+	 * Go over the method body and ensures that every throw statement is captured
+	 * and the monitor is notified about it
 	 * 
 	 * @param currentlyInstrumentedSootMethod
+	 * @param currentlyInstrumentedMethodBody
+	 * @param currentlyInstrumentedMethodBodyUnitChain
+	 */
+	private void instrumentMethodThrows(final SootMethod currentlyInstrumentedSootMethod, //
+			final Body currentlyInstrumentedMethodBody, //
+			final PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain) {
+
+		for (final Iterator<Unit> iter = currentlyInstrumentedMethodBodyUnitChain.snapshotIterator(); iter.hasNext();) {
+			// Consider also our code since we include a wrap all re-throw and we need that
+			// !
+			final Unit currentUnit = iter.next();
+
+			/*
+			 * Instrument the throw clause by inserting a call to monitor right before it.
+			 * Note that this might follow the call to returnExceptionally that we already
+			 * added
+			 */
+			currentUnit.apply(new AbstractStmtSwitch() {
+
+				@Override
+				public void caseThrowStmt(ThrowStmt stmt) {
+					System.out.println("\t\t\t Instrumenting throw " + stmt);
+
+					// Wrap the value to be returned into a new object
+					// local and pass it to the monitor
+					List<Unit> instrumentationCode = new ArrayList<>();
+
+					// Prepare the call to the monitor
+					List<Value> throwCapturedException = new ArrayList<>();
+
+					//
+					if (currentlyInstrumentedSootMethod.isStatic() || currentlyInstrumentedSootMethod.isConstructor()) {
+						throwCapturedException.add(NullConstant.v());
+					} else {
+						throwCapturedException.add(currentlyInstrumentedMethodBody.getThisLocal());
+					}
+					//
+
+					final String currentlyInstrumentedMethodSignature = currentlyInstrumentedSootMethod.getSignature();
+					throwCapturedException.add(StringConstant.v(currentlyInstrumentedMethodSignature));
+					// Context
+					throwCapturedException.add(StringConstant.v(currentlyInstrumentedMethodSignature));
+
+					// Pass the exception instead of the return value or null
+					// ((RefType) ts.getOp().getType()).getSootClass()
+					throwCapturedException.add(UtilInstrumenter.generateCorrectObject(currentlyInstrumentedMethodBody,
+							stmt.getOp(), instrumentationCode));
+
+					Stmt throwCapturedExceptionCall = Jimple.v().newInvokeStmt(Jimple.v()
+							.newStaticInvokeExpr(monitorOnAppMethodThrowException.makeRef(), throwCapturedException));
+
+					instrumentationCode.add(throwCapturedExceptionCall);
+
+					UtilInstrumenter.instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt,
+							instrumentationCode);
+				}
+			});
+		}
+
+	}
+
+	/**
+	 * When a catch block gets triggered some method raised an exception, so we
+	 * simply record that this method captured such an exception. Because we are
+	 * potentially changing the trap handler (first unit) we must ensure that the
+	 * trap definitino is correctly updated
+	 * 
 	 */
 	private void instrumentMethodTraps(SootMethod currentlyInstrumentedSootMethod,
 			/*
@@ -401,82 +697,66 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 	) throws IOException, XmlPullParserException {
 
-
 		Chain<Trap> traps = currentlyInstrumentedMethodBody.getTraps();
 		for (Trap t : traps) {
-			System.out.println("---------------------------------------------");
-			System.out.println("Instrumenting TRAP " + t);
-			// TODO Is this the @Caught?
-//			System.out.println("First unit of trap is " + t.getBeginUnit());
-//			System.out.println("Last unit of trap is " + t.getEndUnit());
 
-			// This gives us the Class of the exception
-			System.out.println("Caught Exception is " + t.getException());
-			SootClass sce = t.getException();
-			
-			// Not sure this really needed
-			System.out.println("Handler Unit is " + t.getHandlerUnit());
-			// This is where we n
-			System.out.println("Unit after the handler " + currentlyInstrumentedMethodBodyUnitChain.getSuccOf( t.getHandlerUnit()) );
-			Unit unitAfterHandler = currentlyInstrumentedMethodBodyUnitChain.getSuccOf( t.getHandlerUnit());
-			System.out.println("---------------------------------------------");
+			System.out.println("\t\t\t Instrumenting trap " + t);
+			List<Unit> instrumentationCode = new ArrayList<>();
 
-			
+			// Assign the caught exception to a local
+			SootClass caughtExceptionSootClass = t.getException();
+			RefType caughtExceptionRefType = RefType.v(caughtExceptionSootClass);
+			Local exceptionToBePassedToMonitor = UtilInstrumenter.generateFreshLocal(currentlyInstrumentedMethodBody,
+					caughtExceptionRefType);
+
+			// This corresponds to the @caughtexception, e.g., "r5 := @caughtexception"
+			Unit handlerUnit = t.getHandlerUnit();
+			// Extract the local of this unit
+			Value caughtException = ((IdentityStmt) handlerUnit).getLeftOp();
+			// Assign the @caughtexception to a new Local TODO Really necessary ?!
+			Stmt assignException = Jimple.v().newAssignStmt(exceptionToBePassedToMonitor, caughtException);
+
+			instrumentationCode.add(assignException);
 
 			// Wrap the value to be returned into a new object
 			// local and pass it to the monitor
-			List<Unit> instrumentationCode = new ArrayList<>();
+
 			// Prepare the call to the monitor
-			List<Value> onReturnIntoFromExceptionArgs = new ArrayList<>();
+			List<Value> onAppMethodCaptureException = new ArrayList<>();
+
 			// Method Owner
-			//
 			if (currentlyInstrumentedSootMethod.isStatic() || currentlyInstrumentedSootMethod.isConstructor()) {
-				onReturnIntoFromExceptionArgs.add(NullConstant.v());
+				onAppMethodCaptureException.add(NullConstant.v());
 			} else {
-				onReturnIntoFromExceptionArgs.add(currentlyInstrumentedMethodBody.getThisLocal());
+				onAppMethodCaptureException.add(currentlyInstrumentedMethodBody.getThisLocal());
 			}
-			// Method Signature
 			final String currentlyInstrumentedMethodSignature = currentlyInstrumentedSootMethod.getSignature();
-			onReturnIntoFromExceptionArgs.add(StringConstant.v(currentlyInstrumentedMethodSignature));
-			// Method Context - TODO What's the difference ? Probably libCall have a different context ?
-			onReturnIntoFromExceptionArgs.add(StringConstant.v(currentlyInstrumentedMethodSignature));
+			// Signature
+			onAppMethodCaptureException.add(StringConstant.v(currentlyInstrumentedMethodSignature));
+			// Context
+			onAppMethodCaptureException.add(StringConstant.v(currentlyInstrumentedMethodSignature));
 
-			// Pass the exception 
-			Value caughtExceptionInstance = ((IdentityStmt) t.getHandlerUnit()).getLeftOp();
-			
-			// Include this assignement in the instructions to excute before the instrumentation
-			// TODO Do we need to include this one as well ?
-			// TODO Maybe we need the Assignment after all ?
-//			instrumentationCode.add(e)
-			// This updates instrumentation code to include all the necessary wrapping code
-			onReturnIntoFromExceptionArgs.add(UtilInstrumenter
-					.generateCorrectObject(currentlyInstrumentedMethodBody, caughtExceptionInstance, instrumentationCode));
+			// Exception - THIS REQUIRES A VALUE AND NOT A LOCAL ?
+			onAppMethodCaptureException.add(UtilInstrumenter.generateCorrectObject(currentlyInstrumentedMethodBody,
+					caughtException, instrumentationCode));
 
-			Stmt onReturnIntoCall = Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(
-					monitorOnReturnIntoFromExceptionCaught.makeRef(), onReturnIntoFromExceptionArgs));
+			Stmt onMonitorAppMethodCaptureExceptionCall = Jimple.v().newInvokeStmt(Jimple.v()
+					.newStaticInvokeExpr(monitorOnAppMethodCaptureException.makeRef(), onAppMethodCaptureException));
 
-			instrumentationCode.add(onReturnIntoCall);
+			instrumentationCode.add(onMonitorAppMethodCaptureExceptionCall);
 
-			
-			instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, unitAfterHandler, instrumentationCode);
-			
-			
-			
+			// Add the code right after the handler unit so we do not change the definion of
+			// the trap...
+			UtilInstrumenter.instrumentAfterWithAndTag(currentlyInstrumentedMethodBodyUnitChain,
+					(IdentityStmt) handlerUnit, instrumentationCode);
 		}
 
-//		Trap t = trapsIt.next();
-//		Iterator<Unit> unitIt = units.iterator(t.getBeginUnit(), t.getEndUnit());
-//		   Trap newTrap = (Trap) t.clone();
-//		   t.setBeginUnit(rangeStart);
-//		   newTrap.setEndUnit(rangeStart);
-//		   traps.insertAfter(newTrap, t);	
 	}
 
 	/**
 	 * Gets/creates collection of all classes defined in user code --- classes
 	 * having name prefix matching the package name of the APK
 	 */
-	// TAKEN FROM DROIDFAX/DUA
 	public void loadUserClasses() {
 		userClasses = new ArrayList<SootClass>();
 		for (Iterator itCls = Scene.v().getApplicationClasses().snapshotIterator(); itCls.hasNext();) {
@@ -509,26 +789,32 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 			/// What about additional stuff like onCreateDialog ?
 	});
 
-	private void makeInterestingLifeCycleEventsExplicit(SootClass currentlyInstrumentedSootClass) {
-		// /*
-		// * Do not create synthetic methods for abstract classes, since those
-		// are
-		// * extended somewhere... Not ne
-		// */
-		// if (currentlyInstrumentedSootClass.isAbstract()) {
-		// return;
-		// }
-		// This is not necessary the case: sometimes the abstract class
-		// implement some, but not all the methods !
+	/**
+	 * This method takes all the interesting events a class extending Android
+	 * Activity has and make them explicit such that they appear in the trace. Those
+	 * methods simply call they super method.
+	 * 
+	 * TODO: This is focused on Activities, but fragments and the like should be
+	 * logged as well
+	 * 
+	 * This explicitly tags the methods as synthetic so it is clear we introduced
+	 * them
+	 * 
+	 * @param currentlyInstrumentedSootClass
+	 */
+	private void makeAndroidActivityEventsExplicit(SootClass currentlyInstrumentedSootClass) {
+		// TODO THis method can be refactored as it seems replicating the same code for
+		// each "interesting class"
 
+		// TODO Do we need to extend this list?
 		SootClass androidActivity = Scene.v().getSootClass("android.app.Activity");
 		SootClass androidFragment = Scene.v().getSootClass("android.support.v4.app.Fragment");
 
 		if (Scene.v().getActiveHierarchy().isClassSubclassOf(currentlyInstrumentedSootClass, androidActivity)) {
 			/*
-			 * For each method in androidActivity which starts with on check if the
-			 * currentlyInstrumentedSootClass override it or not. If not create a synthetic
-			 * method which simply calls super...
+			 * For each method in androidActivity which starts with "on" we check whether
+			 * currentlyInstrumentedSootClass overrides it or not. If not we create a
+			 * synthetic method which simply calls super...
 			 */
 			for (SootMethod androidActivityMethod : androidActivity.getMethods()) {
 
@@ -538,11 +824,13 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 					if (!currentlyInstrumentedSootClass.declaresMethod(androidActivityMethod.getSubSignature())) {
 
 						/*
-						 * Lookup the hierarchy until we find the one implementing this method and use
-						 * that as super for the call... Worst case is androidActivity class
+						 * Lookup the hierarchy until we find the one class implementing this method and
+						 * use that as super for the call... Worst case is the AndroidActivity class
+						 * itself
 						 */
 						SootClass superClassActuallyImplementingTheMethod = getSuperClassActuallyImplementingMethod(
 								currentlyInstrumentedSootClass, androidActivityMethod);
+
 						assert superClassActuallyImplementingTheMethod != null : "Cannot find original class declaring "
 								+ androidActivityMethod;
 
@@ -556,7 +844,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 							continue;
 						}
 
-						System.out.println("Override " + androidActivityMethod + " from "
+						System.out.println("\t\t\t Override " + androidActivityMethod + " from "
 								+ superClassActuallyImplementingTheMethod);
 						/*
 						 * Create the override method
@@ -566,7 +854,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 						// Use the same modifiers as super
 						method.setModifiers(theSuperClassMethod.getModifiers());
 						// Tag the method as synthetic
-						method.addTag(ABCTag.TAG);
+						method.addTag(SyntheticCallTag.TAG);
 						// Inject the method in the class
 						currentlyInstrumentedSootClass.addMethod(method);
 
@@ -648,7 +936,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 							continue;
 						}
 
-						System.out.println("Override " + androidFragmentMethod + " from "
+						System.out.println("\t\t\t Override " + androidFragmentMethod + " from "
 								+ superClassActuallyImplementingTheMethod);
 						/*
 						 * Create the override method
@@ -658,7 +946,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 						// Use the same modifiers as super
 						method.setModifiers(theSuperClassMethod.getModifiers());
 						// Tag the method as synthetic
-						method.addTag(ABCTag.TAG);
+						method.addTag(SyntheticCallTag.TAG);
 						// Inject the method in the class
 						currentlyInstrumentedSootClass.addMethod(method);
 
@@ -720,536 +1008,76 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		return null;
 	}
 
+	/**
+	 * Go over the units of this methods and instrument all the "method" calls that
+	 * do not belong to the current app as those are already instrumented by means
+	 * of methodBegin and methodEnds. Note that this code ALSO instrument methods
+	 * calls that belong to trap handlers!
+	 * 
+	 * @param currentlyInstrumentedMethod
+	 * @param currentlyInstrumentedMethodBody
+	 * @param currentlyInstrumentedMethodBodyUnitChain
+	 * @throws XmlPullParserException
+	 */
 	private void instrumentMethodBody(final SootMethod currentlyInstrumentedMethod,
 			final Body currentlyInstrumentedMethodBody,
-			final PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain) {
+			final PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain)
+			throws IOException, XmlPullParserException {
+
+		// BufferedWriter unitFileWriter = new BufferedWriter(new
+		// FileWriter("unit_log.txt"));
 
 		for (final Iterator<Unit> iter = currentlyInstrumentedMethodBodyUnitChain.snapshotIterator(); iter.hasNext();) {
 
 			final Unit currentUnit = iter.next();
 
+			// unitFileWriter.write(currentUnit.toString());
+			// unitFileWriter.newLine();
+
+			/*
+			 * Do not instrument our instrumentation ...
+			 */
 			if (currentUnit.getTags().contains(ABCTag.TAG)) {
-				/*
-				 * Do not instrument our instrumentation ...
-				 */
 				continue;
 			}
 
 			/*
-			 * Instrument all the libCall method invocations by wrapping them
+			 * Instrument all the libCall method invocations by wrapping them with begin/end
 			 */
-			currentUnit.apply(new AbstractStmtSwitch() {
+			currentUnit.apply(new InstrumentLibCall(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
+					currentlyInstrumentedMethodBodyUnitChain, userClasses));
 
-				private void wrapLibraryInvocationIfAny(Stmt csStmt) {
-					if (!csStmt.containsInvokeExpr()) {
-						return;
-					}
-
-					InvokeExpr invokeExpr = csStmt.getInvokeExpr();
-					SootMethod invokedMethod = invokeExpr.getMethod();
-					SootClass invokedClass = invokedMethod.getDeclaringClass();
-
-					if (userClasses.contains(invokedClass)) {
-						return;
-					}
-
-//					if (opts.debugOut()) {
-					System.out.println("\t\t\t WRAP onMethod for call site " + invokedMethod + " inside "
-							+ currentlyInstrumentedMethod.getSignature());
-//					}
-
-					List<Unit> instrumentationCodeBefore = new ArrayList<>();
-					List<Value> monitorOnLibCallParameters = new ArrayList<Value>();
-
-					// Object methodOwnerOrEmptyString
-					Value csOwner = null;
-					if (invokedMethod.isStatic()) {
-						/*
-						 * TODO Why empty and not NullConstant.v()
-						 */
-						csOwner = NullConstant.v(); // StringConstant.v("");
-					} else if (invokedMethod.isConstructor()) {
-						csOwner = NullConstant.v(); // StringConstant.v("");
-					} else {
-						if (invokeExpr instanceof InstanceInvokeExpr) {
-							csOwner = ((InstanceInvokeExpr) invokeExpr).getBase();
-						} else {
-							System.out.println("Not sure how to handle owner for " + invokeExpr);
-							csOwner = StringConstant.v("");
-						}
-					}
-
-					monitorOnLibCallParameters.add(csOwner);
-
-					// String methodSignature
-					monitorOnLibCallParameters.add(StringConstant.v(invokedMethod.getSignature()));
-
-					// String Context
-					monitorOnLibCallParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
-
-					/*
-					 * Object[] methodParameters - We need to wrap this into an array of objects
-					 */
-					List<Value> invocationActualParameters = new ArrayList<>();
-					for (int i = 0; i < invokeExpr.getArgCount(); i++) {
-						invocationActualParameters.add(invokeExpr.getArg(i));
-					}
-
-					Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter.generateParameterArray(
-							RefType.v("java.lang.Object"), invocationActualParameters, currentlyInstrumentedMethodBody);
-
-					// Append the array to the parameters for the trace start
-					monitorOnLibCallParameters.add(tmpArgsListAndInstructions.getFirst());
-					/*
-					 * Insert the instructions to create the array before using it
-					 */
-					instrumentationCodeBefore.addAll(tmpArgsListAndInstructions.getSecond());
-
-					// Prepare the call to monitorOnLibCall
-					final Stmt callTracerMethodStart = Jimple.v().newInvokeStmt(
-							Jimple.v().newStaticInvokeExpr(monitorOnLibCall.makeRef(), monitorOnLibCallParameters));
-					// Append the call to the instrumentation code
-					instrumentationCodeBefore.add(callTracerMethodStart);
-
-					/*
-					 * We defer the instrumentation to enable holding the value of original owner
-					 * back
-					 */
-
-					/*
-					 * Preparing the call to monitorOnReturnInto -> dynCG2.Monitor.returnInto(Object
-					 * csOwnerOrEmptyString, String methodSignature, Object returnValueOrNullIfVoid)
-					 */
-					List<Unit> instrumentationCodeAfter = new ArrayList<>();
-					List<Value> monitorOnReturnIntoParameters = new ArrayList<Value>();
-
-					// Object csOwnerOrEmptyString
-					// After the constructor returns, csOwner is available.
-					if (invokedMethod.isConstructor()) {
-						if (invokeExpr instanceof InstanceInvokeExpr) {
-							csOwner = ((InstanceInvokeExpr) invokeExpr).getBase();
-						} else {
-							System.out.println("Not sure how to handle owner for " + invokeExpr);
-							// TODO Probably NullConstant.v() ?
-							csOwner = StringConstant.v("");
-						}
-					}
-
-					if (csStmt instanceof AssignStmt) {
-						/*
-						 * [1] If the assign re-assign the owner, we need to log the "original" owner
-						 * not the returned one... so we need to assign the original owner to a new
-						 * local before the assign stmt overwrites it. In case of aliasing this might
-						 * fail since it requires casting... so we need to check for that as well
-						 * ?(TODO)
-						 */
-						if (((AssignStmt) csStmt).getLeftOp().equals(csOwner)
-								&& !JimpleUtils.isString(csOwner.getType())) {
-
-							Local originalOwnerHolder = UtilInstrumenter
-									.generateFreshLocal(currentlyInstrumentedMethodBody, csOwner.getType());
-
-							AssignStmt capturingAssignStmt = Jimple.v().newAssignStmt(originalOwnerHolder, csOwner);
-							// Since the new local assignment should trigger
-							// BEFORE the method call we add it to:
-							// instrumentationCodeBefore
-							instrumentationCodeBefore.add(capturingAssignStmt);
-							// TODO Store Assign
-							// Use the originalOwnerHolder instead of the one to
-							// be overwritten
-
-							// if (opts.debugOut()) {
-							// System.out.println("\t\t\t >>>> APPLY PATCH TO
-							// HOLD ORIGINAL OWNER TO " + csOwner + "
-							// ("+csOwner.getType() +") --> " +
-							// originalOwnerHolder +
-							// "("+originalOwnerHolder.getType() +")" );
-							// }
-
-							csOwner = originalOwnerHolder;
-
-						}
-					}
-
-					monitorOnReturnIntoParameters.add(csOwner);
-
-					/*
-					 * Finally insert the instrumentation code right before CS
-					 * currentlyInstrumentedMethodBodyUnitChain.insertBefore(
-					 * instrumentationCodeBefore, csStmt);
-					 */
-					instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, csStmt,
-							instrumentationCodeBefore);
-
-					// String csMethodSignature
-					monitorOnReturnIntoParameters.add(StringConstant.v(invokedMethod.getSignature()));
-
-					// String context
-					monitorOnReturnIntoParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
-
-					// Object returnValueOrNullIfVoid
-					Value returnValueFromCallSite = NullConstant.v();
-
-					/*
-					 * If csStmt is InvokeStmt its return value is not used, so soot does not link
-					 * that to any local and we cannot read the return value directly. We replace
-					 * the invoke stmt with an assignment stmt to a local, and use that assigned
-					 * local to capture the return value (unless void)
-					 *
-					 * Unfortunately, this changes the CFG since the original invoke is removed
-					 * (otherwise it will be executed twice!). but we might not even use the CFG
-					 * anymore...
-					 */
-
-					if (csStmt instanceof InvokeStmt && !(invokedMethod.getReturnType() instanceof VoidType)) {
-						/*
-						 * We need to replace the original InvokeStmt with a AssignStmt and then return
-						 * the Local assigned to
-						 */
-						returnValueFromCallSite = UtilInstrumenter.generateFreshLocal(currentlyInstrumentedMethodBody,
-								invokedMethod.getReturnType());
-						AssignStmt capturingAssignStmt = Jimple.v().newAssignStmt(returnValueFromCallSite, invokeExpr);
-						// NOTE WE DO NOT TAG THIS AS TRACING CODE SINCE IT DOES
-						// NOT ALTER THE SEMANTIC
-						currentlyInstrumentedMethodBodyUnitChain.insertBefore(capturingAssignStmt, csStmt);
-						// Remove the original call !
-						currentlyInstrumentedMethodBodyUnitChain.remove(csStmt);
-						// Replace the local vars
-						csStmt = capturingAssignStmt;
-					} else if (csStmt instanceof AssignStmt) {
-						returnValueFromCallSite = ((AssignStmt) csStmt).getLeftOp();
-					}
-
-					// We need to wrap the return value to deal with primitives
-					monitorOnReturnIntoParameters.add(UtilInstrumenter.generateCorrectObject(
-							currentlyInstrumentedMethodBody, returnValueFromCallSite, instrumentationCodeAfter));
-					// Prepare the actual call
-					final Stmt onReturnIntoCall = Jimple.v().newInvokeStmt(Jimple.v()
-							.newStaticInvokeExpr(monitorOnReturnInto.makeRef(), monitorOnReturnIntoParameters));
-					instrumentationCodeAfter.add(onReturnIntoCall);
-
-					/*
-					 * Finally inject the instrumentation code AFTER the target which is either the
-					 * original location or the new one stmt, after replacin invoke with assign
-					 */
-					// currentlyInstrumentedMethodBodyUnitChain.insertAfter(instrumentationCodeAfter,
-					// targetStmt);
-					instrumentAfterWithAndTag(currentlyInstrumentedMethodBodyUnitChain, csStmt,
-							instrumentationCodeAfter);
-				}
-
-				/**
-				 * Arrays do not have an INIT function, they are not objects, so we fake one the
-				 * moment we see newarray. We need to wrap the call to their constructor
-				 *
-				 * @param stmt
+			if (INSTRUMENT_FIELDS_OPERATIONS) {
+				/*
+				 * Capture field setting as fake operations
 				 */
-				private void instrumentArrayInitExpression(AssignStmt stmt) {
-
-//					if (opts.debugOut()) {
-					System.out.println(
-							"\t\t\t WRAP arrayInit " + stmt + " inside " + currentlyInstrumentedMethod.getSignature());
-//					}
-
-					NewArrayExpr right = (NewArrayExpr) stmt.getRightOp();
-					// Parameter
-					Value arraySize = right.getSize();
-					// Return value from the constructor/owner of the
-					// constructor
-					Value array = stmt.getLeftOp();
-
-					// Fake array init method for this array
-					String fakeMethodSignature = "<" + array.getType() + ": void <init>(int)>";
-
-					List<Unit> instrumentationCodeBefore = new ArrayList<>();
-
-					List<Value> monitorOnLibCallParameters = new ArrayList<Value>();
-					// There's no owner before calling the constructor
-					monitorOnLibCallParameters.add(NullConstant.v());
-					// String methodSignature
-					monitorOnLibCallParameters.add(StringConstant.v(fakeMethodSignature));
-					// String Context
-					monitorOnLibCallParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
-					// methodParameters: only the size
-					List<Value> invocationActualParameters = new ArrayList<>();
-					invocationActualParameters.add(arraySize);
-					Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter.generateParameterArray(
-							RefType.v("java.lang.Object"), invocationActualParameters, currentlyInstrumentedMethodBody);
-					// Append the parameter array to the parameters for the
-					// trace start
-					monitorOnLibCallParameters.add(tmpArgsListAndInstructions.getFirst());
-					/*
-					 * Insert the instructions to create the array before using it
-					 */
-					instrumentationCodeBefore.addAll(tmpArgsListAndInstructions.getSecond());
-
-					// Prepare the call to monitorOnLibCall
-					final Stmt callTracerMethodStart = Jimple.v().newInvokeStmt(
-							Jimple.v().newStaticInvokeExpr(monitorOnLibCall.makeRef(), monitorOnLibCallParameters));
-					// Append the call to the instrumentation code
-					instrumentationCodeBefore.add(callTracerMethodStart);
-
-					// Inject the code (not sure we need to tag it or not...)
-					instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt,
-							instrumentationCodeBefore);
-
-					List<Unit> instrumentationCodeAfter = new ArrayList<>();
-					List<Value> monitorOnReturnIntoParameters = new ArrayList<Value>();
-
-					// Owner of the method is the array being created
-					monitorOnReturnIntoParameters.add(array);
-					// String csMethodSignature
-					monitorOnReturnIntoParameters.add(StringConstant.v(fakeMethodSignature));
-					// String context
-					monitorOnReturnIntoParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
-					// Constructor returns no value, it's the owner that
-					// changes...
-					monitorOnReturnIntoParameters.add(NullConstant.v());
-					// Prepare the actual call to Monitor.onReturn
-					final Stmt onReturnIntoCall = Jimple.v().newInvokeStmt(Jimple.v()
-							.newStaticInvokeExpr(monitorOnReturnInto.makeRef(), monitorOnReturnIntoParameters));
-					instrumentationCodeAfter.add(onReturnIntoCall);
-
-					instrumentAfterWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt, instrumentationCodeAfter);
-
-				}
-
-				/**
-				 * Simulate a call that returns an element of an array
-				 *
-				 * $r3 = $r2[$i0] -> $r3 = $r2.get($i0)
-				 */
-				private void instrumentArrayAccess(AssignStmt stmt) {
-
-//					if (opts.debugOut()) {
-					System.out.println(
-							"\t\t\t WRAP arrayGet " + stmt + " inside " + currentlyInstrumentedMethod.getSignature());
-//					}
-
-					ArrayRef arrayRef = (ArrayRef) stmt.getRightOp();
-					Value array = arrayRef.getBase();
-					Value position = arrayRef.getIndex();
-					//
-					Value returnValue = stmt.getLeftOp();
-
-					// We need to replace only the first (actually only one) otherwise nested arrays
-					// cannot be handled correctly [][][]
-					String fakeMethodSignature = "<" + array.getType() + ": "
-							+ array.getType().toString().replaceFirst("\\[\\]", "") + " get(int)>";
-
-					List<Unit> instrumentationCodeBefore = new ArrayList<>();
-
-					List<Value> monitorOnLibCallParameters = new ArrayList<Value>();
-					// Owner is the array
-					monitorOnLibCallParameters.add(array);
-					// String methodSignature
-					monitorOnLibCallParameters.add(StringConstant.v(fakeMethodSignature));
-					// String Context
-					monitorOnLibCallParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
-					// methodParameters: position of the accessed elemenet
-					List<Value> invocationActualParameters = new ArrayList<>();
-					invocationActualParameters.add(position);
-					Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter.generateParameterArray(
-							RefType.v("java.lang.Object"), invocationActualParameters, currentlyInstrumentedMethodBody);
-					// Append the parameter array to the parameters for the
-					// trace start
-					monitorOnLibCallParameters.add(tmpArgsListAndInstructions.getFirst());
-					/*
-					 * Insert the instructions to create the array before using it
-					 */
-					instrumentationCodeBefore.addAll(tmpArgsListAndInstructions.getSecond());
-
-					// Prepare the call to monitorOnLibCall
-					final Stmt callTracerMethodStart = Jimple.v().newInvokeStmt(
-							Jimple.v().newStaticInvokeExpr(monitorOnLibCall.makeRef(), monitorOnLibCallParameters));
-					// Append the call to the instrumentation code
-					instrumentationCodeBefore.add(callTracerMethodStart);
-
-					// Inject the code (not sure we need to tag it or not...)
-					instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt,
-							instrumentationCodeBefore);
-
-					List<Unit> instrumentationCodeAfter = new ArrayList<>();
-					List<Value> monitorOnReturnIntoParameters = new ArrayList<Value>();
-
-					// Owner of the method is the array
-					monitorOnReturnIntoParameters.add(array);
-					// String csMethodSignature
-					monitorOnReturnIntoParameters.add(StringConstant.v(fakeMethodSignature));
-					// String context
-					monitorOnReturnIntoParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
-					// We need to wrap the return value to deal with primitives before invoking
-					// Monitor
-					monitorOnReturnIntoParameters.add(UtilInstrumenter.generateCorrectObject(
-							currentlyInstrumentedMethodBody, returnValue, instrumentationCodeAfter));
-					// Prepare the actual call to Monitor.onReturn
-					final Stmt onReturnIntoCall = Jimple.v().newInvokeStmt(Jimple.v()
-							.newStaticInvokeExpr(monitorOnReturnInto.makeRef(), monitorOnReturnIntoParameters));
-					instrumentationCodeAfter.add(onReturnIntoCall);
-
-					instrumentAfterWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt, instrumentationCodeAfter);
-				}
-
-				/**
-				 * Fake a call to a generic method STORE of the array. In JIMPLE those are
-				 * ALWAYS ? $r10[0] = $r0 -> void $r10.store( $r0, 0 )
-				 *
-				 */
-				private void instrumentArrayStore(AssignStmt stmt) {
-
-//					if (opts.debugOut()) {
-					System.out.println(
-							"\t\t\t WRAP arrayStore " + stmt + " inside " + currentlyInstrumentedMethod.getSignature());
-//					}
-
-					Value array = ((ArrayRef) stmt.getLeftOp()).getBase();
-					Value position = ((ArrayRef) stmt.getLeftOp()).getIndex();
-
-					Value value = stmt.getRightOp();
-
-					String fakeMethodSignature = "<" + array.getType() + ": void store(int,"
-							+ array.getType().toString().replaceFirst("\\[\\]", "") + ")>";
-
-					List<Unit> instrumentationCodeBefore = new ArrayList<>();
-
-					List<Value> monitorOnLibCallParameters = new ArrayList<Value>();
-					// There owner is the array
-					monitorOnLibCallParameters.add(array);
-					// String methodSignature
-					monitorOnLibCallParameters.add(StringConstant.v(fakeMethodSignature));
-					// String Context
-					monitorOnLibCallParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
-					// methodParameters: Size and whatever is on the right side
-					// of the assignment
-					List<Value> invocationActualParameters = new ArrayList<>();
-					invocationActualParameters.add(position);
-					// TODO This might be wrong... If right is field access ?!
-					invocationActualParameters.add(value);
-
-					Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter.generateParameterArray(
-							RefType.v("java.lang.Object"), invocationActualParameters, currentlyInstrumentedMethodBody);
-					// Append the parameter array to the parameters for the
-					// trace start
-					monitorOnLibCallParameters.add(tmpArgsListAndInstructions.getFirst());
-					/*
-					 * Insert the instructions to create the array before using it
-					 */
-					instrumentationCodeBefore.addAll(tmpArgsListAndInstructions.getSecond());
-
-					// Prepare the call to monitorOnLibCall
-					final Stmt callTracerMethodStart = Jimple.v().newInvokeStmt(
-							Jimple.v().newStaticInvokeExpr(monitorOnLibCall.makeRef(), monitorOnLibCallParameters));
-					// Append the call to the instrumentation code
-					instrumentationCodeBefore.add(callTracerMethodStart);
-
-					// Inject the code (not sure we need to tag it or not...)
-					instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt,
-							instrumentationCodeBefore);
-
-					List<Unit> instrumentationCodeAfter = new ArrayList<>();
-					List<Value> monitorOnReturnIntoParameters = new ArrayList<Value>();
-
-					// Owner of the method is the array being created (or its
-					// element?!)
-					monitorOnReturnIntoParameters.add(array);
-					// String csMethodSignature
-					monitorOnReturnIntoParameters.add(StringConstant.v(fakeMethodSignature));
-					// String context
-					monitorOnReturnIntoParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
-					// Store returns no value
-					monitorOnReturnIntoParameters.add(NullConstant.v());
-					// Prepare the actual call to Monitor.onReturn
-					final Stmt onReturnIntoCall = Jimple.v().newInvokeStmt(Jimple.v()
-							.newStaticInvokeExpr(monitorOnReturnInto.makeRef(), monitorOnReturnIntoParameters));
-					instrumentationCodeAfter.add(onReturnIntoCall);
-
-					instrumentAfterWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt, instrumentationCodeAfter);
-
-				}
-
-				public void caseAssignStmt(AssignStmt stmt) {
-
-					// The right operator is mutually exclusive, either is a
-					// regular method call
-					// or its a fake one (init, access ?)
-					if (stmt.getRightOp() instanceof NewArrayExpr) {
-						instrumentArrayInitExpression(stmt);
-					} else if (stmt.getRightOp() instanceof ArrayRef) {
-						instrumentArrayAccess(stmt);
-					} else {
-						// Regular method invocation on objects
-						wrapLibraryInvocationIfAny(stmt);
-					}
-
-					// The wrapped invocations produce a Local... right ?
-					if (stmt.getLeftOp() instanceof ArrayRef) {
-						instrumentArrayStore(stmt);
-					}
-
-					// TODO Not sure what is going to happen if we assign an
-					// element of an array to be another element of possibly the
-					// same array
-				};
-
-				public void caseInvokeStmt(InvokeStmt stmt) {
-					wrapLibraryInvocationIfAny(stmt);
-				};
-
-				public void caseGotoStmt(soot.jimple.GotoStmt stmt) {
-					wrapLibraryInvocationIfAny(stmt);
-				};
-
-				public void caseIfStmt(soot.jimple.IfStmt stmt) {
-					wrapLibraryInvocationIfAny(stmt);
-				};
-
-				public void caseLookupSwitchStmt(soot.jimple.LookupSwitchStmt stmt) {
-					wrapLibraryInvocationIfAny(stmt);
-				};
-
-				public void caseThrowStmt(soot.jimple.ThrowStmt stmt) {
-					wrapLibraryInvocationIfAny(stmt);
-				};
-
-				public void caseBreakpointStmt(soot.jimple.BreakpointStmt stmt) {
-					wrapLibraryInvocationIfAny(stmt);
-				};
-
-				public void caseEnterMonitorStmt(soot.jimple.EnterMonitorStmt stmt) {
-					wrapLibraryInvocationIfAny(stmt);
-				};
-
-				public void caseExitMonitorStmt(soot.jimple.ExitMonitorStmt stmt) {
-					wrapLibraryInvocationIfAny(stmt);
-				};
-
-				public void caseReturnStmt(ReturnStmt stmt) {
-					wrapLibraryInvocationIfAny(stmt);
-				};
-
-				public void caseReturnVoidStmt(ReturnVoidStmt stmt) {
-					wrapLibraryInvocationIfAny(stmt);
-				};
-
-				public void caseTableSwitchStmt(soot.jimple.TableSwitchStmt stmt) {
-					wrapLibraryInvocationIfAny(stmt);
-				};
-				// public void caseIdentityStmt(IdentityStmt stmt) {
-				// System.out.println( stmt.getClass() + "\t" + stmt );
-				// };
-				//
-				// public void caseNopStmt(soot.jimple.NopStmt stmt) {
-				// System.out.println( stmt.getClass() + "\t" + stmt );
-				// };
-				//
-				// public void caseRetStmt(soot.jimple.RetStmt stmt) {
-				// System.out.println( stmt.getClass() + "\t" + stmt );
-				// };
-			});
+				currentUnit.apply(new FieldTransformer(Constants.getAPKName(), currentlyInstrumentedMethod,
+						currentlyInstrumentedMethodBody, currentlyInstrumentedMethodBodyUnitChain, userClasses));
+			}
+			/*
+			 * Make sure we properly report ArrayOperations. TODO Are we sure those apply
+			 * ONLY to AssignStmt?
+			 */
+			if (INSTRUMENT_ARRAY_OPERATIONS) {
+				currentUnit.apply(new ArrayConstructorTransformer(currentlyInstrumentedMethod,
+						currentlyInstrumentedMethodBody, currentlyInstrumentedMethodBodyUnitChain, userClasses));
+				currentUnit.apply(new ArrayAccessTransformer(currentlyInstrumentedMethod,
+						currentlyInstrumentedMethodBody, currentlyInstrumentedMethodBodyUnitChain, userClasses));
+				currentUnit.apply(new ArrayStoreTransformer(currentlyInstrumentedMethod,
+						currentlyInstrumentedMethodBody, currentlyInstrumentedMethodBodyUnitChain, userClasses));
+			}
 		}
 
 	}
 
+	/*
+	 * Collect the parameters for invoking "monitorOnEnter" ->
+	 * dynCG2.Monitor.enter(String apkName, Object methodOwnerOrNull, String
+	 * methodSignature, Object[] methodParameters)
+	 *
+	 * NOTE parameters must passed using Object[], so primitive types must be
+	 * suitably Boxed
+	 */
 	private void instumentMethodBegins(SootMethod currentlyInstrumentedMethod,
 			/*
 			 * Need to generate fresh locals and access other elements like "this.local" -
@@ -1264,20 +1092,14 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
 	) throws IOException, XmlPullParserException {
 
+		System.out.println("\t\t Instrumenting Method Entry point for " + currentlyInstrumentedMethod);
+
 		List<Unit> instrumentationCode = new ArrayList<>();
 
-		/*
-		 * Collect the parameters for invoking "monitorOnEnter" ->
-		 * dynCG2.Monitor.enter(String apkName, Object methodOwnerOrNull, String
-		 * methodSignature, Object[] methodParameters)
-		 *
-		 * NOTE parameters must passed using Object[], so primitive types must be
-		 * suitably Boxed
-		 */
 		List<Value> methodStartParameters = new ArrayList<Value>();
 
 		// String apkName
-		methodStartParameters.add(StringConstant.v(getAPKName()));
+		methodStartParameters.add(StringConstant.v(Constants.getAPKName()));
 
 		// Object methodOwnerOrNull
 		if (currentlyInstrumentedMethod.isStatic()) {
@@ -1315,19 +1137,19 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		 */
 		// This must come after we create the Object[]
 
-		if (currentlyInstrumentedMethod.hasTag(ABCTag.TAG_NAME)) {
+		if (currentlyInstrumentedMethod.hasTag(SyntheticCallTag.TAG_NAME)) {
 			final Stmt callMonitorOnEnter = Jimple.v().newInvokeStmt(
-					Jimple.v().newStaticInvokeExpr(monitorOnEnterSynthetic.makeRef(), methodStartParameters));
+					Jimple.v().newStaticInvokeExpr(monitorOnSyntheticMethodCall.makeRef(), methodStartParameters));
 			//
 			instrumentationCode.add(callMonitorOnEnter);
 		} else if (currentlyInstrumentedMethod.isPrivate()) {
 			final Stmt callMonitorOnEnter = Jimple.v().newInvokeStmt(
-					Jimple.v().newStaticInvokeExpr(monitorOnEnterPrivate.makeRef(), methodStartParameters));
+					Jimple.v().newStaticInvokeExpr(monitorOnPrivateAppMethodCall.makeRef(), methodStartParameters));
 			instrumentationCode.add(callMonitorOnEnter);
 		} else {
 
-			final Stmt callMonitorOnEnter = Jimple.v()
-					.newInvokeStmt(Jimple.v().newStaticInvokeExpr(monitorOnEnter.makeRef(), methodStartParameters));
+			final Stmt callMonitorOnEnter = Jimple.v().newInvokeStmt(
+					Jimple.v().newStaticInvokeExpr(monitorOnAppMethodCall.makeRef(), methodStartParameters));
 			//
 			instrumentationCode.add(callMonitorOnEnter);
 		}
@@ -1346,63 +1168,16 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 				continue;
 			}
 
-			instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, u, instrumentationCode);
+			UtilInstrumenter.instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, u,
+					instrumentationCode);
 
 			break;
 		}
 
-//		if (opts.debugOut()) {
-		System.out.println("\t\t\t Injected onEnter at the beginning of the method");
-//		}
 	}
 
-	private String getAPKName() throws IOException, XmlPullParserException {
-		String apkPath = soot.options.Options.v().process_dir().get(0);
-		ProcessManifest manifest = new ProcessManifest(apkPath);
-		return manifest.getPackageName();
-		// GlobalRef.apkVersionCode = manifest.getVersionCode();
-		// GlobalRef.apkVersionName = manifest.getVersionName();
-		// GlobalRef.apkMinSdkVersion = manifest.getMinSdkVersion();
-		// GlobalRef.apkPermissions = manifest.getPermissions();
-	}
-
-	/**
-	 * Ensures we keep track of our instrumentation code by tagging it
-	 *
-	 * @param currentlyInstrumentedMethodBodyUnitChain
-	 * @param u
-	 * @param instrumentationCode
-	 */
-	private void instrumentBeforeWithAndTag(PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain, Unit u,
-			List<Unit> instrumentationCode) {
-
-		for (Unit instrumentation : instrumentationCode) {
-			instrumentation.addTag(ABCTag.TAG);
-		}
-
-		currentlyInstrumentedMethodBodyUnitChain.insertBefore(instrumentationCode, u);
-
-	}
-
-	/**
-	 * Ensures we keep track of our instrumentation code by tagging it
-	 *
-	 * @param currentlyInstrumentedMethodBodyUnitChain
-	 * @param targetStmt
-	 * @param instrumentationCode
-	 */
-	private void instrumentAfterWithAndTag(PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain,
-			Stmt targetStmt, List<Unit> instrumentationCode) {
-		for (Unit instrumentation : instrumentationCode) {
-			instrumentation.addTag(ABCTag.TAG);
-		}
-		currentlyInstrumentedMethodBodyUnitChain.insertAfter(instrumentationCode, targetStmt);
-
-	}
-
+	// Keep this method to have meaningful explanation why a class has been skipped
 	private boolean skipClass(SootClass currentlyInstrumentedSootClass) {
-		// In reality we should instrument anonym classes as well... but how do
-		// we get them?!
 		if (currentlyInstrumentedSootClass.isPhantom()) {
 			System.out.println("\n\n Phantom class: " + currentlyInstrumentedSootClass.getName());
 			return true;
@@ -1415,9 +1190,30 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 			System.out.println("\n\n Interface - not a class: " + currentlyInstrumentedSootClass.getName());
 			return true;
 		}
-		return false;
+
+		// If any of the specified filters matches then skip this
+		if (this.packageFilters.stream()
+				.anyMatch(p -> p.matcher(currentlyInstrumentedSootClass.getPackageName()).matches())) {
+			System.out.println("\n\n Matches custom package filter " + currentlyInstrumentedSootClass.getName());
+			return true;
+		} else {
+			return false;
+		}
 	}
 
+	/**
+	 * We find all the exit points of this method and instrument all of them. This
+	 * includes calls to return inside the BODY and TRAPS. So this already changes
+	 * the content of traps and we might need to "split traps again"?
+	 * 
+	 * 
+	 * TODO This seems to be broken ?!
+	 * 
+	 * 
+	 * @param currentlyInstrumentedSootMethod
+	 * @param currentlyInstrumentedMethodBody
+	 * @param currentlyInstrumentedMethodBodyUnitChain
+	 */
 	private void instrumentMethodEnds(final SootMethod currentlyInstrumentedSootMethod,
 			/*
 			 * Need to generate fresh locals and access other elements like "this.local" -
@@ -1431,27 +1227,14 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 			final PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain) {
 
 		/*
-		 * To ensure that we log the method ends in the right place, including
-		 * exceptional branches and finally blocks we build the exceptionalUnitGraph (a
+		 * To ensure that we log all the method ends, including return and throw
+		 * statements that are not trapped we need to build the exceptionalUnitGraph (a
 		 * CFG that includes the exceptional branches), get the exit points of the
 		 * method, i.e., the tails and insert the instrumentation right before each of
 		 * them.
-		 */
-
-		ExceptionalUnitGraph exceptionalUnitGraph = new ExceptionalUnitGraph(
-				currentlyInstrumentedSootMethod.getActiveBody());
-
-		final String currentlyInstrumentedMethodSignature = currentlyInstrumentedSootMethod.getSignature();
-		/*
-		 * Tails also includes throw stmt which will be captured by catch blocks/traps
-		 * inside the code. Those are not really method exit points so we need to rule
-		 * them out.
-		 *
-		 * For every ThrowInst or ThrowStmt Unit which may explicitly throw an exception
-		 * that would be caught by a Trap in the Body, there will be an edge from the
-		 * throw Unit to the Trap handler's first Unit.
-		 *
-		 * For every Unit which may implicitly throw an exception that could be caught
+		 * 
+		 * According to the documentation, the Exceptional Unit Graph is build such that
+		 * for every Unit which may implicitly throw an exception that could be caught
 		 * by a Trap in the Body, there will be an edge from each of the excepting
 		 * Unit's predecessors to the Trap handler's first Unit (since any of those
 		 * predecessors may have been the last Unit to complete execution before the
@@ -1463,36 +1246,89 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		 * whether or not there is an edge from the excepting Unit itself to the handler
 		 * Unit.
 		 */
-		List<Unit> potentialExitPoints = new ArrayList<>();
-		potentialExitPoints.addAll(exceptionalUnitGraph.getTails());
 
-		for (Iterator<Unit> iterator = potentialExitPoints.iterator(); iterator.hasNext();) {
-			// Check if this exit point MIGHT be covered by some catch statement
-			Unit exitPoint = iterator.next();
+		// REFACTOR THIS INTO A METHOD
+		// TODO Can this be null ? How?
+		ExceptionalUnitGraph exceptionalUnitGraph = new ExceptionalUnitGraph(
+				currentlyInstrumentedSootMethod.getActiveBody());
 
-			// Let's conservatively keep return instructions...
-			if (exitPoint instanceof ReturnStmt || exitPoint instanceof ReturnVoidStmt) {
+		if (DEBUG) {
+			Visualizer.v().addUnitGraph(exceptionalUnitGraph);
+			Visualizer.v().draw();
+		}
+
+		final String currentlyInstrumentedMethodSignature = currentlyInstrumentedSootMethod.getSignature();
+		/*
+		 * Tails also includes throw stmt which will be captured by catch blocks/traps
+		 * inside the code.
+		 * 
+		 * 
+		 * TODO Those are not really method exit points, but we care about them?
+		 *
+		 * For every ThrowInst or ThrowStmt (what's the difference?) Unit which may
+		 * explicitly throw an exception that would be caught by a Trap in the Body,
+		 * there will be an edge from the throw Unit to the Trap handler's first Unit.
+		 * 
+		 * 
+		 * This means that this particular Throw does NOT "break" the start-end pattern
+		 * of method invocations. What about the other cases -> method signature
+		 * declares a "throws"
+		 * 
+		 */
+		List<Unit> exitPoints = new ArrayList<>();
+		List<Unit> nonExitPoints = new ArrayList<>();
+
+		for (Unit potentialExitPoint : exceptionalUnitGraph.getTails()) {
+			if (potentialExitPoint instanceof ReturnStmt || potentialExitPoint instanceof ReturnVoidStmt) {
+				System.out.println(
+						"\t\t\t SceneInstrumenterWithMethodParameters.instrumentMethodEnds() Found return exit point "
+								+ potentialExitPoint);
+				// TODO In some cases we get "return null". For example, BasicCalculator... not
+				// sure this is a problem
+
+				// Let's conservatively keep return instructions as exit points to process later
+				exitPoints.add(potentialExitPoint);
 				continue;
-			}
+			} else if (potentialExitPoint instanceof ThrowStmt) {
 
-			for (Trap trap : currentlyInstrumentedSootMethod.getActiveBody().getTraps()) {
-				if (exceptionalUnitGraph.getSuccsOf(exitPoint).contains(trap.getHandlerUnit())) {
-					System.out.println("\t\t\t Skipping " + exitPoint + " as it is covered by the trap " + trap);
-					iterator.remove();
-					// Avoid repeatedly remove the "same" object
-					break;
+				for (Trap trap : currentlyInstrumentedSootMethod.getActiveBody().getTraps()) {
+					// None of the following should ever return null...
+					if (exceptionalUnitGraph.getSuccsOf(potentialExitPoint).contains(trap.getHandlerUnit())) {
+						// This is not really an exit point, since the exception is captured by the
+						// trap. Never the less we need to inform the monitor that one exception has
+						// been raised
+						System.out.println(
+								"\t\t\t SceneInstrumenterWithMethodParameters.instrumentMethodEnds() Found a throw that is NOT an exit point "
+										+ potentialExitPoint);
+						nonExitPoints.add(potentialExitPoint);
+						// Avoid repeatedly remove the "same" object
+
+						break;
+					} else {
+						// If we reach this point, the ThrowStmt will cause THIS method to exit.
+						exitPoints.add(potentialExitPoint);
+						System.out.println(
+								"\t\t\t SceneInstrumenterWithMethodParameters.instrumentMethodEnds() Found throw exit point "
+										+ potentialExitPoint);
+						break;
+					}
 				}
+			} else {
+				throw new RuntimeException("\t\t\t Unknown exitpoint " + potentialExitPoint);
 			}
 		}
 
-		// Use only the exitPoint which our heuristic did not remove
-		for (Unit exitPoint : potentialExitPoints) {
-
+		// Instrument the exit points we found
+		for (Unit exitPoint : exitPoints) {
 			exitPoint.apply(new AbstractStmtSwitch() {
+				// TODO Refactor this into a separate class?
 
 				// The wrapping thingy does not work on constructors
 				@Override
 				public void caseThrowStmt(ThrowStmt stmt) {
+					System.out.println(
+							"\t\t\t Instrumenting throw exit point " + stmt + " throwing exception " + stmt.getOp());
+
 					// Wrap the value to be returned into a new object
 					// local and pass it to the monitor
 					List<Unit> instrumentationCode = new ArrayList<>();
@@ -1504,32 +1340,30 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 					} else {
 						onReturnIntoFromExceptionArgs.add(currentlyInstrumentedMethodBody.getThisLocal());
 					}
-					//
+					// Signature
 					onReturnIntoFromExceptionArgs.add(StringConstant.v(currentlyInstrumentedMethodSignature));
 					// Context
 					onReturnIntoFromExceptionArgs.add(StringConstant.v(currentlyInstrumentedMethodSignature));
 
-					// Pass the exception instead of the return value or null
+					// Pass the exception instead of the return value or null. Why this should be
+					// null ?!
 					// ((RefType) ts.getOp().getType()).getSootClass()
 					onReturnIntoFromExceptionArgs.add(UtilInstrumenter
 							.generateCorrectObject(currentlyInstrumentedMethodBody, stmt.getOp(), instrumentationCode));
 
 					Stmt onReturnIntoCall = Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(
-							monitorOnReturnIntoFromException.makeRef(), onReturnIntoFromExceptionArgs));
+							monitorOnAppMethodReturnExceptionally.makeRef(), onReturnIntoFromExceptionArgs));
 
 					instrumentationCode.add(onReturnIntoCall);
 
-					instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt, instrumentationCode);
-					super.caseThrowStmt(stmt);
+					UtilInstrumenter.instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt,
+							instrumentationCode);
 
-//					if (opts.debugOut()) {
-					System.out.println("\t\t\t Injected returnInto at the end of the method before throwing exception "
-							+ ((RefType) stmt.getOp().getType()));
-//					}
 				}
 
 				@Override
 				public void caseReturnStmt(ReturnStmt stmt) {
+					System.out.println("\t\t\t Instrumenting return exit point " + stmt);
 					// Wrap the value to be returned into a new object
 					// local and pass it to the monitor
 					List<Unit> instrumentationCode = new ArrayList<>();
@@ -1548,23 +1382,21 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 					// Return value Null if VOID
 					onReturnIntoArgs.add(UtilInstrumenter.generateCorrectObject(currentlyInstrumentedMethodBody,
 							stmt.getOp(), instrumentationCode));
-					Stmt onReturnIntoCall = Jimple.v().newInvokeStmt(
-							Jimple.v().newStaticInvokeExpr(monitorOnReturnInto.makeRef(), onReturnIntoArgs));
+					Stmt onReturnIntoCall = Jimple.v().newInvokeStmt(Jimple.v()
+							.newStaticInvokeExpr(monitorOnAppMethodReturnNormally.makeRef(), onReturnIntoArgs));
 					instrumentationCode.add(onReturnIntoCall);
 
 					// Hope this does not break it
 					// currentlyInstrumentedMethodBodyUnitChain.insertBefore(instrumentationCode,
 					// stmt);
-					instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt, instrumentationCode);
-					super.caseReturnStmt(stmt);
-
-//					if (opts.debugOut()) {
-					System.out.println("\t\t\t Injected returnInto at the end of the method returning a value");
-//					}
+					UtilInstrumenter.instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt,
+							instrumentationCode);
 				}
 
 				@Override
 				public void caseReturnVoidStmt(ReturnVoidStmt stmt) {
+					System.out.println("\t\t\t Instrumenting return void exit point " + stmt);
+
 					List<Unit> instrumentationCode = new ArrayList<>();
 					// Prepare the call to the monitor
 					List<Value> onReturnIntoArgs = new ArrayList<>();
@@ -1581,82 +1413,32 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 					onReturnIntoArgs.add(StringConstant.v(currentlyInstrumentedMethodSignature));
 					// Void
 					onReturnIntoArgs.add(NullConstant.v());
-					Stmt onReturnIntoCall = Jimple.v().newInvokeStmt(
-							Jimple.v().newStaticInvokeExpr(monitorOnReturnInto.makeRef(), onReturnIntoArgs));
+					Stmt onReturnIntoCall = Jimple.v().newInvokeStmt(Jimple.v()
+							.newStaticInvokeExpr(monitorOnAppMethodReturnNormally.makeRef(), onReturnIntoArgs));
 					instrumentationCode.add(onReturnIntoCall);
 					// Hope this does not break it
 					// currentlyInstrumentedMethodBodyUnitChain.insertBefore(instrumentationCode,
 					// stmt);
-					instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt, instrumentationCode);
-					super.caseReturnVoidStmt(stmt);
-
-//					if (opts.debugOut()) {
-					System.out.println("\t\t\t Injected returnInto at the end of the method before returning (void)");
-//					}
+					UtilInstrumenter.instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt,
+							instrumentationCode);
 				}
+
 			});
+
+			// This should not be necessary since we are not changing the defintion of traps
+			// very mush like when we instrument the body !
+			// TODO We need to make sure that all traps objects are coorectly handled, and
+			// if mofied (their Begin and End UNit might have changed?)
+			// Since we might have changed the traps of this method, we might need to split
+			// them again?
+//			TrapManager tm = new TrapManager();
+//			tm.splitTrapsAgainst(b, rangeStart, rangeEnd);
 
 		}
 
 		// TODO We still need to handle Exceptions raised by non-user
 		// methods....
 	}
-
-//	/**
-//	 * instrument 'terminate' monitor before 'System.exit' as a special treatment
-//	 * for Java programs
-//	 * 
-//	 * @param cfg
-//	 * @param currentlyInstrumentedSootMethod
-//	 * @return
-//	 */
-//	private int injectTerminationCode(CFG cfg, SootMethod currentlyInstrumentedSootMethod,
-//			// We need to count the call site to inject the "terminate"
-//			// event at the end of the method so we ensure we "dump the
-//			// events out"
-//			PatchingChain<Unit> patchingChain) {
-//
-//		int nCandCallsites = 0;
-//		if (cfg == null) {
-//			return nCandCallsites;
-//		}
-//
-//		List<CallSite> callsites = cfg.getCallSites();
-//		for (CallSite cs : callsites) {
-//
-//			if (cs.hasAppCallees() && !cs.isInCatchBlock()) {
-//				nCandCallsites++;
-//			}
-//
-//			for (SootMethod ce : cs.getAllCallees()) {
-//
-//				if (!ce.getSignature().equals("<java.lang.System: void exit(int)>")) {
-//					continue;
-//				}
-//
-//				System.out.println(
-//						"SceneInstrumenterWithMethodParameters.injectTerminationCode() " + cs.getLoc().getStmt());
-//				List<Unit> instrumentationCode = new ArrayList<Unit>();
-//
-//				// Get the parameter of this call
-//				List<StringConstant> terminateArgs = new ArrayList<StringConstant>();
-//				terminateArgs.add(StringConstant.v("System.exit"));
-//				Stmt sTerminateCall = Jimple.v()
-//						.newInvokeStmt(Jimple.v().newStaticInvokeExpr(monitorOnTerminateApp.makeRef(), terminateArgs));
-//				instrumentationCode.add(sTerminateCall);
-//
-//				// // -- DEBUG
-//				if (opts.debugOut()) {
-//					System.out.println("monitor termination instrumented at the end of "
-//							+ currentlyInstrumentedSootMethod.getSignature() + " before System.exit. "
-//							+ cs.getLoc().getStmt());
-//				}
-//
-//				InstrumManager.v().insertBeforeRedirect(patchingChain, instrumentationCode, cs.getLoc().getStmt());
-//			}
-//		}
-//		return nCandCallsites;
-//	}
 
 	private boolean skipMethod(SootMethod currentlyInstrumentedSootMethod) {
 		/*
@@ -1699,156 +1481,162 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 		return false;
 	}
 
-//	/**
-//	 * TODO How do we get the invokation type of this method? or how do we know
-//	 * which invocation type can be used to trigger a method ?
-//	 * 
-//	 * @param cfg
-//	 * @param sootClassCurrentlyInstrumented
-//	 * @param currentlyInstrumentedMethod
-//	 * @return
-//	 */
-//	private List<Unit> generateMonitoringInitializationCode(Set<SootMethod> entryMethods, List<SootClass> entryClasses,
-//			//
-//			SootClass sootClassCurrentlyInstrumented, SootMethod currentlyInstrumentedMethod) {
-//		// Handle Statically Initialized Entry Classes
-//		// when there is a static initializer in the entry class, we will
-//		// instrument the monitor initialize in there instead of the entry
-//		// method
-//
-//		boolean hasCLINIT = false;
-//		if (entryClasses.contains(sootClassCurrentlyInstrumented)) {
-//			try {
-//				SootMethod cl = sootClassCurrentlyInstrumented.getMethodByName("<clinit>");
-//				hasCLINIT = (cl != null);
-//			} catch (Exception e) {
-//				// if exception was thrown, either because there are more
-//				// than one such method (ambiguous) or there is none
-//				hasCLINIT = (e instanceof RuntimeException && e.toString().contains("ambiguous method"));
-//			}
-//		}
-//		boolean bInstProgramStart = false;
-//		if (opts.sclinit()) {
-//			bInstProgramStart = (hasCLINIT && currentlyInstrumentedMethod.getName().equalsIgnoreCase("<clinit>"))
-//					|| (!hasCLINIT && entryMethods.contains(currentlyInstrumentedMethod));
-//			if (!bProgramStartInClinit) {
-//				bProgramStartInClinit = (hasCLINIT
-//						&& currentlyInstrumentedMethod.getName().equalsIgnoreCase("<clinit>"));
-//			}
-//		} else {
-//			bInstProgramStart = entryMethods.contains(currentlyInstrumentedMethod);
-//		}
-//
-//		List<Unit> instrumCode = new ArrayList<>();
-//
-//		// when "-sclinit" option specified, instrument monitor
-//		// initialize in <clinit> if any, otherwise in entry method
-//		if (bInstProgramStart) {
-////			if (opts.debugOut()) {
-//				System.out.println("\t\t\t Injected monitorInitialize into : " + currentlyInstrumentedMethod);
-////			}
-//			// before the entry method executes, the monitor needs be
-//			// initialized
-//			List<StringConstant> initializeArgs = new ArrayList<StringConstant>();
-//			initializeArgs.add(StringConstant.v(utils.getAPKName()));
-//			Stmt sInitializeCall = Jimple.v()
-//					.newInvokeStmt(Jimple.v().newStaticInvokeExpr(monitorInitialize.makeRef(), initializeArgs));
-//			instrumCode.add(sInitializeCall);
-//		}
-//
-//		return instrumCode;
-//	}
-
+	/**
+	 * Add to the method a Trap that captures Throwable t and re-throws it. To be
+	 * safe we add this try-catch-all in any case, as a method might have a trap
+	 * that captures Throwable but does something else later that raises an
+	 * exception which we will lose if we do not wrap everything !
+	 * 
+	 * TODO How do we handle FINALLY ?
+	 * 
+	 * TODO Uniform the method signature to receive always the same input...
+	 * 
+	 * @param currentlyInstrumentedMethod
+	 */
 	public void wrapTryCatchAllBlocks(SootMethod currentlyInstrumentedMethod) {
-		// all probes for the try-catch blocks insertion
-		List<Stmt> tcProbes = new ArrayList<Stmt>();
-		Body b = currentlyInstrumentedMethod.retrieveActiveBody();
-		PatchingChain<Unit> pchain = b.getUnits();
 
-		// it is only safe to insert probes after all ID statements
-		Stmt sFirstNonId = UtilInstrum.getFirstNonIdStmt(pchain);
-		Stmt sLast = (Stmt) pchain.getLast();
-		if (sLast instanceof ThrowStmt && b.getTraps().size() >= 1) {
-			// this happens when the whole body is nested in a synchronized
-			// block
-			sLast = (Stmt) b.getTraps().getLast().getBeginUnit();
-		}
+		SootClass throwableSootClass = Scene.v().getSootClass("java.lang.Throwable");
+		assert throwableSootClass != null;
+		RefType throwableClassRefType = RefType.v(throwableSootClass);
 
-		// Empty method won't cause any exception so we don't need instrument at
-		// all
-		if (sFirstNonId == sLast) {
-			System.out.println("SceneInstrumenterWithMethodParameters.wrapTryCatchAllBlocks() SPECIAL METHOD ? "
-					+ currentlyInstrumentedMethod);
+		Body body = currentlyInstrumentedMethod.retrieveActiveBody();
+		PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain = body.getUnits();
+
+		/*
+		 * To define a trap we need the following data: - exception, - start, - stop, -
+		 * handler:
+		 * 
+		 * Between the start and stop units, including start, but not including stop, if
+		 * the exception is thrown, execution continues at handler.
+		 * 
+		 * Exception: Throwable Start: the start of the method body, since we need to
+		 * wrap the entire thing Stop (excluded): should point to the instruction right
+		 * "after" the last unit of the body to fully include the body in the trap scope
+		 * Handler: is the code that rethrow the exception
+		 * 
+		 */
+
+		Stmt startOfTheMethod = UtilInstrumenter.getFirstNonIdStmt(currentlyInstrumentedMethodBodyUnitChain);
+
+		// Found the last unit of the body - TODO This code is taken from DUAFDROID and
+		// I cannot tell if that's reliable or not...
+		Stmt lastUnitOfCurrentlyInstrumentedBodyUnitChain = (Stmt) currentlyInstrumentedMethodBodyUnitChain.getLast();
+
+		// // This causes problems
+//		if (lastUnitOfCurrentlyInstrumentedBodyUnitChain instanceof ThrowStmt && body.getTraps().size() >= 1) {
+//			/*
+//			 * This happens when the whole body is nested in a synchronized block
+//			 */
+//			lastUnitOfCurrentlyInstrumentedBodyUnitChain = (Stmt) body.getTraps().getLast().getBeginUnit();
+//		}
+
+		/*
+		 * Empty method won't cause any exception so we don't need instrument it at all
+		 */
+		if (startOfTheMethod == lastUnitOfCurrentlyInstrumentedBodyUnitChain) {
+			// Empty method?
 			return;
 		}
 
-		/*
-		 * add "throws Throwable" declaration if absent so that we add exception
-		 * rethrowing statement in the catch block to be added
-		 * m.addExceptionIfAbsent(Scene.v().getSootClass("java.lang.Throwable")) ;
-		 */
-		SootClass sce = Scene.v().getSootClass("java.lang.Throwable");
-		assert sce != null;
-		// TODO I do not think this is by no means necessary
-		// if (!currentlyInstrumentedMethod.throwsException(sce)) {
-		// currentlyInstrumentedMethod.addException(sce);
-		// }
+		// TODO. Not sure what this means ... What's this? An empty body for a instance
+		// method?
+		if (lastUnitOfCurrentlyInstrumentedBodyUnitChain instanceof IdentityStmt) {
+			System.out.println("wrapTryCatchAllBlocks: Special case encountered in method "
+					+ currentlyInstrumentedMethod.getSignature() + " stmt: "
+					+ lastUnitOfCurrentlyInstrumentedBodyUnitChain);
+			// Ensures we remember this case exists !
+			throw new RuntimeException("wrapTryCatchAllBlocks: Special case encountered in method "
+					+ currentlyInstrumentedMethod.getSignature() + " stmt: "
+					+ lastUnitOfCurrentlyInstrumentedBodyUnitChain);
 
-		// goto the original last statement
-		Stmt gtstmt = Jimple.v().newGotoStmt(sLast);
-		tcProbes.add(gtstmt);
-
-		// two Locals of the Exception type to be inserted in the catch block
-
-		Local er1 = UtilInstrumenter.generateFreshLocal(b, RefType.v(sce));
-		Local er2 = UtilInstrumenter.generateFreshLocal(b, RefType.v(sce));
-
-		/*
-		 * We do not tag our code since it does not change the semantic, plus we should
-		 * not skip instrumenting it with returnInto calls
-		 */
-		Stmt ids = Jimple.v().newIdentityStmt(er2, Jimple.v().newCaughtExceptionRef());
-		//
-		// ids.addTag(ABCTag.TAG);
-		// the assignment statement assigning the object for the throw statement
-		Stmt ass = Jimple.v().newAssignStmt(er1, er2);
-		// ass.addTag(ABCTag.TAG);
-		// the throw statement rethrowing the exception caught in the block
-		Stmt ths = Jimple.v().newThrowStmt(er1);
-		// ths.addTag(ABCTag.TAG);
-
-		// assemble the catch block
-		tcProbes.add(ids);
-		tcProbes.add(ass);
-		tcProbes.add(ths);
-
-		// add the catch block to the patching chain of the given method's body
-		if (sLast instanceof IdentityStmt) {
-			System.out.println("wrapTryCatchAllBlocks: special case encountered in method "
-					+ currentlyInstrumentedMethod.getSignature() + " stmt: " + sLast);
 			/*
 			 * Stmt tgt = (Stmt)utils.getFirstNonIdUnit(pchain); if (tgt != null) tgt =
 			 * (Stmt)pchain.getPredOf(tgt); if (tgt == null) tgt = sLast;
+			 * 
 			 * InstrumManager.v().insertAtProbeBottom(pchain, tcProbes, sLast);
 			 */
-			// TODO So we do not instrument this ?!
-			return;
-		} else {
-			// TODO Still not idea what's the meaning of "BeforeNoRedirect"
-			InstrumManager.v().insertRightBeforeNoRedirect(pchain, tcProbes, sLast);
 		}
-		// finally, we add the trap associated with the newly added catch block
-		// TODO DO we need to tag traps ?!
-		Trap trap = Jimple.v().newTrap(sce, sFirstNonId, gtstmt, ids);
-		b.getTraps().add(trap);
+
+		/*
+		 * The followig code resemble the one in this class:
+		 * https://github.com/soot-oss/soot/blob/master/src/main/java/soot/jimple/
+		 * toolkits/invoke/SynchronizerManager.java#L376
+		 */
+
+		List<Unit> instrumentationCode = new ArrayList<Unit>();
+
+		/*
+		 * Ideally one can add a dummy operation at last, i.e., nop, but doing that will
+		 * break the code since nop will appear after return statements. So we need to
+		 * work around this.
+		 */
+//		Stmt gotoForLastUnitOfTheMethod = Jimple.v().newGotoStmt(lastUnitOfCurrentlyInstrumentedBodyUnitChain);
+		// Should this be included in the method?
+//		instrumentationCode.add(gotoForLastUnitOfTheMethod);
+		/*
+		 * Form the Trap body: we need to take the caught exception and store it into a
+		 * local, such that we can rethrow it afterwards since ThrowStmt works on locals
+		 */
+
+		Local exceptionCaughtByTrapLocal = UtilInstrumenter.generateFreshLocal(body, throwableClassRefType);
+		Local exceptionToBeThrownLocal = UtilInstrumenter.generateFreshLocal(body, throwableClassRefType);
+
+		// This corresponds to the @caughtexception, e.g., "r5 := @caughtexception"
+		Stmt handlerStmt = Jimple.v().newIdentityStmt(exceptionCaughtByTrapLocal, Jimple.v().newCaughtExceptionRef());
+		// Assign the @caughtexception to a new Local
+		Stmt assignException = Jimple.v().newAssignStmt(exceptionToBeThrownLocal, exceptionCaughtByTrapLocal);
+		// (re)Throw the exception. pay attention to use the rigth Local
+		Stmt rethrowTheException = Jimple.v().newThrowStmt(exceptionToBeThrownLocal);
+
+		// Assemble the catch block
+		instrumentationCode.add(handlerStmt);
+		instrumentationCode.add(assignException);
+		// Add a fake couple of statements just to see if they are instrumented and
+		// returned ...
+		instrumentationCode.add(rethrowTheException);
+
+		//
+		UtilInstrumenter.instrumentAfterWithAndTag(currentlyInstrumentedMethodBodyUnitChain,
+				lastUnitOfCurrentlyInstrumentedBodyUnitChain, instrumentationCode);
+		// Inject some fake code here not tagged as instrumentation
+// THIS IS TRICKTY AS System.out might not exist at all !
+//		{
+//			List<Unit> debugUnits = new ArrayList<Unit>();
+//			// Resolve dependencies
+//			Scene.v().loadClassAndSupport("java.lang.Object");
+//			Scene.v().loadClassAndSupport("java.lang.System");
+//
+//			Local arg, tmpRef;
+//
+//			// Add locals, java.io.printStream tmpRef
+//			tmpRef = Jimple.v().newLocal("tmpRef", RefType.v("java.io.PrintStream"));
+//			body.getLocals().add(tmpRef);
+//
+//			// add "tmpRef = java.lang.System.out"
+//			debugUnits.add(Jimple.v().newAssignStmt(tmpRef, Jimple.v()
+//					.newStaticFieldRef(Scene.v().getField("<java.lang.System: java.io.PrintStream out>").makeRef())));
+//
+//			// insert "tmpRef.println("Hello world!")"
+//			SootMethod toCall = Scene.v().getMethod("<java.io.PrintStream: void println(java.lang.String)>");
+//			debugUnits.add(Jimple.v().newInvokeStmt(
+//					Jimple.v().newVirtualInvokeExpr(tmpRef, toCall.makeRef(), StringConstant.v("Hello world!"))));
+//
+//			// Add them before rethrowTheException
+//			currentlyInstrumentedMethodBodyUnitChain.insertBefore(debugUnits, rethrowTheException);
+//		}
+		// We now need to inject the code into the method body and then define how the
+		// trap looks like/can be reached?.
+//		UtilInstrumenter.instrumentBeforeNoRedirect(currentlyInstrumentedMethodBodyUnitChain, instrumentationCode,
+//				lastUnitOfCurrentlyInstrumentedBodyUnitChain);
+
+		// I am not sure this makes sense to use handlerStmt as the unit after the last
+		// (return)
+		Trap trap = Jimple.v().newTrap(throwableSootClass, startOfTheMethod,
+				lastUnitOfCurrentlyInstrumentedBodyUnitChain, handlerStmt);
+		// Add the trap without forcing it to be the last one as the semantic is not
+		// clear...
+		body.getTraps().add(trap);
 	}
 
-	@Override
-	protected void internalTransform(String arg0, Map<String, String> arg1) {
-		// TODO This might be improved:
-		System.out.println("SceneInstrumenterWithMethodParameters.internalTransform() RUNNING ");
-		this.run();
-
-	}
-
-} // -- public class icgInst
+}
+// -- public class icgInst

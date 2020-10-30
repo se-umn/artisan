@@ -24,24 +24,37 @@ public class ParserSmokeTest {
 
 	@Test
 	public void parseTrace() throws FileNotFoundException, IOException, ABCException {
-		File traceFile = new File("./traces/de.unipassau.calculator/Trace-1585866107653.txt");
-		File apk_file = new File("./src/test/resources/apks/BasicCalculator.apk");
-		
-		TraceParserImpl.setupSoot(ANDROID_JAR, apk_file);
-		
-		TraceParserImpl parser = new TraceParserImpl();
-		ParsedTrace parsedTrace = parser.parseFromTraceFile(traceFile);
+		File traceFile = new File("./src/test/resources/abc.basiccalculator/testCalculate-trace-small.txt");
+		File apk_file = new File("./src/test/resources/abc.basiccalculator/app-debug.apk");
+
+		ParsingUtils.setupSoot(ANDROID_JAR, apk_file);
+
+		TraceParser parser = new TraceParserImpl();
+		ParsedTrace parsedTrace = parser.parseTrace(traceFile);
+
 	}
 
 	@Test
-	public void parseTraceWithManyThreads() throws FileNotFoundException, IOException, ABCException {
-		File traceFile = new File("./traces/ca.rmen.android.poetassistant/Crash.test-trace");
-		File apk_file = new File("./src/test/resources/apks/Poet.apk");
-		
-		TraceParserImpl.setupSoot(ANDROID_JAR, apk_file);
-		
-		
-		TraceParserImpl parser = new TraceParserImpl();
-		ParsedTrace parsedTrace = parser.parseFromTraceFile(traceFile);
+	public void parseTraceWithGremlin() throws FileNotFoundException, IOException, ABCException {
+		File traceFile = new File("./src/test/resources/abc.basiccalculator/testCalculate-trace-small.txt");
+		File apk_file = new File("./src/test/resources/abc.basiccalculator/app-debug.apk");
+
+		ParsingUtils.setupSoot(ANDROID_JAR, apk_file);
+
+		TraceParser parser = new GremlinParser();
+		ParsedTrace parsedTrace = parser.parseTrace(traceFile);
+
 	}
+
+//	@Test
+//	public void parseTraceWithManyThreads() throws FileNotFoundException, IOException, ABCException {
+//		File traceFile = new File("./traces/ca.rmen.android.poetassistant/Crash.test-trace");
+//		File apk_file = new File("./src/test/resources/apks/Poet.apk");
+//		
+//		TraceParserImpl.setupSoot(ANDROID_JAR, apk_file);
+//		
+//		
+//		TraceParserImpl parser = new TraceParserImpl();
+//		ParsedTrace parsedTrace = parser.parseFromTraceFile(traceFile);
+//	}
 }
