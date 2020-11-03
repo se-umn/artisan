@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Some utility scripts for the Action Based Carving (ABC) Framework
 
-ABC_CONFIG="${ABC_CONFIG:-.abc-config}"
+ABC_CONFIG="${ABC_CONFIG:-$(dirname "$0")/.abc-config}"
+
 
 red=$(tput setaf 1)
 green=$(tput setaf 2)
@@ -655,9 +656,16 @@ function edit-abc() {
 }
 
 function show-config() {
-  (echo >&2 "Config file contains:")
-  (echo >&2 "-------------------")
-  cat ${ABC_CONFIG}
+  # (echo >&2 "-------------------")
+  # (echo >&2 "Config file contains:")
+  # (echo >&2 "-------------------")
+  if [ $# == 0 ]; then
+    cat ${ABC_CONFIG}
+  elif [ $# == 1 ]; then
+    cat ${ABC_CONFIG} | grep $1
+  else 
+    cat ${ABC_CONFIG}
+  fi
 }
 
 function help() {
