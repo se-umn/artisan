@@ -15,7 +15,6 @@ public class AnkiDroid27beta1Test {
   @Rule
   public AbcRule rule = new AbcRule(TARGET_PACKAGE_NAME);
 
-  //Only causes a crash if there is already cards in the default deck
   @Test
   public void ankiDroid() {
     rule.findObjectOrWait(By.desc("Navigate up")).click();
