@@ -39,6 +39,7 @@ import de.unipassau.abc.data.PrimitiveValue;
 import de.unipassau.abc.generation.SyntheticMethodSignatures;
 import de.unipassau.abc.generation.TestCaseWriter;
 import de.unipassau.abc.generation.assertions.CarvingAssertion;
+import de.unipassau.abc.generation.mocks.CarvingMock;
 import de.unipassau.abc.generation.data.AndroidCarvedTest;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
@@ -184,6 +185,24 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
     DataDependencyGraph dataDependencyGraph = carvedTest.getDataDependencyGraph();
 
     BlockStmt blockStmt = new BlockStmt();
+
+    for (CarvingMock carvingMock : carvedTest.getMocks()) {
+      for (Pair<ExecutionFlowGraph, DataDependencyGraph> pair : zip(
+          carvingMock.executionFlowGraphs,
+          carvingMock.dataDependencyGraphs)) {
+        ExecutionFlowGraph carvingExecutionFlowGraph = pair.getFirst();
+        for (MethodInvocation methodInvocation : carvingExecutionFlowGraph 
+            .getOrderedMethodInvocations()) {
+          if (methodInvocation.isConstructor()) {
+            generateConstructorCall(methodInvocation, blockStmt);
+          } else {
+            generateMethodCall(methodInvocation, blockStmt);
+
+          }
+        }
+      }
+    }
+
     // TODO First declare all the variables for non-primitive-like types in the
     // scope of this block ?
     Set<ObjectInstance> objectInstances = new HashSet<>(
@@ -240,7 +259,6 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
           }
         }
       }
-
     }
     return blockStmt;
   }

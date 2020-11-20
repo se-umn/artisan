@@ -10,6 +10,7 @@ import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.generation.assertions.CarvingAssertion;
+import de.unipassau.abc.generation.mocks.CarvingMock;
 
 public class CarvedTest {
 
@@ -33,6 +34,7 @@ public class CarvedTest {
 	private CatchBlock catchUnexpectedException;
 
 	private List<CarvingAssertion> assertions;
+    private List<CarvingMock> mocks;
 
 	// Basic Tests
 	public CarvedTest(MethodInvocation methodInvocationUnderTest, ExecutionFlowGraph executionFlowGraph,
@@ -45,6 +47,7 @@ public class CarvedTest {
 		this.catchUnexpectedException = catchUnexpectedException;
 		//
 		this.assertions = new ArrayList<CarvingAssertion>();
+        this.mocks = new ArrayList<CarvingMock>();
 	}
 
 	public CarvedTest(MethodInvocation methodInvocationUnderTest, ExecutionFlowGraph executionFlowGraph,
@@ -54,7 +57,16 @@ public class CarvedTest {
 		this.dataDependencyGraph = dataDependencyGraph;
 		//
 		this.assertions = new ArrayList<CarvingAssertion>();
+        this.mocks = new ArrayList<CarvingMock>();
 	}
+
+    public void addMock(CarvingMock mock) {
+        this.mocks.add(mock);
+    }
+
+    public List<CarvingMock> getMocks() {
+        return mocks;
+    }
 
 	// TODO Not sure we need a setAssertions	
 	public void addAssertion(CarvingAssertion assertion) {
@@ -109,5 +121,9 @@ public class CarvedTest {
 	public DataDependencyGraph getDataDependencyGraph() {
 		return this.dataDependencyGraph;
 	}
+
+    public void setDataDependencyGraph(DataDependencyGraph dataDependencyGraph) {
+        this.dataDependencyGraph = dataDependencyGraph;
+    }
 
 }

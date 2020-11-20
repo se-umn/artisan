@@ -14,6 +14,7 @@ import de.unipassau.abc.data.ExecutionFlowGraphImpl;
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
+import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.assertions.AssertionGenerator;
 import de.unipassau.abc.generation.assertions.CarvingAssertion;
@@ -22,6 +23,8 @@ import de.unipassau.abc.generation.assertions.PrimitiveValueAssertionGenerator;
 import de.unipassau.abc.generation.data.AndroidCarvedTest;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
+import de.unipassau.abc.generation.mocks.MockGenerator;
+import de.unipassau.abc.generation.mocks.CarvingMock;
 import de.unipassau.abc.parsing.ParsedTrace;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -414,10 +417,14 @@ public class BasicTestGenerator implements TestGenerator {
                     carvedExecution);
             carvedTest.addAssertion(returnValueAssertion);
           }
-
         }
       }
     }
+
+    MockGenerator mockGenerator = new MockGenerator();
+    Pair<CarvingMock, CarvedTest> mock = mockGenerator.generateMocks(carvedTest, carvedExecution);
+    carvedTest.addMock(mock.getFirst());
+    carvedTest = mock.getSecond();
 
     /*
      * Validate the test case: if the carved tests contains dangling objects is not
