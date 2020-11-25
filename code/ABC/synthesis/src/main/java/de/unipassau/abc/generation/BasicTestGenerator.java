@@ -424,17 +424,18 @@ public class BasicTestGenerator implements TestGenerator {
     MockGenerator mockGenerator = new MockGenerator();
     Pair<CarvingMock, CarvedTest> mock = mockGenerator.generateMocks(carvedTest, carvedExecution);
     carvedTest.addMock(mock.getFirst());
-    carvedTest = mock.getSecond();
+    // not needed??
+    // carvedTest = mock.getSecond();
 
     /*
      * Validate the test case: if the carved tests contains dangling objects is not
      * valid TODO This might need to be moved by the end? Or at this point we need
      * to have mocking/stubbing in place already
      */
-    Set<ObjectInstance> danglingObjects = carvedTest.getDataDependencyGraph().getDanglingObjects();
-		/*if (!danglingObjects.isEmpty()) {
-			throw new CarvingException("Carved Test contains dangling Objects:" + danglingObjects);
-		}*/
+    // Set<ObjectInstance> danglingObjects = carvedTest.getDataDependencyGraph().getDanglingObjects();
+    // if (!danglingObjects.isEmpty()) {
+    //     throw new CarvingException("Carved Test contains dangling Objects:" + danglingObjects);
+    // }
 
     return carvedTest;
   }
