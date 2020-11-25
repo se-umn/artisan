@@ -1,34 +1,40 @@
 
 package de.unipassau.abc.parsing;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import com.google.common.collect.Lists;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.instrumentation.Monitor;
 import de.unipassau.abc.tracing.Trace;
+import de.unipassau.abc.utils.ThrowingRunnable;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Generic parser that emits "events" that subclasses need to handle
- * 
+ *
  * @author gambitemp
  *
  */
 public abstract class TraceParser {
 
-	class ParsedLine {
+  class ParsedLine {
 		public String lineNumber;
 		public String threadName;
 		public String methodContext;
@@ -45,6 +51,14 @@ public abstract class TraceParser {
 	// The final parsed trace
 	protected ParsedTrace parsedTrace;
 
+	protected Map<String, ExecutorService> threadDispatcher = new HashMap<>();
+
+	protected final boolean multiThreaded;
+
+	public TraceParser(boolean multiThreaded) {
+	  this.multiThreaded = multiThreaded;
+  }
+
 	/**
 	 * TODO This is pyblic mostly for testability. Parses a single line of the
 	 * trace.Ensuresthe right number of tokens are in there orfail with an exception
@@ -60,8 +74,10 @@ public abstract class TraceParser {
 			String methodId = _tokens[0].split(" ")[0];
 
 			// Extracts the identifier of the thread that executed the invocation
-			String threadName = _tokens[0].split(" ")[1];
-//			.replaceFirst("\\[", "").replaceFirst("\\]", "");
+      // Some thread names might also contain spaces
+      List<String> _threadName = Lists.newArrayList(_tokens[0].split(" "));
+      _threadName.remove(0);
+      String threadName = String.join(" ", _threadName);
 
 			// Extract the context of the invocation
 			String context = _tokens[1];
@@ -143,96 +159,202 @@ public abstract class TraceParser {
 		}
 	}
 
+  private ParsedTrace parseTraceMultiThreaded(File traceFile) throws FileNotFoundException, IOException, ABCException {
+    /*
+     * Ensures that the "backend" initialized the parsedTraceObject
+     */
+    this.parsedTrace = setupParsedTrace(traceFile);
+
+    /*
+     * This is global id of method invocations, acts like a global logical clock
+     */
+    AtomicInteger globalInvocationCount = new AtomicInteger(0);
+
+    /*
+     * Create for each execution thread (String:key) a structure that contains the
+     * ordered list of executed method calls, a graph of method calls dependencies
+     * via data dependency (read and produced), and via method call
+     */
+
+    try (BufferedReader b = new BufferedReader(new FileReader(traceFile))) {
+
+      String currentLine = "";
+      int lineNumber = 0;
+      long startTime = System.currentTimeMillis();
+
+      while ((currentLine = b.readLine()) != null) {
+
+        // Increment line count
+        lineNumber++;
+
+        if (lineNumber % 10000 == 0) {
+          long elapsed = System.currentTimeMillis() - startTime;
+          logger.info("Parsed " + lineNumber + " lines took "
+              + String.format("%d min, %d sec", TimeUnit.MILLISECONDS.toMinutes(elapsed),
+              TimeUnit.MILLISECONDS.toSeconds(elapsed)
+                  - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(elapsed))));
+          System.gc();
+        }
+
+        ParsedLine tokens = parseLine(currentLine);
+
+        // TODO Open an issue here to setup filtering of method calls
+
+        threadDispatcher.putIfAbsent(tokens.threadName, Executors.newSingleThreadExecutor());
+
+        // Take the thread responsible for the android thread name and put a new task into its queue
+        threadDispatcher.get(tokens.threadName).submit(handlingRunnableWrapper(() -> {
+            switch (tokens.methodToken) {
+              case Monitor.METHOD_START_TOKEN:
+              case Monitor.LIB_METHOD_START_TOKEN:
+                parseMethodInvocation(globalInvocationCount, tokens);
+                break;
+              case Monitor.SYNTHETIC_METHOD_START_TOKEN:
+                parseSyntheticMethodInvocation(globalInvocationCount, tokens);
+                break;
+              case Monitor.PRIVATE_METHOD_START_TOKEN:
+                parsePrivateMethodInvocation(globalInvocationCount, tokens);
+                break;
+              case Monitor.METHOD_END_TOKEN:
+                parseMethodReturn(globalInvocationCount, tokens);
+                break;
+              case Monitor.METHOD_END_TOKEN_FROM_EXCEPTION:
+                parseMethodReturnWithException(globalInvocationCount, tokens);
+                break;
+              default:
+                throw new ABCException("Invalid token" + tokens.methodToken);
+            }
+          }, "Error while parsing line " + currentLine));
+      }
+    }
+
+    // Wait for all threads to complete their tasks
+    for (Entry<String, ExecutorService> entry : threadDispatcher.entrySet()) {
+      String threadName = entry.getKey();
+      ExecutorService executorService = entry.getValue();
+      executorService.shutdown();
+      try {
+        // Basically wait "forever"
+        executorService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+      } catch (InterruptedException e) {
+        executorService.shutdownNow();
+        throw new ABCException("Could not terminate parsing thread " + threadName, e);
+      }
+    }
+
+    endOfExecution();
+
+    validate();
+
+    return this.parsedTrace;
+  }
+
+  private ParsedTrace parsedTraceSingleThreaded(File traceFile) throws ABCException, IOException {
+    /*
+     * Ensures that the "backend" initialized the parsedTraceObject
+     */
+    this.parsedTrace = setupParsedTrace(traceFile);
+
+    /*
+     * This is global id of method invocations, acts like a global logical clock
+     */
+    AtomicInteger globalInvocationCount = new AtomicInteger(0);
+
+    /*
+     * Create for each execution thread (String:key) a structure that contains the
+     * ordered list of executed method calls, a graph of method calls dependencies
+     * via data dependency (read and produced), and via method call
+     */
+
+    try (BufferedReader b = new BufferedReader(new FileReader(traceFile))) {
+
+      String currentLine = "";
+      int lineNumber = 0;
+      long startTime = System.currentTimeMillis();
+
+      while ((currentLine = b.readLine()) != null) {
+
+        // Increment line count
+        lineNumber++;
+
+        if (lineNumber % 10000 == 0) {
+          long elapsed = System.currentTimeMillis() - startTime;
+          logger.info("Parsed " + lineNumber + " lines took "
+              + String.format("%d min, %d sec", TimeUnit.MILLISECONDS.toMinutes(elapsed),
+              TimeUnit.MILLISECONDS.toSeconds(elapsed)
+                  - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(elapsed))));
+          System.gc();
+        }
+
+        try {
+          ParsedLine tokens = parseLine(currentLine);
+          if (tokens.methodSignature == null) {
+            throw new ABCException("Missing method signature in trace. Offending line: " + currentLine);
+          }
+
+          // TODO Open an issue here to setup filtering of method calls
+
+          switch (tokens.methodToken) {
+
+            case Monitor.METHOD_START_TOKEN:
+            case Monitor.LIB_METHOD_START_TOKEN:
+              parseMethodInvocation(globalInvocationCount, tokens);
+              break;
+            case Monitor.SYNTHETIC_METHOD_START_TOKEN:
+              parseSyntheticMethodInvocation(globalInvocationCount, tokens);
+              break;
+            case Monitor.PRIVATE_METHOD_START_TOKEN:
+              parsePrivateMethodInvocation(globalInvocationCount, tokens);
+              break;
+            case Monitor.METHOD_END_TOKEN:
+              parseMethodReturn(globalInvocationCount, tokens);
+              break;
+            case Monitor.METHOD_END_TOKEN_FROM_EXCEPTION:
+              parseMethodReturnWithException(globalInvocationCount, tokens);
+              break;
+            default:
+              throw new ABCException("Invalid token" + tokens.methodToken);
+          }
+        } catch (Throwable t) {
+          logger.error("Error while parsing line " + currentLine, t);
+          throw t;
+        }
+      }
+    }
+    endOfExecution();
+
+    validate();
+
+    return this.parsedTrace;
+  }
+
+  private static <E extends Exception> Runnable handlingRunnableWrapper(ThrowingRunnable<E> runnable,
+      String message) {
+    return () -> {
+      try {
+        runnable.run();
+      } catch (Exception ex) {
+        throw new RuntimeException(message, ex);
+      }
+    };
+  }
+
 	/**
 	 * Return a structure representing the executions captured by the traces.
-	 * 
-	 * 
-	 * @param traceFilePath
-	 * @param externalInterfaceMatchers
-	 * @param stringsAsObjects
+	 *
+	 *
+	 * @param traceFile
 	 * @return
 	 * @throws FileNotFoundException
 	 * @throws IOException
 	 * @throws CarvingException
 	 */
 	public ParsedTrace parseTrace(File traceFile) throws FileNotFoundException, IOException, ABCException {
-		/*
-		 * Ensures that the "backend" initialized the parsedTraceObject
-		 */
-		this.parsedTrace = setupParsedTrace(traceFile);
-
-		/*
-		 * This is global id of method invocations, acts like a global logical clock
-		 */
-		AtomicInteger globalInvocationCount = new AtomicInteger(0);
-
-		/*
-		 * Create for each execution thread (String:key) a structure that contains the
-		 * ordered list of executed method calls, a graph of method calls dependencies
-		 * via data dependency (read and produced), and via method call
-		 */
-
-		try (BufferedReader b = new BufferedReader(new FileReader(traceFile))) {
-
-			String currentLine = "";
-			int lineNumber = 0;
-			long startTime = System.currentTimeMillis();
-
-			while ((currentLine = b.readLine()) != null) {
-
-				// Increment line count
-				lineNumber++;
-
-				if (lineNumber % 10000 == 0) {
-					long elapsed = System.currentTimeMillis() - startTime;
-					logger.info("Parsed " + lineNumber + " lines took "
-							+ String.format("%d min, %d sec", TimeUnit.MILLISECONDS.toMinutes(elapsed),
-									TimeUnit.MILLISECONDS.toSeconds(elapsed)
-											- TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(elapsed))));
-					System.gc();
-				}
-
-				try {
-					ParsedLine tokens = parseLine(currentLine);
-					if (tokens.methodSignature == null) {
-						throw new ABCException("Missing method signature in trace. Offending line: " + currentLine);
-					}
-
-					// TODO Open an issue here to setup filtering of method calls
-
-					switch (tokens.methodToken) {
-
-					case Monitor.METHOD_START_TOKEN:
-					case Monitor.LIB_METHOD_START_TOKEN:
-						parseMethodInvocation(globalInvocationCount, tokens);
-						break;
-					case Monitor.SYNTHETIC_METHOD_START_TOKEN:
-						parseSyntheticMethodInvocation(globalInvocationCount, tokens);
-						break;
-					case Monitor.PRIVATE_METHOD_START_TOKEN:
-						parsePrivateMethodInvocation(globalInvocationCount, tokens);
-						break;
-					case Monitor.METHOD_END_TOKEN:
-						parseMethodReturn(globalInvocationCount, tokens);
-						break;
-					case Monitor.METHOD_END_TOKEN_FROM_EXCEPTION:
-						parseMethodReturnWithException(globalInvocationCount, tokens);
-						break;
-					default:
-						throw new ABCException("Invalid token" + tokens.methodToken);
-					}
-				} catch (Throwable t) {
-					logger.error("Error while parsing line " + currentLine, t);
-					throw t;
-				}
-			}
-		}
-		endOfExecution();
-
-		validate();
-
-		return this.parsedTrace;
-
+    if (multiThreaded) {
+      return parseTraceMultiThreaded(traceFile);
+    } else {
+      return parsedTraceSingleThreaded(traceFile);
+    }
 	}
 
 	public final static Pattern params = Pattern.compile("\\((.*?)\\)");

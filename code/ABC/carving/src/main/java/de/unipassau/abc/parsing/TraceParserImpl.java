@@ -1,12 +1,5 @@
 package de.unipassau.abc.parsing;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.CallGraphImpl;
 import de.unipassau.abc.data.DataDependencyGraph;
@@ -21,23 +14,29 @@ import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.tracing.Trace;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import soot.SootMethod;
 
 /**
  * Parser "only" parse one trace file at time, and generates the data structures
  * required for carving, namely an ExecutionFlowGraph, a DataDependencyGraph,
  * and a CallGraph
- * 
+ *
  * Parser considers the following heuristic: - Thread Name contains UI: this is
  * the "main" thread of the android app - Thread Name contains Asynch/Task: this
  * is a background thread that execute a single task (and dies) - Any other
  * thread name indicates some background service.
- * 
+ *
  * Calls are interpreted using the tokens defined by {@link de.unipassau.abc.instrumentation.Monitor}
- * 
+ *
  * To account for multiple thread, use the thread name as context and the actual
  * position in the file as id (they get interleaved but are still ordered!)
- * 
+ *
  * One way to achieve this is to create different instances of the parses which
  * share the same ID generator and invoke them by looking up the instance using
  * the thread name.
@@ -46,7 +45,7 @@ import soot.SootMethod;
  * as they are tokens TODO: Maybe we can replace the DELIMITER to some char
  * which is NEVER used, like, * or % or | Strings are encoded so they are
  * basically digits
- * 
+ *
  * @author gambi
  *
  */
@@ -54,13 +53,22 @@ public class TraceParserImpl extends TraceParser {
 
 	private ParsedTraceImpl parsedTrace;
 
-	@Override
+  public TraceParserImpl(boolean multiThreaded) {
+    super(multiThreaded);
+  }
+
+  public TraceParserImpl() {
+    this(false);
+  }
+
+  @Override
 	public ParsedTrace setupParsedTrace(File traceFile) {
 		this.parsedTrace = new ParsedTraceImpl(traceFile.getName());
 		return parsedTrace;
 	}
 
-	private Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedElements = new HashMap<>();
+	private Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> parsedElements
+      = new ConcurrentHashMap<>();
 
 	// TODO Maybe some of the following parsing and the like can be moved into Trace
 	// ?
@@ -395,7 +403,7 @@ public class TraceParserImpl extends TraceParser {
 	/**
 	 * Parse method attributes but do not try to use Soot as backend to get
 	 * additional data about methods
-	 * 
+	 *
 	 * @param globalInvocationCount
 	 * @param tokens
 	 * @throws ABCException
@@ -493,8 +501,8 @@ public class TraceParserImpl extends TraceParser {
 	private Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> getOrInitializeDataStructure(
 			String threadName) {
 		if (!parsedElements.containsKey(threadName)) {
-			parsedElements.put(threadName, new Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>(
-					new ExecutionFlowGraphImpl(), new DataDependencyGraphImpl(), new CallGraphImpl()));
+			parsedElements.put(threadName, new Triplette<>(
+          new ExecutionFlowGraphImpl(), new DataDependencyGraphImpl(), new CallGraphImpl()));
 		}
 		return parsedElements.get(threadName);
 	}
