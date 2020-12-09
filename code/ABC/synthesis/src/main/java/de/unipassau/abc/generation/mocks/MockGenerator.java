@@ -30,7 +30,7 @@ public class MockGenerator {
 
     private static final String MOCK_SIGNATURE = "<org.mockito.Mockito: java.lang.Object mock(java.lang.Class)>";
     private static final String RETURN_SIGNATURE = "<org.mockito.Mockito: org.mockito.stubbing.Stubber doReturn(java.lang.Object)>";
-    private static final String WHEN_SIGNATURE = "<org.mockito.stubbing.Stubber: java.lang.Object when(java.lang.object)>";
+    private static final String WHEN_SIGNATURE = "<org.mockito.stubbing.Stubber: java.lang.Object when(java.lang.Object)>";
 
     private static final AtomicInteger id = new AtomicInteger(1);
 
@@ -85,7 +85,7 @@ public class MockGenerator {
                 mockDataDependencyGraph.addDataDependencyOnActualParameter(doReturnMock, doReturnArgument, 0);
                 mockDataDependencyGraph.addDataDependencyOnReturn(doReturnMock, (DataNode) doReturnReturn);
 
-                ObjectInstance whenReturn = ObjectInstanceFactory.get("java.lang.Object@" + id.getAndIncrement());
+                ObjectInstance whenReturn = ObjectInstanceFactory.get(danglingObject.getType() + "@" + id.getAndIncrement());
 
                 MethodInvocation whenMock = new MethodInvocation(id.getAndIncrement(), WHEN_SIGNATURE);
                 whenMock.setOwner(doReturnReturn);
@@ -115,12 +115,12 @@ public class MockGenerator {
                 List<DataNode> dependentCallParameters = carvedTest.getDataDependencyGraph().getParametersOf(dependentCall);
                 UnaryOperator<DataNode> op = arg -> { if (arg.equals(danglingObject)) { return classToMock; } else { return arg; }};
                 dependentCallParameters.replaceAll(op);
-                // this doesn't work, it just copies the method reference
-                // MethodInvocation origDependentCall = dependentCall;
+                // deep copy of the method object
+                MethodInvocation newDependentCall = dependentCall.clone();
                 // i'm getting a reference to the object???????????
                 dependentCall.setActualParameterInstances(dependentCallParameters);
-                // adding to datadep graph not needed??
-                // carvedDataDependencyGraph.replaceMethodInvocation(origDependentCall, dependentCall);
+                // adding to datadep graph not needed?? (this doesn't work??)
+                carvedDataDependencyGraph.replaceMethodInvocation(dependentCall, newDependentCall);
             }
         }
 
