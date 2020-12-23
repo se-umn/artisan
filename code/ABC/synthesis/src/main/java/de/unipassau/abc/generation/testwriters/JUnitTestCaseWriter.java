@@ -188,6 +188,8 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 		ExecutionFlowGraph executionFlowGraph = carvedTest.getExecutionFlowGraph();
 		DataDependencyGraph dataDependencyGraph = carvedTest.getDataDependencyGraph();
 
+		BlockStmt blockStmt = new BlockStmt();
+		
         for (CarvingMock carvingMock : carvedTest.getMocks()) {
               for (Pair<ExecutionFlowGraph, DataDependencyGraph> pair : zip(
                   carvingMock.executionFlowGraphs,
@@ -204,7 +206,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             }
         }
 
-		BlockStmt blockStmt = new BlockStmt();
+		
 		// TODO First declare all the variables for non-primitive-like types in the
 		// scope of this block ?
 		Set<ObjectInstance> objectInstances = new HashSet<>(dataDependencyGraph.getObjectInstances());
