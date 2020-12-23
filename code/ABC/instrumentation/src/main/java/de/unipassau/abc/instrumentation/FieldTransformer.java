@@ -1,7 +1,7 @@
 package de.unipassau.abc.instrumentation;
 
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 
 import de.unipassau.abc.data.Pair;
 import soot.Body;
@@ -10,7 +10,6 @@ import soot.RefType;
 import soot.Scene;
 import soot.SootClass;
 import soot.SootMethod;
-import soot.SootField;
 import soot.Unit;
 import soot.Value;
 import soot.jimple.AbstractStmtSwitch;
@@ -22,7 +21,6 @@ import soot.jimple.NullConstant;
 import soot.jimple.StaticFieldRef;
 import soot.jimple.Stmt;
 import soot.jimple.StringConstant;
-import utils.Constants;
 
 public class FieldTransformer extends AbstractStmtSwitch {
 

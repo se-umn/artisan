@@ -1,0 +1,26 @@
+# Gradle
+.gradle
+
+# Generated files
+/build
+
+# IntelliJ
+*.iml
+*.ipr
+*.iws
+.idea/
+#/.idea/workspace.xml
+#/.idea/libraries
+
+# Local configuration file (sdk path, etc)
+local.properties
+app/keystore.properties
+
+# Keystores
+*.keystore
+
+# Windows
+.DS_Store
+
+# Linux
+*~

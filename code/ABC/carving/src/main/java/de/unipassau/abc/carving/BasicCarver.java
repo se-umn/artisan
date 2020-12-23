@@ -1,16 +1,5 @@
 package de.unipassau.abc.carving;
 
-import de.unipassau.abc.carving.exceptions.CarvingException;
-import de.unipassau.abc.data.CallGraph;
-import de.unipassau.abc.data.DataDependencyGraph;
-import de.unipassau.abc.data.DataNode;
-import de.unipassau.abc.data.ExecutionFlowGraph;
-import de.unipassau.abc.data.MethodInvocation;
-import de.unipassau.abc.data.NullInstance;
-import de.unipassau.abc.data.ObjectInstance;
-import de.unipassau.abc.data.Triplette;
-import de.unipassau.abc.exceptions.ABCException;
-import de.unipassau.abc.parsing.ParsedTrace;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -23,11 +12,17 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.ibm.icu.impl.duration.impl.DataRecord.EZeroHandling;
-import com.jcabi.log.Logger;
-
-import android.provider.ContactsContract.Contacts.Data;
-import android.telecom.Call;
+import de.unipassau.abc.carving.exceptions.CarvingException;
+import de.unipassau.abc.data.CallGraph;
+import de.unipassau.abc.data.DataDependencyGraph;
+import de.unipassau.abc.data.DataNode;
+import de.unipassau.abc.data.ExecutionFlowGraph;
+import de.unipassau.abc.data.MethodInvocation;
+import de.unipassau.abc.data.NullInstance;
+import de.unipassau.abc.data.ObjectInstance;
+import de.unipassau.abc.data.Triplette;
+import de.unipassau.abc.exceptions.ABCException;
+import de.unipassau.abc.parsing.ParsedTrace;
 
 /**
  * Basic carver is a method carver, that is, it will produce a carved execution
@@ -97,9 +92,12 @@ public class BasicCarver implements MethodCarver {
 			 * before invoking methodInvocation
 			 */
 			relevantMethodInvocations.addAll(this.executionFlowGraph.getMethodInvocationsBefore(methodInvocation,
-					t -> t.getOwner().equals(methodInvocationOwner)));
+					/*
+					 * Make sure we compare always the non-null with the possibly null otherwise it
+					 * fails silenty and return an empyt set
+					 */
+					t -> methodInvocationOwner.equals(t.getOwner())));
 		}
-
 		// The last relevant method invocations are the one that have been called by the
 		// objects used at some point
 
@@ -309,7 +307,7 @@ public class BasicCarver implements MethodCarver {
 		return carvedExecutions;
 	}
 
-	private void clearTheCache() {
+	public void clearTheCache() {
 		carvedMethodInvocationsCache.clear();
 	}
 

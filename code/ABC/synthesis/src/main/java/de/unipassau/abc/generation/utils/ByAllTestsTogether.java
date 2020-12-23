@@ -15,10 +15,10 @@ import de.unipassau.abc.generation.data.CarvedTest;
 public class ByAllTestsTogether implements TestCaseOrganizer {
 
 	@Override
-	public Set<TestCase> organize(CarvedTest... carvedTests) {
+	public Set<TestClass> organize(CarvedTest... carvedTests) {
 
-		Set<TestCase> testSuite = new HashSet<>();
-		TestCase testCase = new TestCase("all", "AllCarvedTests",
+		Set<TestClass> testSuite = new HashSet<>();
+		TestClass testCase = new TestClass("all", "AllCarvedTests",
 				new HashSet<>(Arrays.asList(carvedTests)));
 		testSuite.add(testCase);
 

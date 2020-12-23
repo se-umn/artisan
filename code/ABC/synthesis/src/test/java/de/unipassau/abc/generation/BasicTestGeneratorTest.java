@@ -18,7 +18,7 @@ import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.testwriters.JUnitTestCaseWriter;
-import de.unipassau.abc.generation.utils.TestCase;
+import de.unipassau.abc.generation.utils.TestClass;
 import de.unipassau.abc.generation.utils.TestCaseOrganizer;
 import de.unipassau.abc.generation.utils.TestCaseOrganizers;
 import de.unipassau.abc.parsing.ParsedTrace;
@@ -76,11 +76,11 @@ public class BasicTestGeneratorTest {
 
 		// Group CarvedTests in classes
 		TestCaseOrganizer organizer = TestCaseOrganizers.byAllTestsTogether();
-		Set<TestCase> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+		Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
 
 		JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
 
-		for (TestCase testCase : testSuite) {
+		for (TestClass testCase : testSuite) {
 			CompilationUnit cu = writer.generateJUnitTestCase(testCase);
 			System.out.println(cu);
 		}
@@ -127,11 +127,11 @@ public class BasicTestGeneratorTest {
 
 		// Group CarvedTests in classes
 		TestCaseOrganizer organizer = TestCaseOrganizers.byAllTestsTogether();
-		Set<TestCase> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+		Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
 
 		JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
 
-		for (TestCase testCase : testSuite) {
+		for (TestClass testCase : testSuite) {
 			CompilationUnit cu = writer.generateJUnitTestCase(testCase);
 			System.out.println(cu);
 		}
@@ -168,11 +168,52 @@ public class BasicTestGeneratorTest {
 
 		// Group CarvedTests in classes
 		TestCaseOrganizer organizer = TestCaseOrganizers.byAllTestsTogether();
-		Set<TestCase> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+		Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
 
 		JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
 
-		for (TestCase testCase : testSuite) {
+		for (TestClass testCase : testSuite) {
+			CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+			System.out.println(cu);
+		}
+	}
+	
+	@Test
+	public void testEmptyCallGraph() throws FileNotFoundException, IOException, ABCException {
+		File traceFile = new File("./src/test/resources/abc.basiccalculator/Trace-testCalculateAndIncrementByOneWithLogging-1603454200461.txt");
+		File apk_file = new File("./src/test/resources/abc.basiccalculator/app-debug.apk");
+
+		// Really needed?
+		ParsingUtils.setupSoot(ANDROID_JAR, apk_file);
+
+		TraceParser parser = new TraceParserImpl();
+		ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+
+		// TODO How do we handle extensions like Android automatically?
+		ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
+		ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+
+		Set<MethodInvocation> targetMethodsInvocations = new HashSet<MethodInvocation>();
+		final String targetSignature = "<abc.basiccalculator.ResultActivity: void checkResult(java.lang.String)>";
+
+		// TODO Expose some method to easily find the method calls that we need
+		parsedTrace.getUIThreadParsedTrace().getFirst().getOrderedMethodInvocations().stream()
+				.filter(methodInvocation -> targetSignature.equals(methodInvocation.getMethodSignature()))
+				.forEach(targetMethodsInvocations::add);
+
+		// One only for this test
+		Assume.assumeTrue(targetMethodsInvocations.size() == 1);
+
+		TestGenerator basicTestGenerator = new BasicTestGenerator();
+		Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocations, parsedTrace);
+
+		// Group CarvedTests in classes
+		TestCaseOrganizer organizer = TestCaseOrganizers.byAllTestsTogether();
+		Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+
+		JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+
+		for (TestClass testCase : testSuite) {
 			CompilationUnit cu = writer.generateJUnitTestCase(testCase);
 			System.out.println(cu);
 		}

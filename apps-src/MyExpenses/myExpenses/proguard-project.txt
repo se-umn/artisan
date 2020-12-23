@@ -1,0 +1,100 @@
+# Restore some Source file names and restore approximate line numbers in the stack traces,
+# otherwise the stack traces are pretty useless
+-keepattributes SourceFile, LineNumberTable, InnerClasses
+-dontskipnonpubliclibraryclassmembers
+
+#-keep class org.bouncycastle.** { *; }
+-keep class com.itextpdf.** { *; }
+-dontwarn org.bouncycastle.**
+-dontwarn com.itextpdf.**
+
+-keepclassmembers class org.totschnig.myexpenses.provider.filter.** {
+ public <init>(java.lang.String,java.lang.String[]);
+}
+
+#Guava
+-dontwarn javax.annotation.**
+-dontwarn javax.inject.**
+-dontwarn sun.misc.Unsafe
+
+-keepclassmembers class * {
+    @androidx.annotation.VisibleForTesting *;
+}
+
+-keep enum org.totschnig.myexpenses.activity.*$HelpVariant
+
+-keep class android.support.v7.widget.SearchView { *; }
+
+-keep class se.emilsjolander.stickylistheaders.StickyListHeadersListView { *; }
+
+#Picasso
+-dontwarn com.squareup.okhttp.**
+
+# needed by MyTestRunner
+-keepclassmembers class org.totschnig.myexpenses.MyApplication {
+    public static void setInstrumentationTest(boolean);
+    public static void cleanUpAfterTest();
+}
+
+# Espresso Contrib DrawerActions accesses this through reflection
+-keepclassmembers class android.support.v4.widget.DrawerLayout {
+    private android.support.v4.widget.DrawerLayout$DrawerListener mListener;
+    public void setDrawerListener(android.support.v4.widget.DrawerLayout$DrawerListener);
+}
+
+-dontwarn icepick.**
+-keep class icepick.** { *; }
+-keep class **$$Icepick { *; }
+-keepclasseswithmembernames class * {
+    @icepick.* <fields>;
+}
+
+# Dav4Android
+-dontwarn lombok.**
+-keep class at.bitfire.** { *; }       # all DAVdroid code is required
+
+# okhttp
+-dontwarn java.nio.file.**
+-dontwarn org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
+
+# Retrolambda
+-dontwarn java.lang.invoke.*
+-dontwarn **$$Lambda$*
+
+-keep public enum org.totschnig.myexpenses.sync.json.TransactionChange$** {
+    **[] $VALUES;
+    public *;
+}
+
+-keepclassmembers class * extends java.lang.Enum {
+    <fields>;
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+# Logback
+-keep class ch.qos.** { *; }
+-keep class org.slf4j.** { *; }
+-keepattributes *Annotation*
+-dontwarn ch.qos.logback.core.net.*
+
+# Pubnative
+-keepattributes Signature
+-keep class net.pubnative.** { *; }
+
+# Dropbox
+-dontwarn okio.**
+-dontwarn okhttp3.**
+-dontwarn com.squareup.okhttp.**
+-dontwarn com.google.appengine.**
+-dontwarn javax.servlet.**
+
+# Retrofit
+# Platform calls Class.forName on types which do not exist on Android to determine platform.
+-dontnote retrofit2.Platform
+# Platform used when running on Java 8 VMs. Will not be used at runtime.
+-dontwarn retrofit2.Platform$Java8
+# Retain generic type information for use by reflection by converters and adapters.
+-keepattributes Signature
+# Retain declared checked exceptions for use by a Proxy instance.
+-keepattributes Exceptions

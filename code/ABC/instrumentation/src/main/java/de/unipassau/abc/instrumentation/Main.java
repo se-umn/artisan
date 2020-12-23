@@ -35,6 +35,9 @@ public class Main {
 		@Option(longName = "android-jar")
 		public File getAndroidJar();
 
+		@Option(longName = "filter-package", defaultValue = {})
+		public List<String> getPackageFilters();
+
 	}
 
 	public static void main(String args[]) throws IOException, XmlPullParserException {
@@ -83,7 +86,7 @@ public class Main {
 		String appPackageName = processMan.getPackageName();
 
 		System.out.println("Main.main() DEBUG: MIN SDK VERSION = " + processMan.getMinSdkVersion());
-		System.out.println("Main.main() DEBUG: MIN SDK VERSION = " + processMan.targetSdkVersion() );
+		System.out.println("Main.main() DEBUG: MIN SDK VERSION = " + processMan.targetSdkVersion());
 		if (processMan.getMinSdkVersion() > 22) {
 			// This breaks if the minSdkVersion is smaller than 22
 			Options.v().set_process_multiple_dex(true);
@@ -92,6 +95,8 @@ public class Main {
 		// This is where the instrumentation takes place.
 		SceneInstrumenterWithMethodParameters abcInstrumentation = new SceneInstrumenterWithMethodParameters(
 				appPackageName);
+		abcInstrumentation.setPackageFilters(cli.getPackageFilters());
+
 		PackManager.v().getPack("wjtp").add(new Transform("wjtp.mt", abcInstrumentation));
 
 		// Make sure Soot knows the classes our instrumentation will use:

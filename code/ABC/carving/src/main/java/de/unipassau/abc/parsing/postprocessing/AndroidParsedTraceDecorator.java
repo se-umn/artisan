@@ -1,5 +1,8 @@
 package de.unipassau.abc.parsing.postprocessing;
 
+import java.util.Set;
+import java.util.function.Predicate;
+
 import de.unipassau.abc.data.AndroidMethodInvocation;
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
@@ -8,8 +11,6 @@ import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.parsing.ParsedTrace;
-import java.util.Set;
-import java.util.function.Predicate;
 
 public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
 
@@ -39,18 +40,25 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
           methodInvocation -> {
             ObjectInstance owner = dataDependencyGraph
                 .getOwnerFor(methodInvocation);
-            // Basically, if a method has an android package or is part of an activity/fragment and
-            // is a constructor/lifecycle callback, then it is considered android related. But does
-            // this cover everything?
-            // TODO what about static methods?
-            return JimpleUtils.isAndroidMethod(methodInvocation.getMethodSignature())
-                || (owner.isAndroidActivity() && JimpleUtils
-                .isActivityLifecycle(methodInvocation.getMethodSignature()))
-                || (owner.isAndroidActivity() && methodInvocation.isConstructor())
-                || (owner.isAndroidFragment() && JimpleUtils
-                .isFragmentLifecycle(methodInvocation.getMethodSignature()))
-                || (owner.isAndroidFragment() && methodInvocation
-                .isConstructor());
+            
+            if(owner == null ) {
+            	// Static methods like: android.util.Log
+            	return JimpleUtils.isAndroidMethod(methodInvocation.getMethodSignature());
+            } else {
+            	// Basically, if a method has an android package or is part of an activity/fragment and
+            	// is a constructor/lifecycle callback, then it is considered android related. But does
+            	// this cover everything?
+            	// TODO what about static methods?
+            	return JimpleUtils.isAndroidMethod(methodInvocation.getMethodSignature())
+            			|| (owner.isAndroidActivity() && JimpleUtils
+            					.isActivityLifecycle(methodInvocation.getMethodSignature()))
+            			|| (owner.isAndroidActivity() && methodInvocation.isConstructor())
+            			|| (owner.isAndroidFragment() && JimpleUtils
+            					.isFragmentLifecycle(methodInvocation.getMethodSignature()))
+            			|| (owner.isAndroidFragment() && methodInvocation
+            					.isConstructor());
+            	
+            }
           }).forEach(originalMethodInvocation -> {
         AndroidMethodInvocation androidMethodInvocation = new AndroidMethodInvocation(
             originalMethodInvocation);
@@ -91,7 +99,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
         isAndroid |= isAndroidActivity(subMethod, callGraph);
       }
       return isAndroid;
-    }
-  }
+	}
+}
 
 }

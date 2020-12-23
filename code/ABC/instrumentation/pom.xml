@@ -16,29 +16,27 @@
 	<name>Soot based instrumentation of Android apps of the ABC Framework for Action-Based Test Carving</name>
 
 	<build>
-		<pluginManagement>
-			<plugins>
-				<plugin>
-					<groupId>org.codehaus.mojo</groupId>
-					<artifactId>appassembler-maven-plugin</artifactId>
-					<version>1.10</version>
-					<configuration>
-						<programs>
-							<program>
-								<mainClass>de.unipassau.abc.instrumentation.Main</mainClass>
-								<id>instrument-apk</id>
-								<jvmSettings>
-									<initialMemorySize>200m</initialMemorySize>
-									<maxMemorySize>1g</maxMemorySize>
-									<maxStackSize>512m</maxStackSize>
-								</jvmSettings>
-							</program>
-						</programs>
-						<copyConfigurationDirectory>true</copyConfigurationDirectory>
-					</configuration>
-				</plugin>
-			</plugins>
-		</pluginManagement>
+		<plugins>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>appassembler-maven-plugin</artifactId>
+				<version>1.10</version>
+				<configuration>
+					<programs>
+						<program>
+							<mainClass>de.unipassau.abc.instrumentation.Main</mainClass>
+							<id>instrument-apk</id>
+							<jvmSettings>
+								<initialMemorySize>200m</initialMemorySize>
+								<maxMemorySize>1g</maxMemorySize>
+								<maxStackSize>512m</maxStackSize>
+							</jvmSettings>
+						</program>
+					</programs>
+					<copyConfigurationDirectory>true</copyConfigurationDirectory>
+				</configuration>
+			</plugin>
+		</plugins>
 	</build>
 
 	<dependencies>

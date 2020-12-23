@@ -3,17 +3,15 @@ package de.unipassau.abc.parsing;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.is;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 
+import de.unipassau.abc.data.MethodInvocation;
+import de.unipassau.abc.exceptions.ABCException;
 import java.io.File;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.GraphTraversalSource;
 import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
 import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
-
-import de.unipassau.abc.data.MethodInvocation;
-import de.unipassau.abc.exceptions.ABCException;
 
 /**
  * This parser generate a graph with Apache TinkerPop Gremlin. I am not sure
@@ -50,6 +48,7 @@ public class GremlinParser extends TraceParser {
 	public final static String DATA_NODE_LABEL = "method invocation";
 
 	public GremlinParser() {
+	  super(false);
 		// TODO Maybe we need to replace TinkerGraph with something else...
 		graph = TinkerGraph.open();
 		g = graph.traversal();

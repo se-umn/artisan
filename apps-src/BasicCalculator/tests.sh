@@ -8,7 +8,7 @@
 #
 TEST_CLASS="abc.basiccalculator.MainActivityTest"
 #TEST_NAME="#testCalculate"
-
+#TEST_NAME="#testIllgalInputThrownByApp"
 set -x
 
 /Users/gambi/Library/Android/sdk/platform-tools/adb shell am instrument -w -e \

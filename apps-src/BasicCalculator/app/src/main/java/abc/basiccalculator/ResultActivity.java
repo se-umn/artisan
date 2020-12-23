@@ -37,11 +37,19 @@ public class ResultActivity extends Activity {
         resultView.setText(result+"");
 
         incrementButtonByOne = findViewById(R.id.incrementButtonByOne);
+        /**
+         * TODO The following code creates an anonym. class which access and set fields in the activity.
+         */
         incrementButtonByOne.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                /**
+                 * This code access a field of "the outer" object (resultView). But we do not track getFields here...
+                 * resultView is a android.widget.TextView
+                 */
                 Expression e = new ExpressionBuilder(resultView.getText().toString()+"+1").build();
                 Number eResult = e.evaluate();
+                // TODO ALESSIO: Does this count as field setting?
                 resultView.setText(eResult.intValue()+"");
                 if(resultView.getText().toString().equals(STRING_TO_CHECK_FOR_LOGGING)){
                     logMessage("Called logged method");

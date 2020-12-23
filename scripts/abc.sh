@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Some utility scripts for the Action Based Carving (ABC) Framework
 
-ABC_CONFIG="${ABC_CONFIG:-.abc-config}"
+ABC_CONFIG="${ABC_CONFIG:-$(dirname "$0")/.abc-config}"
+
 
 red=$(tput setaf 1)
 green=$(tput setaf 2)
@@ -121,6 +122,12 @@ function start-clean-emulator() {
 function list-running-emulators() {
   : ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
   ${ANDROID_ADB_EXE} devices | grep emulator | cut -f1
+}
+
+function stop-all-emulators() {
+  for emulator in $(list-running-emulators); do
+    stop-emulator ${emulator}
+  done
 }
 
 function stop-emulator() {
@@ -255,8 +262,17 @@ function rebuild-all(){
   # Store current folder in stack and cd to $ABC_HOME
   # NOTE: ABC_HOME should not be between double quotes (")
   pushd ${ABC_HOME}
-  mvn clean compile package install -DskipTests
+  mvn clean compile package install -DskipTests 
   # Return to original folder
+
+  pushd instrumentation
+    mvn package appassembler:assemble -DskipTests 
+  popd
+    
+  pushd synthesis
+    mvn package appassembler:assemble -DskipTests 
+  popd
+
   popd
 }
 
@@ -319,6 +335,10 @@ function instrument-apk() {
   # TODO. Maybe we need to move that script here? Maybe we need to use make ?
   export APK_SIGNER=${APK_SIGNER}
   export ANDROID_JAR=${ANDROID_JAR}
+  if [ ! -z "${INSTRUMENTATION_OPTS}" ]; then
+    (echo >&2 "** Exporting INSTRUMENTATION_OPTS: " ${INSTRUMENTATION_OPTS})
+    export INSTRUMENTATION_OPTS=${INSTRUMENTATION_OPTS}
+  fi
 
   local instrumented_apk_file=$(${ABC_HOME}/instrumentation/scripts/instrument-apk.sh ${apk_file})
   # THIS PRODUCES A LOG "HERE". TODO Shall we move the log the location of the instrumented apk ?
@@ -327,16 +347,81 @@ function instrument-apk() {
   echo "${instrumented_apk_file}"
 }
 
+function carve-and-generate-from-trace() {
+  # Ensures the required variables are in place
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${APK_SIGNER:?Please provide a value for APK_SIGNER in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${ANDROID_JAR:?Please provide a value for ANDROID_JAR in $config_file}
+
+  local apk_file="${1:?Missing apk file}"
+  local trace_file="${2:?Missing trace file}"
+  local output_to="${3:?Missing output folder}"
+
+  ${ABC_HOME}/synthesis/target/appassembler/bin/carve-and-generate --android-jar=${ANDROID_JAR} \
+      --trace-files=${trace_file} \
+      --apk=${apk_file} \
+      --output-to=${output_to}
+  # Does this produce a log "HERE" ?  
+}
+
+function carve-all(){
+    # Ensures the required variables are in place
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${APK_SIGNER:?Please provide a value for APK_SIGNER in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${ANDROID_JAR:?Please provide a value for ANDROID_JAR in $config_file}
+
+  local apk_file="${1:?Missing apk file}"
+  local trace_folder="${2:?Missing trace folder}"
+  local output_dir="${3:?Missing output folder}"
+
+  if [ -z "$4" ]
+  then
+    (echo >&2 "Do not clean existing carved tests folder")
+  else
+    (echo >&2 "Clean existing carved tests folder")
+    if [ -e $output_dir ]; then rm -rfv $output_dir; fi
+  fi
+
+  mkdir -p ${output_dir}
+  
+  # Build a string with all the trace files
+  trace_files=$(find traces -type f | tr "\n" " ")
+  
+  ${ABC_HOME}/synthesis/target/appassembler/bin/carve-and-generate --android-jar=${ANDROID_JAR} \
+      --trace-files=${trace_files} \
+      --apk=${apk_file} \
+      --output-to=${output_dir}
+  # Carve all of them, one by one
+  # carve-and-generate-from-trace ${apk_file} ${trace_files} ${output_dir}
+  # for trace_file in $(find ${trace_folder} -iname "Trace*.txt"); do
+  # test_name=$(echo -e $(basename ${trace_file}) | sed -e 's|Trace-\(.*\)-[1-9].*.txt|\1|')
+  # (echo >&2 "Start carving tests from ${trace_file} for test ${test_name}")  
+  # done
+}
+
 function copy-traces() {
   # Ensures the required variables are in place
   : ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
 
   local package_name="${1:?Missing package name}"
   # TODO ALESSIO: I do not really like this but leave it be for the moment
-  local output_dir="$ABC_HOME/carving/traces/$package_name"
-  local tmp_dir="$(mktemp -d)"
+  local output_dir="${2:-$ABC_HOME/carving/traces/$package_name}"
+  local force_clean=$3
 
+  if [ -z "$3" ]
+  then
+    (echo >&2 "Do not clean existing trace folder")
+  else
+    (echo >&2 "Clean existing trace folder")
+    if [ -e $output_dir ]; then rm -rfv $output_dir; fi
+  fi
   mkdir -p "$output_dir"
+
+  local tmp_dir="$(mktemp -d)"
 
   # Restart daemon with root access in order to be able to access app data
   ${ANDROID_ADB_EXE} root >/dev/null 2>&1
@@ -350,6 +435,7 @@ function copy-traces() {
 
     __log_verbose "Copying $filename to ${output_trace}"
     cp "$filename" "${output_trace}"
+    # This is necessary because other functions use this output
     echo "${output_trace}"
   done
 
@@ -389,12 +475,16 @@ function run-test() {
 
   # Build the tests
   local build_result=$("$tests_dir/gradlew" assembleAndroidTest)
-  local test_runner=$(realpath "$tests_dir/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk")
+
+  # Both apks must be installed on the device for the tests to work properly
+  local androidTestDebugApk=$(realpath "$tests_dir/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk")
+  local debugApk=$(realpath "$tests_dir/app/build/outputs/apk/debug/app-debug.apk")
   popd &> /dev/null || exit
-  ( >&2 echo "Test runner is $test_runner" )
+
   # The "testing" apk must be installed, afterwards it can be invoked to test apk under test
   # Check installed instrumentation with 'adb shell pm list instrumentation'
-  install-apk $test_runner
+  install-apk $androidTestDebugApk
+  install-apk $debugApk
 
   # Combine the test class name out of application name and version assuming they are correctly defined.
   # Other options are:
@@ -424,7 +514,7 @@ function run-test() {
   local traces=$(copy-traces "$package_name" | sort)
 
   IFS=$'\n'
-  read -rd '' -a trace_paths <<<"$traces"
+  read -rd '' -a trace_paths <<< "$traces"
   read -rd '' -a test_methods <<< "$test_methods"
 
   for i in "${!trace_paths[@]}"; do
@@ -566,9 +656,16 @@ function edit-abc() {
 }
 
 function show-config() {
-  (echo >&2 "Config file contains:")
-  (echo >&2 "-------------------")
-  cat ${ABC_CONFIG}
+  # (echo >&2 "-------------------")
+  # (echo >&2 "Config file contains:")
+  # (echo >&2 "-------------------")
+  if [ $# == 0 ]; then
+    cat ${ABC_CONFIG}
+  elif [ $# == 1 ]; then
+    cat ${ABC_CONFIG} | grep $1
+  else 
+    cat ${ABC_CONFIG}
+  fi
 }
 
 function help() {
@@ -595,6 +692,10 @@ function __private_autocomplete() {
   elif [ "${command_name}" == "split-trace" ]; then
     echo "requires_one_file"
   elif [ "${command_name}" == "test-apk" ]; then
+    echo "requires_one_file"
+  elif [ "${command_name}" == "carve-and-generate-from-trace" ]; then
+    echo "requires_one_file"
+  elif [ "${command_name}" == "carve-all" ]; then
     echo "requires_one_file"
   fi
 }

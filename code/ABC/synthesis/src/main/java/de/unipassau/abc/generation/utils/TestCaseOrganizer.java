@@ -12,6 +12,6 @@ public interface TestCaseOrganizer {
 	 * @param carvedTests
 	 * @return
 	 */
-	public Set<TestCase> organize(CarvedTest... carvedTests);
+	public Set<TestClass> organize(CarvedTest... carvedTests);
 
 }
