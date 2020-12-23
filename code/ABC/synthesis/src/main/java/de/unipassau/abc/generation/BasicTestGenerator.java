@@ -454,5 +454,4 @@ public class BasicTestGenerator implements TestGenerator {
 
 		return false;
 	}
->>>>>>> 867f6a6a35e6eae850363243d819c0ecd5d1822f
 }
