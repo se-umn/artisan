@@ -440,7 +440,6 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 		final String ownerVariableName = getVariableFor(owner, methodBody);
 
 		// Add arguments if needed
->>>>>>> 867f6a6a35e6eae850363243d819c0ecd5d1822f
     for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
       if (parameter instanceof PlaceholderDataNode) {
         // No idea what this is used for, but this is checked for while
