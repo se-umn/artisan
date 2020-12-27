@@ -87,14 +87,14 @@ public class Main {
 
 		System.out.println("Main.main() DEBUG: MIN SDK VERSION = " + processMan.getMinSdkVersion());
 		System.out.println("Main.main() DEBUG: MIN SDK VERSION = " + processMan.targetSdkVersion());
-		if (processMan.getMinSdkVersion() > 22) {
+		// TODO Change this using some option to force it ... or some way to automatically enable it?
+//		if (processMan.getMinSdkVersion() > 22) {
 			// This breaks if the minSdkVersion is smaller than 22
 			Options.v().set_process_multiple_dex(true);
-		}
+//		}
 
 		// This is where the instrumentation takes place.
-		SceneInstrumenterWithMethodParameters abcInstrumentation = new SceneInstrumenterWithMethodParameters(
-				appPackageName);
+		SceneInstrumenterWithMethodParameters abcInstrumentation = new SceneInstrumenterWithMethodParameters(appPackageName);
 		abcInstrumentation.setPackageFilters(cli.getPackageFilters());
 
 		PackManager.v().getPack("wjtp").add(new Transform("wjtp.mt", abcInstrumentation));
