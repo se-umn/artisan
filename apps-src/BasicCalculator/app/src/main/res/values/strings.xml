@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">BasicCalculator</string>
+    <string name="back_text">Back</string>
+    <string name="crash_text">Crash</string>
+    <string name="calculate_text">Calculate</string>
+    <string name="calculate_with_comment_text">Calculate with comment</string>
 </resources>

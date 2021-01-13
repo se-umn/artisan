@@ -184,9 +184,12 @@ task jacocoTestsReport(type: JacocoReport, dependsOn: ['testDebugUnitTest']) {
 
     def mainSrc = "/src/main/java"
     
-    sourceDirectories = files([mainSrc])
-    
-    classDirectories = files([debugTree])
-    executionData = fileTree(dir: "${buildDir}", includes:[
-            "/jacoco/testDebugUnitTest.exec"])
+    //sourceDirectories = files([mainSrc])
+    getSourceDirectories().setFrom(files([mainSrc]))
+    getClassDirectories().setFrom(files([debugTree]))
+    getExecutionData().setFrom(fileTree(dir: "${buildDir}", includes:[
+            "/jacoco/testDebugUnitTest.exec"]))
+    //classDirectories = files([debugTree])
+    //executionData = fileTree(dir: "${buildDir}", includes:[
+    //        "/jacoco/testDebugUnitTest.exec"])
 }
