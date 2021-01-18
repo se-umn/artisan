@@ -21,6 +21,11 @@ public class ExtendedMainActivityTest {
     @Rule
     public MonitorRule<ExtendedMainActivity> monitorRule = new MonitorRule<>(ExtendedMainActivity.class);
 
+    /**
+     * The UI should be changed back to the {@link ExtendedMainActivity} by clicking the `Back`
+     * button (that was created programmatically in the {@link ExtendedMainActivity}) within the
+     * {@link ExtendedResultActivity}.
+     */
     @Test
     public void testCalculateAndReturnBackToMain() {
         onView(withId(R.id.input)).perform(typeText("4+4"));
@@ -30,6 +35,10 @@ public class ExtendedMainActivityTest {
         onView(withText(R.string.back_text)).perform(click());
     }
 
+    /**
+     * A NPE should be thrown from the {@link ExtendedResultActivity} by clicking the `Crash`
+     * button that was created programmatically within the {@link ExtendedMainActivity}.
+     */
     @Test
     public void testCalculateNullPointerThrownByResultActivity() {
         onView(withId(R.id.input)).perform(typeText("4+4"));
@@ -39,6 +48,10 @@ public class ExtendedMainActivityTest {
         onView(withText(R.string.crash_text)).perform(click());
     }
 
+    /**
+     * A comment that has been entered in the {@link ExtendedMainActivity} should be visible
+     * in the {@link ExtendedResultActivity}.
+     */
     @Test
     public void testCalculateWithValidComment() {
         onView(withId(R.id.input)).perform(typeText("4+4"));
@@ -50,6 +63,10 @@ public class ExtendedMainActivityTest {
         onView(withId(R.id.commentView)).check(matches(withText("Comment: comm")));
     }
 
+    /**
+     * An IllegalArgumentException should be thrown from the {@link ExtendedMainActivity} when
+     * a specific comment is entered into the comment field.
+     */
     @Test
     public void testCalculateWithCommentThrowingIllegalArgumentException() {
         onView(withId(R.id.input)).perform(typeText("4+4"));
