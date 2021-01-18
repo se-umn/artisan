@@ -104,43 +104,4 @@ public class MainActivityTest {
         onView(withId(R.id.incrementButtonByTwo)).perform(click());
         onView(withId(R.id.resultView)).check(matches(withText("8")));
     }
-
-    @Test
-    public void testCalculateAndReturnBackToMain() {
-        onView(withId(R.id.input)).perform(typeText("4+4"));
-        Espresso.closeSoftKeyboard();
-        onView(withId(R.id.calculateButton)).perform(click());
-        onView(withId(R.id.resultView)).check(matches(withText("8")));
-        onView(withText(R.string.back_text)).perform(click());
-    }
-
-    @Test
-    public void testCalculateNullPointerThrownByResultActivity() {
-        onView(withId(R.id.input)).perform(typeText("4+4"));
-        Espresso.closeSoftKeyboard();
-        onView(withId(R.id.calculateButton)).perform(click());
-        onView(withId(R.id.resultView)).check(matches(withText("8")));
-        onView(withText(R.string.crash_text)).perform(click());
-    }
-
-    @Test
-    public void testCalculateWithValidComment() {
-        onView(withId(R.id.input)).perform(typeText("4+4"));
-        Espresso.closeSoftKeyboard();
-        onView(withId(R.id.comment)).perform(typeText("comm"));
-        Espresso.closeSoftKeyboard();
-        onView(withId(R.id.calculateButton)).perform(click());
-        onView(withId(R.id.resultView)).check(matches(withText("8")));
-        onView(withId(R.id.commentView)).check(matches(withText("Comment: comm")));
-    }
-
-    @Test
-    public void testCalculateWithCommentThrowingIllegalArgumentException() {
-        onView(withId(R.id.input)).perform(typeText("4+4"));
-        Espresso.closeSoftKeyboard();
-        onView(withId(R.id.comment)).perform(typeText(MainActivity.FAILING_COMMENT));
-        Espresso.closeSoftKeyboard();
-        onView(withId(R.id.calculateButton)).perform(click());
-
-    }
 }
