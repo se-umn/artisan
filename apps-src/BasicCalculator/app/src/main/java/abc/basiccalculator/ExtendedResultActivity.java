@@ -1,8 +1,6 @@
 package abc.basiccalculator;
 
-import android.os.Bundle;
-
-import androidx.appcompat.app.AppCompatActivity;
+import static android.view.Gravity.CENTER_HORIZONTAL;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -13,19 +11,15 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-
 import androidx.annotation.Nullable;
-
+import java.util.List;
 import net.objecthunter.exp4j.Expression;
 import net.objecthunter.exp4j.ExpressionBuilder;
 
-import java.util.List;
-
-import static android.view.Gravity.CENTER_HORIZONTAL;
-
-public class ResultActivity extends Activity {
+public class ExtendedResultActivity extends Activity {
 
     private TextView resultView;
+    private TextView commentView;
     private Button incrementButtonByOne;
     private final String STRING_TO_CHECK_FOR_LOGGING = "5";
     private final String STRING_TO_CHECK_FOR_EXCEPTION = "23";
@@ -34,10 +28,17 @@ public class ResultActivity extends Activity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_result);
+        setContentView(R.layout.activity_result_extended);
+
+        loadUiElements();
 
         Intent intent = getIntent();
-        int result = intent.getIntExtra(MainActivity.RESULT_MESSAGE, 0);
+        int result = intent.getIntExtra(ExtendedMainActivity.RESULT_MESSAGE, 0);
+        String comment = intent.getStringExtra(ExtendedMainActivity.COMMENT_EXTRA);
+        if (comment != null) {
+            commentView = findViewById(R.id.commentView);
+            commentView.setText("Comment: " + comment);
+        }
 
         resultView = findViewById(R.id.resultView);
         resultView.setText(result + "");
@@ -87,6 +88,34 @@ public class ResultActivity extends Activity {
         }
     }
 
+    /**
+     * Loads all UI elements stored in {@link UiStorage} and inserts them into the layout of this
+     * activity.
+     */
+    private void loadUiElements() {
+        List<View> uiElements = UiStorage.getElements();
+        if (uiElements.isEmpty()) {
+            return;
+        }
+
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+              ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        LinearLayout linearLayout = new LinearLayout(this);
+        linearLayout.setOrientation(LinearLayout.HORIZONTAL);
+        linearLayout.setHorizontalGravity(CENTER_HORIZONTAL);
+
+        for (View el : uiElements) {
+            el.setLayoutParams(params);
+            linearLayout.addView(el);
+        }
+
+        LinearLayout.LayoutParams layoutParams
+              = new LinearLayout.LayoutParams(
+              ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        addContentView(linearLayout, layoutParams);
+    }
+
     public void logMessage(String message) {
         try {
             Log.d("BasicCalculator", message);
@@ -94,5 +123,4 @@ public class ResultActivity extends Activity {
             return;
         }
     }
-
 }
