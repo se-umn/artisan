@@ -37,7 +37,7 @@ public class MockGenerator {
     private static final String RETURN_SIGNATURE = "<org.mockito.Mockito: org.mockito.stubbing.Stubber doReturn(java.lang.Object)>";
     private static final String WHEN_SIGNATURE = "<org.mockito.stubbing.Stubber: java.lang.Object when(java.lang.Object)>";
 
-    private static final AtomicInteger id = new AtomicInteger(1);
+    private AtomicInteger id = new AtomicInteger(-100);
 
     // replace method invocation instead of adding to CarvingMock dependency graph?
     public Pair<CarvingMock, CarvedTest> generateMocks(CarvedTest carvedTest, CarvedExecution carvedExecution) {
@@ -240,12 +240,20 @@ public class MockGenerator {
                 
                 DataNode doReturnArgument;
 
+                // TODO String are handled as primitive types, this might create some confusion
                 if (returnValue instanceof ObjectInstance) {
                     doReturnArgument = mockMapping.get(returnValue);
-                } else if (returnValue.getType().equals("java.lang.String")) {
-                    continue;
+//                } else if (returnValue.getType().equals("java.lang.String")) {
+//                    System.out.println("MockGenerator.generateMocks() " + returnValue );
+//                    continue;
                 } else {
-                    doReturnArgument = DataNodeFactory.get(returnValue.getType(), returnValue.toString());
+                    /*
+                     * Primitive values are singletons, so there's no need to create another node
+                     * with their same type and content.
+                     */
+//                    doReturnArgument = DataNodeFactory.get(returnValue.getType(), returnValue.toString());
+                    doReturnArgument = returnValue;
+                    
                 }
 
                 ObjectInstance doReturnReturn = ObjectInstanceFactory.get("org.mockito.stubbing.Stubber@" + id.getAndIncrement());
