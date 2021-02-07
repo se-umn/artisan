@@ -11,6 +11,7 @@ import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.generation.assertions.CarvingAssertion;
 import de.unipassau.abc.generation.mocks.CarvingMock;
+import de.unipassau.abc.generation.mocks.CarvingShadow;
 
 public class CarvedTest {
 
@@ -35,6 +36,7 @@ public class CarvedTest {
 
 	private List<CarvingAssertion> assertions;
     private List<CarvingMock> mocks;
+    private List<CarvingShadow> shadows;
 
 	// Basic Tests
 	public CarvedTest(MethodInvocation methodInvocationUnderTest, ExecutionFlowGraph executionFlowGraph,
@@ -48,6 +50,7 @@ public class CarvedTest {
 		//
 		this.assertions = new ArrayList<CarvingAssertion>();
         this.mocks = new ArrayList<CarvingMock>();
+        this.shadows = new ArrayList<CarvingShadow>();
 	}
 
 	public CarvedTest(MethodInvocation methodInvocationUnderTest, ExecutionFlowGraph executionFlowGraph,
@@ -58,6 +61,7 @@ public class CarvedTest {
 		//
 		this.assertions = new ArrayList<CarvingAssertion>();
         this.mocks = new ArrayList<CarvingMock>();
+        this.shadows = new ArrayList<CarvingShadow>();
 	}
 
     public void addMock(CarvingMock mock) {
@@ -66,6 +70,14 @@ public class CarvedTest {
 
     public List<CarvingMock> getMocks() {
         return mocks;
+    }
+
+    public void addShadow(CarvingShadow shadow) {
+        this.shadows.add(shadow);
+    }
+
+    public List<CarvingShadow> getShadows() {
+        return shadows;
     }
 
 	// TODO Not sure we need a setAssertions	

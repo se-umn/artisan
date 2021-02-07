@@ -40,6 +40,7 @@ import de.unipassau.abc.generation.SyntheticMethodSignatures;
 import de.unipassau.abc.generation.TestCaseWriter;
 import de.unipassau.abc.generation.assertions.CarvingAssertion;
 import de.unipassau.abc.generation.mocks.CarvingMock;
+import de.unipassau.abc.generation.mocks.CarvingShadow;
 import de.unipassau.abc.generation.data.AndroidCarvedTest;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
@@ -205,7 +206,6 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                 }
             }
         }
-
 		
 		// TODO First declare all the variables for non-primitive-like types in the
 		// scope of this block ?
@@ -240,6 +240,22 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
 			}
 		}
+
+        for (CarvingShadow carvingShadow : carvedTest.getShadows()) {
+              for (Pair<ExecutionFlowGraph, DataDependencyGraph> pair : zip(
+                  carvingShadow.executionFlowGraphs,
+                  carvingShadow.dataDependencyGraphs)) {
+                ExecutionFlowGraph carvingExecutionFlowGraph = pair.getFirst();
+                for (MethodInvocation methodInvocation : carvingExecutionFlowGraph 
+                    .getOrderedMethodInvocations()) {
+                    if (methodInvocation.isConstructor()) {
+                        generateConstructorCall(methodInvocation, blockStmt);
+                    } else {
+                        generateMethodCall(methodInvocation, blockStmt);
+                    }
+                }
+            }
+        }
 
 		// Next implement all the assertions using REFERENCE TO ACTUAL VALUE for the
 		// assertions !
