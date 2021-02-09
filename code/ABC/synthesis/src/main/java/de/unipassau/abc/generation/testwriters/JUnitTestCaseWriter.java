@@ -466,11 +466,6 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 	}
 
 	private Optional<String> generateMethodCall(MethodInvocation methodInvocation, BlockStmt methodBody) {
-
-		if (methodInvocation.toString().equals("<android.widget.TextView: java.lang.CharSequence getText()>_42")) {
-			System.out.println();
-		}
-		// TODO Handle return type that must be assigned to a variable probably
 		String methodName = JimpleUtils.getMethodName(methodInvocation.getMethodSignature());
 		MethodCallExpr methodCallExpr;
 
