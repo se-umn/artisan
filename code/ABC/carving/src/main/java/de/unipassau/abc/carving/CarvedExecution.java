@@ -56,4 +56,39 @@ public class CarvedExecution {
 			return null;
 		}
 	}
+
+    public CallGraph getCallGraphContainingTheMethodInvocation(MethodInvocation mi) {
+		try {
+			// https://stackoverflow.com/questions/22694884/filter-java-stream-to-1-and-only-1-element
+			return callGraphs.stream().filter(cg -> cg.getAllMethodInvocations().contains(mi))
+					.reduce((a, b) -> {
+						// This should never happen anyway...
+						throw new IllegalStateException("Multiple elements: " + a + ", " + b);
+					}).get();
+		} catch (NoSuchElementException e) {
+			return null;
+		}
+	}
+
+    public DataDependencyGraph getDataDependencyGraphContainingTheMethodInvocationUnderTest() {
+        try {
+            return dataDependencyGraphs.stream().filter(ddg -> ddg.getAllMethodInvocations().contains(methodInvocationUnderTest))
+                .reduce((a, b) -> {
+                    throw new IllegalStateException("Multiple elements: " + a + ", " + b);
+                }).get();
+        } catch (NoSuchElementException e) {
+            return null;
+        }
+    }
+
+    public DataDependencyGraph getDataDependencyGraphContainingTheMethodInvocation(MethodInvocation mi) {
+        try {
+            return dataDependencyGraphs.stream().filter(ddg -> ddg.getAllMethodInvocations().contains(mi))
+                .reduce((a, b) -> {
+                    throw new IllegalStateException("Multiple elements: " + a + ", " + b);
+                }).get();
+        } catch (NoSuchElementException e) {
+            return null;
+        }
+    }
 }
