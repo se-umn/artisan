@@ -144,6 +144,9 @@ public class MockGenerator {
 
         for (MethodInvocation call : carvedTest.getExecutionFlowGraph().getOrderedMethodInvocations()) {
             if (call.getMethodSignature().equals("<android.app.Activity: android.view.View findViewById(int)>")) {
+                String castedReturnValueSignature = String.format("<android.app.Activity: %s findViewById(int)>",
+                        call.getReturnValue().getType());
+                call.setMethodSignature(castedReturnValueSignature);
                 if (targetMethodOwners.contains(call.getOwner())) {
                     targetMethodInvocations.get(targetMethodOwners.indexOf(call.getOwner())).add(call);
                 } else {

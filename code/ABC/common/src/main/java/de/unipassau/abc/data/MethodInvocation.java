@@ -208,6 +208,10 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		}
 	}
 
+	public void setMethodSignature(String methodSignature) {
+		this.methodSignature = methodSignature;
+	}
+
 	public void setStatic(boolean staticCall) {
 		this.staticCall = staticCall;
 	}
