@@ -172,8 +172,6 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 	/**
 	 * Generate a "self" contained block of code from the given carvedTest
 	 *
-	 * @param executionFlowGraph
-	 * @param dataDependencyGraph
 	 * @return
 	 */
 	public BlockStmt generateBlockStmtFrom(CarvedTest carvedTest) {
@@ -549,7 +547,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 			 */
 
 			// Assume that the return type can be down-casted, otherwise there is an error somewhere up the stream
-			if (!staticReturnType.equals(expectedReturnType)) {
+			if (!staticReturnType.equals(expectedReturnType) && !methodInvocation.hasGenericReturnType()) {
 				final CastExpr castedMethodCallExpr = new CastExpr(parseType(expectedReturnType), methodCallExpr);
 				variableName = declareVariableFor(methodInvocation.getReturnValue(), methodBody, castedMethodCallExpr);
 			} else {
@@ -568,7 +566,6 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 	 * Either return the variable corresponding to the parameter or the value of
 	 * that's a primitive type
 	 *
-	 * @param parameter
 	 * @return
 	 */
 	private String getParameterFor(DataNode dataNode, BlockStmt methodBody) {
