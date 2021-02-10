@@ -100,7 +100,7 @@
 			<artifactId>android</artifactId>
 			<version>28</version>
 			<scope>system</scope>
-			<systemPath>${user.home}/Library/Android/sdk/platforms/android-28/android.jar</systemPath>
+            <systemPath>${maven.multiModuleProjectDirectory}/scripts/android.jar</systemPath>
 		</dependency>
 
 		<!-- Command Line parsing -->
