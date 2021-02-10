@@ -60,6 +60,9 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
 	protected boolean staticCall;
 
+
+	protected boolean hasGenericReturnType;
+
 	@Deprecated
 	protected boolean isTestSetupCall;
 
@@ -108,6 +111,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		cloned.isSynthetic = isSynthetic;
 		cloned.isTestSetupCall = isTestSetupCall;
 		cloned.methodSignature = methodSignature;
+		cloned.hasGenericReturnType = hasGenericReturnType;
 
 		if (owner != null) {
 			cloned.owner = owner.clone();
@@ -247,6 +251,14 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
 	public String getXmlDumpForReturn() {
 		return xmlFileForReturn;
+	}
+
+	public boolean hasGenericReturnType() {
+		return hasGenericReturnType;
+	}
+
+	public void setHasGenericReturnType(boolean hasGenericReturnType) {
+		this.hasGenericReturnType = hasGenericReturnType;
 	}
 
 	public static MethodInvocation fromTag(Tag tag) {

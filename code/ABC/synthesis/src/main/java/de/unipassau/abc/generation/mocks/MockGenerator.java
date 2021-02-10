@@ -1,41 +1,32 @@
 package de.unipassau.abc.generation.mocks;
 
-import java.util.Arrays;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Collection;
-import java.util.Set;
-import java.util.HashMap;
-import java.util.NoSuchElementException;
-import java.util.function.UnaryOperator;
+import static java.util.Collections.reverse;
 
-import java.nio.IntBuffer;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
-
-import de.unipassau.abc.exceptions.ABCException;
-import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.carving.CarvedExecution;
-import de.unipassau.abc.data.MethodInvocation;
-import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.DataDependencyGraphImpl;
-import de.unipassau.abc.data.ExecutionFlowGraph;
-import de.unipassau.abc.data.ExecutionFlowGraphImpl;
 import de.unipassau.abc.data.DataNode;
 import de.unipassau.abc.data.DataNodeFactory;
+import de.unipassau.abc.data.ExecutionFlowGraph;
+import de.unipassau.abc.data.ExecutionFlowGraphImpl;
+import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.ObjectInstanceFactory;
-import de.unipassau.abc.data.PrimitiveNodeFactory;
 import de.unipassau.abc.data.Pair;
-import de.unipassau.abc.data.Triplette;
-import de.unipassau.abc.data.JimpleUtils;
+import de.unipassau.abc.data.PrimitiveNodeFactory;
 import de.unipassau.abc.data.PrimitiveValue;
-
+import de.unipassau.abc.data.Triplette;
+import de.unipassau.abc.exceptions.ABCException;
+import de.unipassau.abc.generation.data.CarvedTest;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
-
-import static java.util.Collections.reverse;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.function.UnaryOperator;
 
 public class MockGenerator {
 
@@ -67,6 +58,7 @@ public class MockGenerator {
             DataNode classLiteralToMock = PrimitiveNodeFactory.createClassLiteralFor(classToMock);
 
             MethodInvocation initMock = new MethodInvocation(id.getAndIncrement(), MOCK_SIGNATURE);
+            initMock.setHasGenericReturnType(true);
             initMock.setStatic(true);
             initMock.setActualParameterInstances(Arrays.asList(classLiteralToMock));
             initMock.setReturnValue((DataNode) classToMock);
@@ -100,21 +92,22 @@ public class MockGenerator {
 
                 mockDataDependencyGraph.addMethodInvocationWithoutAnyDependency(doReturnMock);
                 mockDataDependencyGraph.addDataDependencyOnActualParameter(doReturnMock, doReturnArgument, 0);
-                mockDataDependencyGraph.addDataDependencyOnReturn(doReturnMock, (DataNode) doReturnReturn);
+                mockDataDependencyGraph.addDataDependencyOnReturn(doReturnMock, doReturnReturn);
 
                 ObjectInstance whenReturn = ObjectInstanceFactory.get(danglingObject.getType() + "@" + id.getAndIncrement());
 
                 MethodInvocation whenMock = new MethodInvocation(id.getAndIncrement(), WHEN_SIGNATURE);
+                whenMock.setHasGenericReturnType(true);
                 whenMock.setOwner(doReturnReturn);
                 whenMock.setActualParameterInstances(Arrays.asList(classToMock));
-                whenMock.setReturnValue((DataNode) whenReturn);
+                whenMock.setReturnValue(whenReturn);
 
                 mockExecutionFlowGraph.enqueueMethodInvocations(whenMock);
 
                 mockDataDependencyGraph.addMethodInvocationWithoutAnyDependency(whenMock);
                 mockDataDependencyGraph.addDataDependencyOnActualParameter(whenMock, classToMock, 0);
                 mockDataDependencyGraph.addDataDependencyOnOwner(whenMock, doReturnReturn);
-                mockDataDependencyGraph.addDataDependencyOnReturn(whenMock, (DataNode) whenReturn);
+                mockDataDependencyGraph.addDataDependencyOnReturn(whenMock, whenReturn);
 
                 MethodInvocation dependentCallCopy = dependentCall.clone();
 
@@ -142,32 +135,33 @@ public class MockGenerator {
             }
         }
 
-        List<Pair<ObjectInstance, List<MethodInvocation>>> targetMockingList = new ArrayList<Pair<ObjectInstance, List<MethodInvocation>>>();
-        List<List<MethodInvocation>> targetMethodInvocations = new ArrayList<List<MethodInvocation>>();
-        List<ObjectInstance> targetMethodOwners = new ArrayList<ObjectInstance>();
+        List<Pair<ObjectInstance, List<MethodInvocation>>> targetMockingList = new ArrayList<>();
+        List<List<MethodInvocation>> targetMethodInvocations = new ArrayList<>();
+        List<ObjectInstance> targetMethodOwners = new ArrayList<>();
 
         for (MethodInvocation call : carvedTest.getExecutionFlowGraph().getOrderedMethodInvocations()) {
             if (call.getMethodSignature().equals("<android.app.Activity: android.view.View findViewById(int)>")) {
+                call.setHasGenericReturnType(true);
                 if (targetMethodOwners.contains(call.getOwner())) {
                     targetMethodInvocations.get(targetMethodOwners.indexOf(call.getOwner())).add(call);
                 } else {
                     targetMethodOwners.add(call.getOwner());
-                    targetMethodInvocations.add(new ArrayList<MethodInvocation>());
+                    targetMethodInvocations.add(new ArrayList<>());
                     targetMethodInvocations.get(targetMethodInvocations.size() - 1).add(call);
                 }
             }
         }
 
-        List<MethodInvocation> transitiveMethodTraversalList = new ArrayList<MethodInvocation>();
+        List<MethodInvocation> transitiveMethodTraversalList = new ArrayList<>();
         targetMethodInvocations.forEach(transitiveMethodTraversalList::addAll);
 
-        List<Pair<ObjectInstance, List<MethodInvocation>>> transitiveMockingList = new ArrayList<Pair<ObjectInstance, List<MethodInvocation>>>();
-        List<List<MethodInvocation>> transitiveMethodInvocations = new ArrayList<List<MethodInvocation>>();
-        List<ObjectInstance> transitiveMethodOwners = new ArrayList<ObjectInstance>();
+        List<Pair<ObjectInstance, List<MethodInvocation>>> transitiveMockingList = new ArrayList<>();
+        List<List<MethodInvocation>> transitiveMethodInvocations = new ArrayList<>();
+        List<ObjectInstance> transitiveMethodOwners = new ArrayList<>();
 
         while (true) {
 
-            List<MethodInvocation> nextList = new ArrayList<MethodInvocation>();
+            List<MethodInvocation> nextList = new ArrayList<>();
 
             for (MethodInvocation transitiveCall : transitiveMethodTraversalList) {
                 if (transitiveCall.getReturnValue() instanceof ObjectInstance) {
@@ -179,7 +173,7 @@ public class MockGenerator {
                         transitiveMethodInvocations.get(transitiveMethodOwners.indexOf(transitiveCall.getReturnValue())).addAll(dependentCalls);
                     } else {
                         transitiveMethodOwners.add((ObjectInstance) transitiveCall.getReturnValue());
-                        transitiveMethodInvocations.add(new ArrayList<MethodInvocation>());
+                        transitiveMethodInvocations.add(new ArrayList<>());
                         transitiveMethodInvocations.get(transitiveMethodInvocations.size() - 1).addAll(dependentCalls);
                     }
 
@@ -196,7 +190,7 @@ public class MockGenerator {
 
         // combine individual lists into final mock target list
         for (int i = 0; i < transitiveMethodOwners.size(); i++) {
-            transitiveMockingList.add(new Pair<ObjectInstance, List<MethodInvocation>>(transitiveMethodOwners.get(i), transitiveMethodInvocations.get(i)));
+            transitiveMockingList.add(new Pair<>(transitiveMethodOwners.get(i), transitiveMethodInvocations.get(i)));
         }
 
         // correct ordering for list; start at methods which are owned by previously returned objects
@@ -223,15 +217,16 @@ public class MockGenerator {
             DataNode classLiteralToMock = PrimitiveNodeFactory.createClassLiteralFor(classToMock);
 
             MethodInvocation initMock = new MethodInvocation(id.getAndIncrement(), MOCK_SIGNATURE);
+            initMock.setHasGenericReturnType(true);
             initMock.setStatic(true);
-            initMock.setActualParameterInstances(Arrays.asList(classLiteralToMock));
-            initMock.setReturnValue((DataNode) classToMock);
+            initMock.setActualParameterInstances(Collections.singletonList(classLiteralToMock));
+            initMock.setReturnValue(classToMock);
 
             mockExecutionFlowGraph.enqueueMethodInvocations(initMock);
 
             mockDataDependencyGraph.addMethodInvocationWithoutAnyDependency(initMock);
             mockDataDependencyGraph.addDataDependencyOnActualParameter(initMock, classLiteralToMock, 0);
-            mockDataDependencyGraph.addDataDependencyOnReturn(initMock, (DataNode) classToMock);
+            mockDataDependencyGraph.addDataDependencyOnReturn(initMock, classToMock);
 
             mockMapping.put(mockTarget.getFirst(), classToMock);
 
@@ -281,16 +276,17 @@ public class MockGenerator {
                 ObjectInstance whenReturn = ObjectInstanceFactory.get(mockTarget.getFirst().getType() + "@" + id.getAndIncrement());
 
                 MethodInvocation whenMock = new MethodInvocation(id.getAndIncrement(), WHEN_SIGNATURE);
+                whenMock.setHasGenericReturnType(true);
                 whenMock.setOwner(doReturnReturn);
                 whenMock.setActualParameterInstances(Arrays.asList(classToMock));
-                whenMock.setReturnValue((DataNode) whenReturn);
+                whenMock.setReturnValue(whenReturn);
 
                 mockExecutionFlowGraph.enqueueMethodInvocations(whenMock);
 
                 mockDataDependencyGraph.addMethodInvocationWithoutAnyDependency(whenMock);
                 mockDataDependencyGraph.addDataDependencyOnActualParameter(whenMock, classToMock, 0);
                 mockDataDependencyGraph.addDataDependencyOnOwner(whenMock, doReturnReturn);
-                mockDataDependencyGraph.addDataDependencyOnReturn(whenMock, (DataNode) whenReturn);
+                mockDataDependencyGraph.addDataDependencyOnReturn(whenMock, whenReturn);
 
                 MethodInvocation callCopy = call.clone();
 
@@ -317,21 +313,23 @@ public class MockGenerator {
                     continue;
                 }
 
-                ObjectInstance extractReturn = ObjectInstanceFactory.get(returnValue.getType() + "Shadow@" + id.getAndIncrement());
+                String shadowType = returnValue.getType() + "Shadow";
+                ObjectInstance extractReturn = ObjectInstanceFactory.get(String.format("%s@%d", shadowType, id.getAndIncrement()));
 
                 MethodInvocation extractShadow = new MethodInvocation(id.getAndIncrement(), EXTRACT_SIGNATURE);
+                extractShadow.setHasGenericReturnType(true);
                 extractShadow.setStatic(true);
                 extractShadow.setActualParameterInstances(Arrays.asList(returnValue));
-                extractShadow.setReturnValue((DataNode) extractReturn);
+                extractShadow.setReturnValue(extractReturn);
 
                 shadowExecutionFlowGraph.enqueueMethodInvocations(extractShadow);
 
                 shadowDataDependencyGraph.addMethodInvocationWithoutAnyDependency(extractShadow);
                 shadowDataDependencyGraph.addDataDependencyOnActualParameter(extractShadow, returnValue, 0);
-                shadowDataDependencyGraph.addDataDependencyOnReturn(extractShadow, (DataNode) extractReturn);
+                shadowDataDependencyGraph.addDataDependencyOnReturn(extractShadow, extractReturn);
 
                 ObjectInstance mockClassTarget = mockMapping.get(returnValue);
-                List<MethodInvocation> mockMethodTargetList = new ArrayList<MethodInvocation>();
+                List<MethodInvocation> mockMethodTargetList = new ArrayList<>();
 
                 for (Pair<ObjectInstance, List<MethodInvocation>> callPair : transitiveMockingList) {
                     if (callPair.getFirst().equals(returnValue)) {
@@ -349,13 +347,13 @@ public class MockGenerator {
 
                     MethodInvocation setShadow = new MethodInvocation(id.getAndIncrement(), SET_SIGNATURE);
                     setShadow.setOwner(extractReturn);
-                    setShadow.setActualParameterInstances(Arrays.asList(setShadowParameter, (DataNode) mockClassTarget));
+                    setShadow.setActualParameterInstances(Arrays.asList(setShadowParameter, mockClassTarget));
 
                     shadowExecutionFlowGraph.enqueueMethodInvocations(setShadow);
 
                     shadowDataDependencyGraph.addMethodInvocationWithoutAnyDependency(setShadow);
                     shadowDataDependencyGraph.addDataDependencyOnActualParameter(setShadow, setShadowParameter, 0);
-                    shadowDataDependencyGraph.addDataDependencyOnActualParameter(setShadow, (DataNode) mockClassTarget, 1);
+                    shadowDataDependencyGraph.addDataDependencyOnActualParameter(setShadow, mockClassTarget, 1);
                 }
 
                 System.out.println(returnValue);
@@ -372,6 +370,6 @@ public class MockGenerator {
 
         carvedTest.setDataDependencyGraph(carvedDataDependencyGraph);
 
-        return new Triplette<CarvingMock, CarvingShadow, CarvedTest>(carvingMock, carvingShadow, carvedTest);
+        return new Triplette<>(carvingMock, carvingShadow, carvedTest);
     }
 }

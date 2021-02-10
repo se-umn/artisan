@@ -1,6 +1,7 @@
 package de.unipassau.abc.generation.testwriters;
 
 import static com.github.javaparser.StaticJavaParser.parseClassOrInterfaceType;
+import static com.github.javaparser.StaticJavaParser.parseType;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
@@ -9,17 +10,8 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
-import com.github.javaparser.ast.expr.AssignExpr;
+import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.expr.AssignExpr.Operator;
-import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.MemberValuePair;
-import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.NameExpr;
-import com.github.javaparser.ast.expr.NormalAnnotationExpr;
-import com.github.javaparser.ast.expr.NullLiteralExpr;
-import com.github.javaparser.ast.expr.ObjectCreationExpr;
-import com.github.javaparser.ast.expr.TypeExpr;
-import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
@@ -180,12 +172,9 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 	/**
 	 * Generate a "self" contained block of code from the given carvedTest
 	 *
-	 * @param executionFlowGraph
-	 * @param dataDependencyGraph
 	 * @return
 	 */
 	public BlockStmt generateBlockStmtFrom(CarvedTest carvedTest) {
-
 		ExecutionFlowGraph executionFlowGraph = carvedTest.getExecutionFlowGraph();
 		DataDependencyGraph dataDependencyGraph = carvedTest.getDataDependencyGraph();
 
@@ -475,8 +464,6 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 	}
 
 	private Optional<String> generateMethodCall(MethodInvocation methodInvocation, BlockStmt methodBody) {
-
-		// TODO Handle return type that must be assigned to a variable probably
 		String methodName = JimpleUtils.getMethodName(methodInvocation.getMethodSignature());
 		MethodCallExpr methodCallExpr;
 
@@ -546,7 +533,26 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 		 */
 		if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())
 				&& !methodInvocation.isExceptional()) {
-			variableName = declareVariableFor(methodInvocation.getReturnValue(), methodBody, methodCallExpr);
+			String staticReturnType = JimpleUtils.getReturnType(methodInvocation.getMethodSignature());
+			String expectedReturnType = TypeUtils.getActualTypeFor(methodInvocation.getReturnValue());
+
+			/* 	TODO to be really sure before casting one can check their runtime types,
+				but some won't be on the classpath, e.g., android-specific stuff
+
+				Class<?> staticReturnClass = Class.forName(staticReturnType);
+				Class<?> expectedReturnClass = Class.forName(expectedReturnType);
+				if (!staticReturnClass.isAssignableFrom(expectedReturnClass)) {
+					...
+				}
+			 */
+
+			// Assume that the return type can be down-casted, otherwise there is an error somewhere up the stream
+			if (!staticReturnType.equals(expectedReturnType) && !methodInvocation.hasGenericReturnType()) {
+				final CastExpr castedMethodCallExpr = new CastExpr(parseType(expectedReturnType), methodCallExpr);
+				variableName = declareVariableFor(methodInvocation.getReturnValue(), methodBody, castedMethodCallExpr);
+			} else {
+				variableName = declareVariableFor(methodInvocation.getReturnValue(), methodBody, methodCallExpr);
+			}
 
 		} else {
 			methodBody.addStatement(methodCallExpr);
@@ -560,7 +566,6 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 	 * Either return the variable corresponding to the parameter or the value of
 	 * that's a primitive type
 	 *
-	 * @param parameter
 	 * @return
 	 */
 	private String getParameterFor(DataNode dataNode, BlockStmt methodBody) {
@@ -628,6 +633,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
 	// TODO Contenxtualize on MethodBody/scope !
 	private String declareVariableFor(DataNode dataNode, BlockStmt methodBody, Expression initializer) {
+
 		String variableType = TypeUtils.getActualTypeFor(dataNode);
 		// TODO Move to Utils methods as this is used in many places
 		String className = variableType.substring(variableType.lastIndexOf('.') + 1);
@@ -673,6 +679,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 		variableDeclarator.setType(new ClassOrInterfaceType(variableType));
 		// Default to null. We might revise this later when we get to the constructor
 		variableDeclarator.setInitializer(initializer);
+		MethodCallExpr me = new MethodCallExpr();
 		//
 		NodeList<VariableDeclarator> variableDeclarators = new NodeList<>();
 		variableDeclarators.add(variableDeclarator);
