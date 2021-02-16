@@ -315,7 +315,7 @@ public class MockGenerator {
 
                 String shadowType = returnValue.getType() + "Shadow";
                 ObjectInstance extractReturn = ObjectInstanceFactory.get(String.format("%s@%d", shadowType, id.getAndIncrement()));
-
+                carvingShadow.types.add(shadowType);
                 MethodInvocation extractShadow = new MethodInvocation(id.getAndIncrement(), EXTRACT_SIGNATURE);
                 extractShadow.setHasGenericReturnType(true);
                 extractShadow.setStatic(true);
