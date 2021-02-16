@@ -331,6 +331,10 @@ function instrument-apk() {
 
   local apk_file="${1:?Missing apk file to instrument}"
 
+  # Extract the package from apk and set it as global variable
+  # such that the instrumenter includes it in the traces
+  set-java-opts "${apk_file}"
+
   # The instrumentation script also check if the project requires to be rebuild
   # TODO. Maybe we need to move that script here? Maybe we need to use make ?
   export APK_SIGNER=${APK_SIGNER}
@@ -342,6 +346,7 @@ function instrument-apk() {
 
   local instrumented_apk_file=$(${ABC_HOME}/instrumentation/scripts/instrument-apk.sh ${apk_file})
   # THIS PRODUCES A LOG "HERE". TODO Shall we move the log the location of the instrumented apk ?
+
 
   (echo >&2 "** Instrumented APK is:")
   echo "${instrumented_apk_file}"
@@ -666,6 +671,17 @@ function show-config() {
   else 
     cat ${ABC_CONFIG}
   fi
+}
+
+function set-java-opts() {
+
+	apk="$1"
+	if [[ ! -f "$apk" ]]; then
+		(printf >&2 "Apk %s does not exist\n" "$apk")
+		exit 1
+	fi
+	package_name=$(__private_get_package_name_from_apk_file "$apk")
+	export JAVA_OPTS="-Dabc.instrument.include=$package_name"
 }
 
 function help() {
