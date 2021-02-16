@@ -52,6 +52,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.apache.commons.lang.NotImplementedException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -136,6 +138,20 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 			cu.addImport(RobolectricTestRunner.class);
 			ClassOrInterfaceType robolectricTestRunner = parseClassOrInterfaceType("RobolectricTestRunner");
 			testClass.addSingleMemberAnnotation(RunWith.class, robolectricTestRunner.getNameAsString() + ".class");
+
+
+			Set<String> shadowTypes = new HashSet<>();
+			testCase.getCarvedTests().forEach(test -> test.getShadows().forEach(shadow -> shadowTypes.addAll(shadow.types)));
+			if (!shadowTypes.isEmpty()) {
+				List<Expression> shadowClasses = shadowTypes.stream()
+						.map(s -> new ClassOrInterfaceType(null, s))
+						.map(ClassExpr::new).collect(Collectors.toList());
+				NormalAnnotationExpr annotation = new NormalAnnotationExpr(new Name("org.robolectric.annotation.Config"),
+						NodeList.nodeList(new MemberValuePair("shadows", new ArrayInitializerExpr(
+								NodeList.nodeList(shadowClasses)
+						))));
+				testClass.addAnnotation(annotation);
+			}
 		}
 
 		// TODO Create imports
