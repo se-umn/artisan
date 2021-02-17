@@ -49,8 +49,8 @@ public class CarvedTest {
 		this.catchUnexpectedException = catchUnexpectedException;
 		//
 		this.assertions = new ArrayList<CarvingAssertion>();
-        this.mocks = new ArrayList<CarvingMock>();
-        this.shadows = new ArrayList<CarvingShadow>();
+    this.mocks = new ArrayList<CarvingMock>();
+    this.shadows = new ArrayList<CarvingShadow>();
 	}
 
 	public CarvedTest(MethodInvocation methodInvocationUnderTest, ExecutionFlowGraph executionFlowGraph,

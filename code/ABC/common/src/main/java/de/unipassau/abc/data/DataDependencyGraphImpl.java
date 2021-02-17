@@ -465,13 +465,10 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 	}
 
     public void addDataDependencyOnDummy(MethodInvocation call1, MethodInvocation call2) {
-
-		boolean added = graph.addEdge(DATA_DEPENDENCY_DUMMY_PREFIX + "_" + id.getAndIncrement(), call1, call2, EdgeType.DIRECTED);
-
-		if (!added) {
-			logger.warn("Cannot add Edge " + DATA_DEPENDENCY_DUMMY_PREFIX + "_" + id.intValue() + " from " + call1
-					+ " to " + call2);
-		}
+			boolean added = graph.addEdge(DATA_DEPENDENCY_DUMMY_PREFIX + "_" + id.getAndIncrement(), call1, call2, EdgeType.DIRECTED);
+			if (!added) {
+				logger.warn("Cannot add Edge " + DATA_DEPENDENCY_DUMMY_PREFIX + "_" + id.intValue() + " from " + call1 + " to " + call2);
+			}
     }
 
 	/**

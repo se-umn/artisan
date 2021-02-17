@@ -179,39 +179,45 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 		DataDependencyGraph dataDependencyGraph = carvedTest.getDataDependencyGraph();
 
 		BlockStmt blockStmt = new BlockStmt();
-		
-        for (CarvingMock carvingMock : carvedTest.getMocks()) {
-              for (Pair<ExecutionFlowGraph, DataDependencyGraph> pair : zip(
-                  carvingMock.executionFlowGraphs,
-                  carvingMock.dataDependencyGraphs)) {
-                ExecutionFlowGraph carvingExecutionFlowGraph = pair.getFirst();
-                for (MethodInvocation methodInvocation : carvingExecutionFlowGraph 
-                    .getOrderedMethodInvocations()) {
-                    if (methodInvocation.isConstructor()) {
-                        generateConstructorCall(methodInvocation, blockStmt);
-                    } else {
-                        generateMethodCall(methodInvocation, blockStmt);
-                    }
-                }
-            }
-        }
-		
+
+//		System.out.println("##################Mocks");
+//		for (CarvingMock carvingMock : carvedTest.getMocks()) {
+//			for (Pair<ExecutionFlowGraph, DataDependencyGraph> pair : zip(
+//					carvingMock.executionFlowGraphs,
+//					carvingMock.dataDependencyGraphs)) {
+//				ExecutionFlowGraph carvingExecutionFlowGraph = pair.getFirst();
+//				for (MethodInvocation methodInvocation : carvingExecutionFlowGraph
+//						.getOrderedMethodInvocations()) {
+//					System.out.println(methodInvocation);
+//					if (methodInvocation.isConstructor()) {
+//						generateConstructorCall(methodInvocation, blockStmt);
+//					} else {
+//						generateMethodCall(methodInvocation, blockStmt);
+//					}
+//				}
+//			}
+//		}
+
+		System.out.println("##################Objects");
 		// TODO First declare all the variables for non-primitive-like types in the
 		// scope of this block ?
 		Set<ObjectInstance> objectInstances = new HashSet<>(dataDependencyGraph.getObjectInstances());
 		for (ObjectInstance objectInstance : objectInstances) {
+			System.out.println(objectInstance);
 			// Default initialization. Avoid variable not initialized variable
 			// warning/errors
 			if (objectInstance.isAndroidActivity() || objectInstance.isAndroidFragment()) {
 				declareControllerFor(objectInstance, blockStmt, new NullLiteralExpr());
 			}
+			//creates statement for object
 			declareVariableFor(objectInstance, blockStmt, new NullLiteralExpr());
 		}
 
+		System.out.println("##################Body");
 		// Next implement all the methods, making sure variables and parameters match
 		String referenceToActualValue = null;
-
 		for (MethodInvocation methodInvocation : executionFlowGraph.getOrderedMethodInvocations()) {
+			System.out.println(methodInvocation);
 			// Now we create each method calls making sure that variables and the like
 			// matches
 			if (methodInvocation.isConstructor()) {
@@ -230,22 +236,26 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 			}
 		}
 
-        for (CarvingShadow carvingShadow : carvedTest.getShadows()) {
-              for (Pair<ExecutionFlowGraph, DataDependencyGraph> pair : zip(
-                  carvingShadow.executionFlowGraphs,
-                  carvingShadow.dataDependencyGraphs)) {
-                ExecutionFlowGraph carvingExecutionFlowGraph = pair.getFirst();
-                for (MethodInvocation methodInvocation : carvingExecutionFlowGraph 
-                    .getOrderedMethodInvocations()) {
-                    if (methodInvocation.isConstructor()) {
-                        generateConstructorCall(methodInvocation, blockStmt);
-                    } else {
-                        generateMethodCall(methodInvocation, blockStmt);
-                    }
-                }
-            }
-        }
+//		System.out.println("##################Shadows");
+//        for (CarvingShadow carvingShadow : carvedTest.getShadows()) {
+//              for (Pair<ExecutionFlowGraph, DataDependencyGraph> pair : zip(
+//                  carvingShadow.executionFlowGraphs,
+//                  carvingShadow.dataDependencyGraphs)) {
+//                ExecutionFlowGraph carvingExecutionFlowGraph = pair.getFirst();
+//                for (MethodInvocation methodInvocation : carvingExecutionFlowGraph
+//                    .getOrderedMethodInvocations()) {
+//                	System.out.println(methodInvocation);
+//                    if (methodInvocation.isConstructor()) {
+//                        generateConstructorCall(methodInvocation, blockStmt);
+//                    } else {
+//                        generateMethodCall(methodInvocation, blockStmt);
+//                    }
+//                }
+//            }
+//        }
 
+		System.out.println("##################Assertions");
+        //MF: FIXME should we really have assertions?
 		// Next implement all the assertions using REFERENCE TO ACTUAL VALUE for the
 		// assertions !
 		for (CarvingAssertion carvingAssertion : carvedTest.getAssertions()) {

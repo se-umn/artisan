@@ -41,25 +41,76 @@ public class SmokeTest {
      * traces/Trace-testCalculateAndIncrementByOneWithLogging-1603454200461.txt
      */
 
+//    @Test
+//    public void mainTest() throws IOException, ABCException {
+//        String[] args = {
+//
+//                "--trace-files", //
+//                "./src/test/resources/abc.basiccalculator/Trace-testCalculateAndIncrementByOneWithLogging-1603454200461.txt", //
+//                "--android-jar", //
+//                "/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar", //
+//                "--apk", //
+//                "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/app/build/outputs/apk/debug/app-debug.apk" };
+//
+//        Main.main(args);
+//
+//    }
+//
+//    @Test
+//    public void testBrokenTestsAftertGeneratingMocks() throws FileNotFoundException, IOException, ABCException {
+//        File traceFile = new File(
+//                "./src/test/resources/abc.basiccalculator/testNullPointerThrownBySystem-trace.txt");
+//        TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
+//
+//        TraceParser parser = new TraceParserImpl();
+//        ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+//        ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
+//        ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+//
+//        MethodInvocationSearcher mis = new MethodInvocationSearcher();
+//        List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(mis.findAllCarvableMethodInvocations(parsedTrace));
+//        Collections.sort( listOfTargetMethodsInvocations );
+//
+//        int allCarvableTargets = listOfTargetMethodsInvocations.size();
+//
+//        System.out.println("Carvable targets ");
+//        listOfTargetMethodsInvocations.forEach(System.out::println);
+//
+//        // SELECT THE ACTUAL carved execution to consider
+//        Set<MethodInvocation> targetMethodsInvocations = new HashSet<MethodInvocation>();
+//        targetMethodsInvocations.add( listOfTargetMethodsInvocations.get(0));
+//        targetMethodsInvocations.add( listOfTargetMethodsInvocations.get(1));
+//        targetMethodsInvocations.add( listOfTargetMethodsInvocations.get(2));
+//        targetMethodsInvocations.add( listOfTargetMethodsInvocations.get(3));
+//
+//
+//        BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
+//        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocations, parsedTrace);
+//
+//        int carvedTargets = carvedTests.size();
+//
+//        System.out.println("Carved targets " + carvedTargets + " / " + allCarvableTargets);
+//
+//        // Put each test in a separate test case
+//        TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+//        Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+//
+//        // Write test cases to files and try to compile them
+//
+//        JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+//
+//        for (TestClass testCase : testSuite) {
+//            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+//            try (PrintStream out = System.out) {
+//                out.print(cu.toString());
+//            }
+//        }
+//    }
+
     @Test
-    public void mainTest() throws IOException, ABCException {
-        String[] args = {
-
-                "--trace-files", //
-                "./src/test/resources/abc.basiccalculator/Trace-testCalculateAndIncrementByOneWithLogging-1603454200461.txt", //
-                "--android-jar", //
-                "/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar", //
-                "--apk", //
-                "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/app/build/outputs/apk/debug/app-debug.apk" };
-
-        Main.main(args);
-
-    }
-
-    @Test
-    public void testBrokenTestsAftertGeneratingMocks() throws FileNotFoundException, IOException, ABCException {
+    public void testDebugMocks() throws FileNotFoundException, IOException, ABCException {
         File traceFile = new File(
-                "./src/test/resources/abc.basiccalculator/Trace-testNullPointerThrownBySystem-1612085878869.txt");
+                "./src/test/resources/abc.basiccalculator/Trace-testCalculateAndIncrementByOneWithLogging-1603454200461.txt");
         TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
 
         TraceParser parser = new TraceParserImpl();
@@ -69,43 +120,77 @@ public class SmokeTest {
 
         MethodInvocationSearcher mis = new MethodInvocationSearcher();
         List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(mis.findAllCarvableMethodInvocations(parsedTrace));
-        Collections.sort( listOfTargetMethodsInvocations );
-        
-        int allCarvableTargets = listOfTargetMethodsInvocations.size();
 
         System.out.println("Carvable targets ");
         listOfTargetMethodsInvocations.forEach(System.out::println);
-        
-        // SELECT THE ACTUAL carved execution to considel
+
+        // SELECT THE ACTUAL carved execution to consider
         Set<MethodInvocation> targetMethodsInvocations = new HashSet<MethodInvocation>();
-        targetMethodsInvocations.add( listOfTargetMethodsInvocations.get(0));
-        targetMethodsInvocations.add( listOfTargetMethodsInvocations.get(1));
-        //
-        //
-        targetMethodsInvocations.add( listOfTargetMethodsInvocations.get(2));
-        targetMethodsInvocations.add( listOfTargetMethodsInvocations.get(3));
-                
+        for(MethodInvocation targetMethod:listOfTargetMethodsInvocations){
+            targetMethodsInvocations.add(targetMethod);
+        }
+
 
         BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
         Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocations, parsedTrace);
 
         int carvedTargets = carvedTests.size();
 
-        System.out.println("Carved targets " + carvedTargets + " / " + allCarvableTargets);
+        System.out.println("Carved targets " + carvedTargets + " / " + listOfTargetMethodsInvocations.size());
 
         // Put each test in a separate test case
         TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
         Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
 
         // Write test cases to files and try to compile them
-    
+
         JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
-        
-        for (TestClass testCase : testSuite) {    
+
+        for (TestClass testCase : testSuite) {
             CompilationUnit cu = writer.generateJUnitTestCase(testCase);
             try (PrintStream out = System.out) {
                 out.print(cu.toString());
             }
         }
     }
+
+    //	public void testEmptyCallGraph() throws FileNotFoundException, IOException, ABCException {
+//		File traceFile = new File("./src/test/resources/abc.basiccalculator/Trace-testCalculateAndIncrementByOneWithLogging-1603454200461.txt");
+//		File apk_file = new File("./src/test/resources/abc.basiccalculator/app-debug.apk");
+//
+//		// Really needed?
+//		ParsingUtils.setupSoot(ANDROID_JAR, apk_file);
+//
+//		TraceParser parser = new TraceParserImpl();
+//		ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+//
+//		// TODO How do we handle extensions like Android automatically?
+//		ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
+//		ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+//
+//		Set<MethodInvocation> targetMethodsInvocations = new HashSet<MethodInvocation>();
+//		final String targetSignature = "<abc.basiccalculator.ResultActivity: void checkResult(java.lang.String)>";
+//
+//		// TODO Expose some method to easily find the method calls that we need
+//		parsedTrace.getUIThreadParsedTrace().getFirst().getOrderedMethodInvocations().stream()
+//				.filter(methodInvocation -> targetSignature.equals(methodInvocation.getMethodSignature()))
+//				.forEach(targetMethodsInvocations::add);
+//
+//		// One only for this test
+//		Assume.assumeTrue(targetMethodsInvocations.size() == 1);
+//
+//		TestGenerator basicTestGenerator = new BasicTestGenerator();
+//		Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocations, parsedTrace);
+//
+//		// Group CarvedTests in classes
+//		TestCaseOrganizer organizer = TestCaseOrganizers.byAllTestsTogether();
+//		Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+//
+//		JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+//
+//		for (TestClass testCase : testSuite) {
+//			CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+//			System.out.println(cu);
+//		}
+//	}
 }
