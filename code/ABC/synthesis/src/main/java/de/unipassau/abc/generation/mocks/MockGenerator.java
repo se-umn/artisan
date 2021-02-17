@@ -1,6 +1,7 @@
 package de.unipassau.abc.generation.mocks;
 
 import static java.util.Collections.reverse;
+import static java.lang.Integer.max;
 
 import de.unipassau.abc.carving.CarvedExecution;
 import de.unipassau.abc.data.DataDependencyGraph;
@@ -18,12 +19,15 @@ import de.unipassau.abc.data.PrimitiveValue;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.data.CarvedTest;
+import de.unipassau.abc.generation.mocks.MockInfo;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.function.UnaryOperator;
@@ -210,6 +214,8 @@ public class MockGenerator {
         reverse(transitiveMockingList);
 
         HashMap<ObjectInstance, ObjectInstance> mockMapping = new HashMap<ObjectInstance, ObjectInstance>();
+
+        List<MockInfo> mockInfoList = new ArrayList<MockInfo>();
         
         for (Pair<ObjectInstance, List<MethodInvocation>> mockTarget : transitiveMockingList) {
             // create mock for owner
@@ -297,7 +303,38 @@ public class MockGenerator {
 
                 mockDataDependencyGraph.addMethodInvocationWithoutAnyDependency(callCopy);
                 mockDataDependencyGraph.addDataDependencyOnOwner(callCopy, whenReturn);
+
+                List<MethodInvocation> callSet = new ArrayList<MethodInvocation>();
+                callSet.add(doReturnMock);
+                callSet.add(whenMock);
+                callSet.add(callCopy);
+                mockInfoList.add(new MockInfo(initMock, callSet));
             }
+        }
+
+        MethodInvocation finalCallPrevious = null;
+        boolean wireMock = false;
+
+        for (MockInfo mockInfo : mockInfoList) {
+
+            if (wireMock) {
+                mockDataDependencyGraph.addDataDependencyOnDummy(mockInfo.getMock(), finalCallPrevious);
+            }
+
+            MethodInvocation prevCall = null;
+
+            for (MethodInvocation dummyCall : mockInfo.getCalls()) {
+
+                if (prevCall == null) {
+                    mockDataDependencyGraph.addDataDependencyOnDummy(dummyCall, mockInfo.getMock());
+                } else {
+                    mockDataDependencyGraph.addDataDependencyOnDummy(dummyCall, prevCall);
+                }
+
+                finalCallPrevious = dummyCall;
+            }
+
+            wireMock = true;
         }
 
         List<MethodInvocation> targetMethodList = new ArrayList<MethodInvocation>();

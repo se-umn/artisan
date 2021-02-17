@@ -36,6 +36,8 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 
 	public static final String OWNERSHIP_DEPENDENCY_PREFIX = "Ownership";
 
+    public static final String DATA_DEPENDENCY_DUMMY_PREFIX = "Dummy";
+
 	// Parameter to a call
 	public static final String DATA_DEPENDENCY_PREFIX = "DataNode";
 
@@ -461,6 +463,16 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 		//
 		return node;
 	}
+
+    public void addDataDependencyOnDummy(MethodInvocation call1, MethodInvocation call2) {
+
+		boolean added = graph.addEdge(DATA_DEPENDENCY_DUMMY_PREFIX + "_" + id.getAndIncrement(), call1, call2, EdgeType.DIRECTED);
+
+		if (!added) {
+			logger.warn("Cannot add Edge " + DATA_DEPENDENCY_DUMMY_PREFIX + "_" + id.intValue() + " from " + call1
+					+ " to " + call2);
+		}
+    }
 
 	/**
 	 * Method Owners are always ObjectInstances !
