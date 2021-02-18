@@ -1,36 +1,33 @@
 package de.unipassau.abc.generation.mocks;
 
 import static java.util.Collections.reverse;
-import static java.lang.Integer.max;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.function.UnaryOperator;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import de.unipassau.abc.carving.CarvedExecution;
 import de.unipassau.abc.data.DataDependencyGraph;
-import de.unipassau.abc.data.DataDependencyGraphImpl;
 import de.unipassau.abc.data.DataNode;
 import de.unipassau.abc.data.DataNodeFactory;
 import de.unipassau.abc.data.ExecutionFlowGraph;
-import de.unipassau.abc.data.ExecutionFlowGraphImpl;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.ObjectInstanceFactory;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.PrimitiveNodeFactory;
 import de.unipassau.abc.data.PrimitiveValue;
-import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.data.CarvedTest;
-import de.unipassau.abc.generation.mocks.MockInfo;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.function.UnaryOperator;
 
 public class MockGenerator {
 
@@ -42,8 +39,16 @@ public class MockGenerator {
 
     private AtomicInteger id = new AtomicInteger(-1000000);
 
+    private final static Logger logger = LoggerFactory.getLogger(MockGenerator.class);
+
     // replace method invocation instead of adding to CarvingMock dependency graph?
     public void generateMocks(CarvedTest carvedTest, CarvedExecution carvedExecution) {
+
+        // TODO Alessio: I think this is the wrong approach here. We should keep
+        // separate as much as possible the informations about Mocks
+        // and shadows and the actually carved tests. This is what we do for assertions.
+        // Basically, we can see each test as made of logical blocks (mocks+shadows,
+        // test body, assertions)
 
         ExecutionFlowGraph carvedTestExecutionFlowGraph = carvedTest.getExecutionFlowGraph();
         DataDependencyGraph carvedTestDataDependencyGraph = carvedTest.getDataDependencyGraph();
@@ -53,7 +58,8 @@ public class MockGenerator {
 
         for (ObjectInstance danglingObject : carvedTest.getDataDependencyGraph().getDanglingObjects()) {
 
-            ObjectInstance classToMock = ObjectInstanceFactory.get(danglingObject.getType() + "@" + id.getAndIncrement());
+            ObjectInstance classToMock = ObjectInstanceFactory
+                    .get(danglingObject.getType() + "@" + id.getAndIncrement());
             DataNode classLiteralToMock = PrimitiveNodeFactory.createClassLiteralFor(classToMock);
 
             MethodInvocation initMock = new MethodInvocation(id.getAndIncrement(), MOCK_SIGNATURE);
@@ -67,19 +73,24 @@ public class MockGenerator {
             carvedTestDataDependencyGraph.addDataDependencyOnReturn(initMock, (DataNode) classToMock);
 
             List<MethodInvocation> callSet = new ArrayList<MethodInvocation>();
-            // need to use the carved execution here because the methods we care about are not be in the test yet
-            for (MethodInvocation dependentCall : carvedExecution.getDataDependencyGraphContainingTheMethodInvocationUnderTest().getMethodInvocationsForOwner(danglingObject)) {
+            // need to use the carved execution here because the methods we care about are
+            // not be in the test yet
+            for (MethodInvocation dependentCall : carvedExecution
+                    .getDataDependencyGraphContainingTheMethodInvocationUnderTest()
+                    .getMethodInvocationsForOwner(danglingObject)) {
 
                 DataNode returnValue = null;
 
                 try {
-                    returnValue = carvedExecution.getDataDependencyGraphContainingTheMethodInvocationUnderTest().getReturnValue(dependentCall).get();
+                    returnValue = carvedExecution.getDataDependencyGraphContainingTheMethodInvocationUnderTest()
+                            .getReturnValue(dependentCall).get();
                 } catch (ABCException | NoSuchElementException e) {
                     continue;
                 }
 
                 DataNode doReturnArgument = DataNodeFactory.get(returnValue.getType(), returnValue.toString());
-                ObjectInstance doReturnReturn = ObjectInstanceFactory.get("org.mockito.stubbing.Stubber@" + id.getAndIncrement());
+                ObjectInstance doReturnReturn = ObjectInstanceFactory
+                        .get("org.mockito.stubbing.Stubber@" + id.getAndIncrement());
 
                 MethodInvocation doReturnMock = new MethodInvocation(id.getAndIncrement(), RETURN_SIGNATURE);
                 doReturnMock.setStatic(true);
@@ -91,7 +102,8 @@ public class MockGenerator {
                 carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(doReturnMock, doReturnArgument, 0);
                 carvedTestDataDependencyGraph.addDataDependencyOnReturn(doReturnMock, doReturnReturn);
 
-                ObjectInstance whenReturn = ObjectInstanceFactory.get(danglingObject.getType() + "@" + id.getAndIncrement());
+                ObjectInstance whenReturn = ObjectInstanceFactory
+                        .get(danglingObject.getType() + "@" + id.getAndIncrement());
 
                 MethodInvocation whenMock = new MethodInvocation(id.getAndIncrement(), WHEN_SIGNATURE);
                 whenMock.setHasGenericReturnType(true);
@@ -112,17 +124,26 @@ public class MockGenerator {
                 carvedTestExecutionFlowGraph.enqueueMethodInvocations(dependentCallCopy);
                 carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(dependentCallCopy);
                 carvedTestDataDependencyGraph.addDataDependencyOnOwner(dependentCallCopy, whenReturn);
-                //handle calls to mock
+                // handle calls to mock
                 callSet.add(doReturnMock);
                 callSet.add(whenMock);
                 callSet.add(dependentCallCopy);
             }
             mockInfoList.add(new MockInfo(initMock, callSet));
 
-            // THIS DATA DEPENDENCY GRAPH MAY NEED TO BE THE TEST'S; NEED TO CHANGE METHODS IN TEST DIRECTLY
-            for (MethodInvocation dependentCall : carvedTest.getDataDependencyGraph().getMethodInvocationsWhichUse(danglingObject)) {
-                List<DataNode> dependentCallParameters = carvedTest.getDataDependencyGraph().getParametersOf(dependentCall);
-                UnaryOperator<DataNode> op = arg -> { if (arg.equals(danglingObject)) { return classToMock; } else { return arg; }};
+            // THIS DATA DEPENDENCY GRAPH MAY NEED TO BE THE TEST'S; NEED TO CHANGE METHODS
+            // IN TEST DIRECTLY
+            for (MethodInvocation dependentCall : carvedTest.getDataDependencyGraph()
+                    .getMethodInvocationsWhichUse(danglingObject)) {
+                List<DataNode> dependentCallParameters = carvedTest.getDataDependencyGraph()
+                        .getParametersOf(dependentCall);
+                UnaryOperator<DataNode> op = arg -> {
+                    if (arg.equals(danglingObject)) {
+                        return classToMock;
+                    } else {
+                        return arg;
+                    }
+                };
                 dependentCallParameters.replaceAll(op);
                 // deep copy of the method object
                 MethodInvocation newDependentCall = dependentCall.clone();
@@ -165,11 +186,12 @@ public class MockGenerator {
             for (MethodInvocation transitiveCall : transitiveMethodTraversalList) {
                 if (transitiveCall.getReturnValue() instanceof ObjectInstance) {
                     Collection<? extends MethodInvocation> dependentCalls = carvedExecution
-                        .getDataDependencyGraphContainingTheMethodInvocationUnderTest()
-                        .getMethodInvocationsForOwner((ObjectInstance) transitiveCall.getReturnValue());
+                            .getDataDependencyGraphContainingTheMethodInvocationUnderTest()
+                            .getMethodInvocationsForOwner((ObjectInstance) transitiveCall.getReturnValue());
 
                     if (transitiveMethodOwners.contains(transitiveCall.getReturnValue())) {
-                        transitiveMethodInvocations.get(transitiveMethodOwners.indexOf(transitiveCall.getReturnValue())).addAll(dependentCalls);
+                        transitiveMethodInvocations.get(transitiveMethodOwners.indexOf(transitiveCall.getReturnValue()))
+                                .addAll(dependentCalls);
                     } else {
                         transitiveMethodOwners.add((ObjectInstance) transitiveCall.getReturnValue());
                         transitiveMethodInvocations.add(new ArrayList<>());
@@ -192,19 +214,28 @@ public class MockGenerator {
             transitiveMockingList.add(new Pair<>(transitiveMethodOwners.get(i), transitiveMethodInvocations.get(i)));
         }
 
-        // correct ordering for list; start at methods which are owned by previously returned objects
+        // correct ordering for list; start at methods which are owned by previously
+        // returned objects
         //
-        // it is possible for there to exist methods in the list which are at positions earlier
-        // (in the original list, that is) than methods which return objects, despite the methods in
-        // question not returning objects themselves (ie, representing an endpoint in the object creation
-        // tree, in which methods return objects, which have further methods called on them)
+        // it is possible for there to exist methods in the list which are at positions
+        // earlier
+        // (in the original list, that is) than methods which return objects, despite
+        // the methods in
+        // question not returning objects themselves (ie, representing an endpoint in
+        // the object creation
+        // tree, in which methods return objects, which have further methods called on
+        // them)
         //
-        // it not however, possible for a method to be present in the list earlier (again, in the original list)
-        // than those methods needed to create the object it is called on (the above traversal operates generationally;
-        // to make this more apparent, the list could be further nested by generation, but the semantics above are
+        // it not however, possible for a method to be present in the list earlier
+        // (again, in the original list)
+        // than those methods needed to create the object it is called on (the above
+        // traversal operates generationally;
+        // to make this more apparent, the list could be further nested by generation,
+        // but the semantics above are
         // preserved either way)
         //
-        // thus, traversing the list backwards allows us to synthesize mocks in the correct order; as such, the
+        // thus, traversing the list backwards allows us to synthesize mocks in the
+        // correct order; as such, the
         // list containing the mocking information is reversed here
         reverse(transitiveMockingList);
 
@@ -212,7 +243,8 @@ public class MockGenerator {
 
         for (Pair<ObjectInstance, List<MethodInvocation>> mockTarget : transitiveMockingList) {
             // create mock for owner
-            ObjectInstance classToMock = ObjectInstanceFactory.get(mockTarget.getFirst().getType() + "@" + id.getAndIncrement());
+            ObjectInstance classToMock = ObjectInstanceFactory
+                    .get(mockTarget.getFirst().getType() + "@" + id.getAndIncrement());
             DataNode classLiteralToMock = PrimitiveNodeFactory.createClassLiteralFor(classToMock);
 
             MethodInvocation initMock = new MethodInvocation(id.getAndIncrement(), MOCK_SIGNATURE);
@@ -237,7 +269,8 @@ public class MockGenerator {
                 DataNode returnValue;
 
                 try {
-                    returnValue = carvedExecution.getDataDependencyGraphContainingTheMethodInvocationUnderTest().getReturnValue(call).get();
+                    returnValue = carvedExecution.getDataDependencyGraphContainingTheMethodInvocationUnderTest()
+                            .getReturnValue(call).get();
                 } catch (ABCException | NoSuchElementException e) {
                     continue;
                 }
@@ -256,11 +289,12 @@ public class MockGenerator {
                      * with their same type and content.
                      */
                     doReturnArgument = returnValue;
-                    System.out.println(returnValue);
+                    logger.debug("" + returnValue);
 
                 }
 
-                ObjectInstance doReturnReturn = ObjectInstanceFactory.get("org.mockito.stubbing.Stubber@" + id.getAndIncrement());
+                ObjectInstance doReturnReturn = ObjectInstanceFactory
+                        .get("org.mockito.stubbing.Stubber@" + id.getAndIncrement());
 
                 MethodInvocation doReturnMock = new MethodInvocation(id.getAndIncrement(), RETURN_SIGNATURE);
                 doReturnMock.setStatic(true);
@@ -273,7 +307,8 @@ public class MockGenerator {
                 carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(doReturnMock, doReturnArgument, 0);
                 carvedTestDataDependencyGraph.addDataDependencyOnReturn(doReturnMock, (DataNode) doReturnReturn);
 
-                ObjectInstance whenReturn = ObjectInstanceFactory.get(mockTarget.getFirst().getType() + "@" + id.getAndIncrement());
+                ObjectInstance whenReturn = ObjectInstanceFactory
+                        .get(mockTarget.getFirst().getType() + "@" + id.getAndIncrement());
 
                 MethodInvocation whenMock = new MethodInvocation(id.getAndIncrement(), WHEN_SIGNATURE);
                 whenMock.setHasGenericReturnType(true);
@@ -297,7 +332,7 @@ public class MockGenerator {
 
                 carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(callCopy);
                 carvedTestDataDependencyGraph.addDataDependencyOnOwner(callCopy, whenReturn);
-                //handle calls to mock
+                // handle calls to mock
                 callSet.add(doReturnMock);
                 callSet.add(whenMock);
                 callSet.add(callCopy);
@@ -305,17 +340,17 @@ public class MockGenerator {
             mockInfoList.add(new MockInfo(initMock, callSet));
         }
 
-        //adding dummy dependencies between mocks
-        for (int i=0; i<mockInfoList.size()-1; ++i){
+        // adding dummy dependencies between mocks
+        for (int i = 0; i < mockInfoList.size() - 1; ++i) {
             MockInfo currMock = mockInfoList.get(i);
-            MockInfo nextMock = mockInfoList.get(i+1);
-            for(MethodInvocation methodInvocation:currMock.getCalls()) {
+            MockInfo nextMock = mockInfoList.get(i + 1);
+            for (MethodInvocation methodInvocation : currMock.getCalls()) {
                 carvedTestDataDependencyGraph.addDataDependencyOnDummy(methodInvocation, nextMock.getMock());
             }
         }
-        for (int i=0; i<mockInfoList.size()-1; ++i){
+        for (int i = 0; i < mockInfoList.size() - 1; ++i) {
             MockInfo currMock = mockInfoList.get(i);
-            for(MethodInvocation methodInvocation:currMock.getCalls()) {
+            for (MethodInvocation methodInvocation : currMock.getCalls()) {
                 carvedTestDataDependencyGraph.addDataDependencyOnDummy(methodInvocation, methodInvocationUnderTest);
             }
         }
@@ -325,74 +360,78 @@ public class MockGenerator {
         List<ShadowInfo> shadowInfoList = new ArrayList<ShadowInfo>();
         for (MethodInvocation targetCall : targetMethodList) {
 
-                DataNode returnValue;
+            DataNode returnValue;
 
-                try {
-                    returnValue = carvedExecution.getDataDependencyGraphContainingTheMethodInvocationUnderTest().getReturnValue(targetCall).get();
-                } catch (ABCException | NoSuchElementException e) {
-                    continue;
+            try {
+                returnValue = carvedExecution.getDataDependencyGraphContainingTheMethodInvocationUnderTest()
+                        .getReturnValue(targetCall).get();
+            } catch (ABCException | NoSuchElementException e) {
+                continue;
+            }
+
+            String shadowType = returnValue.getType() + "Shadow";
+            ObjectInstance extractReturn = ObjectInstanceFactory
+                    .get(String.format("%s@%d", shadowType, id.getAndIncrement()));
+
+            MethodInvocation extractShadow = new MethodInvocation(id.getAndIncrement(), EXTRACT_SIGNATURE);
+
+            extractShadow.setHasGenericReturnType(true);
+            extractShadow.setStatic(true);
+            extractShadow.setActualParameterInstances(Arrays.asList(returnValue));
+            extractShadow.setReturnValue(extractReturn);
+
+            carvedTestExecutionFlowGraph.enqueueMethodInvocations(extractShadow);
+
+            carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(extractShadow);
+            carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(extractShadow, returnValue, 0);
+            carvedTestDataDependencyGraph.addDataDependencyOnReturn(extractShadow, extractReturn);
+
+            ObjectInstance mockClassTarget = mockMapping.get(returnValue);
+            List<MethodInvocation> mockMethodTargetList = new ArrayList<>();
+
+            for (Pair<ObjectInstance, List<MethodInvocation>> callPair : transitiveMockingList) {
+                if (callPair.getFirst().equals(returnValue)) {
+                    mockMethodTargetList = callPair.getSecond();
                 }
+            }
 
-                String shadowType = returnValue.getType() + "Shadow";
-                ObjectInstance extractReturn = ObjectInstanceFactory.get(String.format("%s@%d", shadowType, id.getAndIncrement()));
+            List<MethodInvocation> callSet = new ArrayList<MethodInvocation>();
+            for (MethodInvocation mockCallTarget : mockMethodTargetList) {
 
-                MethodInvocation extractShadow = new MethodInvocation(id.getAndIncrement(), EXTRACT_SIGNATURE);
-                extractShadow.setHasGenericReturnType(true);
-                extractShadow.setStatic(true);
-                extractShadow.setActualParameterInstances(Arrays.asList(returnValue));
-                extractShadow.setReturnValue(extractReturn);
+                List<Integer> callTargetCodepoints = new ArrayList<Integer>();
 
-                carvedTestExecutionFlowGraph.enqueueMethodInvocations(extractShadow);
+                mockCallTarget.getMethodSignature().codePoints().forEach(callTargetCodepoints::add);
 
-                carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(extractShadow);
-                carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(extractShadow, returnValue, 0);
-                carvedTestDataDependencyGraph.addDataDependencyOnReturn(extractShadow, extractReturn);
+                DataNode setShadowParameter = new PrimitiveValue(id.getAndIncrement(), "java.lang.String",
+                        callTargetCodepoints.toString());
 
-                ObjectInstance mockClassTarget = mockMapping.get(returnValue);
-                List<MethodInvocation> mockMethodTargetList = new ArrayList<>();
+                MethodInvocation setShadow = new MethodInvocation(id.getAndIncrement(), SET_SIGNATURE);
+                setShadow.setOwner(extractReturn);
+                setShadow.setActualParameterInstances(Arrays.asList(setShadowParameter, mockClassTarget));
 
-                for (Pair<ObjectInstance, List<MethodInvocation>> callPair : transitiveMockingList) {
-                    if (callPair.getFirst().equals(returnValue)) {
-                        mockMethodTargetList = callPair.getSecond();
-                    }
-                }
+                carvedTestExecutionFlowGraph.enqueueMethodInvocations(setShadow);
 
-                List<MethodInvocation> callSet = new ArrayList<MethodInvocation>();
-                for (MethodInvocation mockCallTarget : mockMethodTargetList) {
-
-                    List<Integer> callTargetCodepoints = new ArrayList<Integer>();
-
-                    mockCallTarget.getMethodSignature().codePoints().forEach(callTargetCodepoints::add);
-
-                    DataNode setShadowParameter = new PrimitiveValue(id.getAndIncrement(), "java.lang.String", callTargetCodepoints.toString());
-
-                    MethodInvocation setShadow = new MethodInvocation(id.getAndIncrement(), SET_SIGNATURE);
-                    setShadow.setOwner(extractReturn);
-                    setShadow.setActualParameterInstances(Arrays.asList(setShadowParameter, mockClassTarget));
-
-                    carvedTestExecutionFlowGraph.enqueueMethodInvocations(setShadow);
-
-                    carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(setShadow);
-                    carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(setShadow, setShadowParameter, 0);
-                    carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(setShadow, mockClassTarget, 1);
-                    //handle calls to shadow
-                    callSet.add(setShadow);
-                }
-                shadowInfoList.add(new ShadowInfo(extractShadow, callSet));
+                carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(setShadow);
+                carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(setShadow, setShadowParameter, 0);
+                carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(setShadow, mockClassTarget, 1);
+                // handle calls to shadow
+                callSet.add(setShadow);
+            }
+            shadowInfoList.add(new ShadowInfo(extractShadow, callSet));
         }
 
-        //adding dummy dependencies between shadows
-        for (int i=0; i<shadowInfoList.size()-1; ++i){
+        // adding dummy dependencies between shadows
+        for (int i = 0; i < shadowInfoList.size() - 1; ++i) {
             ShadowInfo currShadow = shadowInfoList.get(i);
-            ShadowInfo nextShadow = shadowInfoList.get(i+1);
-            for(MethodInvocation methodInvocation:currShadow.getCalls()) {
+            ShadowInfo nextShadow = shadowInfoList.get(i + 1);
+            for (MethodInvocation methodInvocation : currShadow.getCalls()) {
                 carvedTestDataDependencyGraph.addDataDependencyOnDummy(methodInvocation, nextShadow.getShadow());
             }
         }
-        //add depedency to carved method
-        for (int i=0; i<shadowInfoList.size()-1; ++i){
+        // add depedency to carved method
+        for (int i = 0; i < shadowInfoList.size() - 1; ++i) {
             ShadowInfo currShadow = shadowInfoList.get(i);
-            for(MethodInvocation methodInvocation:currShadow.getCalls()) {
+            for (MethodInvocation methodInvocation : currShadow.getCalls()) {
                 carvedTestDataDependencyGraph.addDataDependencyOnDummy(methodInvocation, methodInvocationUnderTest);
             }
         }

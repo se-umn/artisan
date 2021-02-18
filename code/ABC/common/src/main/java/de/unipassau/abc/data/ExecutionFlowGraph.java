@@ -58,7 +58,13 @@ public interface ExecutionFlowGraph {
 	public void refine(Set<MethodInvocation> requiredMethodInvocations);
 
 	public List<MethodInvocation> getOrderedMethodInvocations();
-
+	
+	/**
+	 * TODO This is to distinguish from the method above possibly avoiding breaking the current code
+	 * @return
+	 */
+	public List<MethodInvocation> getMethodInvocationsSortedByID();
+		
 	public boolean contains(MethodInvocation methodInvocation);
 
 	public void enqueueMethodInvocations(MethodInvocation methodInvocation);

@@ -317,10 +317,21 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 	public Set<MethodInvocation> getMethodInvocationsAfter(MethodInvocation methodInvocation) {
 		return new HashSet<>(getOrderedMethodInvocationsAfter(methodInvocation));
 	}
+	
+	
+	public List<MethodInvocation> getMethodInvocationsSortedByID(){
+	    
+	    List<MethodInvocation> allMethodInvocations= new ArrayList<>(graph.getVertices());
+        // Sort them. Method invocation implements comparable
+        Collections.sort(allMethodInvocations);
+        // Return all of them
+        return allMethodInvocations;
+	}
 
 	// TODO: Double check that this actually produces the same results as
 	// before.
 	// Plus check why we needed the methodInvocation to be in this list...
+	// Why we need this logic? Because during carving the number of method calls is Huge
 	public List<MethodInvocation> getOrderedMethodInvocationsAfter(MethodInvocation methodInvocation) {
 
 		List<MethodInvocation> orderedMethodInvocationsAfter = new ArrayList<>(graph.getVertices());
