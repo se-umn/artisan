@@ -19,6 +19,7 @@ import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.DataNode;
 import de.unipassau.abc.data.DataNodeFactory;
 import de.unipassau.abc.data.ExecutionFlowGraph;
+import de.unipassau.abc.data.ExecutionFlowGraphImpl;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.ObjectInstanceFactory;
@@ -118,6 +119,8 @@ public class MockGenerator {
                 carvedTestDataDependencyGraph.addDataDependencyOnReturn(whenMock, whenReturn);
 
                 MethodInvocation dependentCallCopy = dependentCall.clone();
+
+                dependentCallCopy.setInvocationCount(id.getAndIncrement());
                 dependentCallCopy.setOwner(whenReturn);
                 dependentCallCopy.setStatic(false);
 
@@ -155,7 +158,7 @@ public class MockGenerator {
             }
         }
 
-        List<Pair<ObjectInstance, List<MethodInvocation>>> targetMockingList = new ArrayList<>();
+        // List<Pair<ObjectInstance, List<MethodInvocation>>> targetMockingList = new ArrayList<>();
         List<List<MethodInvocation>> targetMethodInvocations = new ArrayList<>();
         List<ObjectInstance> targetMethodOwners = new ArrayList<>();
 
@@ -325,6 +328,7 @@ public class MockGenerator {
 
                 MethodInvocation callCopy = call.clone();
 
+                callCopy.setInvocationCount(id.getAndIncrement());
                 callCopy.setOwner(whenReturn);
                 callCopy.setStatic(false);
 
@@ -357,7 +361,11 @@ public class MockGenerator {
 
         List<MethodInvocation> targetMethodList = new ArrayList<MethodInvocation>();
         targetMethodInvocations.forEach(targetMethodList::addAll);
+
         List<ShadowInfo> shadowInfoList = new ArrayList<ShadowInfo>();
+
+        List<ShadowSequence> shadowSequenceList = new ArrayList<ShadowSequence>();
+
         for (MethodInvocation targetCall : targetMethodList) {
 
             DataNode returnValue;
@@ -418,6 +426,7 @@ public class MockGenerator {
                 callSet.add(setShadow);
             }
             shadowInfoList.add(new ShadowInfo(extractShadow, callSet));
+            shadowSequenceList.add(new ShadowSequence(targetCall, extractShadow, callSet));
         }
 
         // adding dummy dependencies between shadows
@@ -435,5 +444,32 @@ public class MockGenerator {
                 carvedTestDataDependencyGraph.addDataDependencyOnDummy(methodInvocation, methodInvocationUnderTest);
             }
         }
+
+        List<MethodInvocation> orderedMethodInvocations = carvedTestExecutionFlowGraph.getMethodInvocationsSortedByID();
+        for (ShadowSequence shadowSequence : shadowSequenceList) {
+            for (MethodInvocation orderedMethodInvocationInstance : orderedMethodInvocations) {
+                if (orderedMethodInvocationInstance.getInvocationCount() > shadowSequence.getTargetCallInstance().getInvocationCount()) {
+                    orderedMethodInvocationInstance.setInvocationCount(orderedMethodInvocationInstance.getInvocationCount() + shadowSequence.getSetMockCallInstances().size() + 1);
+                }
+            }
+
+            orderedMethodInvocations.get(orderedMethodInvocations.indexOf(shadowSequence.getExtractCallInstance()))
+                .setInvocationCount(shadowSequence.getTargetCallInstance().getInvocationCount() + 1);
+
+            for (int idIncr = 2; idIncr <= shadowSequence.getSetMockCallInstances().size() + 1; idIncr++) {
+                orderedMethodInvocations.get(orderedMethodInvocations.indexOf(shadowSequence.getSetMockCallInstances().get(idIncr - 2)))
+                    .setInvocationCount(shadowSequence.getTargetCallInstance().getInvocationCount() + idIncr);
+            }
+        }
+
+        ExecutionFlowGraph reorderedExecutionFlowGraph = new ExecutionFlowGraphImpl();
+
+        for (MethodInvocation orderedMethodInvocationInstance : orderedMethodInvocations) {
+            reorderedExecutionFlowGraph.enqueueMethodInvocations(orderedMethodInvocationInstance);
+        }
+
+        carvedTest.setExecutionFlowGraph(reorderedExecutionFlowGraph);
+
+        System.out.println(orderedMethodInvocations);
     }
 }

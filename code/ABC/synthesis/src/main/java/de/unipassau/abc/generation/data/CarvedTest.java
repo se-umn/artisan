@@ -64,6 +64,10 @@ public class CarvedTest {
         this.shadows = new ArrayList<CarvingShadow>();
 	}
 
+    public void setExecutionFlowGraph(ExecutionFlowGraph executionFlowGraph) {
+        this.executionFlowGraph = executionFlowGraph;
+    }
+
     public void addMock(CarvingMock mock) {
         this.mocks.add(mock);
     }

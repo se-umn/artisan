@@ -156,6 +156,10 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		this.invocationCount = invocationCount;
 	}
 
+    public void setInvocationCount(int invocationCount) {
+        this.invocationCount = invocationCount;
+    }
+
 	public void setInvocationType(String invocationType) {
 		this.invocationType = invocationType;
 	}
