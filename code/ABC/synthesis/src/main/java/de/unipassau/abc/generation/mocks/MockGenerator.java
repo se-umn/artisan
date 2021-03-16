@@ -377,7 +377,7 @@ public class MockGenerator {
                 continue;
             }
 
-            String shadowType = returnValue.getType() + "Shadow";
+            String shadowType = returnValue.getType().split("\\.")[returnValue.getType().split("\\.").length - 1] + "Shadow";
             ObjectInstance extractReturn = ObjectInstanceFactory
                     .get(String.format("%s@%d", shadowType, id.getAndIncrement()));
 
