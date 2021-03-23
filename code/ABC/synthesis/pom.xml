@@ -32,7 +32,7 @@
 							<id>carve-and-generate</id>
 							<jvmSettings>
 								<initialMemorySize>200m</initialMemorySize>
-								<maxMemorySize>1g</maxMemorySize>
+								<maxMemorySize>4g</maxMemorySize>
 								<maxStackSize>512m</maxStackSize>
 							</jvmSettings>
 						</program>
