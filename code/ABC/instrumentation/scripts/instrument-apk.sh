@@ -67,7 +67,13 @@ ${SCRIPT_LOCATION}/../target/appassembler/bin/instrument-apk \
             ${INSTRUMENTATION_OPTS} > ${LOG_FILE} 2>&1
 
 # For some weird reason the output is changed and an additional '.' was printed by the end of the name?
-INSTRUMENTED_APK_FILE=$(cat ${LOG_FILE} | grep "Writing APK to" | awk '{print $NF}' | sed -e 's|"||' -e 's|".||g')
+# INSTRUMENTED_APK_FILE=$(cat ${LOG_FILE} | grep "Writing APK to" | awk '{print $NF}' | sed -e 's|"||' -e 's|".||g')
+INSTRUMENTED_APK_FILE=${SCRIPT_LOCATION}/../instrumented-apks/$(basename ${APK})
+
+if [ ! -f ${INSTRUMENTED_APK_FILE} ]; then
+    ( >&2 echo "** Cannot find ${INSTRUMENTED_APK_FILE}" | tee -a ${LOG_FILE} )
+    exit 123
+fi
 
 # Sign the APK ?
 ( >&2 echo "** Sign the apk ${INSTRUMENTED_APK_FILE} using ${APK_SIGNER}" | tee -a ${LOG_FILE} )
