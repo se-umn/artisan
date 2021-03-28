@@ -59,6 +59,8 @@ public class MockGenerator {
 
         for (ObjectInstance danglingObject : carvedTest.getDataDependencyGraph().getDanglingObjects()) {
 
+            // skip string mocks here?
+            
             ObjectInstance classToMock = ObjectInstanceFactory
                     .get(danglingObject.getType() + "@" + id.getAndIncrement());
             DataNode classLiteralToMock = PrimitiveNodeFactory.createClassLiteralFor(classToMock);
@@ -80,6 +82,8 @@ public class MockGenerator {
                     .getDataDependencyGraphContainingTheMethodInvocationUnderTest()
                     .getMethodInvocationsForOwner(danglingObject)) {
 
+                // if return value is non-primitive (ie, an ObjectInstance), we may want to use a previously defined mock here (or at least try)
+                // relatedly, handle java.lang.String objects as below (can strings appear as dangling objects???)
                 DataNode returnValue = null;
 
                 try {
@@ -244,10 +248,32 @@ public class MockGenerator {
 
         HashMap<ObjectInstance, ObjectInstance> mockMapping = new HashMap<ObjectInstance, ObjectInstance>();
 
+        HashMap<ObjectInstance, DataNode> stringMapping = new HashMap<ObjectInstance, DataNode>();
+
         for (Pair<ObjectInstance, List<MethodInvocation>> mockTarget : transitiveMockingList) {
+
+            if (mockTarget.getFirst().getType().equals("java.lang.String")) {
+                // this always should be a singleton list(?) containing toString()
+                MethodInvocation toStringCall = mockTarget.getSecond().get(0);
+
+                DataNode returnValue;
+
+                try {
+                    returnValue = carvedExecution.getDataDependencyGraphContainingTheMethodInvocationUnderTest()
+                            .getReturnValue(toStringCall).get();
+                } catch (ABCException | NoSuchElementException e) {
+                    continue;
+                }
+
+                stringMapping.put(mockTarget.getFirst(), returnValue);
+
+                System.out.println(stringMapping);
+
+                continue;
+            }
+
             // create mock for owner
-            ObjectInstance classToMock = ObjectInstanceFactory
-                    .get(mockTarget.getFirst().getType() + "@" + id.getAndIncrement());
+            ObjectInstance classToMock = ObjectInstanceFactory.get(mockTarget.getFirst().getType() + "@" + id.getAndIncrement());
             DataNode classLiteralToMock = PrimitiveNodeFactory.createClassLiteralFor(classToMock);
 
             MethodInvocation initMock = new MethodInvocation(id.getAndIncrement(), MOCK_SIGNATURE);
@@ -284,7 +310,9 @@ public class MockGenerator {
                 DataNode doReturnArgument;
 
                 // TODO String are handled as primitive types, this might create some confusion
-                if (returnValue instanceof ObjectInstance) {
+                if (returnValue.getType().equals("java.lang.String") && !(returnValue instanceof PrimitiveValue)) {
+                    doReturnArgument = stringMapping.get(returnValue);
+                } else if (returnValue instanceof ObjectInstance) {
                     doReturnArgument = mockMapping.get(returnValue);
                 } else {
                     /*
@@ -368,6 +396,7 @@ public class MockGenerator {
 
         for (MethodInvocation targetCall : targetMethodList) {
 
+            // need no special string/ObjectInstance handling here, because we must always directly use the value findViewById() returns
             DataNode returnValue;
 
             try {
