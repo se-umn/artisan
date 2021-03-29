@@ -151,6 +151,10 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
     private List<Pattern> packageFilters = new ArrayList<Pattern>();
 
+    // This class is the usual <package-name>.R class that contains many static
+    // values for an android application
+    private SootClass rIdClass;
+
     protected static boolean bProgramStartInClinit = false;
 //	protected static Options opts = new Options();
 
@@ -195,10 +199,32 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
             taintAndroidIntents();
         }
 
+        extractRClass();
+
         try {
             instrument();
         } catch (IOException | XmlPullParserException e) {
             throw new RuntimeException(e);
+        }
+
+    }
+
+    private void extractRClass() {
+        System.out.println("---- SceneInstrumenterWithMethodParameters.extractRClass() ----");
+
+        Iterator<SootClass> applicationClassesIterator = userClasses.iterator();
+        if (userClasses.size() == 0) {
+            System.out.println("\n\n NO USER CLASSES DEFINED !");
+            return;
+        }
+
+        while (applicationClassesIterator.hasNext()) {
+            SootClass currentlyInstrumentedSootClass = (SootClass) applicationClassesIterator.next();
+            if (currentlyInstrumentedSootClass.getName().contains("R$id")) {
+                System.out.println("SceneInstrumenterWithMethodParameters.extractRClass() FOUND " + currentlyInstrumentedSootClass);
+                rIdClass = currentlyInstrumentedSootClass;
+                break;
+            }
         }
 
     }
@@ -1052,7 +1078,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
              * Instrument all the libCall method invocations by wrapping them with begin/end
              */
             currentUnit.apply(new InstrumentLibCall(currentlyInstrumentedMethod, currentlyInstrumentedMethodBody,
-                    currentlyInstrumentedMethodBodyUnitChain, userClasses));
+                    currentlyInstrumentedMethodBodyUnitChain, userClasses, rIdClass));
 
             if (INSTRUMENT_FIELDS_OPERATIONS) {
                 /*
