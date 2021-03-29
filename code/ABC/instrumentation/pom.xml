@@ -99,6 +99,9 @@
 			<groupId>org.soot-oss</groupId>
 			<artifactId>soot</artifactId>
 			<version>4.2.1</version>
+			<type>jar</type>
+			<scope>system</scope>
+			<systemPath>${basedir}/local-repo/soot-4.2.1.jar</systemPath>
 		</dependency>
 		-->
 		<!-- PLOT UNIT GRAPHS for DEBUGGING -->
