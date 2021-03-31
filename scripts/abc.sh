@@ -302,6 +302,20 @@ function rebuild-carving() {
   popd
 }
 
+function rebuild-synthesis() {
+ # Ensures the required variables are in place
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+
+  # Store current folder in stack and cd to $ABC_HOME
+  # NOTE: ABC_HOME should not be between double quotes (")
+  pushd ${ABC_HOME}
+
+  cd synthesis
+    mvn package appassembler:assemble -DskipTests 
+  popd
+}
+
+
 function sign-apk() {
   # Ensures the required variables are in place
   : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
