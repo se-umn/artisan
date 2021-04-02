@@ -15,6 +15,7 @@ import com.github.javaparser.ast.expr.AssignExpr.Operator;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import de.unipassau.abc.data.AndroidMethodInvocation;
@@ -55,6 +56,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang.NotImplementedException;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -356,15 +358,29 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             TryStmt tryStatement = new TryStmt();
             tryStatement.setTryBlock(methodBody);
 
+            // If the test should fail with an exception. It must be the correct exception
             CatchBlock expectedExceptionCatchBlock = carvedTest.getExpectedExceptionCatchBlock();
             CatchClause expectedExceptionCatchClause = generateCatchClause(expectedExceptionCatchBlock, "expected");
 
+            // Catch and rethrow AssertionError
+            CatchClause assertionErrorCatchClause = new CatchClause();
+            Parameter p = new Parameter();
+            p.setName("assertionException");
+            p.setType(AssertionError.class.getName());
+            assertionErrorCatchClause .setParameter(p);
+            BlockStmt cb = new BlockStmt();
+            // TODO 
+            cb.addStatement( new ThrowStmt( new NameExpr("assertionException")));
+            assertionErrorCatchClause .setBody(cb);
+
+            // If the test fails with another exception, which is not AssertionError, then myst be fail
             CatchBlock unexpectedExceptionCatchBlock = carvedTest.getUnexpectedExceptionCatchBlock();
             CatchClause unexpectedExceptionCatchClause = generateCatchClause(unexpectedExceptionCatchBlock,
                     "unexpected");
 
             NodeList<CatchClause> multiCatchBlock = new NodeList<>();
             multiCatchBlock.add(expectedExceptionCatchClause);
+            multiCatchBlock.add(assertionErrorCatchClause);
             multiCatchBlock.add(unexpectedExceptionCatchClause);
             //
             tryStatement.setCatchClauses(multiCatchBlock);
@@ -523,8 +539,9 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                     throw new NotImplementedException(
                             "Binding not defined for synthetic method call: " + methodInvocation);
                 }
-            } 
-            // TODO Alessio I am not sure this is really needed. The method is an instance method... 
+            }
+            // TODO Alessio I am not sure this is really needed. The method is an instance
+            // method...
 //            else if (methodInvocation.getMethodSignature()
 //                    .equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String)>")) {
 //                // Remove the patched signature with the original one!

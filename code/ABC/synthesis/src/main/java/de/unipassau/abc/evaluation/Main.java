@@ -162,8 +162,10 @@ public class Main {
 							out.print(cu.toString());
 						}
 						generatedTests.put(testCase, testFile);
+						
 					} catch (Exception e) {
 						System.err.println("Cannot generate test " + testCase.getName());
+						e.printStackTrace();
 					}
 				}
 
