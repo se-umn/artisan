@@ -101,44 +101,27 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
     private static final boolean DEBUG = System.getProperties().containsKey("abc.debug");
 
-    // Class which is invoked dynamically from the inserted probes
-    // TODO THe following is not refactoring safe !!!
+    // Class which is invoked dynamically from the inserted probes to trace the
+    // execution.
+    // The actual class will be choosen dynamically
     protected SootClass clsMonitor;
-
     // Methods of the clsMonitor class invoked by the probes
-    // TODO Are those really called?
     protected SootMethod monitorInitialize;
-//	protected SootMethod monitorOnTerminateApp;
-
     // Those are methods that can be called by the tests, so can be carved
     protected SootMethod monitorOnAppMethodCall;
     // Those are methods that cannot be called by the tests, so cannot be carved
     protected SootMethod monitorOnPrivateAppMethodCall;
-    // Those are calls to external libs that can be called by the tests, but cannot
-    // be carved
+    // Those are calls to external libs cannot be carved
     protected SootMethod monitorOnLibMethodCall;
-
     // Calling one of the method we fake to uniform the representation
     protected SootMethod monitorOnSyntheticMethodCall;
-
-    // TODO Not sure we really need those...
-    // protected SootMethod monitorOnEnterStatic;
-    // protected SootMethod monitorOnLibCallStatic;
-
-    // This applies to AppMethods and LibMethods - return or returnVoid
-    // Keep those separated to improve readability and debugging
-    // protected SootMethod monitorOnMethodReturnNormally;
+    //
     protected SootMethod monitorOnAppMethodReturnNormally;
     protected SootMethod monitorOnLibMethodReturnNormally;
-
-    // Monitor when an app method exits exceptionally - throw as exit point
+    // Monitor when an app method exits exceptionally
     protected SootMethod monitorOnAppMethodReturnExceptionally;
-
-    // Monitor when an app method ends exceptionally (this can be either from a
-    // known or an unknown exception)
-    // This is results from throwing an exception - any throw
+    // Monitor when an app method ends exceptionally
     protected SootMethod monitorOnAppMethodThrowException;
-
     // Monitor when an app method capture an exception (via a trap)
     protected SootMethod monitorOnAppMethodCaptureException;
 
@@ -221,7 +204,8 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
         while (applicationClassesIterator.hasNext()) {
             SootClass currentlyInstrumentedSootClass = (SootClass) applicationClassesIterator.next();
             if (currentlyInstrumentedSootClass.getName().contains("R$id")) {
-                System.out.println("SceneInstrumenterWithMethodParameters.extractRClass() FOUND " + currentlyInstrumentedSootClass);
+                System.out.println("SceneInstrumenterWithMethodParameters.extractRClass() FOUND "
+                        + currentlyInstrumentedSootClass);
                 rIdClass = currentlyInstrumentedSootClass;
                 break;
             }
@@ -364,7 +348,9 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
      */
     protected void initMonitorClass() {
         try {
+            // TODO At the moment this is hardcoded to Monitor(Simple Monitor)
             clsMonitor = Scene.v().getSootClass(utils.Constants.MONITOR_CLASS);
+            //
             clsMonitor.setApplicationClass();
             // Make sure we include also supporting classes
             SootClass stackElementClass = Scene.v().getSootClass(StackElement.class.getName());
@@ -381,23 +367,13 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
             // encapsulate this weird logic...
 
             monitorInitialize = clsMonitor.getMethodByName("initialize");
-            // Our application terminated
-//			monitorOnTerminateApp = clsMonitor.getMethodByName("terminate");
-
-            // A method of the instrumented app was called
             monitorOnAppMethodCall = clsMonitor.getMethodByName("onAppMethodCall");
             monitorOnSyntheticMethodCall = clsMonitor.getMethodByName("onSyntheticMethodCall");
             monitorOnPrivateAppMethodCall = clsMonitor.getMethodByName("onPrivateAppMethodCall");
-            // A method that does not belong to the app was called
             monitorOnLibMethodCall = clsMonitor.getMethodByName("onLibMethodCall");
-
-            // Generic Method to log a method that returns normally
-//			monitorOnMethodReturnNormally = clsMonitor.getMethodByName("onMethodReturnNormally");
             monitorOnAppMethodReturnNormally = clsMonitor.getMethodByName("onAppMethodReturnNormally");
             monitorOnLibMethodReturnNormally = clsMonitor.getMethodByName("onLibMethodReturnNormally");
-            // An exception returned in a catch method of our application
             monitorOnAppMethodReturnExceptionally = clsMonitor.getMethodByName("onAppMethodReturnExceptionally");
-
             monitorOnAppMethodCaptureException = clsMonitor.getMethodByName("onAppMethodCaptureException");
             monitorOnAppMethodThrowException = clsMonitor.getMethodByName("onAppMethodThrowException");
 
