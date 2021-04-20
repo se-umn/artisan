@@ -172,7 +172,7 @@ public class MockGenerator {
                 .getMethodInvocationsSubsumedBy(carvedTest.getMethodUnderTest()));
 
         for (MethodInvocation subsumedCandidate : subsumedCandidateMethodInvocations) {
-            if (subsumedCandidate.getMethodSignature().equals("<android.app.Activity: android.view.View findViewById(int)>")) {
+            if (subsumedCandidate.getMethodSignature().equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String)>")) {
                 carvedTestExecutionFlowGraph.enqueueMethodInvocations(subsumedCandidate);
                 carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(subsumedCandidate);
             }
@@ -186,7 +186,7 @@ public class MockGenerator {
         int subsumedCallCount = 0;
 
         for (MethodInvocation call : candidateMethodInvocations) {
-            if (call.getMethodSignature().equals("<android.app.Activity: android.view.View findViewById(int)>")) {
+            if (call.getMethodSignature().equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String)>")) {
                 if (subsumedCandidateMethodInvocations.contains(call)) {
                     subsumedCallCount += 1;
                 }
