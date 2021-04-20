@@ -162,12 +162,34 @@ public class MockGenerator {
             }
         }
 
-        // List<Pair<ObjectInstance, List<MethodInvocation>>> targetMockingList = new ArrayList<>();
+        List<MethodInvocation> candidateMethodInvocations = carvedTest.getExecutionFlowGraph()
+            .getOrderedMethodInvocations();
+
+        List<MethodInvocation> subsumedCandidateMethodInvocations = new ArrayList<MethodInvocation>();
+
+        subsumedCandidateMethodInvocations.addAll(carvedExecution
+                .getCallGraphContainingTheMethodInvocationUnderTest()
+                .getMethodInvocationsSubsumedBy(carvedTest.getMethodUnderTest()));
+
+        for (MethodInvocation subsumedCandidate : subsumedCandidateMethodInvocations) {
+            if (subsumedCandidate.getMethodSignature().equals("<android.app.Activity: android.view.View findViewById(int)>")) {
+                carvedTestExecutionFlowGraph.enqueueMethodInvocations(subsumedCandidate);
+                carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(subsumedCandidate);
+            }
+        }
+
+        candidateMethodInvocations.addAll(subsumedCandidateMethodInvocations);
+
         List<List<MethodInvocation>> targetMethodInvocations = new ArrayList<>();
         List<ObjectInstance> targetMethodOwners = new ArrayList<>();
 
-        for (MethodInvocation call : carvedTest.getExecutionFlowGraph().getOrderedMethodInvocations()) {
+        int subsumedCallCount = 0;
+
+        for (MethodInvocation call : candidateMethodInvocations) {
             if (call.getMethodSignature().equals("<android.app.Activity: android.view.View findViewById(int)>")) {
+                if (subsumedCandidateMethodInvocations.contains(call)) {
+                    subsumedCallCount += 1;
+                }
                 call.setHasGenericReturnType(true);
                 if (targetMethodOwners.contains(call.getOwner())) {
                     targetMethodInvocations.get(targetMethodOwners.indexOf(call.getOwner())).add(call);
@@ -194,7 +216,8 @@ public class MockGenerator {
                 if (transitiveCall.getReturnValue() instanceof ObjectInstance) {
                     Collection<? extends MethodInvocation> dependentCalls = carvedExecution
                             .getDataDependencyGraphContainingTheMethodInvocationUnderTest()
-                            .getMethodInvocationsForOwner((ObjectInstance) transitiveCall.getReturnValue());
+                            .getMethodInvocationsForOwner(
+                                    (ObjectInstance) transitiveCall.getReturnValue());
 
                     if (transitiveMethodOwners.contains(transitiveCall.getReturnValue())) {
                         transitiveMethodInvocations.get(transitiveMethodOwners.indexOf(transitiveCall.getReturnValue()))
@@ -475,6 +498,21 @@ public class MockGenerator {
         }
 
         List<MethodInvocation> orderedMethodInvocations = carvedTestExecutionFlowGraph.getMethodInvocationsSortedByID();
+
+        int maxInvocationCount = carvedTest.getMethodUnderTest().getInvocationCount();
+        int incrementalInvocationCount = 0;
+
+        for (MethodInvocation targetCandidate : orderedMethodInvocations) {
+            if (targetCandidate.getInvocationCount() >= maxInvocationCount) {
+                if (subsumedCandidateMethodInvocations.contains(targetCandidate)) {
+                    targetCandidate.setInvocationCount(maxInvocationCount + incrementalInvocationCount);
+                    incrementalInvocationCount += 1;
+                } else {
+                    targetCandidate.setInvocationCount(targetCandidate.getInvocationCount() + subsumedCallCount);
+                }
+            }
+        }
+
         for (ShadowSequence shadowSequence : shadowSequenceList) {
             for (MethodInvocation orderedMethodInvocationInstance : orderedMethodInvocations) {
                 if (orderedMethodInvocationInstance.getInvocationCount() > shadowSequence.getTargetCallInstance().getInvocationCount()) {
