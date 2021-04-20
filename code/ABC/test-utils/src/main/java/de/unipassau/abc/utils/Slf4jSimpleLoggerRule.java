@@ -2,6 +2,7 @@ package de.unipassau.abc.utils;
 
 import org.junit.rules.ExternalResource;
 import org.slf4j.event.Level;
+import org.slf4j.impl.SimpleLogger;
 
 public class Slf4jSimpleLoggerRule extends ExternalResource {
 
@@ -15,7 +16,7 @@ public class Slf4jSimpleLoggerRule extends ExternalResource {
 	@Override
 	protected void before() throws Throwable {
 		// TODO Get the log level for this particular test class into currentLogLevel;
-		System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, level.name());
+		System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, level.name());
 		super.before();
 	}
 

@@ -30,12 +30,15 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.ArrayInitializerExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.AssignExpr.Operator;
 import com.github.javaparser.ast.expr.CastExpr;
+import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.Name;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.expr.NullLiteralExpr;
@@ -45,6 +48,7 @@ import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 
@@ -84,6 +88,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang.NotImplementedException;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -168,6 +173,17 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             cu.addImport(RobolectricTestRunner.class);
             ClassOrInterfaceType robolectricTestRunner = parseClassOrInterfaceType("RobolectricTestRunner");
             testClass.addSingleMemberAnnotation(RunWith.class, robolectricTestRunner.getNameAsString() + ".class");
+            Set<String> shadowTypes = new HashSet<>();
+            testCase.getCarvedTests()
+                    .forEach(test -> test.getShadows().forEach(shadow -> shadowTypes.addAll(shadow.types)));
+            if (!shadowTypes.isEmpty()) {
+                List<Expression> shadowClasses = shadowTypes.stream().map(s -> new ClassOrInterfaceType(null, s))
+                        .map(ClassExpr::new).collect(Collectors.toList());
+                NormalAnnotationExpr annotation = new NormalAnnotationExpr(
+                        new Name("org.robolectric.annotation.Config"), NodeList.nodeList(new MemberValuePair("shadows",
+                                new ArrayInitializerExpr(NodeList.nodeList(shadowClasses)))));
+                testClass.addAnnotation(annotation);
+            }
         }
 
         // TODO Create imports
@@ -392,15 +408,29 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             TryStmt tryStatement = new TryStmt();
             tryStatement.setTryBlock(methodBody);
 
+            // If the test should fail with an exception. It must be the correct exception
             CatchBlock expectedExceptionCatchBlock = carvedTest.getExpectedExceptionCatchBlock();
             CatchClause expectedExceptionCatchClause = generateCatchClause(expectedExceptionCatchBlock, "expected");
 
+            // Catch and rethrow AssertionError
+            CatchClause assertionErrorCatchClause = new CatchClause();
+            Parameter p = new Parameter();
+            p.setName("assertionException");
+            p.setType(AssertionError.class.getName());
+            assertionErrorCatchClause .setParameter(p);
+            BlockStmt cb = new BlockStmt();
+            // TODO 
+            cb.addStatement( new ThrowStmt( new NameExpr("assertionException")));
+            assertionErrorCatchClause .setBody(cb);
+
+            // If the test fails with another exception, which is not AssertionError, then myst be fail
             CatchBlock unexpectedExceptionCatchBlock = carvedTest.getUnexpectedExceptionCatchBlock();
             CatchClause unexpectedExceptionCatchClause = generateCatchClause(unexpectedExceptionCatchBlock,
                     "unexpected");
 
             NodeList<CatchClause> multiCatchBlock = new NodeList<>();
             multiCatchBlock.add(expectedExceptionCatchClause);
+            multiCatchBlock.add(assertionErrorCatchClause);
             multiCatchBlock.add(unexpectedExceptionCatchClause);
             //
             tryStatement.setCatchClauses(multiCatchBlock);
@@ -510,6 +540,13 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         return ownerVariableName;
     }
 
+    /**
+     * We need to patch the call to findViewById(int,String)
+     * 
+     * @param methodInvocation
+     * @param methodBody
+     * @return
+     */
     private Optional<String> generateMethodCall(MethodInvocation methodInvocation, BlockStmt methodBody) {
         String methodName = JimpleUtils.getMethodName(methodInvocation.getMethodSignature());
         MethodCallExpr methodCallExpr;
@@ -535,8 +572,6 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 //			} else {
             NameExpr nameExpr = new NameExpr(variableNameOwner);
             methodCallExpr = new MethodCallExpr(nameExpr, methodName);
-//			}
-
         } else {
             // TODO Here we use JUnit assertions, while we should be using Hamcrest
             // https://stackoverflow.com/questions/56772801/assert-fail-equivalent-using-hamcrest
@@ -553,7 +588,16 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                     throw new NotImplementedException(
                             "Binding not defined for synthetic method call: " + methodInvocation);
                 }
-            } else {
+            }
+            // TODO Alessio I am not sure this is really needed. The method is an instance
+            // method...
+//            else if (methodInvocation.getMethodSignature()
+//                    .equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String)>")) {
+//                // Remove the patched signature with the original one!
+//                methodCallExpr = new MethodCallExpr(JimpleUtils
+//                        .getFullyQualifiedMethodName("<android.app.Activity: android.view.View findViewById(int)>"));
+//            } 
+            else {
                 methodCallExpr = new MethodCallExpr(
                         JimpleUtils.getFullyQualifiedMethodName(methodInvocation.getMethodSignature()));
             }
@@ -563,15 +607,26 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
          * Step 2: add the parameters to make the invocation make sure that expected
          * return values are used correctly...
          */
-        for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
-            if (parameter instanceof PlaceholderDataNode) {
-                PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
-                String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
-                methodCallExpr.addArgument(variable);
-            } else {
-                methodCallExpr.addArgument(getParameterFor(parameter, methodBody));
-            }
+        if (methodInvocation.getMethodSignature()
+                .equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String)>")) {
 
+            // Do the magic trick: replace the first argument (the int) with the "string"
+            DataNode stringParameter = methodInvocation.getActualParameterInstances().get(1);
+            String referenceToViewId = getParameterFor(stringParameter, methodBody).replaceAll("\"", "").replace('$',
+                    '.');
+            System.out.println("\n\n\n Doing the magic trick and replacing int with -> " + referenceToViewId);
+            methodCallExpr.addArgument(referenceToViewId);
+        } else {
+            for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
+                if (parameter instanceof PlaceholderDataNode) {
+                    PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
+                    String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
+                    methodCallExpr.addArgument(variable);
+                } else {
+                    methodCallExpr.addArgument(getParameterFor(parameter, methodBody));
+                }
+
+            }
         }
 
         /**

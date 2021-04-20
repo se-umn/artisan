@@ -117,6 +117,11 @@ function start-clean-emulator() {
     sleep 2
     booted=$(${ANDROID_ADB_EXE} shell getprop sys.boot_completed | tr -d '\r')
   done
+
+  # Disable animations
+  $(ANDROID_ADB_EXE) shell settings put global window_animation_scale 0
+  $(ANDROID_ADB_EXE) shell settings put global transition_animation_scale 0
+  $(ANDROID_ADB_EXE) shell settings put global animator_duration_scale 0
 }
 
 function list-running-emulators() {
@@ -301,6 +306,20 @@ function rebuild-carving() {
   # Return to original folder
   popd
 }
+
+function rebuild-synthesis() {
+ # Ensures the required variables are in place
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+
+  # Store current folder in stack and cd to $ABC_HOME
+  # NOTE: ABC_HOME should not be between double quotes (")
+  pushd ${ABC_HOME}
+
+  cd synthesis
+    mvn package appassembler:assemble -DskipTests 
+  popd
+}
+
 
 function sign-apk() {
   # Ensures the required variables are in place
@@ -681,7 +700,7 @@ function set-java-opts() {
 		exit 1
 	fi
 	package_name=$(__private_get_package_name_from_apk_file "$apk")
-	export JAVA_OPTS="-Dabc.instrument.include=$package_name"
+	export JAVA_OPTS="$JAVA_OPTS -Dabc.instrument.include=$package_name"
 }
 
 function help() {

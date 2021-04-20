@@ -1,17 +1,14 @@
 package de.unipassau.abc.instrumentation;
 
+import com.lexicalscope.jewel.cli.ArgumentValidationException;
+import com.lexicalscope.jewel.cli.CliFactory;
+import com.lexicalscope.jewel.cli.Option;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.commons.lang3.SystemUtils;
 import org.xmlpull.v1.XmlPullParserException;
-
-import com.lexicalscope.jewel.cli.ArgumentValidationException;
-import com.lexicalscope.jewel.cli.CliFactory;
-import com.lexicalscope.jewel.cli.Option;
-
 import soot.G;
 import soot.PackManager;
 import soot.Scene;
@@ -37,7 +34,6 @@ public class Main {
 
 		@Option(longName = "filter-package", defaultValue = {})
 		public List<String> getPackageFilters();
-
 	}
 
 	public static void main(String args[]) throws IOException, XmlPullParserException {
@@ -86,12 +82,19 @@ public class Main {
 		String appPackageName = processMan.getPackageName();
 
 		System.out.println("Main.main() DEBUG: MIN SDK VERSION = " + processMan.getMinSdkVersion());
-		System.out.println("Main.main() DEBUG: MIN SDK VERSION = " + processMan.targetSdkVersion());
+		System.out.println("Main.main() DEBUG: TARGET SDK VERSION = " + processMan.targetSdkVersion());
 		// TODO Change this using some option to force it ... or some way to automatically enable it?
-//		if (processMan.getMinSdkVersion() > 22) {
-			// This breaks if the minSdkVersion is smaller than 22
-			Options.v().set_process_multiple_dex(true);
-//		}
+		if (processMan.getMinSdkVersion() < 22 || processMan.targetSdkVersion() < 22) {
+			// Soot breaks if the minSdkVersion is smaller than 22 because of multidex
+			// However, with multidex disabled, an instrumented APK will crash on start
+			throw new RuntimeException(String.format("The SDK level of the APK is %d. Must be >= 22",
+					processMan.getMinSdkVersion()));
+		}
+
+		// We must set it manually, otherwise Soot will assume the default API version = 15
+		Options.v().set_android_api_version(processMan.targetSdkVersion());
+
+		Options.v().set_process_multiple_dex(true);
 
 		// This is where the instrumentation takes place.
 		SceneInstrumenterWithMethodParameters abcInstrumentation = new SceneInstrumenterWithMethodParameters(appPackageName);
@@ -111,7 +114,6 @@ public class Main {
 				"-w", // This should be the same as setting the "Whole program analysis" flag
 				"-cp", sootCP }; // The classpath that Soot uses for its analysis
 //				"-debug" };
-
 		soot.Main.main(sootArgs);
 	}
 }
