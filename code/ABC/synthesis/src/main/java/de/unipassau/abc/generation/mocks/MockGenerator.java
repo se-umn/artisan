@@ -167,9 +167,11 @@ public class MockGenerator {
 
         List<MethodInvocation> subsumedCandidateMethodInvocations = new ArrayList<MethodInvocation>();
 
-        subsumedCandidateMethodInvocations.addAll(carvedExecution
-                .getCallGraphContainingTheMethodInvocationUnderTest()
-                .getMethodInvocationsSubsumedBy(carvedTest.getMethodUnderTest()));
+        if (!carvedTest.getMethodUnderTest().getMethodSignature().equals("<abc.basiccalculator.ResultActivity: void onCreate(android.os.Bundle)>")) {
+            subsumedCandidateMethodInvocations.addAll(carvedExecution
+                    .getCallGraphContainingTheMethodInvocationUnderTest()
+                    .getMethodInvocationsSubsumedBy(carvedTest.getMethodUnderTest()));
+        }
 
         for (MethodInvocation subsumedCandidate : subsumedCandidateMethodInvocations) {
             if (subsumedCandidate.getMethodSignature().equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String)>")) {
