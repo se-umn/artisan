@@ -3,6 +3,26 @@ package de.unipassau.abc.generation.testwriters;
 import static com.github.javaparser.StaticJavaParser.parseClassOrInterfaceType;
 import static com.github.javaparser.StaticJavaParser.parseType;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+import org.apache.commons.lang.NotImplementedException;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.NodeList;
@@ -10,14 +30,28 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
-import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.expr.ArrayInitializerExpr;
+import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.AssignExpr.Operator;
+import com.github.javaparser.ast.expr.CastExpr;
+import com.github.javaparser.ast.expr.ClassExpr;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.MemberValuePair;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.Name;
+import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.expr.NormalAnnotationExpr;
+import com.github.javaparser.ast.expr.NullLiteralExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.expr.TypeExpr;
+import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
+
 import de.unipassau.abc.data.AndroidMethodInvocation;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.DataNode;
@@ -32,8 +66,6 @@ import de.unipassau.abc.data.PrimitiveValue;
 import de.unipassau.abc.generation.SyntheticMethodSignatures;
 import de.unipassau.abc.generation.TestCaseWriter;
 import de.unipassau.abc.generation.assertions.CarvingAssertion;
-import de.unipassau.abc.generation.mocks.CarvingMock;
-import de.unipassau.abc.generation.mocks.CarvingShadow;
 import de.unipassau.abc.generation.data.AndroidCarvedTest;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
@@ -141,7 +173,6 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             cu.addImport(RobolectricTestRunner.class);
             ClassOrInterfaceType robolectricTestRunner = parseClassOrInterfaceType("RobolectricTestRunner");
             testClass.addSingleMemberAnnotation(RunWith.class, robolectricTestRunner.getNameAsString() + ".class");
-
             Set<String> shadowTypes = new HashSet<>();
             testCase.getCarvedTests()
                     .forEach(test -> test.getShadows().forEach(shadow -> shadowTypes.addAll(shadow.types)));
@@ -192,41 +223,54 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
      * @return
      */
     public BlockStmt generateBlockStmtFrom(CarvedTest carvedTest) {
+
+        // Alessio: At this point the execution flow graph already contains the code for
+        // the mocks and the shadows
         ExecutionFlowGraph executionFlowGraph = carvedTest.getExecutionFlowGraph();
         DataDependencyGraph dataDependencyGraph = carvedTest.getDataDependencyGraph();
 
         BlockStmt blockStmt = new BlockStmt();
 
-        for (CarvingMock carvingMock : carvedTest.getMocks()) {
-            for (Pair<ExecutionFlowGraph, DataDependencyGraph> pair : zip(carvingMock.executionFlowGraphs,
-                    carvingMock.dataDependencyGraphs)) {
-                ExecutionFlowGraph carvingExecutionFlowGraph = pair.getFirst();
-                for (MethodInvocation methodInvocation : carvingExecutionFlowGraph.getOrderedMethodInvocations()) {
-                    if (methodInvocation.isConstructor()) {
-                        generateConstructorCall(methodInvocation, blockStmt);
-                    } else {
-                        generateMethodCall(methodInvocation, blockStmt);
-                    }
-                }
-            }
-        }
+//		logger.debug("##################Mocks");
+//		for (CarvingMock carvingMock : carvedTest.getMocks()) {
+//			for (Pair<ExecutionFlowGraph, DataDependencyGraph> pair : zip(
+//					carvingMock.executionFlowGraphs,
+//					carvingMock.dataDependencyGraphs)) {
+//				ExecutionFlowGraph carvingExecutionFlowGraph = pair.getFirst();
+//				for (MethodInvocation methodInvocation : carvingExecutionFlowGraph
+//						.getOrderedMethodInvocations()) {
+//					logger.debug(methodInvocation);
+//					if (methodInvocation.isConstructor()) {
+//						generateConstructorCall(methodInvocation, blockStmt);
+//					} else {
+//						generateMethodCall(methodInvocation, blockStmt);
+//					}
+//				}
+//			}
+//		}
 
+        logger.debug("##################Objects");
         // TODO First declare all the variables for non-primitive-like types in the
         // scope of this block ?
         Set<ObjectInstance> objectInstances = new HashSet<>(dataDependencyGraph.getObjectInstances());
         for (ObjectInstance objectInstance : objectInstances) {
+            logger.debug("" + objectInstance);
             // Default initialization. Avoid variable not initialized variable
             // warning/errors
             if (objectInstance.isAndroidActivity() || objectInstance.isAndroidFragment()) {
                 declareControllerFor(objectInstance, blockStmt, new NullLiteralExpr());
             }
+            // creates statement for object
             declareVariableFor(objectInstance, blockStmt, new NullLiteralExpr());
         }
 
+        logger.debug("##################Body");
         // Next implement all the methods, making sure variables and parameters match
         String referenceToActualValue = null;
-
-        for (MethodInvocation methodInvocation : executionFlowGraph.getOrderedMethodInvocations()) {
+        // Since at this point mocks and shadows have been already forced into the
+        // execution flow we return all of them
+        for (MethodInvocation methodInvocation : executionFlowGraph.getMethodInvocationsSortedByID()) {
+            logger.debug("" + methodInvocation);
             // Now we create each method calls making sure that variables and the like
             // matches
             if (methodInvocation.isConstructor()) {
@@ -245,20 +289,26 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             }
         }
 
-        for (CarvingShadow carvingShadow : carvedTest.getShadows()) {
-            for (Pair<ExecutionFlowGraph, DataDependencyGraph> pair : zip(carvingShadow.executionFlowGraphs,
-                    carvingShadow.dataDependencyGraphs)) {
-                ExecutionFlowGraph carvingExecutionFlowGraph = pair.getFirst();
-                for (MethodInvocation methodInvocation : carvingExecutionFlowGraph.getOrderedMethodInvocations()) {
-                    if (methodInvocation.isConstructor()) {
-                        generateConstructorCall(methodInvocation, blockStmt);
-                    } else {
-                        generateMethodCall(methodInvocation, blockStmt);
-                    }
-                }
-            }
-        }
+//		logger.debug("##################Shadows");
+//        for (CarvingShadow carvingShadow : carvedTest.getShadows()) {
+//              for (Pair<ExecutionFlowGraph, DataDependencyGraph> pair : zip(
+//                  carvingShadow.executionFlowGraphs,
+//                  carvingShadow.dataDependencyGraphs)) {
+//                ExecutionFlowGraph carvingExecutionFlowGraph = pair.getFirst();
+//                for (MethodInvocation methodInvocation : carvingExecutionFlowGraph
+//                    .getOrderedMethodInvocations()) {
+//                	logger.debug(methodInvocation);
+//                    if (methodInvocation.isConstructor()) {
+//                        generateConstructorCall(methodInvocation, blockStmt);
+//                    } else {
+//                        generateMethodCall(methodInvocation, blockStmt);
+//                    }
+//                }
+//            }
+//        }
 
+        logger.debug("##################Assertions");
+        // MF: FIXME should we really have assertions?
         // Next implement all the assertions using REFERENCE TO ACTUAL VALUE for the
         // assertions !
         for (CarvingAssertion carvingAssertion : carvedTest.getAssertions()) {
@@ -522,7 +572,6 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 //			} else {
             NameExpr nameExpr = new NameExpr(variableNameOwner);
             methodCallExpr = new MethodCallExpr(nameExpr, methodName);
-
         } else {
             // TODO Here we use JUnit assertions, while we should be using Hamcrest
             // https://stackoverflow.com/questions/56772801/assert-fail-equivalent-using-hamcrest

@@ -73,6 +73,8 @@ public interface DataDependencyGraph {
 
 	public boolean verifyObjectInstanceProvenance();
 
+	public void addDataDependencyOnDummy(MethodInvocation call1, MethodInvocation call2);
+
 	public void addDataDependencyOnOwner(MethodInvocation controllerLifecycleMethod, ObjectInstance objectInstance);
 
 	public void addMethodInvocationWithoutAnyDependency(MethodInvocation controllerLifecycleMethod);
