@@ -96,6 +96,7 @@ function start-clean-emulator() {
   # Assume ONLY ONE emulator can be active at a time
   if [ $(ps aux | grep -c "$(dirname ${EMULATOR_EXE})") -gt 1 ]; then
     __log_verbose "Emulator is already running"
+    disable-animations
     return
   fi
 
@@ -118,10 +119,7 @@ function start-clean-emulator() {
     booted=$(${ANDROID_ADB_EXE} shell getprop sys.boot_completed | tr -d '\r')
   done
 
-  # Disable animations
-  $(ANDROID_ADB_EXE) shell settings put global window_animation_scale 0
-  $(ANDROID_ADB_EXE) shell settings put global transition_animation_scale 0
-  $(ANDROID_ADB_EXE) shell settings put global animator_duration_scale 0
+  disable-animations
 }
 
 function list-running-emulators() {
@@ -177,6 +175,15 @@ function __private_get_application_label_from_apk_file() {
   local apk_file="${1:?Missing apk file to install}"
 
   ${ANDROID_AAPT_EXE} dump badging ${apk_file} | grep "application-label:" | awk '{print $1}' | sed -e "s|application-label:||" -e "s|'||g"
+}
+
+function disable-animations() {
+  : ${ANDROID_ADB_EXE:?Please provide a value for ANDROID_ADB_EXE in $config_file }
+
+  # Disable animations
+  ${ANDROID_ADB_EXE} shell settings put global window_animation_scale 0
+  ${ANDROID_ADB_EXE} shell settings put global transition_animation_scale 0
+  ${ANDROID_ADB_EXE} shell settings put global animator_duration_scale 0
 }
 
 function install-apk() {
