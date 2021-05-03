@@ -20,6 +20,7 @@ import de.unipassau.abc.data.DataNode;
 import de.unipassau.abc.data.DataNodeFactory;
 import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.ExecutionFlowGraphImpl;
+import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.ObjectInstanceFactory;
@@ -29,6 +30,7 @@ import de.unipassau.abc.data.PrimitiveValue;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.data.CarvedTest;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
+import soot.jimple.Jimple;
 
 public class MockGenerator {
 
@@ -55,6 +57,11 @@ public class MockGenerator {
         DataDependencyGraph carvedTestDataDependencyGraph = carvedTest.getDataDependencyGraph();
         MethodInvocation methodInvocationUnderTest = carvedTest.getMethodUnderTest();
 
+        //This is where we keep track of the shadows we have generated for the carved test
+        CarvingShadow carvingShadow = new CarvingShadow();
+        // Add to the carved Test
+        carvedTest.addShadow(carvingShadow );
+        
         List<MockInfo> mockInfoList = new ArrayList<MockInfo>();
 
         for (ObjectInstance danglingObject : carvedTest.getDataDependencyGraph().getDanglingObjects()) {
@@ -166,11 +173,13 @@ public class MockGenerator {
             .getOrderedMethodInvocations();
 
         List<MethodInvocation> subsumedCandidateMethodInvocations = new ArrayList<MethodInvocation>();
-
-        if (!carvedTest.getMethodUnderTest().getMethodSignature().equals("<abc.basiccalculator.ResultActivity: void onCreate(android.os.Bundle)>")) {
+        
+        if (!JimpleUtils.isActivityLifecycle(carvedTest.getMethodUnderTest().getMethodSignature())) {            
             subsumedCandidateMethodInvocations.addAll(carvedExecution
                     .getCallGraphContainingTheMethodInvocationUnderTest()
                     .getMethodInvocationsSubsumedBy(carvedTest.getMethodUnderTest()));
+        } else {
+            System.out.println(">> Skipping LifeCycle Method: " + carvedTest.getMethodUnderTest().getMethodSignature());
         }
 
         for (MethodInvocation subsumedCandidate : subsumedCandidateMethodInvocations) {
@@ -432,9 +441,14 @@ public class MockGenerator {
             }
 
             String shadowType = returnValue.getType().split("\\.")[returnValue.getType().split("\\.").length - 1] + "Shadow";
-            ObjectInstance extractReturn = ObjectInstanceFactory
-                    .get(String.format("%s@%d", shadowType, id.getAndIncrement()));
+            ObjectInstance extractReturn = ObjectInstanceFactory.get(String.format("%s@%d", shadowType, id.getAndIncrement()));
 
+            // Accumulate the shadowTypes
+//            carvingShadow.add
+            
+            
+            carvingShadow.types.add( shadowType );
+            
             MethodInvocation extractShadow = new MethodInvocation(id.getAndIncrement(), EXTRACT_SIGNATURE);
 
             extractShadow.setHasGenericReturnType(true);

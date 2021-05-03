@@ -267,6 +267,7 @@ public class JimpleUtils {
 	}
 
 	// Those are taken from ActivityController from Robolectrics
+	// TODO Note that this might not 100% accurate
 	private static final List<String> interestingAndroidLifecycleCallbacks = Arrays.asList("onAttach", "onCreate",
 			"onDestroy", "onPause", "onPostCreate", "onPostResume", "onRestart", "onRestoreInstanceState", "onResume",
 			"onSaveInstanceState", "onStart", "onStop", "onUserLeaving"//
