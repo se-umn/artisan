@@ -226,7 +226,7 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
 
             invokedMethodSignature = "<android.app.Activity: android.view.View findViewById(int,java.lang.String)>";
 
-            System.out.println("\t\t\t PATCH method call site " + invokedMethod + " as "
+            System.out.println("\t\t\t PATCH method call site " + invokedMethod + " inside "
                     + currentlyInstrumentedMethod.getSignature());
 
         }
@@ -247,29 +247,29 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
             invocationActualParameters.add(invokeExpr.getArg(i));
         }
 
-        // Patch findViewById additional parameters
+        // Patch findViewById additional parameters only for STATICALLY known IDs
         if (invokedMethodSignature
                 .equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String)>")) {
-            // TODO Get the field id that correspond to the integer value
 
-            // We know the position so we hardcode it here
             Value intParameter = invocationActualParameters.get(0);
 
-            // TODO This is not robust, if the rIdClass is not there it will fail
-            // Add string arguments by reverse lookup in the RidClass
-            int value = ((IntConstant) intParameter).value;
-            System.out.println("InstrumentLibCall.wrapLibraryInvocationIfAny() DEBUG: Constant value " + value);
-            // Retrieve the name of the field from the map
-            for (SootField field : rIdClass.getFields()) {
-                for (Tag tag : field.getTags()) {
-                    if (tag instanceof IntegerConstantValueTag) {
-                        if (value == ((IntegerConstantValueTag) tag).getIntValue()) {
-                            System.out.println("InstrumentLibCall.wrapLibraryInvocationIfAny() Found the ID: "
-                                    + rIdClass.getName() + "." + field.getName());
-                            // Alessio: Not sure this is the best approach, I mean storing this data into a
-                            // string!
-                            invocationActualParameters
-                                    .add(StringConstant.v(rIdClass.getName() + "." + field.getName()));
+            // If the parameter is NOT a constant then we do not know it statically.
+            if (intParameter instanceof IntConstant) {
+                int value = ((IntConstant) intParameter).value;
+
+                System.out.println("InstrumentLibCall.wrapLibraryInvocationIfAny() DEBUG: Constant value " + value);
+                // Retrieve the name of the field from the map
+                for (SootField field : rIdClass.getFields()) {
+                    for (Tag tag : field.getTags()) {
+                        if (tag instanceof IntegerConstantValueTag) {
+                            if (value == ((IntegerConstantValueTag) tag).getIntValue()) {
+                                System.out.println("InstrumentLibCall.wrapLibraryInvocationIfAny() Found the ID: "
+                                        + rIdClass.getName() + "." + field.getName());
+                                // Alessio: Not sure this is the best approach, I mean storing this data into a
+                                // string!
+                                invocationActualParameters
+                                        .add(StringConstant.v(rIdClass.getName() + "." + field.getName()));
+                            }
                         }
                     }
                 }
