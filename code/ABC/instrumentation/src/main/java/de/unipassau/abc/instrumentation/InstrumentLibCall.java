@@ -13,6 +13,8 @@ import soot.Scene;
 import soot.SootClass;
 import soot.SootField;
 import soot.SootMethod;
+import soot.SootMethodRef;
+import soot.Type;
 import soot.Unit;
 import soot.Value;
 import soot.VoidType;
@@ -220,77 +222,54 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
                 csOwner = StringConstant.v("");
             }
         }
+        
+        String invokedMethodSignatureOrPatchedMethodSignature = invokedMethodSignature;
 
-        // Patch findViewById
         if (invokedMethodSignature.equals("<android.app.Activity: android.view.View findViewById(int)>")) {
 
-            invokedMethodSignature = "<android.app.Activity: android.view.View findViewById(int,java.lang.String)>";
+            System.out.println("InstrumentLibCall.wrapLibraryInvocationIfAny() ");
+            //
+            // We need to get the class of the "currentlyInstrumentedMethodBody" and check
+            // if it can also invoke getResources()
+            // This method works via side-effects !
+            invokedMethodSignatureOrPatchedMethodSignature = patchFindViewById(invokedMethod, //
+                    instrumentationCodeBefore, invokeExpr, csOwner, monitorOnLibCallParameters);
+            
 
-            System.out.println("\t\t\t PATCH method call site " + invokedMethod + " inside "
-                    + currentlyInstrumentedMethod.getSignature());
+        } else {
+            monitorOnLibCallParameters.add(csOwner);
 
-        }
+            // String methodSignature - Including the patch
+            monitorOnLibCallParameters.add(StringConstant.v(invokedMethodSignature));
 
-        monitorOnLibCallParameters.add(csOwner);
+            // String Context
+            monitorOnLibCallParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
 
-        // String methodSignature - Including the patch
-        monitorOnLibCallParameters.add(StringConstant.v(invokedMethodSignature));
-
-        // String Context
-        monitorOnLibCallParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
-
-        /*
-         * Object[] methodParameters - We need to wrap this into an array of objects
-         */
-        List<Value> invocationActualParameters = new ArrayList<>();
-        for (int i = 0; i < invokeExpr.getArgCount(); i++) {
-            invocationActualParameters.add(invokeExpr.getArg(i));
-        }
-
-        // Patch findViewById additional parameters only for STATICALLY known IDs
-        if (invokedMethodSignature
-                .equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String)>")) {
-
-            Value intParameter = invocationActualParameters.get(0);
-
-            // If the parameter is NOT a constant then we do not know it statically.
-            if (intParameter instanceof IntConstant) {
-                int value = ((IntConstant) intParameter).value;
-
-                System.out.println("InstrumentLibCall.wrapLibraryInvocationIfAny() DEBUG: Constant value " + value);
-                // Retrieve the name of the field from the map
-                for (SootField field : rIdClass.getFields()) {
-                    for (Tag tag : field.getTags()) {
-                        if (tag instanceof IntegerConstantValueTag) {
-                            if (value == ((IntegerConstantValueTag) tag).getIntValue()) {
-                                System.out.println("InstrumentLibCall.wrapLibraryInvocationIfAny() Found the ID: "
-                                        + rIdClass.getName() + "." + field.getName());
-                                // Alessio: Not sure this is the best approach, I mean storing this data into a
-                                // string!
-                                invocationActualParameters
-                                        .add(StringConstant.v(rIdClass.getName() + "." + field.getName()));
-                            }
-                        }
-                    }
-                }
+            /*
+             * Object[] methodParameters - We need to wrap this into an array of objects
+             */
+            List<Value> invocationActualParameters = new ArrayList<>();
+            for (int i = 0; i < invokeExpr.getArgCount(); i++) {
+                invocationActualParameters.add(invokeExpr.getArg(i));
             }
+
+            Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter.generateParameterArray(
+                    RefType.v("java.lang.Object"), invocationActualParameters, currentlyInstrumentedMethodBody);
+
+            // Append the array to the parameters for the trace start
+            monitorOnLibCallParameters.add(tmpArgsListAndInstructions.getFirst());
+            /*
+             * Insert the instructions to create the array before using it
+             */
+            instrumentationCodeBefore.addAll(tmpArgsListAndInstructions.getSecond());
+
+            // Prepare the call to monitorOnLibCall
+            final Stmt callTracerMethodStart = Jimple.v().newInvokeStmt(
+                    Jimple.v().newStaticInvokeExpr(monitorOnLibMethodCall.makeRef(), monitorOnLibCallParameters));
+            // Append the call to the instrumentation code
+            instrumentationCodeBefore.add(callTracerMethodStart);
+
         }
-
-        Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter.generateParameterArray(
-                RefType.v("java.lang.Object"), invocationActualParameters, currentlyInstrumentedMethodBody);
-
-        // Append the array to the parameters for the trace start
-        monitorOnLibCallParameters.add(tmpArgsListAndInstructions.getFirst());
-        /*
-         * Insert the instructions to create the array before using it
-         */
-        instrumentationCodeBefore.addAll(tmpArgsListAndInstructions.getSecond());
-
-        // Prepare the call to monitorOnLibCall
-        final Stmt callTracerMethodStart = Jimple.v().newInvokeStmt(
-                Jimple.v().newStaticInvokeExpr(monitorOnLibMethodCall.makeRef(), monitorOnLibCallParameters));
-        // Append the call to the instrumentation code
-        instrumentationCodeBefore.add(callTracerMethodStart);
 
         /*
          * We defer the instrumentation to enable holding the value of original owner
@@ -362,7 +341,7 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
                 instrumentationCodeBefore);
 
         // String csMethodSignature
-        monitorOnReturnIntoParameters.add(StringConstant.v(invokedMethodSignature));
+        monitorOnReturnIntoParameters.add(StringConstant.v(invokedMethodSignatureOrPatchedMethodSignature));
 
         // String context
         monitorOnReturnIntoParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
@@ -416,6 +395,168 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
         // targetStmt);
         UtilInstrumenter.instrumentAfterWithAndTag(currentlyInstrumentedMethodBodyUnitChain, csStmt,
                 instrumentationCodeAfter);
+    }
+
+    // TODO CLEAN UP THIS MESS!!:
+    // Patch the call by adding the String parameter to it and eventually get it
+    // using getResources()
+    private String patchFindViewById(SootMethod invokedMethod, List<Unit> instrumentationCodeBefore, //
+            InvokeExpr invokeExpr, Value csOwner, List<Value> monitorOnLibCallParameters) {
+
+        System.out.println("\t\t\t PATCH method call site " + invokedMethod + " inside "
+                + currentlyInstrumentedMethod.getSignature());
+
+        SootMethod getResourcesMethod = null;
+
+        if (currentlyInstrumentedMethodBody.getThisLocal().getType() instanceof RefType) {
+            try {
+                // Look up the getResources() method
+                SootClass baseClass = ((RefType) currentlyInstrumentedMethodBody.getThisLocal().getType())
+                        .getSootClass();
+
+                List<SootClass> theClasses = new ArrayList<SootClass>();
+                theClasses.add(baseClass);
+                theClasses.addAll(Scene.v().getActiveHierarchy().getSuperclassesOf(baseClass));
+
+                for (SootClass aClass : theClasses) {
+                    if (aClass.declaresMethodByName("getResources")) {
+                        getResourcesMethod = aClass.getMethodByName("getResources");
+                        System.out.println("InstrumentLibCall.patchFindViewById() Found that class " + aClass
+                                + " declares method " + getResourcesMethod);
+                        break;
+                    } else {
+                        System.out.println("InstrumentLibCall.patchFindViewById() Found that class " + aClass
+                                + " DOES NOT declare method getResources ");
+                    }
+                }
+
+            } catch (Exception e) {
+                System.out.println("InstrumentLibCall.patchFindViewById() CANNOT FIND THE METHOFD ");
+                e.printStackTrace();
+            }
+        }
+
+        List<Value> invocationActualParameters = new ArrayList<>();
+        
+        String actualMethodSignature = null;
+        
+        // TODO First check for the method and only after it apply the patch !
+        if (getResourcesMethod == null) {
+            System.out.println("InstrumentLibCall.patchFindViewById() CANNOT FIND THE METHOD ! GIVING UP?!");
+
+            actualMethodSignature =  currentlyInstrumentedMethod.getSignature();
+            
+            monitorOnLibCallParameters.add(csOwner);
+
+            // Patched methodSignature
+            monitorOnLibCallParameters.add(StringConstant.v(invokedMethod.getSignature()));
+
+            // String Context
+            monitorOnLibCallParameters.add(StringConstant.v(actualMethodSignature));
+
+            /*
+             * Object[] methodParameters - We need to wrap this into an array of objects
+             */
+            
+            for (int i = 0; i < invokeExpr.getArgCount(); i++) {
+                invocationActualParameters.add(invokeExpr.getArg(i));
+            }
+            
+            // Return the original patch
+            
+
+        } else {
+            
+            actualMethodSignature = "<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>"; 
+            monitorOnLibCallParameters.add(csOwner);
+
+            // Patched methodSignature
+            monitorOnLibCallParameters.add(StringConstant.v(actualMethodSignature));
+
+            // String Context
+            monitorOnLibCallParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
+
+            /*
+             * Object[] methodParameters - We need to wrap this into an array of objects
+             */
+            for (int i = 0; i < invokeExpr.getArgCount(); i++) {
+                invocationActualParameters.add(invokeExpr.getArg(i));
+            }
+
+            // Lookup the String value from the int value
+            Value intParameter = invocationActualParameters.get(0);
+
+            // If the parameter is a constant we do not know it statically.
+//        if (intParameter instanceof IntConstant) {
+//            int value = ((IntConstant) intParameter).value;
+//
+//            System.out.println("InstrumentLibCall.wrapLibraryInvocationIfAny() DEBUG: Constant value " + value);
+//            // Retrieve the name of the field from the map
+//            for (SootField field : rIdClass.getFields()) {
+//                for (Tag tag : field.getTags()) {
+//                    if (tag instanceof IntegerConstantValueTag) {
+//                        if (value == ((IntegerConstantValueTag) tag).getIntValue()) {
+//                            System.out.println("InstrumentLibCall.wrapLibraryInvocationIfAny() Found the ID: "
+//                                    + rIdClass.getName() + "." + field.getName());
+//                            // Alessio: Not sure this is the best approach, I mean storing this data into a
+//                            // string!
+//                            invocationActualParameters
+//                                    .add(StringConstant.v(rIdClass.getName() + "." + field.getName()));
+//                        }
+//                    }
+//                }
+//            }
+            System.out.println("InstrumentLibCall.wrapLibraryInvocationIfAny() DEBUG: Dynamic value ");
+            // Resources resources = getResources();
+            Local resources = UtilInstrumenter.generateFreshLocal(currentlyInstrumentedMethodBody,
+                    RefType.v("android.content.res.Resources"));
+
+            // Alessio: TODO Hope this is ok...
+            InvokeExpr invokeGetResources = Jimple.v()
+                    .newVirtualInvokeExpr(currentlyInstrumentedMethodBody.getThisLocal(), getResourcesMethod.makeRef());
+            AssignStmt initializeResources = Jimple.v().newAssignStmt(resources, invokeGetResources);
+
+            instrumentationCodeBefore.add(initializeResources);
+
+            // String resourceName = resources.getResourceEntryName(int resid); -> radio1
+            Local resourceName = UtilInstrumenter.generateFreshLocal(currentlyInstrumentedMethodBody,
+                    RefType.v("java.lang.String"));
+
+            SootMethod getResourceEntryNameMethod = RefType.v("android.content.res.Resources").getSootClass()
+                    .getMethodByName("getResourceEntryName");
+
+            InvokeExpr invokeGetResourceEntryName = Jimple.v().newVirtualInvokeExpr(resources,
+                    getResourceEntryNameMethod.makeRef(), intParameter);
+            AssignStmt initializeResourceName = Jimple.v().newAssignStmt(resourceName, invokeGetResourceEntryName);
+
+            instrumentationCodeBefore.add(initializeResourceName);
+
+            // Add finally the reference to the R class for this application and the name of the resource if any
+            // TODO Still I am not sure how to handle the case where there's no name...
+            invocationActualParameters.add(StringConstant.v(rIdClass.getName()));
+            invocationActualParameters.add(resourceName);
+        }
+        
+        // Finally whatever parameters we have we use
+
+        Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter.generateParameterArray(
+                RefType.v("java.lang.Object"), invocationActualParameters, currentlyInstrumentedMethodBody);
+
+        // Append the array to the parameters for the trace start
+        monitorOnLibCallParameters.add(tmpArgsListAndInstructions.getFirst());
+        /*
+         * Insert the instructions to create the array before using it
+         */
+        instrumentationCodeBefore.addAll(tmpArgsListAndInstructions.getSecond());
+
+        // Prepare the call to monitorOnLibCall
+        final Stmt callTracerMethodStart = Jimple.v().newInvokeStmt(
+                Jimple.v().newStaticInvokeExpr(monitorOnLibMethodCall.makeRef(), monitorOnLibCallParameters));
+        // Append the call to the instrumentation code
+        instrumentationCodeBefore.add(callTracerMethodStart);
+        
+        return actualMethodSignature;
+
     }
 
 }

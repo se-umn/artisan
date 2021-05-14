@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang.NotImplementedException;
 import org.junit.Test;
@@ -73,27 +74,6 @@ import de.unipassau.abc.generation.utils.TestCaseOrganizer;
 import de.unipassau.abc.generation.utils.TestClass;
 import de.unipassau.abc.generation.utils.TypeUtils;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.apache.commons.lang.NotImplementedException;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.robolectric.RobolectricTestRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Generate the source code implementing the carved tests as tests were
@@ -541,7 +521,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
     }
 
     /**
-     * We need to patch the call to findViewById(int,String)
+     * We need to patch the call to findViewById(int,String, String)
      * 
      * @param methodInvocation
      * @param methodBody
@@ -608,13 +588,19 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
          * return values are used correctly...
          */
         if (methodInvocation.getMethodSignature()
-                .equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String)>")) {
+                .equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>")) {
 
             // Do the magic trick: replace the first argument (the int) with the "string"
-            DataNode stringParameter = methodInvocation.getActualParameterInstances().get(1);
-            String referenceToViewId = getParameterFor(stringParameter, methodBody).replaceAll("\"", "").replace('$',
-                    '.');
-            System.out.println("\n\n\n Doing the magic trick and replacing int with -> " + referenceToViewId);
+            DataNode classR = methodInvocation.getActualParameterInstances().get(1);
+            DataNode resourceName = methodInvocation.getActualParameterInstances().get(2);
+            
+            String referenceToR = getParameterFor(classR, methodBody).replaceAll("\"", "").replace('$','.');
+            String referenceToViewName = getParameterFor(resourceName, methodBody).replaceAll("\"", "").replace('$','.');
+            
+            String referenceToViewId = referenceToR +"." + referenceToViewName;
+            
+            System.out.println("\n\n\n Doing the magic trick and replacing int value with -> " + referenceToViewId);
+            
             methodCallExpr.addArgument(referenceToViewId);
         } else {
             for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
