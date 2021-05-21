@@ -81,7 +81,7 @@ carve-all : traces app-original.apk
 
 # TODO We need to provide the shadows in some sort of generic way and avoid hardcoding them for each and every application, unless we can create them programmatically
 copy-shadows : 
-	cp -v ./shadows/*.java app/src/carvedTest/abc/basiccalculator
+	cp -v ./shadows/*.java app/src/carvedTest/com/better/alarm
 
 # DO WE NEED THE SAME APPROACH AS ESPRESSO TESTS?
 run-all-carved-tests : app/src/carvedTest copy-shadows
