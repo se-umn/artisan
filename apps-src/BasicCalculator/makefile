@@ -26,11 +26,10 @@ clean-all :
 
 app-original.apk : 
 	export ABC_CONFIG=$(ABC_CFG) && \
-	$(GW) assemble && \
-	mv app/build/outputs/apk/toInstrument/app-toInstrument-unsigned.apk . && \
-	$(ABC) sign-apk app-toInstrument-unsigned.apk && \
-	mv -v app-toInstrument-unsigned.apk app-original.apk
-
+	$(GW) assembleDebug && \
+	mv app/build/outputs/apk/debug/app-debug.apk . && \
+	$(ABC) sign-apk app-debug.apk && \
+	mv -v app-debug.apk app-original.apk
 
 app-instrumented.apk : app-original.apk
 	export ABC_CONFIG=$(ABC_CFG) && \
