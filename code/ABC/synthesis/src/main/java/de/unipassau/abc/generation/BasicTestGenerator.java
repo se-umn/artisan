@@ -27,6 +27,7 @@ import de.unipassau.abc.generation.mocks.MockGenerator;
 import de.unipassau.abc.generation.mocks.CarvingMock;
 import de.unipassau.abc.generation.mocks.CarvingShadow;
 import de.unipassau.abc.parsing.ParsedTrace;
+import de.unipassau.abc.parsing.TraceParser;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -44,7 +45,7 @@ public class BasicTestGenerator implements TestGenerator {
 	private final static Logger logger = LoggerFactory.getLogger(BasicTestGenerator.class);
 
 	@Override
-	public Collection<CarvedTest> generateTests(Set<MethodInvocation> targetMethodsInvocations, ParsedTrace trace)
+	public Collection<CarvedTest> generateTests(List<MethodInvocation> targetMethodsInvocations, ParsedTrace trace)
 			throws CarvingException, ABCException {
 		// NOT EASY TO FIND DUPLICATES :)
 		Collection<CarvedTest> carvedTests = new ArrayList<>();
@@ -62,7 +63,12 @@ public class BasicTestGenerator implements TestGenerator {
 			carver.clearTheCache();
 
 			for (CarvedExecution carvedExecution : carver.carve(targetMethodInvocation)) {
-				carvedTests.add(generateCarvedTestFromCarvedExecution(carvedExecution));
+				try {
+					carvedTests.add(generateCarvedTestFromCarvedExecution(carvedExecution));
+				}
+				catch(Exception e){
+					logger.info("continuing to the next target");
+				}
 			}
 		}
 
@@ -85,6 +91,10 @@ public class BasicTestGenerator implements TestGenerator {
 		DataDependencyGraph dataDependencyGraph = new DataDependencyGraphImpl();
 
 		MethodInvocation methodInvocationUnderTest = carvedExecution.methodInvocationUnderTest;
+		//logging
+		logger.info("Method invocation under test:");
+		logger.info(methodInvocationUnderTest.toString());
+		logger.info("END");
 
 		/*
 		 * The carved execution contains a collection of (complete) call graphs, but in
@@ -95,17 +105,25 @@ public class BasicTestGenerator implements TestGenerator {
 		 */
 		final List<MethodInvocation> directlyCallableMethodInvocations = new ArrayList<>();
 		carvedExecution.callGraphs.forEach(callGraph -> directlyCallableMethodInvocations.addAll(callGraph.getRoots()));
+		//logging
+		logger.info("Directly callable method invocations:");
+		for(MethodInvocation mi:directlyCallableMethodInvocations){
+			logger.info(mi.toString());
+		}
+		logger.info("END");
 
 		/*
 		 * Validation: If the directlyCallableMethodInvocations do not contain the
 		 * target method invocation the test needs some adjustment. For the moment,
 		 * simply raise an exception.
 		 */
+		boolean needsFix = false;
 		if (!directlyCallableMethodInvocations.stream()
 				.anyMatch(mi -> mi.equals(carvedExecution.methodInvocationUnderTest))) {
 
 			logger.info("Method invocation under test " + carvedExecution.methodInvocationUnderTest
 					+ " is not visible. Try to recover ...");
+			needsFix = true;
 
 			// Try to recover this test? Or maybe this is an actual feature of the CARVER ?
 			/*
@@ -120,6 +138,14 @@ public class BasicTestGenerator implements TestGenerator {
 			// Reverse iteration
 			List<MethodInvocation> methodsSubsumingMethodInvocationUnderTest = callGraph
 					.getOrderedSubsumingMethodInvocationsFor(carvedExecution.methodInvocationUnderTest);
+			//logging
+			logger.info("Subsuming method invocations:");
+			for(MethodInvocation mi:methodsSubsumingMethodInvocationUnderTest){
+				logger.info(mi.toString());
+			}
+			logger.info("END");
+
+
 			ListIterator<MethodInvocation> listIterator = methodsSubsumingMethodInvocationUnderTest
 					.listIterator(methodsSubsumingMethodInvocationUnderTest.size());
 
@@ -141,6 +167,12 @@ public class BasicTestGenerator implements TestGenerator {
 			// THIS PROBABLY CAN BE DONE WITH SOME reduce/map magic...
 			List<MethodInvocation> unecessaryMethodInvocations = callGraph.getRoots().stream()
 					.filter(mi -> !mi.isNecessary()).collect(Collectors.toList());
+			//logging
+			logger.info("Unnecessary method invocations:");
+			for(MethodInvocation mi:unecessaryMethodInvocations){
+				logger.info(mi.toString());
+			}
+			logger.info("END");
 			for (MethodInvocation removeMe : unecessaryMethodInvocations) {
 				/*
 				 * Remove unnecessary method invocations and all the method invocations that are
@@ -154,6 +186,15 @@ public class BasicTestGenerator implements TestGenerator {
 		// Check if, after the recovery, the method under test is still not visible...
 		directlyCallableMethodInvocations.clear();
 		carvedExecution.callGraphs.forEach(callGraph -> directlyCallableMethodInvocations.addAll(callGraph.getRoots()));
+		if(needsFix){
+			//logging
+			logger.info("New directly callable method invocations:");
+			for (MethodInvocation mi : directlyCallableMethodInvocations) {
+				logger.info(mi.toString());
+			}
+			logger.info("END");
+		}
+
 		if (!directlyCallableMethodInvocations.stream()
 				.anyMatch(mi -> mi.equals(carvedExecution.methodInvocationUnderTest))) {
 			throw new CarvingException("Target method invocation " + carvedExecution.methodInvocationUnderTest
@@ -242,7 +283,7 @@ public class BasicTestGenerator implements TestGenerator {
 
 			// Create the invocation to "fail" with message in case.
 			int nextMethod = executionFlowGraph.getLastMethodInvocation().getInvocationCount() + 1;
-			MethodInvocation defaultFailMethodInvocation = new MethodInvocation(nextMethod,
+			MethodInvocation defaultFailMethodInvocation = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, nextMethod,
 					SyntheticMethodSignatures.FAIL_WITH_MESSAGE);
 			defaultFailMethodInvocation.setPublic(true);
 			defaultFailMethodInvocation.setStatic(true);
@@ -292,7 +333,7 @@ public class BasicTestGenerator implements TestGenerator {
 			// Create the invocation to "fail" with message in case. This is the first
 			// invocation inside the catch block
 			int methodCount = 0;
-			MethodInvocation failMethodInvocation = new MethodInvocation(methodCount,
+			MethodInvocation failMethodInvocation = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, methodCount,
 					SyntheticMethodSignatures.FAIL_WITH_MESSAGE);
 			failMethodInvocation.setPublic(true);
 			failMethodInvocation.setStatic(true);

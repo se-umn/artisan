@@ -3,6 +3,8 @@ package de.unipassau.abc.parsing;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.is;
 import static org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__.out;
 
+
+import de.unipassau.abc.carving.android.AndroidActivityCarver;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.exceptions.ABCException;
 import java.io.File;
@@ -123,8 +125,14 @@ public class GremlinParser extends TraceParser {
 
 	@Override
 	public void parseMethodInvocation(AtomicInteger globalInvocationCount, ParsedLine tokens) throws ABCException {
+		int invocationTraceId = MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT;
+		try{
+			invocationTraceId = Integer.parseInt(tokens.lineNumber);
+		}
+		catch(Exception e){
 
-		MethodInvocation methodInvocation = new MethodInvocation(globalInvocationCount.incrementAndGet(),
+		}
+		MethodInvocation methodInvocation = new MethodInvocation(invocationTraceId, globalInvocationCount.incrementAndGet(),
 				tokens.methodSignature);
 
 		methodStart(tokens, methodInvocation);
@@ -134,8 +142,14 @@ public class GremlinParser extends TraceParser {
 	@Override
 	public void parsePrivateMethodInvocation(AtomicInteger globalInvocationCount, ParsedLine tokens)
 			throws ABCException {
+		int invocationTraceId = MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT;
+		try{
+			invocationTraceId = Integer.parseInt(tokens.lineNumber);
+		}
+		catch(Exception e){
 
-		MethodInvocation methodInvocation = new MethodInvocation(globalInvocationCount.incrementAndGet(),
+		}
+		MethodInvocation methodInvocation = new MethodInvocation(invocationTraceId, globalInvocationCount.incrementAndGet(),
 				tokens.methodSignature);
 
 		methodStart(tokens, methodInvocation);
@@ -144,7 +158,14 @@ public class GremlinParser extends TraceParser {
 	@Override
 	public void parseSyntheticMethodInvocation(AtomicInteger globalInvocationCount, ParsedLine tokens)
 			throws ABCException {
-		MethodInvocation methodInvocation = new MethodInvocation(globalInvocationCount.incrementAndGet(),
+		int invocationTraceId = MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT;
+		try{
+			invocationTraceId = Integer.parseInt(tokens.lineNumber);
+		}
+		catch(Exception e){
+
+		}
+		MethodInvocation methodInvocation = new MethodInvocation(invocationTraceId, globalInvocationCount.incrementAndGet(),
 				tokens.methodSignature);
 
 		methodStart(tokens, methodInvocation);

@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -141,7 +142,9 @@ public class SmokeTest {
         targetMethodsInvocations.addAll(listOfTargetMethodsInvocations);
 
         BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
-        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocations, parsedTrace);
+        List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
+        targetMethodsInvocationsList.addAll(targetMethodsInvocations);
+        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList, parsedTrace);
 
         int carvedTargets = carvedTests.size();
 

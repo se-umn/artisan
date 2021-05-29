@@ -277,7 +277,7 @@ public class MethodInvocationMatcher {
   }
 
   public static MethodInvocationMatcher byMethodInvocation(String regEx) {
-    MethodInvocation methodInvocation = new MethodInvocation(regEx.split("_")[0],
+    MethodInvocation methodInvocation = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, regEx.split("_")[0],
         Integer.parseInt(regEx.split("_")[1]));
     return fromMethodInvocation(methodInvocation);
   }

@@ -15,12 +15,16 @@ import soot.tagkit.Tag;
 // TODO Encapsulate the calls to JimpleUtils and expose proper methods, like getMethodName and the like...
 public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>, Cloneable {
 
+	public static final int INVOCATION_TRACE_ID_NA_CONSTANT = -90000;
+
 	private final static Logger logger = LoggerFactory.getLogger(MethodInvocation.class);
 
 	// Makes easy to cache result but requires explicity resetting of the state !!!
 	// Storing this here creates all sort of problems during carving...
 //	public boolean alreadyCarved = false;
 
+	//invocation id from the trace for debugging
+	protected int invocationTraceId;
 	// Unique id of the method invocation
 	protected int invocationCount;
 	// Signature of the method
@@ -77,9 +81,10 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 		} catch (CloneNotSupportedException e) {
 			throw new RuntimeException(e);
 		}
+		cloned.invocationTraceId = invocationTraceId;
 		cloned.invocationCount = invocationCount;
 		cloned.methodSignature = methodSignature;
-		// MethodInvocation cloned = new MethodInvocation(invocationCount,
+		// MethodInvocation cloned = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, invocationCount,
 		// methodSignature);
 
 		if (actualParameterInstances != null) {
@@ -99,6 +104,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 //		cloned.alreadyCarved = alreadyCarved;
 		cloned.belongToExternalInterface = belongToExternalInterface;
 		cloned.distanceFromMain = distanceFromMain;
+		cloned.invocationTraceId = invocationTraceId;
 		cloned.invocationCount = invocationCount;
 		cloned.invocationType = invocationType;
 		cloned.isConstructor = isConstructor;
@@ -132,7 +138,8 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
 	// The parameters and the owners are set later from the Graph Objects?
 	// Basically explicitly set all the properties ?
-	public MethodInvocation(int invocationCount, String methodSignature) {
+	public MethodInvocation(int invocationTraceId, int invocationCount, String methodSignature) {
+		this.invocationTraceId = invocationTraceId;
 		this.methodSignature = methodSignature;
 		this.invocationCount = invocationCount;
 		this.isConstructor = JimpleUtils.isConstructor(methodSignature);
@@ -143,7 +150,8 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	}
 
 	@Deprecated
-	public MethodInvocation(int invocationCount, String methodSignature, String[] actualParameters) {
+	public MethodInvocation(int invocationTraceId, int invocationCount, String methodSignature, String[] actualParameters) {
+		this.invocationTraceId = invocationTraceId;
 		this.invocationCount = invocationCount;
 		this.methodSignature = methodSignature;
 		this.actualParameters = actualParameters;
@@ -151,7 +159,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	}
 
 	@Deprecated // Replace the occurrences of this with the other one !
-	public MethodInvocation(String jimpleMethod, int invocationCount) {
+	public MethodInvocation(int invocationTraceId, String jimpleMethod, int invocationCount) {
 		this.methodSignature = jimpleMethod;
 		this.invocationCount = invocationCount;
 	}
@@ -174,6 +182,10 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
 	public int getInvocationCount() {
 		return invocationCount;
+	}
+
+	public int getInvocationTraceId() {
+		return invocationTraceId;
 	}
 
 	// Note that invocationType for the moment does not count for equals and
@@ -209,10 +221,10 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 	@Override
 	public String toString() {
 		if (logger.isTraceEnabled()) {
-			return methodSignature + "_" + invocationCount + "\n" + "\t Actual Parameters: " + actualParameterInstances
+			return methodSignature + "_" + invocationCount + "_" + invocationTraceId + "\n" + "\t Actual Parameters: " + actualParameterInstances
 					+ "\n" + "\t Return Value: " + returnValue;
 		} else {
-			return methodSignature + "_" + invocationCount;
+			return methodSignature + "_" + invocationCount + "_" + invocationTraceId;
 		}
 	}
 
@@ -267,7 +279,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
 	public static MethodInvocation fromTag(Tag tag) {
 		String[] tokens = tag.getName().replaceAll("carving:", "").split("_");
-		return new MethodInvocation(tokens[0], Integer.parseInt(tokens[1]));
+		return new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, tokens[0], Integer.parseInt(tokens[1]));
 	}
 
 	public void setPrivate(boolean isPrivate) {

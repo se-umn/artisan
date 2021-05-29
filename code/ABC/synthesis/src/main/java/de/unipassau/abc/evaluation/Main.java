@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -130,10 +131,27 @@ public class Main {
 				int allCarvableTargets = targetMethodsInvocations.size();
 
 				System.out.println("Carvable targets ");
-				targetMethodsInvocations.forEach(System.out::println);
+
+				List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
+				targetMethodsInvocationsList.addAll(targetMethodsInvocations);
+				Collections.sort(targetMethodsInvocationsList, new Comparator<MethodInvocation>() {
+							@Override
+							public int compare(MethodInvocation o1, MethodInvocation o2) {
+								if(o1.getInvocationTraceId()<o2.getInvocationTraceId()){
+									return -1;
+								}
+								else if(o1.getInvocationTraceId()==o2.getInvocationTraceId()){
+									return 0;
+								}
+								else{
+									return 1;
+								}
+							}
+				});
+				targetMethodsInvocationsList.forEach(System.out::println);
 
 				BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
-				Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocations,
+				Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
 						parsedTrace);
 
 				int carvedTargets = carvedTests.size();

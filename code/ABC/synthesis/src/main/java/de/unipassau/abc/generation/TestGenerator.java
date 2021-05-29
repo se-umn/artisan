@@ -1,6 +1,7 @@
 package de.unipassau.abc.generation;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 
 import de.unipassau.abc.carving.exceptions.CarvingException;
@@ -26,6 +27,6 @@ public interface TestGenerator {
 	 * @throws ABCException
 	 * @throws CarvingException
 	 */
-	public Collection<CarvedTest> generateTests(Set<MethodInvocation> targetMethodsInvocationsUnderTest,
+	public Collection<CarvedTest> generateTests(List<MethodInvocation> targetMethodsInvocationsUnderTest,
 			ParsedTrace trace) throws CarvingException, ABCException;
 }

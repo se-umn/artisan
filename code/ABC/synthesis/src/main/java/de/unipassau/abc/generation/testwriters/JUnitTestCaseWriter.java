@@ -420,6 +420,11 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             testMethod.setBody(wrappedMethodBody);
 
         } else {
+            //logging
+            logger.info("Method under test:");
+            logger.info(carvedTest.getMethodUnderTest().toString());
+            logger.info("Statements:");
+            carvedTest.getStatements().forEach(methodInvocation -> logger.info(methodInvocation.toString()));
             BlockStmt methodBody = generateBlockStmtFrom(carvedTest);
 
             testMethod.setBody(methodBody);

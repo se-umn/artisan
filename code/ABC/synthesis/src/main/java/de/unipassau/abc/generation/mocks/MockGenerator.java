@@ -2,6 +2,8 @@ package de.unipassau.abc.generation.mocks;
 
 import static java.util.Collections.reverse;
 
+
+import de.unipassau.abc.parsing.TraceParser;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -72,7 +74,7 @@ public class MockGenerator {
                     .get(danglingObject.getType() + "@" + id.getAndIncrement());
             DataNode classLiteralToMock = PrimitiveNodeFactory.createClassLiteralFor(classToMock);
 
-            MethodInvocation initMock = new MethodInvocation(id.getAndIncrement(), MOCK_SIGNATURE);
+            MethodInvocation initMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), MOCK_SIGNATURE);
             initMock.setHasGenericReturnType(true);
             initMock.setStatic(true);
             initMock.setActualParameterInstances(Arrays.asList(classLiteralToMock));
@@ -104,7 +106,7 @@ public class MockGenerator {
                 ObjectInstance doReturnReturn = ObjectInstanceFactory
                         .get("org.mockito.stubbing.Stubber@" + id.getAndIncrement());
 
-                MethodInvocation doReturnMock = new MethodInvocation(id.getAndIncrement(), RETURN_SIGNATURE);
+                MethodInvocation doReturnMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), RETURN_SIGNATURE);
                 doReturnMock.setStatic(true);
                 doReturnMock.setActualParameterInstances(Arrays.asList(doReturnArgument));
                 doReturnMock.setReturnValue((DataNode) doReturnReturn);
@@ -117,7 +119,7 @@ public class MockGenerator {
                 ObjectInstance whenReturn = ObjectInstanceFactory
                         .get(danglingObject.getType() + "@" + id.getAndIncrement());
 
-                MethodInvocation whenMock = new MethodInvocation(id.getAndIncrement(), WHEN_SIGNATURE);
+                MethodInvocation whenMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), WHEN_SIGNATURE);
                 whenMock.setHasGenericReturnType(true);
                 whenMock.setOwner(doReturnReturn);
                 whenMock.setActualParameterInstances(Arrays.asList(classToMock));
@@ -178,12 +180,13 @@ public class MockGenerator {
             subsumedCandidateMethodInvocations.addAll(carvedExecution
                     .getCallGraphContainingTheMethodInvocationUnderTest()
                     .getMethodInvocationsSubsumedBy(carvedTest.getMethodUnderTest()));
-        } else {
-            System.out.println(">> Skipping LifeCycle Method: " + carvedTest.getMethodUnderTest().getMethodSignature());
         }
+//        else {
+//            System.out.println(">> Skipping LifeCycle Method: " + carvedTest.getMethodUnderTest().getMethodSignature());
+//        }
 
         for (MethodInvocation subsumedCandidate : subsumedCandidateMethodInvocations) {
-            if (subsumedCandidate.getMethodSignature().equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String)>")) {
+            if (subsumedCandidate.getMethodSignature().equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>")) {
                 carvedTestExecutionFlowGraph.enqueueMethodInvocations(subsumedCandidate);
                 carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(subsumedCandidate);
             }
@@ -197,7 +200,7 @@ public class MockGenerator {
         int subsumedCallCount = 0;
 
         for (MethodInvocation call : candidateMethodInvocations) {
-            if (call.getMethodSignature().equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String)>")) {
+            if (call.getMethodSignature().equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>")) {
                 if (subsumedCandidateMethodInvocations.contains(call)) {
                     subsumedCallCount += 1;
                 }
@@ -310,7 +313,7 @@ public class MockGenerator {
             ObjectInstance classToMock = ObjectInstanceFactory.get(mockTarget.getFirst().getType() + "@" + id.getAndIncrement());
             DataNode classLiteralToMock = PrimitiveNodeFactory.createClassLiteralFor(classToMock);
 
-            MethodInvocation initMock = new MethodInvocation(id.getAndIncrement(), MOCK_SIGNATURE);
+            MethodInvocation initMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), MOCK_SIGNATURE);
             initMock.setHasGenericReturnType(true);
             initMock.setStatic(true);
             initMock.setActualParameterInstances(Collections.singletonList(classLiteralToMock));
@@ -361,7 +364,7 @@ public class MockGenerator {
                 ObjectInstance doReturnReturn = ObjectInstanceFactory
                         .get("org.mockito.stubbing.Stubber@" + id.getAndIncrement());
 
-                MethodInvocation doReturnMock = new MethodInvocation(id.getAndIncrement(), RETURN_SIGNATURE);
+                MethodInvocation doReturnMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), RETURN_SIGNATURE);
                 doReturnMock.setStatic(true);
                 doReturnMock.setActualParameterInstances(Arrays.asList(doReturnArgument));
                 doReturnMock.setReturnValue((DataNode) doReturnReturn);
@@ -375,7 +378,7 @@ public class MockGenerator {
                 ObjectInstance whenReturn = ObjectInstanceFactory
                         .get(mockTarget.getFirst().getType() + "@" + id.getAndIncrement());
 
-                MethodInvocation whenMock = new MethodInvocation(id.getAndIncrement(), WHEN_SIGNATURE);
+                MethodInvocation whenMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), WHEN_SIGNATURE);
                 whenMock.setHasGenericReturnType(true);
                 whenMock.setOwner(doReturnReturn);
                 whenMock.setActualParameterInstances(Arrays.asList(classToMock));
@@ -449,7 +452,7 @@ public class MockGenerator {
             
             carvingShadow.types.add( shadowType );
             
-            MethodInvocation extractShadow = new MethodInvocation(id.getAndIncrement(), EXTRACT_SIGNATURE);
+            MethodInvocation extractShadow = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), EXTRACT_SIGNATURE);
 
             extractShadow.setHasGenericReturnType(true);
             extractShadow.setStatic(true);
@@ -481,7 +484,7 @@ public class MockGenerator {
                 DataNode setShadowParameter = new PrimitiveValue(id.getAndIncrement(), "java.lang.String",
                         callTargetCodepoints.toString());
 
-                MethodInvocation setShadow = new MethodInvocation(id.getAndIncrement(), SET_SIGNATURE);
+                MethodInvocation setShadow = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), SET_SIGNATURE);
                 setShadow.setOwner(extractReturn);
                 setShadow.setActualParameterInstances(Arrays.asList(setShadowParameter, mockClassTarget));
 

@@ -1,5 +1,6 @@
 package de.unipassau.abc.generation.assertions;
 
+import de.unipassau.abc.parsing.TraceParser;
 import java.util.Arrays;
 
 import de.unipassau.abc.carving.CarvedExecution;
@@ -70,7 +71,7 @@ public class PrimitiveValueAssertionGenerator implements AssertionGenerator {
 
 			// invoke Matchers.equalTo(operand) with operand being the expectedReturnValue
 			// TODO This might be easier to wrap into a factory
-			MethodInvocation matchersEqualTo = new MethodInvocation(id.getAndIncrement(), EQUAL_TO_SIGNATURE);
+			MethodInvocation matchersEqualTo = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), EQUAL_TO_SIGNATURE);
 			matchersEqualTo.setStatic(true);
 			matchersEqualTo.setActualParameterInstances(Arrays.asList(expectedReturnValue));
 			DataNode equalsToMatcher = ObjectInstanceFactory.get("org.hamcrest.Matcher@1");
@@ -83,7 +84,7 @@ public class PrimitiveValueAssertionGenerator implements AssertionGenerator {
 			assertionDataDependencyGraph.addDataDependencyOnReturn(matchersEqualTo, equalsToMatcher);
 
 			// Invokes Matchers.is using the previous matcher as input
-			MethodInvocation matchersIs = new MethodInvocation(id.getAndIncrement(), IS_SIGNATURE);
+			MethodInvocation matchersIs = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), IS_SIGNATURE);
 			matchersIs.setStatic(true);
 			matchersIs.setActualParameterInstances(Arrays.asList(equalsToMatcher));
 			DataNode isMatcher = DataNodeFactory.get("org.hamcrest.Matcher", "org.hamcrest.Matcher@2");
@@ -96,7 +97,7 @@ public class PrimitiveValueAssertionGenerator implements AssertionGenerator {
 			assertionDataDependencyGraph.addDataDependencyOnReturn(matchersIs, isMatcher);
 			
 			// Invokes MatcherAssert.assertThat
-			MethodInvocation assertThat = new MethodInvocation(id.getAndIncrement(), ASSERT_THAT_SIGNATURE);
+			MethodInvocation assertThat = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), ASSERT_THAT_SIGNATURE);
 			assertThat.setStatic(true);
 			assertThat.setActualParameterInstances(Arrays.asList(actualReturnValue, isMatcher));
 

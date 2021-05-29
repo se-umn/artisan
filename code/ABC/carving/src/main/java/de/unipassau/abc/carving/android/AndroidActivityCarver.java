@@ -1,6 +1,7 @@
 package de.unipassau.abc.carving.android;
 
 import de.unipassau.abc.data.AndroidMethodInvocation;
+import de.unipassau.abc.parsing.TraceParser;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -718,6 +719,7 @@ public class AndroidActivityCarver implements MethodCarver {
         // We need to map this to Robolectrics calls
         String controllerMethod = getCorrespondingMethodCall(methodInvocation);
         MethodInvocation controllerLifecycleMethod = new MethodInvocation(
+            MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
             mockedCallsId.incrementAndGet(),
             controllerMethod);
         controllerLifecycleMethod.setPublic(true);
@@ -758,6 +760,7 @@ public class AndroidActivityCarver implements MethodCarver {
         // We need to map this to Robolectrics calls
         String controllerMethod = getCorrespondingMethodCall(methodInvocation);
         MethodInvocation controllerLifecycleMethod = new MethodInvocation(
+            MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
             mockedCallsId.incrementAndGet(),
             controllerMethod);
         controllerLifecycleMethod.setPublic(true);
@@ -812,9 +815,11 @@ public class AndroidActivityCarver implements MethodCarver {
   private Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> buildActivityControllerWithIntentAndGetReferenceToActivity(
       ObjectInstance activity, ObjectInstance intent) {
     MethodInvocation buildActivityControllerWithIntent = new MethodInvocation(
+        MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
         mockedCallsId.incrementAndGet(),
         buildActivityControllerMethodWithIntent.getSignature());
     MethodInvocation getActivityFromController = new MethodInvocation(
+        MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
         mockedCallsId.incrementAndGet(),
         getActivityFromControllerMethod.getSignature());
 
@@ -852,7 +857,9 @@ public class AndroidActivityCarver implements MethodCarver {
     ExecutionFlowGraph efGraph = new ExecutionFlowGraphImpl();
     DataDependencyGraph ddGraph = new DataDependencyGraphImpl();
     // 1 - Build the call to Robolectric.buildActivity
-    MethodInvocation buildActivityController = new MethodInvocation(mockedCallsId.incrementAndGet(),
+    MethodInvocation buildActivityController = new MethodInvocation(
+        MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
+        mockedCallsId.incrementAndGet(),
         buildActivityControllerMethod.getSignature());
 
     buildActivityController.setPublic(buildActivityControllerMethod.isPublic());
@@ -883,6 +890,7 @@ public class AndroidActivityCarver implements MethodCarver {
     // 2 - Build the call to controller.get -> activity
 
     MethodInvocation getActivityFromController = new MethodInvocation(
+        MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
         mockedCallsId.incrementAndGet(),
         getActivityFromControllerMethod.getSignature());
     getActivityFromController.setPublic(true);
@@ -2309,7 +2317,9 @@ public class AndroidActivityCarver implements MethodCarver {
     // supposed to be unique.
     // One "naive solution" is to start from a very big negative number and
     // increment it, but do not use MIN_INTEGER !
-    MethodInvocation arrayInit = new MethodInvocation(arrayInitId.getAndDecrement(),
+    MethodInvocation arrayInit = new MethodInvocation(
+        MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
+        arrayInitId.getAndDecrement(),
         "<" + arrayToInstantiate.getType() + ": void <init>(int)>");
     arrayInit.setOwner(arrayToInstantiate);
     arrayInit.setActualParameterInstances(Arrays.asList(new DataNode[]{arraySize}));
@@ -2429,7 +2439,9 @@ public class AndroidActivityCarver implements MethodCarver {
         mockedReturnValue = methodInvocationToMock.getReturnValue();
       }
 
-      MethodInvocation thenMethodInvocation = new MethodInvocation(index,
+      MethodInvocation thenMethodInvocation = new MethodInvocation(
+          MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
+          index,
           thenReturnManyResultMethod.getSignature());
       thenMethodInvocation.setOwner(ongoingStubbing);
       thenMethodInvocation
@@ -2502,7 +2514,7 @@ public class AndroidActivityCarver implements MethodCarver {
     ObjectInstance ongoingStubbing = ObjectInstanceFactory
         .get(OngoingStubbing.class.getName() + "@" + generatedId.incrementAndGet());
 
-    MethodInvocation whenMethodInvocation = new MethodInvocation(index, whenMethod.getSignature());
+    MethodInvocation whenMethodInvocation = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, index, whenMethod.getSignature());
     whenMethodInvocation.setStatic(true);
     whenMethodInvocation.setActualParameterInstances(Arrays.asList(new DataNode[]{methodCall}));
     whenMethodInvocation.setReturnValue(ongoingStubbing);
@@ -2530,7 +2542,7 @@ public class AndroidActivityCarver implements MethodCarver {
     SootMethod valueOfFromString = sootClass.getMethod("valueOf",
         Arrays.asList(new Type[]{RefType.v(String.class.getName())}));
 
-    MethodInvocation boxedPrimitiveInstantiation = new MethodInvocation(-100,
+    MethodInvocation boxedPrimitiveInstantiation = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, -100,
         valueOfFromString.getSignature());
     boxedPrimitiveInstantiation.setStatic(true);
 
@@ -2566,7 +2578,9 @@ public class AndroidActivityCarver implements MethodCarver {
      * The mockery gets the class of the instance to mockMethod, and generate the
      * expected instance. Ensures this is called before anything else !
      */
-    MethodInvocation mockeryCreation = new MethodInvocation(mockedCallsId.incrementAndGet(),
+    MethodInvocation mockeryCreation = new MethodInvocation(
+        MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
+        mockedCallsId.incrementAndGet(),
         mockMethod.getSignature());
     mockeryCreation.setStatic(true);
 
