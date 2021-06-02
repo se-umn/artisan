@@ -62,7 +62,7 @@ espresso-tests.log : app-original.apk app-androidTest.apk running-emulator
 
 # 	This is phony
 #    It depends on all the espresso files listed in the tests.txt file
-traces : $(ESPRESSO_TESTS) app-androidTest.apk app-instrumented.apk running-emulator
+.traced : $(ESPRESSO_TESTS) app-androidTest.apk app-instrumented.apk running-emulator
 	# Once execution of the dependent target is over we tear down the emulator
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	rm running-emulator
@@ -76,7 +76,7 @@ traces : $(ESPRESSO_TESTS) app-androidTest.apk app-instrumented.apk running-emul
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) copy-traces com.better.alarm.debug ./traces/$(shell echo "$(@)" | sed -e "s|.testlog||") force-clean
 
 # TODO Avoid using a folder as target. Compute the list of traces from the tests.txt file
-carve-all : traces app-original.apk
+carve-all : .traced app-original.apk
 	export ABC_CONFIG=$(ABC_CFG) && \
 	$(ABC) carve-all app-original.apk traces app/src/carvedTest force-clean | tee carving.log
 
