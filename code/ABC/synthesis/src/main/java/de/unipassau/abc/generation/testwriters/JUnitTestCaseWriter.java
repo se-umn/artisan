@@ -599,8 +599,6 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             
             String referenceToViewId = referenceToR +"." + referenceToViewName;
             
-            System.out.println("\n\n\n Doing the magic trick and replacing int value with -> " + referenceToViewId);
-            
             methodCallExpr.addArgument(referenceToViewId);
         } else {
             for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
