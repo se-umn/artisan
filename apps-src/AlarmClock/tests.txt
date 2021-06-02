@@ -1,0 +1,2 @@
+com.better.alarm.test.ActionBarTest testBugreportButton
+com.better.alarm.test.PopupTest dismissViaAlarmAlert
