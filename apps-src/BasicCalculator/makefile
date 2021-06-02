@@ -3,7 +3,8 @@
 GW="./gradlew"
 ABC="../../scripts/abc.sh"
 ABC_CFG="../../scripts/.abc-config"
-JAVA_OPTS=" -Dabc.instrument.fields.operations -Dabc.taint.android.intents "
+JAVA_OPTS=" -Dabc.instrument.fields.operations -Dabc.taint.android.intents -Dabc.instrument.include=abc.basiccalculator"
+
 ADB := $(shell $(ABC) show-config  ANDROID_ADB_EXE | sed -e "s|ANDROID_ADB_EXE=||")
 ESPRESSO_TESTS := $(shell cat tests.txt | tr " " "_" | sed -e 's|^\(.*\)$$|\1.testlog|')
 
@@ -19,6 +20,7 @@ clean-all :
 	rm -v *.apk
 	rm -v *.log
 	rm -v *.testlog
+	rm -rv .traced
 	rm -rv traces
 	rm -rv app/src/carvedTest
 	rm -rv espresso-tests-coverage unit-tests-coverage carved-test-coverage
@@ -62,7 +64,7 @@ espresso-tests.log : app-original.apk app-androidTest.apk running-emulator
 
 # 	This is phony
 #    It depends on all the espresso files listed in the tests.txt file
-traces : $(ESPRESSO_TESTS) app-androidTest.apk app-instrumented.apk running-emulator
+.traced : $(ESPRESSO_TESTS) app-androidTest.apk app-instrumented.apk running-emulator
 	# Once execution of the dependent target is over we tear down the emulator
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	rm running-emulator
@@ -75,7 +77,7 @@ traces : $(ESPRESSO_TESTS) app-androidTest.apk app-instrumented.apk running-emul
 	$(ADB) shell am instrument -w -e class $(shell echo "$(@)" | tr "_" "#" | sed -e "s|.testlog||") abc.basiccalculator.test/androidx.test.runner.AndroidJUnitRunner | tee $(@)
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) copy-traces abc.basiccalculator ./traces/$(shell echo "$(@)" | sed -e "s|.testlog||") force-clean
 
-carve-all : traces app-original.apk
+carve-all : .traced app-original.apk
 	export ABC_CONFIG=$(ABC_CFG) && \
 	$(ABC) carve-all app-original.apk traces app/src/carvedTest force-clean | tee carving.log
 
