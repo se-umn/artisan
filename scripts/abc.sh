@@ -473,6 +473,9 @@ function copy-traces() {
   # Remove temporary files
   rm -r "$tmp_dir"
 
+  #copy folder to a location that can be pulled
+  ${ANDROID_ADB_EXE} shell run-as "$package_name" rm -r "/sdcard/$package_name"
+
   (echo >&2 "Done Copying")
 }
 
