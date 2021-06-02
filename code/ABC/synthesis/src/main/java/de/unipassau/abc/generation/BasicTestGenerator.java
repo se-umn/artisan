@@ -367,9 +367,13 @@ public class BasicTestGenerator implements TestGenerator {
 					carvedTest.addAssertion(returnValueAssertion);
 
 				} else if (JimpleUtils
-						.isArray(JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature()))) {
-					throw new NotImplementedException("Assertions over arrays not yet implemented");
-				} else {
+                        .isArray(JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature()))) {
+                    logger.warn(
+                            "Implementing assertions over array is not yet implemented. There will not be assertions for method under test: "
+                                    + carvedTest.getMethodUnderTest());
+//                  throw new NotImplementedException("Assertions over arrays not yet implemented");
+                } 
+				else {
 					// Those are regular objects
 
 					// Assert whether the return value is null/not-null
