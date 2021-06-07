@@ -39,7 +39,8 @@ public class MethodInvocationSearcher {
 				.getParsedTrace().entrySet()) {
 			entry.getValue().getFirst().getOrderedMethodInvocations().parallelStream()
 					.filter(mi -> !mi.isPrivate() && !mi.isSynthetic() && !mi.isLibraryCall())
-					.filter( mi -> ! mi.getMethodSignature().contains("$")) //
+					.filter( mi -> ! mi.getMethodSignature().contains("$")) // Inner Classes
+					.filter( mi -> ! mi.getMethodSignature().contains("clinit")) // Static constructor
 					.forEachOrdered(carvableMethodInvocations::add);
 		}
 		return carvableMethodInvocations;

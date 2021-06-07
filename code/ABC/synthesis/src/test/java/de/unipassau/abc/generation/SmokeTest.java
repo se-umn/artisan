@@ -39,7 +39,7 @@ import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 public class SmokeTest {
 
     @Rule
-    public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.INFO);
+    public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
 
     private final static Logger logger = LoggerFactory.getLogger(SmokeTest.class);
 
@@ -115,6 +115,60 @@ public class SmokeTest {
 //    }
 
     @Test
+    public void brokenTestGeneration() throws FileNotFoundException, IOException, ABCException {
+        File traceFile = new File("./src/test/resources/com.better.alarm/Trace-1622638473760.txt");
+        TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
+
+        TraceParser parser = new TraceParserImpl();
+        ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+        ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
+        ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+
+        MethodInvocationSearcher mis = new MethodInvocationSearcher();
+        List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
+                mis.findAllCarvableMethodInvocations(parsedTrace));
+
+        System.out.println("Found " + listOfTargetMethodsInvocations.size() + " carvable targets ");
+        for (MethodInvocation m : listOfTargetMethodsInvocations) {
+            System.out.println("\t - " + m);
+        }
+
+//        // SELECT THE ACTUAL carved execution to consider
+        Set<MethodInvocation> targetMethodsInvocations = new HashSet<MethodInvocation>();
+//        for(MethodInvocation targetMethod:listOfTargetMethodsInvocations){
+//            targetMethodsInvocations.add(targetMethod);
+//        }
+        targetMethodsInvocations.addAll(listOfTargetMethodsInvocations);
+
+        BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
+        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocations, parsedTrace);
+
+        int carvedTargets = carvedTests.size();
+
+        System.out.println("Carved targets " + carvedTargets + " / " + listOfTargetMethodsInvocations.size());
+
+        // Put each test in a separate test case
+        TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+        Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+
+        // Write test cases to files and try to compile them
+
+        JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+        List<CompilationUnit> generatedTests = new ArrayList<CompilationUnit>();
+        for (TestClass testCase : testSuite) {
+            try {
+                CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+                logger.info(cu.toString());
+                generatedTests.add( cu );
+            } catch (Exception e) {
+                logger.error("Cannot generate test " + testCase.getPackageName() + "." + testCase.getName(), e);
+            }
+        }
+        
+        System.out.println("Generated tests " +  generatedTests.size() + "/" + carvedTargets);
+    }
+
+    @Test
     public void testDebugMocks() throws FileNotFoundException, IOException, ABCException {
         File traceFile = new File(
                 "./src/test/resources/abc.basiccalculator/Trace-testCalculateAndIncrementByOneWithLogging-1603454200461.txt");
@@ -130,7 +184,7 @@ public class SmokeTest {
                 mis.findAllCarvableMethodInvocations(parsedTrace));
 
         logger.debug("Carvable targets ");
-        for( MethodInvocation m : listOfTargetMethodsInvocations ) {
+        for (MethodInvocation m : listOfTargetMethodsInvocations) {
             logger.debug("" + m);
         }
 

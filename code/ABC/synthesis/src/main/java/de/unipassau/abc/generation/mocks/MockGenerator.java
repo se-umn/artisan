@@ -304,7 +304,7 @@ public class MockGenerator {
 
                 stringMapping.put(mockTarget.getFirst(), returnValue);
 
-                System.out.println(stringMapping);
+//                System.out.println(stringMapping);
 
                 continue;
             }
@@ -556,6 +556,6 @@ public class MockGenerator {
 
         carvedTest.setExecutionFlowGraph(reorderedExecutionFlowGraph);
 
-        System.out.println(orderedMethodInvocations);
+//        System.out.println(orderedMethodInvocations);
     }
 }

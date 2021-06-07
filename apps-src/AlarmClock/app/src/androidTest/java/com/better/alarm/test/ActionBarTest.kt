@@ -14,6 +14,8 @@ import org.junit.rules.RuleChain
 import org.junit.rules.TestRule
 import org.junit.runner.RunWith
 import java.util.Locale
+import org.junit.Ignore
+
 
 @RunWith(AndroidJUnit4::class)
 class ActionBarTest : BaseTest() {
@@ -25,6 +27,7 @@ class ActionBarTest : BaseTest() {
     var chain: TestRule = RuleChain.outerRule(ForceLocaleRule(Locale.US)).around(listActivity)
 
     @Test
+    @Ignore
     fun testBugreportButton() {
         openActionBarOverflowOrOptionsMenu(getInstrumentation().targetContext)
         onView(withText("Send a bugreport")).perform(click())

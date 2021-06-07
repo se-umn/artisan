@@ -1,5 +1,17 @@
 package de.unipassau.abc.generation;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import de.unipassau.abc.carving.BasicCarver;
 import de.unipassau.abc.carving.CarvedExecution;
 import de.unipassau.abc.carving.exceptions.CarvingException;
@@ -14,7 +26,6 @@ import de.unipassau.abc.data.ExecutionFlowGraphImpl;
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
-import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.assertions.AssertionGenerator;
 import de.unipassau.abc.generation.assertions.CarvingAssertion;
@@ -24,8 +35,6 @@ import de.unipassau.abc.generation.data.AndroidCarvedTest;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
 import de.unipassau.abc.generation.mocks.MockGenerator;
-import de.unipassau.abc.generation.mocks.CarvingMock;
-import de.unipassau.abc.generation.mocks.CarvingShadow;
 import de.unipassau.abc.parsing.ParsedTrace;
 import de.unipassau.abc.parsing.TraceParser;
 import java.util.ArrayList;
@@ -64,10 +73,13 @@ public class BasicTestGenerator implements TestGenerator {
 
 			for (CarvedExecution carvedExecution : carver.carve(targetMethodInvocation)) {
 				try {
+					logger.info("Carving " + targetMethodInvocation);
 					carvedTests.add(generateCarvedTestFromCarvedExecution(carvedExecution));
+					logger.info("Done Carving " + targetMethodInvocation);
 				}
 				catch(Exception e){
-					logger.info("continuing to the next target");
+					// TODO May be too much
+					logger.error("Error Carving " + targetMethodInvocation, e);
 				}
 			}
 		}
@@ -353,7 +365,8 @@ public class BasicTestGenerator implements TestGenerator {
 					unexpectedExceptionFailMessageNode, 0);
 
 			List<String> unexpectedExceptions = new ArrayList<>();
-			// We use Throwable to fix !97. It should be ok, in 99% of the cases, since application methods do not usually throw "Throwable"		
+			// We use Throwable to fix !97. It should be ok, in 99% of the cases, since
+			// application methods do not usually throw "Throwable"		
 			unexpectedExceptions.add("java.lang.Throwable");
 			CatchBlock catchUnexpectedException = new CatchBlock(unexpectedExceptions,
 					unexpectedExceptionCatchBlockExecutionFlowGraph, unexpectedExceptionCatchBlockDataDependencyGraph);
@@ -409,7 +422,10 @@ public class BasicTestGenerator implements TestGenerator {
 
 				} else if (JimpleUtils
 						.isArray(JimpleUtils.getReturnType(carvedTest.getMethodUnderTest().getMethodSignature()))) {
-					throw new NotImplementedException("Assertions over arrays not yet implemented");
+					logger.warn(
+                            "Implementing assertions over array is not yet implemented. There will not be assertions for method under test: "
+                                    + carvedTest.getMethodUnderTest());
+					//throw new NotImplementedException("Assertions over arrays not yet implemented");
 				} else {
 					// Those are regular objects
 
@@ -443,8 +459,8 @@ public class BasicTestGenerator implements TestGenerator {
 			}
 		}
 
-     MockGenerator mockGenerator = new MockGenerator();
-     mockGenerator.generateMocks(carvedTest, carvedExecution);
+     	MockGenerator mockGenerator = new MockGenerator();
+     	mockGenerator.generateMocks(carvedTest, carvedExecution);
 
 		return carvedTest;
 	}

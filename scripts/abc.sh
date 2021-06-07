@@ -710,7 +710,9 @@ function set-java-opts() {
 		exit 1
 	fi
 	package_name=$(__private_get_package_name_from_apk_file "$apk")
-	export JAVA_OPTS="$JAVA_OPTS -Dabc.instrument.include=$package_name"
+  # The package name sometimes is computed dynamically....
+	# export JAVA_OPTS="$JAVA_OPTS -Dabc.instrument.include=$package_name"
+  export JAVA_OPTS="$JAVA_OPTS"
 }
 
 function help() {
