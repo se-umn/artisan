@@ -174,7 +174,28 @@ public class Main {
 
 				File sourceFolder = cli.getOutputDir();
 
-				for (TestClass testCase : testSuite) {
+				//sort by the trace id of the first method under test (this helps debugging)
+				List<TestClass> testSuiteList = new ArrayList<TestClass>();
+				testSuiteList.addAll(testSuite);
+				List<Integer> indexInTraceList = new ArrayList<Integer>();
+				for(TestClass testClass:testSuiteList){
+					int minValue = Integer.MAX_VALUE;
+					for(CarvedTest carvedTest:testClass.getCarvedTests()){
+						if(carvedTest.getMethodUnderTest().getInvocationTraceId()<minValue){
+							minValue = carvedTest.getMethodUnderTest().getInvocationTraceId();
+						}
+					}
+					indexInTraceList.add(new Integer(minValue));
+				}
+				ArrayList<TestClass> sortedTestSuiteList = new ArrayList(testSuiteList);
+				Collections.sort(sortedTestSuiteList, new Comparator<TestClass>(){
+					public int compare(TestClass left, TestClass right) {
+						return indexInTraceList.get(testSuiteList.indexOf(left)) - indexInTraceList.get(testSuiteList.indexOf(right));
+					}
+				});
+
+				//generate unit tests
+				for (TestClass testCase : sortedTestSuiteList) {
 					try {
 						CompilationUnit cu = writer.generateJUnitTestCase(testCase);
 						File testFileFolder = new File(sourceFolder,
