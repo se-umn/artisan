@@ -141,7 +141,9 @@ public class SmokeTest {
         targetMethodsInvocations.addAll(listOfTargetMethodsInvocations);
 
         BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
-        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocations, parsedTrace);
+         List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
+        targetMethodsInvocationsList.addAll(targetMethodsInvocations);
+        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList, parsedTrace);
 
         int carvedTargets = carvedTests.size();
 
