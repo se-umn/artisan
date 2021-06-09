@@ -14,7 +14,7 @@ public class ExecutionFlowGraphTest {
 		ExecutionFlowGraph executionFlowGraph = new ExecutionFlowGraph();
 		
 		for( int invocationCount =0 ; invocationCount < 10; invocationCount++){
-			executionFlowGraph.enqueueMethodInvocations( new MethodInvocation("Invocation" , invocationCount));
+			executionFlowGraph.enqueueMethodInvocations( new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "Invocation" , invocationCount));
 		}
 		
 		assertEquals(10, executionFlowGraph.getOrderedMethodInvocations().size());

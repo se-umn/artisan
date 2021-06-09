@@ -1,5 +1,6 @@
 package de.unipassau.abc.generation.assertions;
 
+import de.unipassau.abc.parsing.TraceParser;
 import java.util.Arrays;
 
 import de.unipassau.abc.carving.CarvedExecution;
@@ -50,7 +51,7 @@ public class NullValueAssertionGenerator implements AssertionGenerator {
 			DataNode nullNotNullMatcher = ObjectInstanceFactory.get("org.hamcrest.Matchers@1");
 			if (expectedReturnValue.isNull()) {
 				// Invokes Matchers.is using the previous matcher as input
-				MethodInvocation matchersNullValue = new MethodInvocation(id.getAndIncrement(), NULL_VALUE_SIGNATURE);
+				MethodInvocation matchersNullValue = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), NULL_VALUE_SIGNATURE);
 				matchersNullValue.setStatic(true);
 				matchersNullValue.setReturnValue(nullNotNullMatcher);
 
@@ -60,7 +61,7 @@ public class NullValueAssertionGenerator implements AssertionGenerator {
 				assertionDataDependencyGraph.addDataDependencyOnReturn(matchersNullValue, nullNotNullMatcher);
 
 			} else {
-				MethodInvocation matchersNotNullValue = new MethodInvocation(id.getAndIncrement(),
+				MethodInvocation matchersNotNullValue = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(),
 						NOT_NULL_VALUE_SIGNATURE);
 				matchersNotNullValue.setStatic(true);
 				matchersNotNullValue.setReturnValue(nullNotNullMatcher);
@@ -72,7 +73,7 @@ public class NullValueAssertionGenerator implements AssertionGenerator {
 			}
 
 			// Invokes Matchers.is using the previous matcher as input
-			MethodInvocation matchersIs = new MethodInvocation(id.getAndIncrement(), IS_SIGNATURE);
+			MethodInvocation matchersIs = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), IS_SIGNATURE);
 			matchersIs.setStatic(true);
 			matchersIs.setActualParameterInstances(Arrays.asList(nullNotNullMatcher));
 			DataNode isMatcher = DataNodeFactory.get("org.hamcrest.Matcher", "org.hamcrest.Matcher@2");
@@ -87,7 +88,7 @@ public class NullValueAssertionGenerator implements AssertionGenerator {
 			// Invokes MatcherAssert.assertThat
 			// TODO This is tricky as we need to make the connection at some point ...
 			DataNode actualReturnValue = carvedTest.getMethodUnderTest().getReturnValue();
-			MethodInvocation assertThat = new MethodInvocation(id.getAndIncrement(), ASSERT_THAT_SIGNATURE);
+			MethodInvocation assertThat = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), ASSERT_THAT_SIGNATURE);
 			assertThat.setStatic(true);
 			assertThat.setActualParameterInstances(Arrays.asList(actualReturnValue, isMatcher));
 //

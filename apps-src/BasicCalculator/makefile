@@ -28,11 +28,10 @@ clean-all :
 
 app-original.apk : 
 	export ABC_CONFIG=$(ABC_CFG) && \
-	$(GW) assemble && \
-	mv app/build/outputs/apk/toInstrument/app-toInstrument-unsigned.apk . && \
-	$(ABC) sign-apk app-toInstrument-unsigned.apk && \
-	mv -v app-toInstrument-unsigned.apk app-original.apk
-
+	$(GW) assembleDebug && \
+	mv app/build/outputs/apk/debug/app-debug.apk . && \
+	$(ABC) sign-apk app-debug.apk && \
+	mv -v app-debug.apk app-original.apk
 
 app-instrumented.apk : app-original.apk
 	export ABC_CONFIG=$(ABC_CFG) && \
@@ -81,6 +80,10 @@ carve-all : .traced app-original.apk
 	export ABC_CONFIG=$(ABC_CFG) && \
 	$(ABC) carve-all app-original.apk traces app/src/carvedTest force-clean | tee carving.log
 
+carve-cached-traces : app-original.apk
+	export ABC_CONFIG=$(ABC_CFG) && \
+		$(ABC) carve-all app-original.apk traces app/src/carvedTest force-clean | tee carving.log
+
 # TODO We need to provide the shadows in some sort of generic way and avoid hardcoding them for each and every application, unless we can create them programmatically
 copy-shadows : 
 	cp -v ./shadows/*.java app/src/carvedTest/abc/basiccalculator
@@ -94,18 +97,19 @@ run-all-carved-tests : app/src/carvedTest copy-shadows
 ### Coverage targets
 ### ### ### ### ### ### ### 
 
-espresso-tests-coverage :
+coverage-espresso-tests :
 	export ABC_CONFIG=$(ABC_CFG) && \
 	abc start-clean-emulator && \
-	$(GW) clean connectedAndroidTest && \
-	cp -r app/build/reports/coverage espresso-tests-coverage && \
+	$(GW) clean jacocoGUITestCoverage && \
+	mkdir -p espresso-test-coverage && \
+	cp -r app/build/reports/jacoco/jacocoGUITestCoverage espresso-test-coverage && \
 	$(ABC) stop-all-emulators
 
 coverage-unit-tests :
 	$(GW) clean jacocoTestReport && \
 	cp -r app/build/reports/jacoco/jacocoTestsReport unit-tests-coverage
 
-coverage-carved-tests : 
-	$(GW) jacocoTestReport -PcarvedTests --info && \
+coverage-carved-tests : copy-shadows
+	$(GW) jacocoUnitTestCoverage -PcarvedTests --info && \
 	mkdir -p carved-test-coverage && \
 	cp -r app/build/carvedTest/coverage carved-test-coverage

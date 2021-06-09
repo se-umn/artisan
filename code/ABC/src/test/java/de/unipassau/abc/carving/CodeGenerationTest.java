@@ -100,7 +100,7 @@ public class CodeGenerationTest {
 
 		List<MethodInvocation> methodsInvocationsToCarve = new ArrayList<>(
 		        parsedSystemTest.getFirst().getMethodInvocationsFor(
-		                MethodInvocationMatcher.fromMethodInvocation(new MethodInvocation(jimpleMethod, invocationID)),
+		                MethodInvocationMatcher.fromMethodInvocation(new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, jimpleMethod, invocationID)),
 		                excludeNoMethodInvocationsMatcher.toArray(new MethodInvocationMatcher[]{})));
 		
 		List<Pair<ExecutionFlowGraph, DataDependencyGraph>> carvedTests = testCarver.carve(methodsInvocationsToCarve);

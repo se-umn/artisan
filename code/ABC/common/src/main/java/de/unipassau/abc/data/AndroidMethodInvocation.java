@@ -6,14 +6,14 @@ public class AndroidMethodInvocation extends MethodInvocation {
 
 	private boolean isAndroidFragmentCallback;
 
-	public AndroidMethodInvocation(int invocationCount, String methodSignature) {
-		super(invocationCount, methodSignature);
+	public AndroidMethodInvocation(int invocationTraceId, int invocationCount, String methodSignature) {
+		super(invocationTraceId, invocationCount, methodSignature);
 	}
 
 	// Create a more specific android related copy out of a general method
 	// invocation
 	public AndroidMethodInvocation(MethodInvocation methodInvocation) {
-		super(methodInvocation.getInvocationCount(), methodInvocation.getMethodSignature());
+		super(methodInvocation.getInvocationTraceId(), methodInvocation.getInvocationCount(), methodInvocation.getMethodSignature());
 
 		setOwner(methodInvocation.getOwner());
 		setActualParameters(methodInvocation.getActualParameters());

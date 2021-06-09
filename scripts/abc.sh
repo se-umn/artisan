@@ -454,10 +454,10 @@ function copy-traces() {
 
   local tmp_dir="$(mktemp -d)"
 
-  # Restart daemon with root access in order to be able to access app data
-  ${ANDROID_ADB_EXE} root >/dev/null 2>&1
+  #copy folder to a location that can be pulled
+  ${ANDROID_ADB_EXE} shell run-as "$package_name" cp -r "/data/data/$package_name" /sdcard
   # Apparently, adb cannot copy files using wildcards, hence, we copy the whole package temporarily
-  ${ANDROID_ADB_EXE} pull "/data/data/$package_name" "$tmp_dir" >/dev/null 2>&1
+  ${ANDROID_ADB_EXE} pull "/sdcard/$package_name" "$tmp_dir"
 
   # Iterate over trace files and copy them to the output dir
   for filename in "$tmp_dir"/"$package_name"/Trace-*.txt; do
@@ -472,6 +472,9 @@ function copy-traces() {
 
   # Remove temporary files
   rm -r "$tmp_dir"
+
+  #copy folder to a location that can be pulled
+  ${ANDROID_ADB_EXE} shell run-as "$package_name" rm -r "/sdcard/$package_name"
 
   (echo >&2 "Done Copying")
 }

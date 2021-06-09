@@ -1,5 +1,6 @@
 package de.unipassau.abc.parsing;
 
+import de.unipassau.abc.carving.android.AndroidActivityCarver;
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.CallGraphImpl;
 import de.unipassau.abc.data.DataDependencyGraph;
@@ -15,6 +16,7 @@ import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.tracing.Trace;
 import java.io.File;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -274,16 +276,24 @@ public class TraceParserImpl extends TraceParser {
 			Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> local = getOrInitializeDataStructure(
 					tokens.threadName);
 
+			int invocationTraceId = MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT;
+			try{
+				invocationTraceId = Integer.parseInt(tokens.lineNumber);
+			}
+			catch(Exception e){
+
+			}
 			String methodSignature = tokens.methodSignature;
 			String openingToken = tokens.methodToken;
 			String methodOwner = tokens.methodOwner;
 			String parameterString = tokens.parametersOrReturnValue;
 
+
 			MethodInvocation methodInvocation;
 			/*
 			 * This is the basic carving object, a method call/method invocation
 			 */
-			methodInvocation = new MethodInvocation(globalInvocationCount.incrementAndGet(), methodSignature);
+			methodInvocation = new MethodInvocation(invocationTraceId, globalInvocationCount.incrementAndGet(), methodSignature);
 			/*
 			 * Explicitly set the relevant attributes of the object
 			 */
@@ -419,6 +429,13 @@ public class TraceParserImpl extends TraceParser {
 			DataDependencyGraph dataDependencyGraph = local.getSecond();
 			CallGraph callGraph = local.getThird();
 
+			int invocationTraceId = MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT;
+			try{
+				invocationTraceId = Integer.parseInt(tokens.lineNumber);
+			}
+			catch(Exception e){
+
+			}
 			String methodSignature = tokens.methodSignature;
 			String openingToken = tokens.methodToken;
 			String methodOwner = tokens.methodOwner;
@@ -428,7 +445,7 @@ public class TraceParserImpl extends TraceParser {
 			/*
 			 * This is the basic carving object, a method call/method invocation
 			 */
-			methodInvocation = new MethodInvocation(globalInvocationCount.incrementAndGet(), methodSignature);
+			methodInvocation = new MethodInvocation(invocationTraceId, globalInvocationCount.incrementAndGet(), methodSignature);
 			/*
 			 * Explicitly set the relevant attributes of the object
 			 */

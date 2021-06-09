@@ -15,12 +15,13 @@ public class MethodInvocationMatcherTest {
 	// match by class
 	// match by package
 	private MethodInvocation sampleMethodInvocation = new MethodInvocation(
+			MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
 			"<org.employee.Validation: int numberValidation(java.lang.String,org.employee.DummyObjectToPassAsParameter)>",
 			1);
 
 	@Test
 	public void testByMethodWithArray() {
-		MethodInvocation methodInvocation = new MethodInvocation("<de.unipassau.abc.testsubject2.ArrayHandlingClass: void callMeMaybe(java.lang.String[])>", 1);
+		MethodInvocation methodInvocation = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "<de.unipassau.abc.testsubject2.ArrayHandlingClass: void callMeMaybe(java.lang.String[])>", 1);
 		MethodInvocationMatcher methodMatcher = MethodInvocationMatcher
 				.byMethodLiteral("<de.unipassau.abc.testsubject2.ArrayHandlingClass: void callMeMaybe(java.lang.String[])>");
 		assertTrue(methodMatcher.matches(methodInvocation));
@@ -28,7 +29,7 @@ public class MethodInvocationMatcherTest {
 	
 	@Test
 	public void testByMethodWithArrayReturnType() {
-		MethodInvocation methodInvocation = new MethodInvocation("<de.unipassau.abc.testsubject2.ArrayHandlingClass: java.lang.String[] callMeMaybe()>", 1);
+		MethodInvocation methodInvocation = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "<de.unipassau.abc.testsubject2.ArrayHandlingClass: java.lang.String[] callMeMaybe()>", 1);
 		MethodInvocationMatcher methodMatcher = MethodInvocationMatcher
 				.byMethodLiteral("<de.unipassau.abc.testsubject2.ArrayHandlingClass: java.lang.String[] callMeMaybe()>");
 		assertTrue(methodMatcher.matches(methodInvocation));
@@ -45,8 +46,8 @@ public class MethodInvocationMatcherTest {
 	
 	@Test
 	public void testMethodWithRegEx() {
-		MethodInvocation scannerReadString = new MethodInvocation("<<java.util.Scanner: java.lang.String next()>)>", 1);
-		MethodInvocation scannerReadInt = new MethodInvocation("<<java.util.Scanner: int nextInt()>)>", 2);
+		MethodInvocation scannerReadString = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "<<java.util.Scanner: java.lang.String next()>)>", 1);
+		MethodInvocation scannerReadInt = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "<<java.util.Scanner: int nextInt()>)>", 2);
 		
 		// We do not support for the moment regex for return type
 		MethodInvocationMatcher scannerMethodMatcher = MethodInvocationMatcher
@@ -54,9 +55,9 @@ public class MethodInvocationMatcherTest {
 		assertTrue(scannerMethodMatcher.matches(scannerReadString));
 		assertTrue(scannerMethodMatcher.matches(scannerReadInt));
 		
-		MethodInvocation junit3StyleWithParameters = new MethodInvocation("<siena.TestFilter: void main(java.lang.String[])>", 10);
-		MethodInvocation junit3StyleWithoutParameters = new MethodInvocation("<siena.TestFilter: void foo()>", 10);
-//		MethodInvocation junit3StyleWithReturnType = new MethodInvocation("<siena.foo.bar.TestFilter: siena.Bar foo()>", 10);
+		MethodInvocation junit3StyleWithParameters = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "<siena.TestFilter: void main(java.lang.String[])>", 10);
+		MethodInvocation junit3StyleWithoutParameters = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "<siena.TestFilter: void foo()>", 10);
+//		MethodInvocation junit3StyleWithReturnType = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "<siena.foo.bar.TestFilter: siena.Bar foo()>", 10);
 		
 		MethodInvocationMatcher junit3StyleMatcherWithoutParameters = MethodInvocationMatcher.byMethod("<siena..*Test.*: .* .*()>");
 		//
@@ -75,13 +76,13 @@ public class MethodInvocationMatcherTest {
 	public void testGettersMatch(){ // (.*?) -- TODO How to define a catch all for the parameters ?
 		MethodInvocationMatcher gettersMatcher = MethodInvocationMatcher.byMethodName("get.*");
 		
-		assertTrue( gettersMatcher.matches( new MethodInvocation("<siena.TestFilter: void getAlpha(java.lang.String[])>", -1)));
-		assertTrue( gettersMatcher.matches( new MethodInvocation("<siena.TestFilter: java.lang.String getBeta(java.lang.String)>", -1)));
+		assertTrue( gettersMatcher.matches( new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "<siena.TestFilter: void getAlpha(java.lang.String[])>", -1)));
+		assertTrue( gettersMatcher.matches( new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "<siena.TestFilter: java.lang.String getBeta(java.lang.String)>", -1)));
 		
-		assertTrue( gettersMatcher.matches( new MethodInvocation("<siena.TestFilter: int getGamma(java.lang.String,int)>", -1)));
-		assertTrue( gettersMatcher.matches( new MethodInvocation("<siena.TestFilter: java.lang.Object getDelta()>", -1)));
+		assertTrue( gettersMatcher.matches( new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "<siena.TestFilter: int getGamma(java.lang.String,int)>", -1)));
+		assertTrue( gettersMatcher.matches( new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "<siena.TestFilter: java.lang.Object getDelta()>", -1)));
 		//
-//		assertFalse( gettersMatcher.matches( new MethodInvocation("<siena.TestFilter: void fooget(java.lang.String,int)>", -1)));
+//		assertFalse( gettersMatcher.matches( new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "<siena.TestFilter: void fooget(java.lang.String,int)>", -1)));
 	}
 
 	@Test
@@ -94,35 +95,35 @@ public class MethodInvocationMatcherTest {
 	@Test
 	public void testMatchWithParameterArray1() {
 		MethodInvocationMatcher mim = MethodInvocationMatcher.byClass("java.nio.file.Files");
-		MethodInvocation methodInvocationWithArray = new MethodInvocation("<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.lang.String,java.nio.file.attribute.FileAttribute[])>",1);
+		MethodInvocation methodInvocationWithArray = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.lang.String,java.nio.file.attribute.FileAttribute[])>",1);
 		assertTrue(mim.matches(methodInvocationWithArray));
 	}
 	
 	@Test
 	public void testMatchWithParameterArray2() {
 		MethodInvocationMatcher mim = MethodInvocationMatcher.byClass("java.nio.file.Files");
-		MethodInvocation methodInvocationWithArray = new MethodInvocation("<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.nio.file.attribute.FileAttribute[],java.lang.String)>",1);
+		MethodInvocation methodInvocationWithArray = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.nio.file.attribute.FileAttribute[],java.lang.String)>",1);
 		assertTrue(mim.matches(methodInvocationWithArray));
 	}
 	
 	@Test
 	public void testMatchWithParameterArray3() {
 		MethodInvocationMatcher mim = MethodInvocationMatcher.byClass("java.nio.file.Files");
-		MethodInvocation methodInvocationWithArray = new MethodInvocation("<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.nio.file.attribute.FileAttribute[])>",1);
+		MethodInvocation methodInvocationWithArray = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.nio.file.attribute.FileAttribute[])>",1);
 		assertTrue(mim.matches(methodInvocationWithArray));
 	}
 	
 	@Test
 	public void testMatchWithParameterArray4() {
 		MethodInvocationMatcher mim = MethodInvocationMatcher.byClass("java.nio.file.Files");
-		MethodInvocation methodInvocationWithArray = new MethodInvocation("<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.lang.String[],java.nio.file.attribute.FileAttribute[])>",1);
+		MethodInvocation methodInvocationWithArray = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.lang.String[],java.nio.file.attribute.FileAttribute[])>",1);
 		assertTrue(mim.matches(methodInvocationWithArray));
 	}
 	
 	@Test
 	public void testMatchWithParameterArray5() {
 		MethodInvocationMatcher mim = MethodInvocationMatcher.byClass("java.nio.file.Files");
-		MethodInvocation methodInvocationWithArray = new MethodInvocation("<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.lang.String[],int,java.nio.file.attribute.FileAttribute[])>",1);
+		MethodInvocation methodInvocationWithArray = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, "<java.nio.file.Files: java.nio.file.Path createTempDirectory(java.lang.String[],int,java.nio.file.attribute.FileAttribute[])>",1);
 		assertTrue(mim.matches(methodInvocationWithArray));
 	}
 	

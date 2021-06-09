@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,114 +80,149 @@ public class Main {
             Iterable<? extends JavaFileObject> compilationUnits = fileManager
                     .getJavaFileObjectsFromStrings(Arrays.asList(testFile.getAbsolutePath()));
 
-            List<String> optionList = new ArrayList<String>();
+			List<String> optionList = new ArrayList<String>();
 
-            // Include test-utils on the compilation classpath because we need the Carved
-            // annotation
-            for (String cpEntry : System.getProperty("java.class.path").split(File.pathSeparator)) {
-                if (cpEntry.contains("test-utils")) {
-                    theClassPath += File.pathSeparator + cpEntry;
-                }
-            }
+			// Include test-utils on the compilation classpath because we need the Carved
+			// annotation
+			for (String cpEntry : System.getProperty("java.class.path").split(File.pathSeparator)) {
+				if (cpEntry.contains("test-utils")) {
+					theClassPath += File.pathSeparator + cpEntry;
+				}
+			}
 
-            optionList.addAll(Arrays.asList("-cp", theClassPath));
-            optionList.addAll(Arrays.asList("-d", sourceFolder.getAbsolutePath()));
+			optionList.addAll(Arrays.asList("-cp", theClassPath));
+			optionList.addAll(Arrays.asList("-d", sourceFolder.getAbsolutePath()));
 
-            JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, diagnostics, optionList, null,
-                    compilationUnits);
+			JavaCompiler.CompilationTask task = compiler.getTask(null, fileManager, diagnostics, optionList, null,
+					compilationUnits);
 
-            if (!task.call()) {
-                diagnostics.getDiagnostics().forEach(System.out::println);
-            } else {
-                for (JavaFileObject jfo : fileManager.list(StandardLocation.CLASS_OUTPUT, "",
-                        Collections.singleton(JavaFileObject.Kind.CLASS), true)) {
-                    System.out.println("Compiled :" + jfo.getName());
-                    compiledTests.add(new File(jfo.getName()));
-                }
-            }
-        }
+			if (!task.call()) {
+				diagnostics.getDiagnostics().forEach(System.out::println);
+			} else {
+				for (JavaFileObject jfo : fileManager.list(StandardLocation.CLASS_OUTPUT, "",
+						Collections.singleton(JavaFileObject.Kind.CLASS), true)) {
+					System.out.println("Compiled :" + jfo.getName());
+					compiledTests.add(new File(jfo.getName()));
+				}
+			}
+		}
 
-        return compiledTests;
-    }
+		return compiledTests;
+	}
 
-    public static void main(String[] args) throws IOException, ABCException {
+	public static void main(String[] args) throws IOException, ABCException {
 
-        CLI cli = CliFactory.parseArguments(CLI.class, args);
+		CLI cli = CliFactory.parseArguments(CLI.class, args);
 
-        /*
-         * Soot is a singleton and exposes static methods only, so we encapsulate its
-         * configuration inside static method calls
-         */
-        ParsingUtils.setupSoot(cli.getAndroidJar(), cli.getApk());
+		/*
+		 * Soot is a singleton and exposes static methods only, so we encapsulate its
+		 * configuration inside static method calls
+		 */
+		ParsingUtils.setupSoot(cli.getAndroidJar(), cli.getApk());
 
-        TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
+		TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
 
-        for (File traceFile : cli.getTraceFiles()) {
+		for (File traceFile : cli.getTraceFiles()) {
 
-            try {
-                TraceParser parser = new TraceParserImpl();
-                ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
-                ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
-                ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+			try {
+				TraceParser parser = new TraceParserImpl();
+				ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+				ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
+				ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
 
-                MethodInvocationSearcher mis = new MethodInvocationSearcher();
-                Set<MethodInvocation> targetMethodsInvocations = mis.findAllCarvableMethodInvocations(parsedTrace);
+				MethodInvocationSearcher mis = new MethodInvocationSearcher();
+				Set<MethodInvocation> targetMethodsInvocations = mis.findAllCarvableMethodInvocations(parsedTrace);
 
-                int allCarvableTargets = targetMethodsInvocations.size();
+				int allCarvableTargets = targetMethodsInvocations.size();
 
-                logger.info("Found Carvable " + allCarvableTargets + " targets");
-                if (logger.isDebugEnabled()) {
-                    for (MethodInvocation tmi : targetMethodsInvocations) {
-                        logger.debug("\t - " + tmi);
-                    }
-                }
+				System.out.println("Carvable targets ");
 
-                BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
-                Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocations,
-                        parsedTrace);
+				List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
+				targetMethodsInvocationsList.addAll(targetMethodsInvocations);
+				Collections.sort(targetMethodsInvocationsList, new Comparator<MethodInvocation>() {
+							@Override
+							public int compare(MethodInvocation o1, MethodInvocation o2) {
+								if(o1.getInvocationTraceId()<o2.getInvocationTraceId()){
+									return -1;
+								}
+								else if(o1.getInvocationTraceId()==o2.getInvocationTraceId()){
+									return 0;
+								}
+								else{
+									return 1;
+								}
+							}
+				});
+				targetMethodsInvocationsList.forEach(System.out::println);
 
-                int carvedTargets = carvedTests.size();
+				BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
+				Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
+						parsedTrace);
 
-                logger.info("Carved targets " + carvedTargets + " / " + allCarvableTargets);
+				int carvedTargets = carvedTests.size();
 
-                // Put each test in a separate test case
-                TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
-                Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+				System.out.println("Carved targets " + carvedTargets + " / " + allCarvableTargets);
 
-                // Write test cases to files and try to compile them
-                JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+				// Put each test in a separate test case
+				TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+				Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
 
-                Map<TestClass, File> generatedTests = new HashMap<TestClass, File>();
+				// Write test cases to files and try to compile them
+				JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
 
-                File sourceFolder = cli.getOutputDir();
+				Map<TestClass, File> generatedTests = new HashMap<TestClass, File>();
 
-                for (TestClass testCase : testSuite) {
-                    try {
-                        CompilationUnit cu = writer.generateJUnitTestCase(testCase);
-                        File testFileFolder = new File(sourceFolder,
-                                testCase.getPackageName().replaceAll("\\.", File.separator));
-                        testFileFolder.mkdirs();
-                        File testFile = new File(testFileFolder, testCase.getName() + ".java");
-                        try (PrintStream out = new PrintStream(new FileOutputStream(testFile))) {
-                            out.print(cu.toString());
-                        }
-                        generatedTests.put(testCase, testFile);
+				File sourceFolder = cli.getOutputDir();
 
-                    } catch (Exception e) {
-                        logger.error("Cannot generate test " + testCase.getPackageName() + "." + testCase.getName(), e);
-                    }
-                }
+				//sort by the trace id of the first method under test (this helps debugging)
+				List<TestClass> testSuiteList = new ArrayList<TestClass>();
+				testSuiteList.addAll(testSuite);
+				List<Integer> indexInTraceList = new ArrayList<Integer>();
+				for(TestClass testClass:testSuiteList){
+					int minValue = Integer.MAX_VALUE;
+					for(CarvedTest carvedTest:testClass.getCarvedTests()){
+						if(carvedTest.getMethodUnderTest().getInvocationTraceId()<minValue){
+							minValue = carvedTest.getMethodUnderTest().getInvocationTraceId();
+						}
+					}
+					indexInTraceList.add(new Integer(minValue));
+				}
+				ArrayList<TestClass> sortedTestSuiteList = new ArrayList(testSuiteList);
+				Collections.sort(sortedTestSuiteList, new Comparator<TestClass>(){
+					public int compare(TestClass left, TestClass right) {
+						return indexInTraceList.get(testSuiteList.indexOf(left)) - indexInTraceList.get(testSuiteList.indexOf(right));
+					}
+				});
 
-                logger.info("Generated tests " + generatedTests.size() + " / " + carvedTargets);
+				//generate unit tests
+				for (TestClass testCase : sortedTestSuiteList) {
+					try {
+						CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+						File testFileFolder = new File(sourceFolder,
+								testCase.getPackageName().replaceAll("\\.", File.separator));
+						testFileFolder.mkdirs();
+						File testFile = new File(testFileFolder, testCase.getName() + ".java");
+						try (PrintStream out = new PrintStream(new FileOutputStream(testFile))) {
+							out.print(cu.toString());
+						}
+						generatedTests.put(testCase, testFile);
+						
+					} catch (Exception e) {
+						System.err.println("Cannot generate test " + testCase.getName());
+						e.printStackTrace();
+					}
+				}
 
-            } catch (Exception e) {
-                System.err.println("Error while processing trace " + traceFile);
-                e.printStackTrace();
-            }
-        }
+				System.out.println("Generated tests " + generatedTests.size() + " / " + carvedTargets);
 
-        // TODO At the moment compiling tests outside gradle has been proved tediuos and
-        // hard to achieve...
+			} catch (Exception e) {
+				System.err.println("Error while processing trace " + traceFile);
+				e.printStackTrace();
+			}
+		}
+
+		// TODO At the moment compiling tests outside gradle has been proved tediuos and
+		// hard to achieve...
 //		Map<TestCase, Collection<File>> compiledTests = new HashMap<TestCase, Collection<File>>();
 //
 //		
