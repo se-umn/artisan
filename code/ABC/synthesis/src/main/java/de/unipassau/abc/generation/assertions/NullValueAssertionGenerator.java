@@ -1,6 +1,5 @@
 package de.unipassau.abc.generation.assertions;
 
-import de.unipassau.abc.parsing.TraceParser;
 import java.util.Arrays;
 
 import de.unipassau.abc.carving.CarvedExecution;
@@ -48,7 +47,8 @@ public class NullValueAssertionGenerator implements AssertionGenerator {
 			// case we need a MatcherFactory to ensure a new matcher is returned eveytime !
 			// OTHERWISE Each assertion has its own id set, as there should be only one
 			// assertion per TYPE in a test...
-			DataNode nullNotNullMatcher = ObjectInstanceFactory.get("org.hamcrest.Matchers@1");
+			// Not that this must carry the type of the return value (probably can be more safe compute it from the signature instead of hardcoding it!)
+			DataNode nullNotNullMatcher = ObjectInstanceFactory.get("org.hamcrest.Matcher@1");
 			if (expectedReturnValue.isNull()) {
 				// Invokes Matchers.is using the previous matcher as input
 				MethodInvocation matchersNullValue = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), NULL_VALUE_SIGNATURE);
