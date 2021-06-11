@@ -7,14 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import com.github.javaparser.ast.stmt.*;
@@ -80,6 +73,8 @@ import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
 public class JUnitTestCaseWriter implements TestCaseWriter {
 
     private static final Logger logger = LoggerFactory.getLogger(JUnitTestCaseWriter.class);
+
+    private final Set<String> robolectricIntialLifeCycleMethods = new HashSet<String>(Arrays.asList("create", "start", "resume"));
 
 //	public static final String ABC_CATEGORY = "de.unipassau.abc.Carved";
 
@@ -304,6 +299,10 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             }
 
         }
+
+        //reorder statements
+        reorderStatements(blockStmt.getStatements());
+
         return blockStmt;
     }
 
@@ -378,7 +377,72 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
     private void reorderStatements(NodeList<Statement> statements){
         //move get after consecutive lifecycle methods
-
+        int getMethodCallIndex = -1;
+        for(int i=0; i<statements.size(); ++i){
+            Statement stmt = statements.get(i);
+            if(stmt instanceof ExpressionStmt){
+                ExpressionStmt exprStmt = (ExpressionStmt) stmt;
+                if(exprStmt.getExpression() instanceof AssignExpr){
+                    AssignExpr aExpr = (AssignExpr) exprStmt.getExpression();
+                    if(aExpr.getValue() instanceof MethodCallExpr){
+                        MethodCallExpr mcExpr = (MethodCallExpr) aExpr.getValue();
+                        if(mcExpr.getNameAsString().equals("get")){
+                            if(mcExpr.getScope().isPresent() && mcExpr.getScope().get() instanceof NameExpr){
+                                NameExpr nExpr  = (NameExpr) mcExpr.getScope().get();
+                                String varName = nExpr.getNameAsString();
+                                boolean isControlleerVarName = false;
+                                for(DataNode declaredVariableDataNode: declaredVariables.keySet()){
+                                    if(declaredVariables.get(declaredVariableDataNode).equals(varName)){
+                                        if(declaredControllers.values().contains(declaredVariableDataNode)){
+                                            isControlleerVarName = true;
+                                        }
+                                    }
+                                }
+                                if(isControlleerVarName) {
+                                    getMethodCallIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if(getMethodCallIndex!=-1){
+            int lastConsecutiveLifecylePosition = -1;
+            for(int i=(getMethodCallIndex+1); i<statements.size(); ++i){
+                Statement stmt = statements.get(i);
+                ExpressionStmt exprStmt = (ExpressionStmt) stmt;
+                if(exprStmt.getExpression() instanceof MethodCallExpr){
+                    MethodCallExpr mcExpr = (MethodCallExpr) exprStmt.getExpression();
+                    if(robolectricIntialLifeCycleMethods.contains(mcExpr.getNameAsString())){
+                        if(mcExpr.getScope().isPresent() && mcExpr.getScope().get() instanceof NameExpr){
+                            NameExpr nExpr  = (NameExpr) mcExpr.getScope().get();
+                            String varName = nExpr.getNameAsString();
+                            boolean isControlleerVarName = false;
+                            for(DataNode declaredVariableDataNode: declaredVariables.keySet()){
+                                if(declaredVariables.get(declaredVariableDataNode).equals(varName)){
+                                    if(declaredControllers.values().contains(declaredVariableDataNode)){
+                                        isControlleerVarName = true;
+                                    }
+                                }
+                            }
+                            if(isControlleerVarName) {
+                                lastConsecutiveLifecylePosition = i;
+                            }
+                            else{
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if(lastConsecutiveLifecylePosition!=-1){
+                //reorder statements
+                Statement getStmt = statements.remove(getMethodCallIndex);
+                statements.add(lastConsecutiveLifecylePosition, getStmt);
+            }
+        }
     }
 
     private void generateMethodBody(MethodDeclaration testMethod, CarvedTest carvedTest) {
@@ -390,9 +454,6 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
         if (carvedTest.expectException()) {
             BlockStmt methodBody = generateBlockStmtFrom(carvedTest);
-
-            //reorder statements
-            reorderStatements(methodBody.getStatements());
 
             // Build the try statement that encapsulate the entire method body
             TryStmt tryStatement = new TryStmt();
