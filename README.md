@@ -39,6 +39,7 @@ ANDROID_JAR=~/Android/Sdk/platforms/android-29/android.jar
 
 - To carve tests, change directory to `./apps-src/BasicCalculator` and run `make carve-all`
 - To run the carved tests, run `make run-all-carved-tests`
+- To carve tests from traces in the `traces` folder run `make carve-cached-traces` 
 - To collect coverage, run:
     - For Espresso test coverage: `make coverage-espresso-tests`
     - For carved test coverage: `make coverage-carved-tests`

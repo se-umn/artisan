@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -123,7 +124,10 @@ public class Main {
 		TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
 
 		for (File traceFile : cli.getTraceFiles()) {
-
+			//avoid processing unrelated files (based on extension)
+			if(!traceFile.getAbsolutePath().endsWith(".txt")){
+				continue;
+			}
 			try {
 				TraceParser parser = new TraceParserImpl();
 				ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
@@ -135,7 +139,7 @@ public class Main {
 
 				int allCarvableTargets = targetMethodsInvocations.size();
 
-				System.out.println("Carvable targets ");
+				logger.info("Carvable targets ");
 
 				List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
 				targetMethodsInvocationsList.addAll(targetMethodsInvocations);
@@ -153,7 +157,9 @@ public class Main {
 								}
 							}
 				});
-				targetMethodsInvocationsList.forEach(System.out::println);
+				for(MethodInvocation mi:targetMethodsInvocationsList){
+					logger.info(mi.toString());
+				}
 
 				BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
 				Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
@@ -161,7 +167,7 @@ public class Main {
 
 				int carvedTargets = carvedTests.size();
 
-				System.out.println("Carved targets " + carvedTargets + " / " + allCarvableTargets);
+				logger.info("Carved targets " + carvedTargets + " / " + allCarvableTargets);
 
 				// Put each test in a separate test case
 				TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
@@ -213,7 +219,7 @@ public class Main {
 					}
 				}
 
-				System.out.println("Generated tests " + generatedTests.size() + " / " + carvedTargets);
+				logger.info("Generated tests " + generatedTests.size() + " / " + carvedTargets);
 
 			} catch (Exception e) {
 				System.err.println("Error while processing trace " + traceFile);

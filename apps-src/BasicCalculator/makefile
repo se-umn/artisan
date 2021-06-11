@@ -100,16 +100,16 @@ run-all-carved-tests : app/src/carvedTest copy-shadows
 coverage-espresso-tests :
 	export ABC_CONFIG=$(ABC_CFG) && \
 	abc start-clean-emulator && \
-	$(GW) clean jacocoGUITestCoverage && \
+	$(GW) clean jacocoGUITestCoverage -PjacocoEnabled && \
 	mkdir -p espresso-test-coverage && \
 	cp -r app/build/reports/jacoco/jacocoGUITestCoverage espresso-test-coverage && \
 	$(ABC) stop-all-emulators
 
 coverage-unit-tests :
-	$(GW) clean jacocoTestReport && \
+	$(GW) clean jacocoTestReport -PjacocoEnabled && \
 	cp -r app/build/reports/jacoco/jacocoTestsReport unit-tests-coverage
 
 coverage-carved-tests : copy-shadows
-	$(GW) jacocoUnitTestCoverage -PcarvedTests --info && \
+	$(GW) jacocoUnitTestCoverage -PcarvedTests -PjacocoEnabled --info && \
 	mkdir -p carved-test-coverage && \
 	cp -r app/build/carvedTest/coverage carved-test-coverage

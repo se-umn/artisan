@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.github.javaparser.ast.stmt.*;
 import org.apache.commons.lang.NotImplementedException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,11 +47,6 @@ import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.TypeExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
-import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.CatchClause;
-import com.github.javaparser.ast.stmt.ExpressionStmt;
-import com.github.javaparser.ast.stmt.ThrowStmt;
-import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 
 import de.unipassau.abc.data.AndroidMethodInvocation;
@@ -380,9 +376,23 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         return result;
     }
 
+    private void reorderStatements(NodeList<Statement> statements){
+        //move get after consecutive lifecycle methods
+
+    }
+
     private void generateMethodBody(MethodDeclaration testMethod, CarvedTest carvedTest) {
+        //logging
+        logger.info("Method under test:");
+        logger.info(carvedTest.getMethodUnderTest().toString());
+        logger.info("Statements:");
+        carvedTest.getStatements().forEach(methodInvocation -> logger.info(methodInvocation.toString()));
+
         if (carvedTest.expectException()) {
             BlockStmt methodBody = generateBlockStmtFrom(carvedTest);
+
+            //reorder statements
+            reorderStatements(methodBody.getStatements());
 
             // Build the try statement that encapsulate the entire method body
             TryStmt tryStatement = new TryStmt();
@@ -420,13 +430,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             testMethod.setBody(wrappedMethodBody);
 
         } else {
-            //logging
-            logger.info("Method under test:");
-            logger.info(carvedTest.getMethodUnderTest().toString());
-            logger.info("Statements:");
-            carvedTest.getStatements().forEach(methodInvocation -> logger.info(methodInvocation.toString()));
             BlockStmt methodBody = generateBlockStmtFrom(carvedTest);
-
             testMethod.setBody(methodBody);
         }
 

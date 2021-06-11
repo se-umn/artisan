@@ -46,6 +46,7 @@ public class ResultActivity extends Activity {
         /**
          * TODO The following code creates an anonym. class which access and set fields in the activity.
          */
+        //buttonshadow1.setMockFor("<android.view.View: void setOnClickListener(android.view.View$OnClickListener)>", button7);
         incrementButtonByOne.setOnClickListener(view -> {
             /**
              * This code access a field of "the outer" object (resultView). But we do not track getFields here...
