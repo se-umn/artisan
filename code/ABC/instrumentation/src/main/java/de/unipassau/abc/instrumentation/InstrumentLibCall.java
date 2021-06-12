@@ -431,7 +431,7 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
                 }
 
             } catch (Exception e) {
-                System.out.println("InstrumentLibCall.patchFindViewById() CANNOT FIND THE METHOFD ");
+                System.out.println("InstrumentLibCall.patchFindViewById() CANNOT FIND THE METHOD ");
                 e.printStackTrace();
             }
         }

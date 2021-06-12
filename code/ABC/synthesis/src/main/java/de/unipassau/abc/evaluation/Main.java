@@ -22,6 +22,8 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
+import de.unipassau.abc.instrumentation.SceneInstrumenterWithMethodParameters;
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +48,9 @@ import de.unipassau.abc.parsing.TraceParser;
 import de.unipassau.abc.parsing.TraceParserImpl;
 import de.unipassau.abc.parsing.postprocessing.AndroidParsedTraceDecorator;
 import de.unipassau.abc.parsing.postprocessing.ParsedTraceDecorator;
+import soot.*;
+import soot.jimple.infoflow.android.manifest.ProcessManifest;
+import soot.options.Options;
 
 public class Main {
 
@@ -167,10 +172,22 @@ public class Main {
 
 				int carvedTargets = carvedTests.size();
 
+//				for(SootClass sc:Scene.v().getApplicationClasses()){
+//					System.out.println(sc.getName());
+//				}
+//				SootClass sc = Scene.v().loadClassAndSupport("abc.basiccalculator.MainActivity");
+//				System.out.println(sc.getName());
+				//for(SootMethod sm: sc.getMethods()) {
+				//	System.out.println(sm.getName());
+				//}
+//				for(SootField sf:sc.getFields()){
+//					System.out.println(sf.getName());
+//				}
+
 				logger.info("Carved targets " + carvedTargets + " / " + allCarvableTargets);
 
 				// Put each test in a separate test case
-				TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+					TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
 				Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
 
 				// Write test cases to files and try to compile them
