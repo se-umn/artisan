@@ -56,6 +56,8 @@ public class Main {
 
     public static final Logger logger = LoggerFactory.getLogger(Main.class);
 
+    public static Map<Integer, String> idsInApk;
+
     public interface CLI {
         @Option(longName = "apk")
         public File getApk();
@@ -125,6 +127,7 @@ public class Main {
 		 * configuration inside static method calls
 		 */
 		ParsingUtils.setupSoot(cli.getAndroidJar(), cli.getApk());
+		idsInApk = ParsingUtils.getIdsMap(cli.getApk());
 
 		TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
 
@@ -171,18 +174,6 @@ public class Main {
 						parsedTrace);
 
 				int carvedTargets = carvedTests.size();
-
-//				for(SootClass sc:Scene.v().getApplicationClasses()){
-//					System.out.println(sc.getName());
-//				}
-//				SootClass sc = Scene.v().loadClassAndSupport("abc.basiccalculator.MainActivity");
-//				System.out.println(sc.getName());
-				//for(SootMethod sm: sc.getMethods()) {
-				//	System.out.println(sm.getName());
-				//}
-//				for(SootField sf:sc.getFields()){
-//					System.out.println(sf.getName());
-//				}
 
 				logger.info("Carved targets " + carvedTargets + " / " + allCarvableTargets);
 

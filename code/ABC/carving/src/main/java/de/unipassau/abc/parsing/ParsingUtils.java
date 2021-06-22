@@ -2,10 +2,7 @@ package de.unipassau.abc.parsing;
 
 import java.io.File;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 import de.unipassau.abc.instrumentation.SceneInstrumenterWithMethodParameters;
 import org.apache.commons.lang3.SystemUtils;
@@ -18,6 +15,8 @@ import edu.emory.mathcs.backport.java.util.Arrays;
 import soot.*;
 import soot.jimple.infoflow.android.manifest.ProcessManifest;
 import soot.options.Options;
+import soot.tagkit.IntegerConstantValueTag;
+import soot.tagkit.Tag;
 
 public class ParsingUtils {
 
@@ -46,40 +45,118 @@ public class ParsingUtils {
 		}
 	}
 
+	public static Map<Integer, String> getIdsMap(File apk) {
+		Map<Integer, String> idsInApk = new HashMap<Integer, String>();
+		//process ids from apk package first
+		String apkPackageName = "";
+		try {
+			ProcessManifest processMan = new ProcessManifest(apk.getAbsolutePath());
+			apkPackageName = processMan.getPackageName();
+		}
+		catch(Exception e){
+
+		}
+		List<SootClass> orderedClasses = new ArrayList<SootClass>();
+		for(SootClass sc:Scene.v().getApplicationClasses()){
+			orderedClasses.add(sc);
+		}
+		final String finaApkPackageName = apkPackageName;
+		if(!apkPackageName.equals("")){
+			Collections.sort(orderedClasses, new Comparator<SootClass>() {
+				@Override
+				public int compare(SootClass o1, SootClass o2) {
+					if(o1.getPackageName().equals(o2.getPackageName()) && o1.getPackageName().startsWith(finaApkPackageName)) {
+						return 0;
+					}
+					else if(o1.getPackageName().startsWith(finaApkPackageName)){
+						return -1;
+					}
+					else if(o2.getPackageName().startsWith(finaApkPackageName)){
+						return 1;
+					}
+					else{
+						return 0;
+					}
+				}
+			});
+		}
+		//process classes (first we process classes from the apk)
+		for(SootClass sc:orderedClasses){
+			String className = sc.getShortName();
+			//taken from https://developer.android.com/guide/topics/resources/available-resources
+			if(className.equals("R$id") || className.equals("R$anim") || className.equals("R$drawable")
+					|| className.equals("R$color") || className.equals("R$layout")
+					|| className.equals("R$menu") || className.equals("R$string")
+					|| className.equals("R$style") || className.equals("R$font")
+					|| className.equals("R$bool") || className.equals("R$dimen")) {
+				for(SootField sf:sc.getFields()){
+					if(sf.getType() instanceof IntType){
+						List<Tag> fieldTags = sf.getTags();
+						for(Tag fieldTag:fieldTags){
+							if(fieldTag instanceof IntegerConstantValueTag){
+								//the integer is initialized
+								IntegerConstantValueTag intTag = (IntegerConstantValueTag) fieldTag;
+								Integer value = Integer.valueOf(intTag.getIntValue());
+								if(value.intValue()==0){
+									continue;
+								}
+								//get field name
+								String fieldName = sc.getName()+"."+sf.getName();
+								if(fieldName.contains("R$")){
+									fieldName = fieldName.replace("R$","R.");
+								}
+								//check if the value is already in map
+								if(idsInApk.containsKey(value)){
+									String fieldNameInMap = idsInApk.get(value);
+									if(fieldNameInMap.contains(sf.getName())){
+										continue;
+									}
+									throw new RuntimeException("Two fields mapping to the same integer (1) "+fieldNameInMap+"="+value+" and (2) "+fieldName+"="+value);
+								}
+								//put value and field in map
+								idsInApk.put(value, fieldName);
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+		return idsInApk;
+	}
+
 	// TODO Do we really need soot to parse the trace ?
 	public static void setupSoot(File androidJar, File apk) {
-
-		System.out.println(apk.getAbsolutePath());
-		System.out.println(androidJar.getAbsolutePath());
-
 		try{
-			// Setup soot
 			G.reset();
+			// Generic options
 			Options.v().set_allow_phantom_refs(true);
-
-			// Input is an APK
-			soot.options.Options.v().set_src_prec(soot.options.Options.src_prec_apk);
-
-			// Specifiy the APK
-			List<String> necessaryJar = new ArrayList<String>();
-			necessaryJar.add(apk.getAbsolutePath());
-			Options.v().set_process_dir(necessaryJar);
-
-			//
-			// Output is an APK, too//-f J
-			Options.v().set_output_format(soot.options.Options.output_format_dex);
-			Options.v().set_force_overwrite(true);
-
-			// Specify output location
-			Options.v().set_output_dir("/tmp");
-
-			// Register our instrumentation code. We need the official appPackageName, so we
-			// get it from the APK manifest
+			Options.v().set_whole_program(true);
+			Options.v().set_prepend_classpath(true);
+			// Read (APK Dex-to-Jimple) Options
+			// get android folder from jar
+			String androidPlatformsPath = "";
+			Map<String, String> env = System.getenv();
+			for(String envKey:env.keySet()){
+				if(envKey.equals("ANDROID_HOME")){
+					androidPlatformsPath = env.get(envKey) + File.separator + "platforms";
+				}
+			}
+			if(androidPlatformsPath.equals("")){
+				String androidJarPath = androidJar.getAbsolutePath();
+				if(androidJarPath.endsWith(File.separator+"android.jar")){
+					File potentialAndroidSpecificPlatformFolder = androidJar.getParentFile();
+					if(potentialAndroidSpecificPlatformFolder.exists() && potentialAndroidSpecificPlatformFolder.getAbsolutePath().contains(File.separator+"android-")){
+						File androidPlatformsFile = potentialAndroidSpecificPlatformFolder.getParentFile();
+						if(androidPlatformsFile.exists() && androidPlatformsFile.getAbsolutePath().endsWith(File.separator+"platforms")){
+							androidPlatformsPath = androidPlatformsFile.getAbsolutePath();
+						}
+					}
+				}
+			}
+			Options.v().set_android_jars(androidPlatformsPath); // The path to Android Platforms
+			//get target sdk
 			ProcessManifest processMan = new ProcessManifest(apk.getAbsolutePath());
-			String appPackageName = processMan.getPackageName();
-
-			System.out.println("Main.main() DEBUG: MIN SDK VERSION = " + processMan.getMinSdkVersion());
-			System.out.println("Main.main() DEBUG: TARGET SDK VERSION = " + processMan.targetSdkVersion());
 			// TODO Change this using some option to force it ... or some way to automatically enable it?
 			if (processMan.getMinSdkVersion() < 22 || processMan.targetSdkVersion() < 22) {
 				// Soot breaks if the minSdkVersion is smaller than 22 because of multidex
@@ -87,37 +164,14 @@ public class ParsingUtils {
 				throw new RuntimeException(String.format("The SDK level of the APK is %d. Must be >= 22",
 						processMan.getMinSdkVersion()));
 			}
-
 			// We must set it manually, otherwise Soot will assume the default API version = 15
 			Options.v().set_android_api_version(processMan.targetSdkVersion());
-
-			Options.v().set_process_multiple_dex(true);
-
-			// This is where the instrumentation takes place.
-			//SceneInstrumenterWithMethodParameters abcInstrumentation = new SceneInstrumenterWithMethodParameters(appPackageName);
-			//abcInstrumentation.setPackageFilters(cli.getPackageFilters());
-			//PackManager.v().getPack("wjtp").add(new Transform("wjtp.mt", abcInstrumentation));
-
-			// Make sure Soot knows the classes our instrumentation will use:
-			//Scene.v().addBasicClass(utils.Constants.MONITOR_CLASS);
-			// TODO Where is this really used?
-			//Scene.v().addBasicClass("utils.logicClock");
-
-			String pathArray[] = SystemUtils.JAVA_CLASS_PATH.split(":");
-			String validPath = "";
-			for(String path:pathArray){
-				if((new File(path)).exists()){
-					validPath = validPath + path + File.pathSeparatorChar;
-				}
-			}
-			validPath = validPath + androidJar.getAbsolutePath();
-			String sootCP = validPath;
-
-			String[] sootArgs = new String[] { //
-					"-w", // This should be the same as setting the "Whole program analysis" flag
-					"-cp", sootCP }; // The classpath that Soot uses for its analysis
-//				"-debug" };
-			soot.Main.main(sootArgs);
+			Options.v().set_src_prec(Options.src_prec_apk); // Determine the input is an APK
+			Options.v().set_process_dir(Collections.singletonList(apk.getAbsolutePath())); // Provide paths to the APK
+			Options.v().set_process_multiple_dex(true);  // Inform Dexpler that the APK may have more than one .dex files
+			Options.v().set_include_all(true);
+			// Resolve required classes
+			Scene.v().loadNecessaryClasses();
 		}
 		catch(Exception e){
 			e.printStackTrace();

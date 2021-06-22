@@ -11,6 +11,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import com.github.javaparser.ast.stmt.*;
+import de.unipassau.abc.evaluation.Main;
+import de.unipassau.abc.generation.ast.visitors.DefVisitor;
+import de.unipassau.abc.generation.ast.visitors.ModVisitor;
+import de.unipassau.abc.generation.ast.visitors.UseVisitor;
 import org.apache.commons.lang.NotImplementedException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -111,6 +115,25 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
     // under test...
     private MethodInvocation methodInvocationUnderTest;
 
+    private void handleUnusedVariables(MethodDeclaration testMethod){
+        DefVisitor dv = new DefVisitor();
+        testMethod.accept(dv, null);
+        Set<String> declaredVars = dv.getDeclaredVars();
+        Set<String> unusedVars = new HashSet<String>();
+        for(String declaredVar:declaredVars){
+            UseVisitor uv = new UseVisitor();
+            testMethod.accept(uv, declaredVar);
+            boolean used = uv.isUsed();
+            if(!used){
+                unusedVars.add(declaredVar);
+            }
+        }
+        for(String unusedVar:unusedVars){
+            ModVisitor mv = new ModVisitor();
+            testMethod.accept(mv, unusedVar);
+        }
+    }
+
     public CompilationUnit generateJUnitTestCase(TestClass testCase) {
         logger.info("Generate source code for " + testCase.getName());
 
@@ -174,6 +197,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
             // Generate method body
             generateMethodBody(testMethod, carvedTest);
+            handleUnusedVariables(testMethod);
         }
 
         return cu;
@@ -670,16 +694,56 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             String referenceToViewId = referenceToR +"." + referenceToViewName;
             
             methodCallExpr.addArgument(referenceToViewId);
-        } else {
+        }
+        else if(methodInvocation.getMethodSignature().equals("<android.app.Activity: void setContentView(int)>")){
+            DataNode dataValueForInt = methodInvocation.getActualParameterInstances().get(0);
+            String dataValueString = getParameterFor(dataValueForInt, methodBody);
+            Integer integerValue = Integer.parseInt(dataValueString);
+            if(Main.idsInApk.containsKey(integerValue)){
+                methodCallExpr.addArgument(Main.idsInApk.get(integerValue));
+            }
+            else{
+                methodCallExpr.addArgument(dataValueString);
+            }
+        }
+        else if(methodInvocation.getMethodSignature().equals("<org.mockito.Mockito: org.mockito.stubbing.Stubber doReturn(java.lang.Object)>")){
+            DataNode dataValue = methodInvocation.getActualParameterInstances().get(0);
+            if(dataValue.getType()!=null && dataValue.getType().equals("int")){
+                String dataValueString = getParameterFor(dataValue, methodBody);
+                Integer integerValue = Integer.parseInt(dataValueString);
+                if(Main.idsInApk.containsKey(integerValue)){
+                    methodCallExpr.addArgument(Main.idsInApk.get(integerValue));
+                }
+                else{
+                    if (dataValue instanceof PlaceholderDataNode) {
+                        PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) dataValue;
+                        String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
+                        methodCallExpr.addArgument(variable);
+                    } else {
+                        methodCallExpr.addArgument(getParameterFor(dataValue, methodBody));
+                    }
+                }
+            }
+            else{
+                if (dataValue instanceof PlaceholderDataNode) {
+                    PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) dataValue;
+                    String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
+                    methodCallExpr.addArgument(variable);
+                } else {
+                    methodCallExpr.addArgument(getParameterFor(dataValue, methodBody));
+                }
+            }
+        }
+        else {
             for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
                 if (parameter instanceof PlaceholderDataNode) {
                     PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
                     String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
+                    System.out.println(variable);
                     methodCallExpr.addArgument(variable);
                 } else {
                     methodCallExpr.addArgument(getParameterFor(parameter, methodBody));
                 }
-
             }
         }
 

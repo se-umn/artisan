@@ -9,6 +9,7 @@ import java.util.ListIterator;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import de.unipassau.abc.evaluation.Main;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +49,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import soot.jimple.StaticFieldRef;
 
 public class BasicTestGenerator implements TestGenerator {
 
@@ -319,8 +321,6 @@ public class BasicTestGenerator implements TestGenerator {
 			// How do we tell that we want to catch that specific exception?
 			ObjectInstance expectedException = methodInvocationUnderTest.getRaisedException();
 
-			///
-
 			ExecutionFlowGraph expectedExceptionCatchBlockExecutionFlowGraph = new ExecutionFlowGraphImpl();
 			DataDependencyGraph expectedExceptionCatchBlockDataDependencyGraph = new DataDependencyGraphImpl();
 
@@ -454,7 +454,6 @@ public class BasicTestGenerator implements TestGenerator {
 								carvedExecution);
 						carvedTest.addAssertion(returnValueAssertion);
 					}
-
 				}
 			}
 		}
