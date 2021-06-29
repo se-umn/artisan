@@ -15,6 +15,8 @@ import de.unipassau.abc.evaluation.Main;
 import de.unipassau.abc.generation.ast.visitors.DefVisitor;
 import de.unipassau.abc.generation.ast.visitors.ModVisitor;
 import de.unipassau.abc.generation.ast.visitors.UseVisitor;
+import de.unipassau.abc.generation.mocks.CarvingShadow;
+import de.unipassau.abc.generation.shadowwriter.ShadowWriter;
 import org.apache.commons.lang.NotImplementedException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -152,6 +154,13 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 //		ClassOrInterfaceType carvedCategoryAnnotation = parseClassOrInterfaceType(ABC_CATEGORY);
 //		testClass.addSingleMemberAnnotation(Category.class, carvedCategoryAnnotation.getNameAsString() + ".class");
 
+        //adding import for shadows
+        for (CarvedTest carvedTest : testCase.getCarvedTests()) {
+            for(CarvingShadow cs:carvedTest.getShadows()){
+                cu.addImport(ShadowWriter.SHADOWS_PACKAGE+"."+cs.getShadowName());
+            }
+        }
+
         // If any of the tests in this test case requires a specific runner we need to
         // add it to the class
         boolean requiresRobolectricTestRunner = false;
@@ -162,6 +171,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             }
         }
 
+
         if (requiresRobolectricTestRunner) {
             // https://stackoverflow.com/questions/36082370/i-need-both-robolectric-and-mockito-in-my-test-each-one-proposes-their-own-test
             cu.addImport(RobolectricTestRunner.class);
@@ -169,7 +179,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             testClass.addSingleMemberAnnotation(RunWith.class, robolectricTestRunner.getNameAsString() + ".class");
             Set<String> shadowTypes = new HashSet<>();
             testCase.getCarvedTests()
-                    .forEach(test -> test.getShadows().forEach(shadow -> shadowTypes.addAll(shadow.types)));
+                    .forEach(test -> test.getShadowsNames().forEach(shadow -> shadowTypes.add(shadow)));
             if (!shadowTypes.isEmpty()) {
                 List<Expression> shadowClasses = shadowTypes.stream().map(s -> new ClassOrInterfaceType(null, s))
                         .map(ClassExpr::new).collect(Collectors.toList());
@@ -739,7 +749,6 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                 if (parameter instanceof PlaceholderDataNode) {
                     PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
                     String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
-                    System.out.println(variable);
                     methodCallExpr.addArgument(variable);
                 } else {
                     methodCallExpr.addArgument(getParameterFor(parameter, methodBody));

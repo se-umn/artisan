@@ -89,7 +89,7 @@ copy-shadows :
 	cp -v ./shadows/*.java app/src/carvedTest/abc/basiccalculator
 
 # DO WE NEED THE SAME APPROACH AS ESPRESSO TESTS?
-run-all-carved-tests : app/src/carvedTest copy-shadows
+run-all-carved-tests : app/src/carvedTest
 	
 	$(GW) clean testDebugUnitTest -PcarvedTests | tee carvedTests.log
 
@@ -109,7 +109,7 @@ coverage-unit-tests :
 	$(GW) clean jacocoTestReport -PjacocoEnabled && \
 	cp -r app/build/reports/jacoco/jacocoTestsReport unit-tests-coverage
 
-coverage-carved-tests : copy-shadows
+coverage-carved-tests :
 	$(GW) jacocoUnitTestCoverage -PcarvedTests -PjacocoEnabled --info && \
 	mkdir -p carved-test-coverage && \
 	cp -r app/build/carvedTest/coverage carved-test-coverage

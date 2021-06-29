@@ -8,13 +8,27 @@ import de.unipassau.abc.data.ExecutionFlowGraph;
 
 public class CarvingShadow {
 
-	public final List<String> types;
-	public final List<ExecutionFlowGraph> executionFlowGraphs;
-	public final List<DataDependencyGraph> dataDependencyGraphs;
+	private String stubbedType;
+	private List<String> stubbedMethods;
+	private String shadowName;
 
-	public CarvingShadow() {
-		types = new ArrayList<>();
-		executionFlowGraphs = new ArrayList<>();
-		dataDependencyGraphs = new ArrayList<>();
+	public CarvingShadow(String stubbedType, String stubbedName) {
+		this.stubbedType = stubbedType;
+		this.stubbedMethods = new ArrayList<String>();
+		this.shadowName = stubbedName;
 	}
+
+	public String getStubbedType() {
+		return stubbedType;
+	}
+
+	public List<String> getStubbedMethods() {
+		return stubbedMethods;
+	}
+
+	public String getShadowName() {
+		return shadowName;
+	}
+
+
 }

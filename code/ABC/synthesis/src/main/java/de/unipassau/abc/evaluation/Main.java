@@ -22,6 +22,10 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
+import com.github.javaparser.ast.Modifier;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import de.unipassau.abc.generation.mocks.CarvingShadow;
+import de.unipassau.abc.generation.shadowwriter.ShadowWriter;
 import de.unipassau.abc.instrumentation.SceneInstrumenterWithMethodParameters;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
@@ -228,6 +232,12 @@ public class Main {
 				}
 
 				logger.info("Generated tests " + generatedTests.size() + " / " + carvedTargets);
+
+
+				logger.info("Generating shadows");
+				//generate shadows needed for test cases
+				ShadowWriter shadowWriter = new ShadowWriter();
+				shadowWriter.generateAndWriteShadows(sortedTestSuiteList, sourceFolder);
 
 			} catch (Exception e) {
 				System.err.println("Error while processing trace " + traceFile);

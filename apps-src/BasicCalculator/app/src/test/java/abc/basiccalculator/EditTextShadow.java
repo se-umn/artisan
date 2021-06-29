@@ -12,7 +12,7 @@ import org.robolectric.shadows.ShadowTextView;
 import java.util.HashMap;
 import java.util.Map;
 
-@Implements(EditText.class)
+@Implements(value=EditText.class)
 public class EditTextShadow extends ShadowTextView {
 
     private Map<String, EditText> mockedCalls = new HashMap<>();

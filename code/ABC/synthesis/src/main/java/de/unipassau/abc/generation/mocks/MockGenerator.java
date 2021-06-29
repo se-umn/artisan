@@ -33,6 +33,7 @@ import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.data.CarvedTest;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
 import soot.jimple.Jimple;
+import soot.jimple.StringConstant;
 
 public class MockGenerator {
 
@@ -41,6 +42,7 @@ public class MockGenerator {
     private static final String WHEN_SIGNATURE = "<org.mockito.stubbing.Stubber: java.lang.Object when(java.lang.Object)>";
     private static final String EXTRACT_SIGNATURE = "<org.robolectric.shadow.api.Shadow: java.lang.Object extract(java.lang.Object)>";
     private static final String SET_SIGNATURE = "<java.lang.Object: void setMockFor(java.lang.String,java.lang.Object)>";
+    private static final String STRICT_SIGNATURE = "<java.lang.Object: void setStrictShadow()>";
 
     private AtomicInteger id = new AtomicInteger(-1000000);
 
@@ -58,11 +60,6 @@ public class MockGenerator {
         ExecutionFlowGraph carvedTestExecutionFlowGraph = carvedTest.getExecutionFlowGraph();
         DataDependencyGraph carvedTestDataDependencyGraph = carvedTest.getDataDependencyGraph();
         MethodInvocation methodInvocationUnderTest = carvedTest.getMethodUnderTest();
-
-        //This is where we keep track of the shadows we have generated for the carved test
-        CarvingShadow carvingShadow = new CarvingShadow();
-        // Add to the carved Test
-        carvedTest.addShadow(carvingShadow );
         
         List<MockInfo> mockInfoList = new ArrayList<MockInfo>();
 
@@ -443,14 +440,11 @@ public class MockGenerator {
                 continue;
             }
 
-            String shadowType = returnValue.getType().split("\\.")[returnValue.getType().split("\\.").length - 1] + "Shadow";
+            String shadowType = "ABC" + returnValue.getType().split("\\.")[returnValue.getType().split("\\.").length - 1] + "Shadow";
             ObjectInstance extractReturn = ObjectInstanceFactory.get(String.format("%s@%d", shadowType, id.getAndIncrement()));
+            CarvingShadow carvingShadow = new CarvingShadow(returnValue.getType(), shadowType);
+            carvedTest.addShadow(carvingShadow);
 
-            // Accumulate the shadowTypes
-//            carvingShadow.add
-            
-            
-            carvingShadow.types.add( shadowType );
             
             MethodInvocation extractShadow = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), EXTRACT_SIGNATURE);
 
@@ -495,6 +489,22 @@ public class MockGenerator {
                 carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(setShadow, mockClassTarget, 1);
                 // handle calls to shadow
                 callSet.add(setShadow);
+
+
+                MethodInvocation strictShadow = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), STRICT_SIGNATURE);
+                strictShadow.setOwner(extractReturn);
+                strictShadow.setActualParameterInstances(Arrays.asList());
+
+                carvedTestExecutionFlowGraph.enqueueMethodInvocations(strictShadow);
+
+                carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(strictShadow);
+                // handle calls to shadow
+                callSet.add(strictShadow);
+
+                if(setShadowParameter instanceof PrimitiveValue){
+                    PrimitiveValue pv = (PrimitiveValue) setShadowParameter;
+                    carvingShadow.getStubbedMethods().add(pv.toString().replaceAll("\"",""));
+                }
             }
             shadowInfoList.add(new ShadowInfo(extractShadow, callSet));
             shadowSequenceList.add(new ShadowSequence(targetCall, extractShadow, callSet));
