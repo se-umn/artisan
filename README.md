@@ -44,6 +44,7 @@ ANDROID_JAR=~/Android/Sdk/platforms/android-29/android.jar
     - For carved test coverage: `make coverage-carved-tests`
 
 # Benchmark applications
+Each of the forks has a branch named `abc`, which is the one prepared for benchmarking. The branch has the state of the listed tag/commit. 
 
 | Name              | Tag/Commit                               | Fork                                         | .. |
 |-------------------|------------------------------------------|----------------------------------------------|----|
@@ -58,7 +59,13 @@ ANDROID_JAR=~/Android/Sdk/platforms/android-29/android.jar
 | Debt-Manager      | 696886e3fed6152668e41d802c97dd49c36df1a9 | https://github.com/foxycom/Debt-Manager      |    |
 | FifthElement      | d010a42884fd91f9cfcc62ff963a044b4156355f | https://github.com/foxycom/FifthElement      |    |
 | Calculator        | v2.1                                     | https://github.com/foxycom/Calculator        |    |
-| bird-monitor      | 2.3.1                                    | https://github.com/foxycom/filemanager       |    |
-|                   |                                          |                                              |    |
-|                   |                                          |                                              |    |
-|                   |                                          |                                              |    |
+| bird-monitor      | 2.3.1                                    | https://github.com/foxycom/bird-monitor      |    |
+| toposuite-android | v1.3.0                                   | https://github.com/foxycom/toposuite-android |    |
+| lo1olkusz         | v1.0.0                                   | https://github.com/foxycom/lo1olkusz         |    |
+| download-navi     | 1.4                                      | https://github.com/foxycom/download-navi     |    |
+| probe-android     | 31872f81abcc9dba9c60aa1524fc276549087b10 | https://github.com/foxycom/probe-android     |    |
+| todoagenda        | 4f205cf2efa5c0513b48d1c379d1a0cc655afb31 | https://github.com/foxycom/todoagenda        |    |
+| MySteamGames      | a6cd5df51c5ad36d2f7f9d8d783e65ce2d55e676 | https://github.com/foxycom/MySteamGames      |    |
+| nzsl-dictionary-android  | 3f4c7b6aca0f1dc6d6e9c48941d2b95e1aaeb5c4 | https://github.com/foxycom/nzsl-dictionary-android  |    |
+
+
