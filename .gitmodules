@@ -1,0 +1,3 @@
+[submodule "apps-src/UK-Gebaerden_Muensterland"]
+	path = apps-src/UK-Gebaerden_Muensterland
+	url = https://github.com/foxycom/UK-Gebaerden_Muensterland
