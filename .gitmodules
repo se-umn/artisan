@@ -34,3 +34,6 @@
 [submodule "apps-src/Calculator"]
 	path = apps-src/Calculator
 	url = https://github.com/foxycom/Calculator
+[submodule "apps-src/bird-monitor"]
+	path = apps-src/bird-monitor
+	url = https://github.com/foxycom/bird-monitor
