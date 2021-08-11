@@ -49,3 +49,6 @@
 [submodule "apps-src/probe-android"]
 	path = apps-src/probe-android
 	url = https://github.com/foxycom/probe-android
+[submodule "apps-src/todoagenda"]
+	path = apps-src/todoagenda
+	url = https://github.com/foxycom/todoagenda
