@@ -25,3 +25,6 @@
 [submodule "apps-src/gnucash-android"]
 	path = apps-src/gnucash-android
 	url = https://github.com/foxycom/gnucash-android
+[submodule "apps-src/Debt-Manager"]
+	path = apps-src/Debt-Manager
+	url = https://github.com/foxycom/Debt-Manager
