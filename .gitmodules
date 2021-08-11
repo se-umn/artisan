@@ -13,3 +13,6 @@
 [submodule "apps-src/moneywallet"]
 	path = apps-src/moneywallet
 	url = https://github.com/foxycom/moneywallet
+[submodule "apps-src/PrismaCallBlocker"]
+	path = apps-src/PrismaCallBlocker
+	url = https://github.com/foxycom/PrismaCallBlocker
