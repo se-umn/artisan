@@ -46,3 +46,6 @@
 [submodule "apps-src/download-navi"]
 	path = apps-src/download-navi
 	url = https://github.com/foxycom/download-navi
+[submodule "apps-src/probe-android"]
+	path = apps-src/probe-android
+	url = https://github.com/foxycom/probe-android
