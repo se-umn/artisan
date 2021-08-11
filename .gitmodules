@@ -37,3 +37,6 @@
 [submodule "apps-src/bird-monitor"]
 	path = apps-src/bird-monitor
 	url = https://github.com/foxycom/bird-monitor
+[submodule "apps-src/toposuite-android"]
+	path = apps-src/toposuite-android
+	url = https://github.com/foxycom/toposuite-android
