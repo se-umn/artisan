@@ -22,3 +22,6 @@
 [submodule "apps-src/Earthquake-Report"]
 	path = apps-src/Earthquake-Report
 	url = https://github.com/foxycom/Earthquake-Report
+[submodule "apps-src/gnucash-android"]
+	path = apps-src/gnucash-android
+	url = https://github.com/foxycom/gnucash-android
