@@ -55,3 +55,6 @@
 [submodule "apps-src/MySteamGames"]
 	path = apps-src/MySteamGames
 	url = https://github.com/foxycom/MySteamGames
+[submodule "apps-src/nzsl-dictionary-android"]
+	path = apps-src/nzsl-dictionary-android
+	url = https://github.com/foxycom/nzsl-dictionary-android
