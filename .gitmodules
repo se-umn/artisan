@@ -10,3 +10,6 @@
 [submodule "apps-src/blabbertabber"]
 	path = apps-src/blabbertabber
 	url = https://github.com/foxycom/blabbertabber.git
+[submodule "apps-src/moneywallet"]
+	path = apps-src/moneywallet
+	url = https://github.com/foxycom/moneywallet
