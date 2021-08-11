@@ -31,3 +31,6 @@
 [submodule "apps-src/FifthElement"]
 	path = apps-src/FifthElement
 	url = https://github.com/foxycom/FifthElement
+[submodule "apps-src/Calculator"]
+	path = apps-src/Calculator
+	url = https://github.com/foxycom/Calculator
