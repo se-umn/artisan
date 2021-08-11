@@ -52,3 +52,6 @@
 [submodule "apps-src/todoagenda"]
 	path = apps-src/todoagenda
 	url = https://github.com/foxycom/todoagenda
+[submodule "apps-src/MySteamGames"]
+	path = apps-src/MySteamGames
+	url = https://github.com/foxycom/MySteamGames
