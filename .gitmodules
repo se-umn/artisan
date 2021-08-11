@@ -28,3 +28,6 @@
 [submodule "apps-src/Debt-Manager"]
 	path = apps-src/Debt-Manager
 	url = https://github.com/foxycom/Debt-Manager
+[submodule "apps-src/FifthElement"]
+	path = apps-src/FifthElement
+	url = https://github.com/foxycom/FifthElement
