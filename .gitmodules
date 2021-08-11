@@ -40,3 +40,6 @@
 [submodule "apps-src/toposuite-android"]
 	path = apps-src/toposuite-android
 	url = https://github.com/foxycom/toposuite-android
+[submodule "apps-src/lo1olkusz"]
+	path = apps-src/lo1olkusz
+	url = https://github.com/foxycom/lo1olkusz
