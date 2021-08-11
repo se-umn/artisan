@@ -16,3 +16,6 @@
 [submodule "apps-src/PrismaCallBlocker"]
 	path = apps-src/PrismaCallBlocker
 	url = https://github.com/foxycom/PrismaCallBlocker
+[submodule "apps-src/Kore"]
+	path = apps-src/Kore
+	url = https://github.com/foxycom/Kore
