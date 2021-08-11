@@ -43,3 +43,6 @@
 [submodule "apps-src/lo1olkusz"]
 	path = apps-src/lo1olkusz
 	url = https://github.com/foxycom/lo1olkusz
+[submodule "apps-src/download-navi"]
+	path = apps-src/download-navi
+	url = https://github.com/foxycom/download-navi
