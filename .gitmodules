@@ -7,3 +7,6 @@
 [submodule "apps-src/Omni-Notes"]
 	path = apps-src/Omni-Notes
 	url = https://github.com/foxycom/Omni-Notes
+[submodule "apps-src/blabbertabber"]
+	path = apps-src/blabbertabber
+	url = https://github.com/foxycom/blabbertabber.git
