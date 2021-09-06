@@ -63,21 +63,42 @@ public class ShadowWriter {
             cu.setPackageDeclaration(ShadowWriter.SHADOWS_PACKAGE);
             ClassOrInterfaceDeclaration shadowClass = cu.addClass(shadowName);
             shadowClass.setModifiers(Modifier.Keyword.PUBLIC);
+            // this is the class the shadow shadows
             ClassOrInterfaceType shadowedType = new ClassOrInterfaceType();
+            // we can convert a shadow name to a real class name via the
+            // shadowToType map
             shadowedType.setName(shadowToType.get(shadowName));
+            // System.out.println("Target super class:" + getSuperClass(shadowToType.get(shadowName)));
+            // System.out.println("Target super class attempt two:" + getSuperClass(shadowedType.getNameAsString()));
             String superType = getSuperClass(shadowedType.getNameAsString());
+
+            String possiblyOffensiveSuperType = superType.replaceAll("^org\\.robolectric\\.shadows\\.Shadow", "");
+
+            System.out.println(possiblyOffensiveSuperType);
+
+            Set<Map.Entry<String, String>> traversableShadowMappings = shadowToType.entrySet();
+
+            System.out.println(traversableShadowMappings);
+
+            for (Map.Entry<String, String> shadowAndClass : traversableShadowMappings) {
+                if (shadowAndClass.getValue().contains(possiblyOffensiveSuperType) && !shadowedType.getNameAsString().contains(possiblyOffensiveSuperType)) {
+                    superType = shadowAndClass.getKey();
+                }
+            }
+
             //set super type if any
             if(!superType.equals("")){
                 ClassOrInterfaceType superTypeClass = new ClassOrInterfaceType();
                 superTypeClass.setName(superType);
                 NodeList<ClassOrInterfaceType> superTypeClasses = new NodeList<ClassOrInterfaceType>();
                 superTypeClasses.add(superTypeClass);
+                // we set the class to extend (and currently break the inheritance hierarchy) here
                 shadowClass.setExtendedTypes(superTypeClasses);
             }
             //add annotation for class
             NormalAnnotationExpr implementsAnnotation = new NormalAnnotationExpr(
                     new Name("org.robolectric.annotation.Implements"),NodeList.nodeList(
-                    new MemberValuePair("value", new ClassExpr(shadowedType))));
+                        new MemberValuePair("value", new ClassExpr(shadowedType))));
             shadowClass.addAnnotation(implementsAnnotation);
             //create field for real object
             FieldDeclaration realObjectField = shadowClass.addField(shadowedType,"realObject", Modifier.Keyword.PRIVATE);
