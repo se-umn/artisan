@@ -28,7 +28,7 @@ clean-all :
 
 app-original.apk : 
 	export ABC_CONFIG=$(ABC_CFG) && \
-	$(GW) assembleDebug && \
+	$(GW) -PjacocoEnabled=false assembleDebug && \
 	mv app/build/outputs/apk/debug/app-debug.apk . && \
 	$(ABC) sign-apk app-debug.apk && \
 	mv -v app-debug.apk app-original.apk
@@ -97,19 +97,19 @@ run-all-carved-tests : app/src/carvedTest copy-shadows
 ### Coverage targets
 ### ### ### ### ### ### ### 
 
-coverage-espresso-tests :
+coverage-espresso-tests : 
 	export ABC_CONFIG=$(ABC_CFG) && \
 	abc start-clean-emulator && \
-	$(GW) clean jacocoGUITestCoverage && \
+	$(GW) -PjacocoEnabled=true clean jacocoGUITestCoverage && \
 	mkdir -p espresso-test-coverage && \
 	cp -r app/build/reports/jacoco/jacocoGUITestCoverage espresso-test-coverage && \
 	$(ABC) stop-all-emulators
 
 coverage-unit-tests :
-	$(GW) clean jacocoTestReport && \
+	$(GW) -PjacocoEnabled=true clean jacocoTestReport && \
 	cp -r app/build/reports/jacoco/jacocoTestsReport unit-tests-coverage
 
 coverage-carved-tests : copy-shadows
-	$(GW) jacocoUnitTestCoverage -PcarvedTests --info && \
+	$(GW) -PjacocoEnabled=true jacocoUnitTestCoverage -PcarvedTests --info && \
 	mkdir -p carved-test-coverage && \
 	cp -r app/build/carvedTest/coverage carved-test-coverage
