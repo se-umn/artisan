@@ -1132,6 +1132,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
         methodStartParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
 
         // Object[] methodParameters
+        // Make sure that if a parameter is null, we do not trace it as void@0 but we use the formal parameter of the method
         List<Local> parameterList = currentlyInstrumentedMethodBody.getParameterLocals();
         Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter.generateParameterArrayFromParametersLocal(
                 RefType.v("java.lang.Object"), parameterList, currentlyInstrumentedMethodBody);

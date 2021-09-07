@@ -928,8 +928,8 @@ public class Monitor {
                         String arrayType = getArrayType(formalParametersType[i], formalParametersType[i]);
                         content.append(arrayType + "[]" + "@" + System.identityHashCode(objects[i]));
                     } else {
-                        // Use the formal type for null objects and @0 to indicate null value
-                        content.append(extractReturnType(method) + "@" + "0");
+                        // Use the formal type for null parameter and @0 to indicate null value
+                        content.append(formalParametersType[i] + "@" + "0");
                     }
                 } else {
                     /*
