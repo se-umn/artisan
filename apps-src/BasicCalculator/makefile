@@ -17,13 +17,13 @@ clean-gradle :
 	$(GW) clean
 
 clean-all :
-	rm -v *.apk
-	rm -v *.log
-	rm -v *.testlog
-	rm -rv .traced
-	rm -rv traces
-	rm -rv app/src/carvedTest
-	rm -rv espresso-tests-coverage unit-tests-coverage carved-test-coverage
+	$(RM) -v *.apk
+	$(RM) -v *.log
+	$(RM) -v *.testlog
+	$(RM) -rv .traced
+	$(RM) -rv traces
+	$(RM) -rv app/src/carvedTest
+	$(RM) -rv espresso-tests-coverage unit-tests-coverage carved-test-coverage
 
 
 app-original.apk : 
