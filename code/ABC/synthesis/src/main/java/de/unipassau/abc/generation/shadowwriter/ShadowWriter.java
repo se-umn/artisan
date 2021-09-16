@@ -68,8 +68,8 @@ public class ShadowWriter {
             // we can convert a shadow name to a real class name via the
             // shadowToType map
             shadowedType.setName(shadowToType.get(shadowName));
-            // System.out.println("Target super class:" + getSuperClass(shadowToType.get(shadowName)));
-            // System.out.println("Target super class attempt two:" + getSuperClass(shadowedType.getNameAsString()));
+             System.out.println("Target super class:" + getSuperClass(shadowToType.get(shadowName)));
+             System.out.println("Target super class attempt two:" + getSuperClass(shadowedType.getNameAsString()));
             String superType = getSuperClass(shadowedType.getNameAsString());
 
             String possiblyOffensiveSuperType = superType.replaceAll("^org\\.robolectric\\.shadows\\.Shadow", "");
@@ -203,9 +203,22 @@ public class ShadowWriter {
                 BlockStmt throwBlockStmt = new BlockStmt();
                 throwBlockStmt.addStatement(throwStmt);
                 strictIf.setThenStmt(throwBlockStmt);
+                                
                 NodeList<Expression> directlyOnArgs = new NodeList<Expression>();
                 directlyOnArgs.add(realObjectField.getVariable(0).getNameAsExpression());
-                directlyOnArgs.add(new ClassExpr(shadowedType));
+
+                // Ensure that when we call directlyOn we cast the first argument to the class that indeed DEFINE the method
+                // You can check the method signature: for example, <android.view.View: void setOnClickListener(android.view.View$OnClickListener)>
+                // Means that we need specify as second parameter of directlyOn the following class: android.view.View.class
+
+                // Extract the class name from the methodSignature
+                String shadowedTypeDeclaringTheMethodName = JimpleUtils.getClassNameForMethod(methodSignature);
+                // Define the AST element to host the class reference
+                ClassOrInterfaceType shadowedTypeDeclaringTheMethod = new ClassOrInterfaceType();
+                shadowedTypeDeclaringTheMethod.setName(shadowedTypeDeclaringTheMethodName);
+                // Use it as second argument of directlyOn
+                directlyOnArgs.add(new ClassExpr(shadowedTypeDeclaringTheMethod));
+                
                 MethodCallExpr directlyOnExpr = new MethodCallExpr(new NameExpr("org.robolectric.shadow.api.Shadow"),"directlyOn", directlyOnArgs);
                 NodeList<Expression> methodCallOfDirectlyOnExprArguments = new NodeList<Expression>();
                 for(int i=0; i<parameterTypeList.size(); ++i) {
