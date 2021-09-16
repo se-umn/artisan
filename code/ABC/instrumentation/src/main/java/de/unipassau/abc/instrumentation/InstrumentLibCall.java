@@ -226,16 +226,11 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
         String invokedMethodSignatureOrPatchedMethodSignature = invokedMethodSignature;
 
         if (invokedMethodSignature.equals("<android.app.Activity: android.view.View findViewById(int)>")) {
-
-            System.out.println("InstrumentLibCall.wrapLibraryInvocationIfAny() ");
-            //
             // We need to get the class of the "currentlyInstrumentedMethodBody" and check
             // if it can also invoke getResources()
             // This method works via side-effects !
             invokedMethodSignatureOrPatchedMethodSignature = patchFindViewById(invokedMethod, //
                     instrumentationCodeBefore, invokeExpr, csOwner, monitorOnLibCallParameters);
-            
-
         } else {
             monitorOnLibCallParameters.add(csOwner);
 
@@ -431,7 +426,7 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
                 }
 
             } catch (Exception e) {
-                System.out.println("InstrumentLibCall.patchFindViewById() CANNOT FIND THE METHOD ");
+                System.out.println("InstrumentLibCall.patchFindViewById() CANNOT FIND " + getResourcesMethod + " METHOD ");
                 e.printStackTrace();
             }
         }
@@ -443,16 +438,17 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
         // TODO First check for the method and only after it apply the patch !
         if (getResourcesMethod == null) {
             System.out.println("InstrumentLibCall.patchFindViewById() CANNOT FIND THE METHOD ! GIVING UP?!");
-
-            actualMethodSignature =  currentlyInstrumentedMethod.getSignature();
+            
+            // We just instrument this method normally. #FIX #241 we must return the original signature of the invoked method, not its container!
+            actualMethodSignature =  invokedMethod.getSignature();
             
             monitorOnLibCallParameters.add(csOwner);
 
             // Patched methodSignature
             monitorOnLibCallParameters.add(StringConstant.v(invokedMethod.getSignature()));
 
-            // String Context
-            monitorOnLibCallParameters.add(StringConstant.v(actualMethodSignature));
+            // String Context FIX #241 the context of the invoked method is the currentlyInstrumentedMethod
+            monitorOnLibCallParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
 
             /*
              * Object[] methodParameters - We need to wrap this into an array of objects

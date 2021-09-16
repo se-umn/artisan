@@ -147,11 +147,13 @@ public class Main {
 				ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
 
 				MethodInvocationSearcher mis = new MethodInvocationSearcher();
-				Set<MethodInvocation> targetMethodsInvocations = mis.findAllCarvableMethodInvocations(parsedTrace);
+//				Set<MethodInvocation> targetMethodsInvocations = mis.findAllCarvableMethodInvocations(parsedTrace);
+				Set<MethodInvocation> targetMethodsInvocations = mis.findUniqueCarvableMethodInvocations(parsedTrace);
+			
 
 				int allCarvableTargets = targetMethodsInvocations.size();
 
-				logger.info("Carvable targets ");
+				logger.info("Carvable targets from trace file " + traceFile );
 
 				List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
 				targetMethodsInvocationsList.addAll(targetMethodsInvocations);

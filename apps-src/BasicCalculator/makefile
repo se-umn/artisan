@@ -17,18 +17,18 @@ clean-gradle :
 	$(GW) clean
 
 clean-all :
-	rm -v *.apk
-	rm -v *.log
-	rm -v *.testlog
-	rm -rv .traced
-	rm -rv traces
-	rm -rv app/src/carvedTest
-	rm -rv espresso-tests-coverage unit-tests-coverage carved-test-coverage
+	$(RM) -v *.apk
+	$(RM) -v *.log
+	$(RM) -v *.testlog
+	$(RM) -rv .traced
+	$(RM) -rv traces
+	$(RM) -rv app/src/carvedTest
+	$(RM) -rv espresso-tests-coverage unit-tests-coverage carved-test-coverage
 
 
 app-original.apk : 
 	export ABC_CONFIG=$(ABC_CFG) && \
-	$(GW) assembleDebug && \
+	$(GW) -PjacocoEnabled=false assembleDebug && \
 	mv app/build/outputs/apk/debug/app-debug.apk . && \
 	$(ABC) sign-apk app-debug.apk && \
 	mv -v app-debug.apk app-original.apk
@@ -97,19 +97,19 @@ run-all-carved-tests : app/src/carvedTest
 ### Coverage targets
 ### ### ### ### ### ### ### 
 
-coverage-espresso-tests :
+coverage-espresso-tests : 
 	export ABC_CONFIG=$(ABC_CFG) && \
 	abc start-clean-emulator && \
-	$(GW) clean jacocoGUITestCoverage -PjacocoEnabled && \
+	$(GW) -PjacocoEnabled=true clean jacocoGUITestCoverage && \
 	mkdir -p espresso-test-coverage && \
 	cp -r app/build/reports/jacoco/jacocoGUITestCoverage espresso-test-coverage && \
 	$(ABC) stop-all-emulators
 
 coverage-unit-tests :
-	$(GW) clean jacocoTestReport -PjacocoEnabled && \
+	$(GW) -PjacocoEnabled=true clean jacocoTestReport && \
 	cp -r app/build/reports/jacoco/jacocoTestsReport unit-tests-coverage
 
-coverage-carved-tests :
-	$(GW) jacocoUnitTestCoverage -PcarvedTests -PjacocoEnabled --info && \
+coverage-carved-tests : 
+	$(GW) -PjacocoEnabled=true jacocoUnitTestCoverage -PcarvedTests --info && \
 	mkdir -p carved-test-coverage && \
 	cp -r app/build/carvedTest/coverage carved-test-coverage

@@ -1,3 +1,60 @@
 [submodule "apps-src/UK-Gebaerden_Muensterland"]
 	path = apps-src/UK-Gebaerden_Muensterland
 	url = https://github.com/foxycom/UK-Gebaerden_Muensterland
+[submodule "apps-src/AnyMemo"]
+	path = apps-src/AnyMemo
+	url = https://github.com/foxycom/AnyMemo
+[submodule "apps-src/Omni-Notes"]
+	path = apps-src/Omni-Notes
+	url = https://github.com/foxycom/Omni-Notes
+[submodule "apps-src/blabbertabber"]
+	path = apps-src/blabbertabber
+	url = https://github.com/foxycom/blabbertabber.git
+[submodule "apps-src/moneywallet"]
+	path = apps-src/moneywallet
+	url = https://github.com/foxycom/moneywallet
+[submodule "apps-src/PrismaCallBlocker"]
+	path = apps-src/PrismaCallBlocker
+	url = https://github.com/foxycom/PrismaCallBlocker
+[submodule "apps-src/Kore"]
+	path = apps-src/Kore
+	url = https://github.com/foxycom/Kore
+[submodule "apps-src/Earthquake-Report"]
+	path = apps-src/Earthquake-Report
+	url = https://github.com/foxycom/Earthquake-Report
+[submodule "apps-src/gnucash-android"]
+	path = apps-src/gnucash-android
+	url = https://github.com/foxycom/gnucash-android
+[submodule "apps-src/Debt-Manager"]
+	path = apps-src/Debt-Manager
+	url = https://github.com/foxycom/Debt-Manager
+[submodule "apps-src/FifthElement"]
+	path = apps-src/FifthElement
+	url = https://github.com/foxycom/FifthElement
+[submodule "apps-src/Calculator"]
+	path = apps-src/Calculator
+	url = https://github.com/foxycom/Calculator
+[submodule "apps-src/bird-monitor"]
+	path = apps-src/bird-monitor
+	url = https://github.com/foxycom/bird-monitor
+[submodule "apps-src/toposuite-android"]
+	path = apps-src/toposuite-android
+	url = https://github.com/foxycom/toposuite-android
+[submodule "apps-src/lo1olkusz"]
+	path = apps-src/lo1olkusz
+	url = https://github.com/foxycom/lo1olkusz
+[submodule "apps-src/download-navi"]
+	path = apps-src/download-navi
+	url = https://github.com/foxycom/download-navi
+[submodule "apps-src/probe-android"]
+	path = apps-src/probe-android
+	url = https://github.com/foxycom/probe-android
+[submodule "apps-src/todoagenda"]
+	path = apps-src/todoagenda
+	url = https://github.com/foxycom/todoagenda
+[submodule "apps-src/MySteamGames"]
+	path = apps-src/MySteamGames
+	url = https://github.com/foxycom/MySteamGames
+[submodule "apps-src/nzsl-dictionary-android"]
+	path = apps-src/nzsl-dictionary-android
+	url = https://github.com/foxycom/nzsl-dictionary-android
