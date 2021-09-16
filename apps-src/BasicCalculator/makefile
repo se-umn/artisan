@@ -17,13 +17,13 @@ clean-gradle :
 	$(GW) clean
 
 clean-all :
-	rm -v *.apk
-	rm -v *.log
-	rm -v *.testlog
-	rm -rv .traced
-	rm -rv traces
-	rm -rv app/src/carvedTest
-	rm -rv espresso-tests-coverage unit-tests-coverage carved-test-coverage
+	$(RM) -v *.apk
+	$(RM) -v *.log
+	$(RM) -v *.testlog
+	$(RM) -rv .traced
+	$(RM) -rv traces
+	$(RM) -rv app/src/carvedTest
+	$(RM) -rv espresso-tests-coverage unit-tests-coverage carved-test-coverage
 
 
 app-original.apk : 
@@ -52,21 +52,21 @@ running-emulator:
 
 stop-emulator:
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
-	rm running-emulator
+	$(RM) running-emulator
 
 espresso-tests.log : app-original.apk app-androidTest.apk running-emulator
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-original.apk
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-androidTest.apk	
 	$(ADB) shell am instrument -w -r abc.basiccalculator.test/androidx.test.runner.AndroidJUnitRunner | tee espresso-tests.log 
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
-	rm running-emulator
+	$(RM) running-emulator
 
 # 	This is phony
 #    It depends on all the espresso files listed in the tests.txt file
 .traced : $(ESPRESSO_TESTS) app-androidTest.apk app-instrumented.apk running-emulator
 	# Once execution of the dependent target is over we tear down the emulator
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
-	rm running-emulator
+	$(RM) running-emulator
 
 # TODO Not sure how to declare variables in the scope of a make target...
 %.testlog: app-androidTest.apk app-instrumented.apk running-emulator
@@ -76,7 +76,7 @@ espresso-tests.log : app-original.apk app-androidTest.apk running-emulator
 	$(ADB) shell am instrument -w -e class $(shell echo "$(@)" | tr "_" "#" | sed -e "s|.testlog||") abc.basiccalculator.test/androidx.test.runner.AndroidJUnitRunner | tee $(@)
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) copy-traces abc.basiccalculator ./traces/$(shell echo "$(@)" | sed -e "s|.testlog||") force-clean
 
-carve-all : .traced app-original.apk
+carve-all app/src/carvedTest : .traced app-original.apk
 	export ABC_CONFIG=$(ABC_CFG) && \
 	$(ABC) carve-all app-original.apk traces app/src/carvedTest force-clean | tee carving.log
 
