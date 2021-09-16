@@ -20,30 +20,54 @@ import de.unipassau.abc.parsing.ParsedTrace;
  */
 public class MethodInvocationSearcher {
 
-	/**
-	 * Return the list of method invocations that can be carved. Carvable method
-	 * invocations are non-synthetic public method calls that belong to the app.
-	 * Any method that contains $ will be ignored as well, as those are usually dynamically generated
-	 * 
-	 * For example, the static method:
-	 * 		<abc.basiccalculator.ResultActivity: android.widget.TextView access$000(abc.basiccalculator.ResultActivity)>;(abc.basiccalculator.ResultActivity@107229557);
+    /**
+     * Return the list of method invocations that can be carved. Carvable method
+     * invocations are non-synthetic public method calls that belong to the app. Any
+     * method that contains $ will be ignored as well, as those are usually
+     * dynamically generated
+     * 
+     * For example, the static method: <abc.basiccalculator.ResultActivity:
+     * android.widget.TextView
+     * access$000(abc.basiccalculator.ResultActivity)>;(abc.basiccalculator.ResultActivity@107229557);
+     * 
+     * 
+     * @param parsedTrace
+     * @return
+     */
+    public Set<MethodInvocation> findAllCarvableMethodInvocations(ParsedTrace parsedTrace) {
+        Set<MethodInvocation> carvableMethodInvocations = new HashSet<MethodInvocation>();
 
-	 * 
-	 * @param parsedTrace
-	 * @return
-	 */
-	public Set<MethodInvocation> findAllCarvableMethodInvocations(ParsedTrace parsedTrace) {
-		Set<MethodInvocation> carvableMethodInvocations = new HashSet<MethodInvocation>();
+        for (Entry<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> entry : parsedTrace
+                .getParsedTrace().entrySet()) {
+            entry.getValue().getFirst().getOrderedMethodInvocations().parallelStream()
+                    .filter(mi -> !mi.isPrivate() && !mi.isSynthetic() && !mi.isLibraryCall())
+                    .filter(mi -> !mi.getMethodSignature().contains("$")) // Inner Classes
+                    .filter(mi -> !mi.getMethodSignature().contains("clinit")) // Static constructor
+                    .forEachOrdered(carvableMethodInvocations::add);
+        }
+        return carvableMethodInvocations;
 
-		for (Entry<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> entry : parsedTrace
-				.getParsedTrace().entrySet()) {
-			entry.getValue().getFirst().getOrderedMethodInvocations().parallelStream()
-					.filter(mi -> !mi.isPrivate() && !mi.isSynthetic() && !mi.isLibraryCall())
-					.filter( mi -> ! mi.getMethodSignature().contains("$")) // Inner Classes
-					.filter( mi -> ! mi.getMethodSignature().contains("clinit")) // Static constructor
-					.forEachOrdered(carvableMethodInvocations::add);
-		}
-		return carvableMethodInvocations;
+    }
 
-	}
+    /**
+     * Return a list of method invocations that can be carved. The list contains
+     * once each signature. This is mostly to smoke test the implementation.
+     * 
+     * @param parsedTrace
+     * @return
+     */
+    public Set<MethodInvocation> findUniqueCarvableMethodInvocations(ParsedTrace parsedTrace) {
+        Set<MethodInvocation> carvableMethodInvocations = new HashSet<MethodInvocation>();
+        Set<MethodInvocation> allCarvableMethodInvocations = findAllCarvableMethodInvocations(parsedTrace);
+        // Filter by method invocation signature
+        Set<String> uniqueMethodInvocationSignatures = new HashSet<String>();
+        for (MethodInvocation methodInvocation : allCarvableMethodInvocations) {
+            if (!uniqueMethodInvocationSignatures.contains(methodInvocation.getMethodSignature())) {
+                carvableMethodInvocations.add(methodInvocation);
+                uniqueMethodInvocationSignatures.add(methodInvocation.getMethodSignature());
+            }
+        }
+        return carvableMethodInvocations;
+
+    }
 }
