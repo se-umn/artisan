@@ -62,7 +62,7 @@ espresso-tests.log : app-original.apk app-androidTest.apk running-emulator
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	$(RM) running-emulator
 
-.traced : $(ESPRESSO_TESTS) app-androidTest.apk app-instrumented.apk running-emulator
+.traced : $(ESPRESSO_TESTS) app-androidTest.apk app-instrumented.apk
 	# Once execution of the dependent target is over we tear down the emulator
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	$(RM) running-emulator
@@ -94,6 +94,11 @@ carve-all .carved : .traced app-original.apk
 	export ABC_CONFIG=$(ABC_CFG) && \
 	$(ABC) carve-all app-original.apk traces app/src/carvedTest force-clean 2>&1 | tee carving.log
 	touch .carved
+
+# SOMEHOW .traced breaks it?
+carve-one : .traced app-original.apk
+	export ABC_CONFIG=$(ABC_CFG) && \
+	$(ABC) carve-one app-original.apk traces app/src/carvedTest force-clean 2>&1 | tee carving.log
 
 carve-cached-traces : app-original.apk
 	export ABC_CONFIG=$(ABC_CFG) && \
