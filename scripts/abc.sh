@@ -397,6 +397,38 @@ function carve-and-generate-from-trace() {
   # Does this produce a log "HERE" ?  
 }
 
+function carve-one(){
+    # Ensures the required variables are in place
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${APK_SIGNER:?Please provide a value for APK_SIGNER in $config_file}
+  # This sets the env variable required by "instrument-apk.sh"
+  : ${ANDROID_JAR:?Please provide a value for ANDROID_JAR in $config_file}
+
+  local apk_file="${1:?Missing apk file}"
+  local trace_folder="${2:?Missing trace folder}"
+  local output_dir="${3:?Missing output folder}"
+
+  if [ -z "$4" ]
+  then
+    (echo >&2 "Do not clean existing carved tests folder")
+  else
+    (echo >&2 "Clean existing carved tests folder")
+    if [ -e $output_dir ]; then rm -rfv $output_dir; fi
+  fi
+
+  mkdir -p ${output_dir}
+  
+  # Build a string with all the trace files
+  trace_files=$(find traces -type f | tr "\n" " ")
+  
+  ${ABC_HOME}/synthesis/target/appassembler/bin/carve-and-generate --android-jar=${ANDROID_JAR} \
+      --trace-files=${trace_files} \
+      --apk=${apk_file} \
+      --output-to=${output_dir} \
+      --selection-strategy=SELECT_ONE
+}
+
 function carve-all(){
     # Ensures the required variables are in place
   : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}

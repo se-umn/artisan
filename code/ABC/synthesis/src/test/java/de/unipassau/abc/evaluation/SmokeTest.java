@@ -17,7 +17,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.xmlpull.v1.XmlPullParserException;
 
-import de.unipassau.abc.carving.utils.MethodInvocationSearcher;
+import de.unipassau.abc.carving.utils.MethodInvocationSelector;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.BasicTestGenerator;
@@ -100,7 +100,7 @@ public class SmokeTest {
         ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
         ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
 
-        MethodInvocationSearcher mis = new MethodInvocationSearcher();
+        MethodInvocationSelector mis = new MethodInvocationSelector();
         Set<MethodInvocation> unique = mis.findUniqueCarvableMethodInvocations(parsedTrace);
         System.out.println("Found unique carvable targets: " + unique.size());
         unique.forEach(System.out::println);

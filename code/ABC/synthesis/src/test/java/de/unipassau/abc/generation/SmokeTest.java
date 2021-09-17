@@ -19,7 +19,7 @@ import org.slf4j.event.Level;
 
 import com.github.javaparser.ast.CompilationUnit;
 
-import de.unipassau.abc.carving.utils.MethodInvocationSearcher;
+import de.unipassau.abc.carving.utils.MethodInvocationSelector;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.data.CarvedTest;
@@ -124,7 +124,7 @@ public class SmokeTest {
         ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
         ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
 
-        MethodInvocationSearcher mis = new MethodInvocationSearcher();
+        MethodInvocationSelector mis = new MethodInvocationSelector();
         List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
                 mis.findAllCarvableMethodInvocations(parsedTrace));
 
@@ -181,7 +181,7 @@ public class SmokeTest {
         ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
         ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
 
-        MethodInvocationSearcher mis = new MethodInvocationSearcher();
+        MethodInvocationSelector mis = new MethodInvocationSelector();
         List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
                 mis.findAllCarvableMethodInvocations(parsedTrace));
 
