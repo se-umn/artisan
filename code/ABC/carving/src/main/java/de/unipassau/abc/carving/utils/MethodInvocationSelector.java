@@ -18,7 +18,13 @@ import de.unipassau.abc.parsing.ParsedTrace;
  * @author gambitemp
  *
  */
-public class MethodInvocationSearcher {
+public class MethodInvocationSelector {
+
+    public enum StrategyEnum {
+        SELECT_ALL, SELECT_ONE;
+    }
+
+
 
     /**
      * Return the list of method invocations that can be carved. Carvable method

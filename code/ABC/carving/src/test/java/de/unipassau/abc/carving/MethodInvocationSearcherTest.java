@@ -9,7 +9,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.event.Level;
 
-import de.unipassau.abc.carving.utils.MethodInvocationSearcher;
+import de.unipassau.abc.carving.utils.MethodInvocationSelector;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.parsing.ParsedTrace;
@@ -42,7 +42,7 @@ public class MethodInvocationSearcherTest {
 		ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
 		ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
 		
-		MethodInvocationSearcher mis = new MethodInvocationSearcher();
+		MethodInvocationSelector mis = new MethodInvocationSelector();
 		Collection<MethodInvocation> carvableMethodInvocation = mis.findAllCarvableMethodInvocations( parsedTrace );
 		
 		carvableMethodInvocation.forEach( System.out::println);
