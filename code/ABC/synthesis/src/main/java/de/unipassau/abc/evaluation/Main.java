@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -21,6 +22,12 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
+import com.github.javaparser.ast.Modifier;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import de.unipassau.abc.generation.mocks.CarvingShadow;
+import de.unipassau.abc.generation.shadowwriter.ShadowWriter;
+import de.unipassau.abc.instrumentation.SceneInstrumenterWithMethodParameters;
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,10 +52,15 @@ import de.unipassau.abc.parsing.TraceParser;
 import de.unipassau.abc.parsing.TraceParserImpl;
 import de.unipassau.abc.parsing.postprocessing.AndroidParsedTraceDecorator;
 import de.unipassau.abc.parsing.postprocessing.ParsedTraceDecorator;
+import soot.*;
+import soot.jimple.infoflow.android.manifest.ProcessManifest;
+import soot.options.Options;
 
 public class Main {
 
     public static final Logger logger = LoggerFactory.getLogger(Main.class);
+
+    public static Map<Integer, String> idsInApk;
 
     public interface CLI {
         @Option(longName = "apk")
@@ -119,11 +131,15 @@ public class Main {
 		 * configuration inside static method calls
 		 */
 		ParsingUtils.setupSoot(cli.getAndroidJar(), cli.getApk());
+		idsInApk = ParsingUtils.getIdsMap(cli.getApk());
 
 		TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
 
 		for (File traceFile : cli.getTraceFiles()) {
-
+			//avoid processing unrelated files (based on extension)
+			if(!traceFile.getAbsolutePath().endsWith(".txt")){
+				continue;
+			}
 			try {
 				TraceParser parser = new TraceParserImpl();
 				ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
@@ -137,7 +153,7 @@ public class Main {
 
 				int allCarvableTargets = targetMethodsInvocations.size();
 
-				System.out.println("Carvable targets from trace file " + traceFile );
+				logger.info("Carvable targets from trace file " + traceFile );
 
 				List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
 				targetMethodsInvocationsList.addAll(targetMethodsInvocations);
@@ -155,7 +171,9 @@ public class Main {
 								}
 							}
 				});
-				targetMethodsInvocationsList.forEach(System.out::println);
+				for(MethodInvocation mi:targetMethodsInvocationsList){
+					logger.info(mi.toString());
+				}
 
 				BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
 				Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
@@ -163,10 +181,10 @@ public class Main {
 
 				int carvedTargets = carvedTests.size();
 
-				System.out.println("Carved targets " + carvedTargets + " / " + allCarvableTargets);
+				logger.info("Carved targets " + carvedTargets + " / " + allCarvableTargets);
 
 				// Put each test in a separate test case
-				TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+					TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
 				Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
 
 				// Write test cases to files and try to compile them
@@ -215,7 +233,13 @@ public class Main {
 					}
 				}
 
-				System.out.println("Generated tests " + generatedTests.size() + " / " + carvedTargets);
+				logger.info("Generated tests " + generatedTests.size() + " / " + carvedTargets);
+
+
+				logger.info("Generating shadows");
+				//generate shadows needed for test cases
+				ShadowWriter shadowWriter = new ShadowWriter();
+				shadowWriter.generateAndWriteShadows(sortedTestSuiteList, sourceFolder);
 
 			} catch (Exception e) {
 				System.err.println("Error while processing trace " + traceFile);

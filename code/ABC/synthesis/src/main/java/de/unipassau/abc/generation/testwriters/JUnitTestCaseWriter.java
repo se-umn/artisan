@@ -7,16 +7,16 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import com.github.javaparser.ast.stmt.*;
+import de.unipassau.abc.evaluation.Main;
+import de.unipassau.abc.generation.ast.visitors.DefVisitor;
+import de.unipassau.abc.generation.ast.visitors.ModVisitor;
+import de.unipassau.abc.generation.ast.visitors.UseVisitor;
+import de.unipassau.abc.generation.mocks.CarvingShadow;
+import de.unipassau.abc.generation.shadowwriter.ShadowWriter;
 import org.apache.commons.lang.NotImplementedException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,11 +46,6 @@ import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.TypeExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
-import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.CatchClause;
-import com.github.javaparser.ast.stmt.ExpressionStmt;
-import com.github.javaparser.ast.stmt.ThrowStmt;
-import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 
 import de.unipassau.abc.data.AndroidMethodInvocation;
@@ -84,6 +79,8 @@ import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
 public class JUnitTestCaseWriter implements TestCaseWriter {
 
     private static final Logger logger = LoggerFactory.getLogger(JUnitTestCaseWriter.class);
+
+    private final Set<String> robolectricIntialLifeCycleMethods = new HashSet<String>(Arrays.asList("create", "start", "resume"));
 
 //	public static final String ABC_CATEGORY = "de.unipassau.abc.Carved";
 
@@ -120,6 +117,25 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
     // under test...
     private MethodInvocation methodInvocationUnderTest;
 
+    private void handleUnusedVariables(MethodDeclaration testMethod){
+        DefVisitor dv = new DefVisitor();
+        testMethod.accept(dv, null);
+        Set<String> declaredVars = dv.getDeclaredVars();
+        Set<String> unusedVars = new HashSet<String>();
+        for(String declaredVar:declaredVars){
+            UseVisitor uv = new UseVisitor();
+            testMethod.accept(uv, declaredVar);
+            boolean used = uv.isUsed();
+            if(!used){
+                unusedVars.add(declaredVar);
+            }
+        }
+        for(String unusedVar:unusedVars){
+            ModVisitor mv = new ModVisitor();
+            testMethod.accept(mv, unusedVar);
+        }
+    }
+
     public CompilationUnit generateJUnitTestCase(TestClass testCase) {
         logger.info("Generate source code for " + testCase.getName());
 
@@ -138,6 +154,13 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 //		ClassOrInterfaceType carvedCategoryAnnotation = parseClassOrInterfaceType(ABC_CATEGORY);
 //		testClass.addSingleMemberAnnotation(Category.class, carvedCategoryAnnotation.getNameAsString() + ".class");
 
+        //adding import for shadows
+        for (CarvedTest carvedTest : testCase.getCarvedTests()) {
+            for(CarvingShadow cs:carvedTest.getShadows()){
+                cu.addImport(ShadowWriter.SHADOWS_PACKAGE+"."+cs.getShadowName());
+            }
+        }
+
         // If any of the tests in this test case requires a specific runner we need to
         // add it to the class
         boolean requiresRobolectricTestRunner = false;
@@ -148,6 +171,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             }
         }
 
+
         if (requiresRobolectricTestRunner) {
             // https://stackoverflow.com/questions/36082370/i-need-both-robolectric-and-mockito-in-my-test-each-one-proposes-their-own-test
             cu.addImport(RobolectricTestRunner.class);
@@ -155,7 +179,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             testClass.addSingleMemberAnnotation(RunWith.class, robolectricTestRunner.getNameAsString() + ".class");
             Set<String> shadowTypes = new HashSet<>();
             testCase.getCarvedTests()
-                    .forEach(test -> test.getShadows().forEach(shadow -> shadowTypes.addAll(shadow.types)));
+                    .forEach(test -> test.getShadowsNames().forEach(shadow -> shadowTypes.add(shadow)));
             if (!shadowTypes.isEmpty()) {
                 List<Expression> shadowClasses = shadowTypes.stream().map(s -> new ClassOrInterfaceType(null, s))
                         .map(ClassExpr::new).collect(Collectors.toList());
@@ -183,6 +207,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
             // Generate method body
             generateMethodBody(testMethod, carvedTest);
+            handleUnusedVariables(testMethod);
         }
 
         return cu;
@@ -308,6 +333,10 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             }
 
         }
+
+        //reorder statements
+        reorderStatements(blockStmt.getStatements());
+
         return blockStmt;
     }
 
@@ -380,7 +409,83 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         return result;
     }
 
+    private void reorderStatements(NodeList<Statement> statements){
+        //move get after consecutive lifecycle methods
+        int getMethodCallIndex = -1;
+        for(int i=0; i<statements.size(); ++i){
+            Statement stmt = statements.get(i);
+            if(stmt instanceof ExpressionStmt){
+                ExpressionStmt exprStmt = (ExpressionStmt) stmt;
+                if(exprStmt.getExpression() instanceof AssignExpr){
+                    AssignExpr aExpr = (AssignExpr) exprStmt.getExpression();
+                    if(aExpr.getValue() instanceof MethodCallExpr){
+                        MethodCallExpr mcExpr = (MethodCallExpr) aExpr.getValue();
+                        if(mcExpr.getNameAsString().equals("get")){
+                            if(mcExpr.getScope().isPresent() && mcExpr.getScope().get() instanceof NameExpr){
+                                NameExpr nExpr  = (NameExpr) mcExpr.getScope().get();
+                                String varName = nExpr.getNameAsString();
+                                boolean isControlleerVarName = false;
+                                for(DataNode declaredVariableDataNode: declaredVariables.keySet()){
+                                    if(declaredVariables.get(declaredVariableDataNode).equals(varName)){
+                                        if(declaredControllers.values().contains(declaredVariableDataNode)){
+                                            isControlleerVarName = true;
+                                        }
+                                    }
+                                }
+                                if(isControlleerVarName) {
+                                    getMethodCallIndex = i;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if(getMethodCallIndex!=-1){
+            int lastConsecutiveLifecylePosition = -1;
+            for(int i=(getMethodCallIndex+1); i<statements.size(); ++i){
+                Statement stmt = statements.get(i);
+                ExpressionStmt exprStmt = (ExpressionStmt) stmt;
+                if(exprStmt.getExpression() instanceof MethodCallExpr){
+                    MethodCallExpr mcExpr = (MethodCallExpr) exprStmt.getExpression();
+                    if(robolectricIntialLifeCycleMethods.contains(mcExpr.getNameAsString())){
+                        if(mcExpr.getScope().isPresent() && mcExpr.getScope().get() instanceof NameExpr){
+                            NameExpr nExpr  = (NameExpr) mcExpr.getScope().get();
+                            String varName = nExpr.getNameAsString();
+                            boolean isControlleerVarName = false;
+                            for(DataNode declaredVariableDataNode: declaredVariables.keySet()){
+                                if(declaredVariables.get(declaredVariableDataNode).equals(varName)){
+                                    if(declaredControllers.values().contains(declaredVariableDataNode)){
+                                        isControlleerVarName = true;
+                                    }
+                                }
+                            }
+                            if(isControlleerVarName) {
+                                lastConsecutiveLifecylePosition = i;
+                            }
+                            else{
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if(lastConsecutiveLifecylePosition!=-1){
+                //reorder statements
+                Statement getStmt = statements.remove(getMethodCallIndex);
+                statements.add(lastConsecutiveLifecylePosition, getStmt);
+            }
+        }
+    }
+
     private void generateMethodBody(MethodDeclaration testMethod, CarvedTest carvedTest) {
+        //logging
+        logger.info("Method under test:");
+        logger.info(carvedTest.getMethodUnderTest().toString());
+        logger.info("Statements:");
+        carvedTest.getStatements().forEach(methodInvocation -> logger.info(methodInvocation.toString()));
+
         if (carvedTest.expectException()) {
             BlockStmt methodBody = generateBlockStmtFrom(carvedTest);
 
@@ -420,13 +525,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             testMethod.setBody(wrappedMethodBody);
 
         } else {
-            //logging
-            logger.info("Method under test:");
-            logger.info(carvedTest.getMethodUnderTest().toString());
-            logger.info("Statements:");
-            carvedTest.getStatements().forEach(methodInvocation -> logger.info(methodInvocation.toString()));
             BlockStmt methodBody = generateBlockStmtFrom(carvedTest);
-
             testMethod.setBody(methodBody);
         }
 
@@ -605,7 +704,47 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             String referenceToViewId = referenceToR +"." + referenceToViewName;
             
             methodCallExpr.addArgument(referenceToViewId);
-        } else {
+        }
+        else if(methodInvocation.getMethodSignature().equals("<android.app.Activity: void setContentView(int)>")){
+            DataNode dataValueForInt = methodInvocation.getActualParameterInstances().get(0);
+            String dataValueString = getParameterFor(dataValueForInt, methodBody);
+            Integer integerValue = Integer.parseInt(dataValueString);
+            if(Main.idsInApk.containsKey(integerValue)){
+                methodCallExpr.addArgument(Main.idsInApk.get(integerValue));
+            }
+            else{
+                methodCallExpr.addArgument(dataValueString);
+            }
+        }
+        else if(methodInvocation.getMethodSignature().equals("<org.mockito.Mockito: org.mockito.stubbing.Stubber doReturn(java.lang.Object)>")){
+            DataNode dataValue = methodInvocation.getActualParameterInstances().get(0);
+            if(dataValue.getType()!=null && dataValue.getType().equals("int")){
+                String dataValueString = getParameterFor(dataValue, methodBody);
+                Integer integerValue = Integer.parseInt(dataValueString);
+                if(Main.idsInApk.containsKey(integerValue)){
+                    methodCallExpr.addArgument(Main.idsInApk.get(integerValue));
+                }
+                else{
+                    if (dataValue instanceof PlaceholderDataNode) {
+                        PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) dataValue;
+                        String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
+                        methodCallExpr.addArgument(variable);
+                    } else {
+                        methodCallExpr.addArgument(getParameterFor(dataValue, methodBody));
+                    }
+                }
+            }
+            else{
+                if (dataValue instanceof PlaceholderDataNode) {
+                    PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) dataValue;
+                    String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
+                    methodCallExpr.addArgument(variable);
+                } else {
+                    methodCallExpr.addArgument(getParameterFor(dataValue, methodBody));
+                }
+            }
+        }
+        else {
             for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
                 if (parameter instanceof PlaceholderDataNode) {
                     PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
@@ -614,7 +753,6 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                 } else {
                     methodCallExpr.addArgument(getParameterFor(parameter, methodBody));
                 }
-
             }
         }
 

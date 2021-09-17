@@ -21,11 +21,21 @@ public class MainActivity extends Activity {
     public static final String ERROR_STRING = "ERROR";
     public View nullView = null;
 
+    public MainActivity(){
+        System.out.println("Constructor");
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        System.out.println("onCreate");
         setContentView(R.layout.activity_main);
     }
+
+    //onCreate
+    //getSomething
+    //sendResult
+        //eval
 
     public void sendResult(View view) {
         if (view.getId() != R.id.calculateButton) {

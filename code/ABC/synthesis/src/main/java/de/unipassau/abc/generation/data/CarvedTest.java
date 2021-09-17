@@ -80,8 +80,16 @@ public class CarvedTest {
         this.shadows.add(shadow);
     }
 
-    public List<CarvingShadow> getShadows() {
-        return shadows;
+	public List<CarvingShadow> getShadows() {
+		return shadows;
+	}
+
+    public List<String> getShadowsNames() {
+		List<String> shadowsNames = new ArrayList<String>();
+		for(CarvingShadow shadow:shadows){
+			shadowsNames.add(shadow.getShadowName());
+		}
+        return shadowsNames;
     }
 
 	// TODO Not sure we need a setAssertions	
