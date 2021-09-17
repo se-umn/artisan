@@ -6,7 +6,7 @@ ABC_CFG="../../scripts/.abc-config"
 JAVA_OPTS=" -Dabc.instrument.fields.operations -Dabc.taint.android.intents -Dabc.instrument.include=abc.basiccalculator"
 
 ADB := $(shell $(ABC) show-config  ANDROID_ADB_EXE | sed -e "s|ANDROID_ADB_EXE=||")
-ESPRESSO_TESTS := $(shell cat tests.txt | tr " " "_" | sed -e 's|^\(.*\)$$|\1.testlog|')
+ESPRESSO_TESTS := $(shell cat tests.txt | sed '/^[[:space:]]*$$/d' | sed -e 's| |__|g' -e 's|^\(.*\)$$|\1.testlog|')
 
 .PHONY: clean-gradle clean-all run-espresso-tests trace-espresso-tests
 
@@ -23,6 +23,7 @@ clean-all :
 	$(RM) -rv .traced
 	$(RM) -rv traces
 	$(RM) -rv app/src/carvedTest
+	$(RM) -rv .carved
 	$(RM) -rv espresso-tests-coverage unit-tests-coverage carved-test-coverage
 
 
@@ -61,55 +62,69 @@ espresso-tests.log : app-original.apk app-androidTest.apk running-emulator
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	$(RM) running-emulator
 
-# 	This is phony
-#    It depends on all the espresso files listed in the tests.txt file
 .traced : $(ESPRESSO_TESTS) app-androidTest.apk app-instrumented.apk running-emulator
 	# Once execution of the dependent target is over we tear down the emulator
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	$(RM) running-emulator
+	touch .traced
 
-# TODO Not sure how to declare variables in the scope of a make target...
+# Note: https://stackoverflow.com/questions/9052220/hash-inside-makefile-shell-call-causes-unexpected-behaviour
+# This target checks whether the app was already installed and reset it instead of redeploying it every time
 %.testlog: app-androidTest.apk app-instrumented.apk running-emulator
-	echo "Tracing test $(shell echo "$(@)" | tr "_" "#" | sed -e "s|.testlog||")"
-	export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-instrumented.apk
-	export ABC_CONFIG=$(ABC_CFG) &&$(ABC) install-apk app-androidTest.apk
-	$(ADB) shell am instrument -w -e class $(shell echo "$(@)" | tr "_" "#" | sed -e "s|.testlog||") abc.basiccalculator.test/androidx.test.runner.AndroidJUnitRunner | tee $(@)
-	export ABC_CONFIG=$(ABC_CFG) && $(ABC) copy-traces abc.basiccalculator ./traces/$(shell echo "$(@)" | sed -e "s|.testlog||") force-clean
 
-carve-all app/src/carvedTest : .traced app-original.apk
+	$(eval FIRST_RUN := $(shell $(ADB) shell pm list packages | grep -c abc.basiccalculator))
+	@if [ "$(FIRST_RUN)" == "2" ]; then \
+		echo "Resetting the data of the apk"; \
+		$(ADB) shell pm clear abc.basiccalculator; \
+	else \
+	 	echo "Installing the apk" ;\
+		export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-instrumented.apk; \
+		echo "Installing the test apk" ;\
+		export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-androidTest.apk; \
+	fi
+
+	$(eval TEST_NAME := $(shell echo "$(@)" | sed -e 's|__|\\\#|g' -e 's|.testlog||'))
+	echo "Tracing test $(TEST_NAME)"
+	$(ADB) shell am instrument -w -e class $(TEST_NAME) abc.basiccalculator.test/androidx.test.runner.AndroidJUnitRunner 2>&1 | tee $(@)
+
+	export ABC_CONFIG=$(ABC_CFG) && $(ABC) copy-traces abc.basiccalculator ./traces/$(TEST_NAME) force-clean
+
+
+carve-all .carved : .traced app-original.apk
 	export ABC_CONFIG=$(ABC_CFG) && \
-	$(ABC) carve-all app-original.apk traces app/src/carvedTest force-clean | tee carving.log
+	$(ABC) carve-all app-original.apk traces app/src/carvedTest force-clean 2>&1 | tee carving.log
+	touch .carved
 
 carve-cached-traces : app-original.apk
 	export ABC_CONFIG=$(ABC_CFG) && \
-		$(ABC) carve-all app-original.apk traces app/src/carvedTest force-clean | tee carving.log
+		$(ABC) carve-all app-original.apk traces app/src/carvedTest force-clean 2>&1 | tee carving.log
 
-# TODO We need to provide the shadows in some sort of generic way and avoid hardcoding them for each and every application, unless we can create them programmatically
-copy-shadows : 
-	cp -v ./shadows/*.java app/src/carvedTest/abc/basiccalculator
-
-# DO WE NEED THE SAME APPROACH AS ESPRESSO TESTS?
-run-all-carved-tests : app/src/carvedTest
-	
-	$(GW) clean testDebugUnitTest -PcarvedTests | tee carvedTests.log
+# Run but do not collect coverage
+run-all-carved-tests : .carved
+	$(GW) -PjacocoEnabled=false clean testDebugUnitTest -PcarvedTests 2>&1 | tee carvedTests.log
 
 ### ### ### ### ### ### ### 
 ### Coverage targets
 ### ### ### ### ### ### ### 
 
+# UPDATE THIS WITH TO CHECK THE RIGHT FILES .covered or index.html
 coverage-espresso-tests : 
 	export ABC_CONFIG=$(ABC_CFG) && \
 	abc start-clean-emulator && \
-	$(GW) -PjacocoEnabled=true clean jacocoGUITestCoverage && \
+	$(GW) -PjacocoEnabled=true -PcarvedTests=false clean jacocoGUITestCoverage && \
 	mkdir -p espresso-test-coverage && \
 	cp -r app/build/reports/jacoco/jacocoGUITestCoverage espresso-test-coverage && \
 	$(ABC) stop-all-emulators
 
+# UPDATE THIS WITH TO CHECK THE RIGHT FILES .covered or index.html
 coverage-unit-tests :
-	$(GW) -PjacocoEnabled=true clean jacocoTestReport && \
-	cp -r app/build/reports/jacoco/jacocoTestsReport unit-tests-coverage
+	$(GW) -PjacocoEnabled=true -PcarvedTests=false clean jacocoUnitTestCoverage
+	$(RM) -r unit-tests-coverage
+	mv -v app/build/reports/jacoco/jacocoUnitTestCoverage unit-tests-coverage
 
-coverage-carved-tests : 
-	$(GW) -PjacocoEnabled=true jacocoUnitTestCoverage -PcarvedTests --info && \
-	mkdir -p carved-test-coverage && \
-	cp -r app/build/carvedTest/coverage carved-test-coverage
+# UPDATE THIS WITH TO CHECK THE RIGHT FILES .covered or index.html.  --info
+coverage-carved-tests : .carved
+	$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage
+	$(RM) -r  carved-test-coverage
+	mv -v build/carvedTest/coverage carved-test-coverage
+

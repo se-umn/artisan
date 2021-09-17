@@ -27,7 +27,19 @@ allprojects {
 }
 
 ext{
-    jacocoEnabled = System.properties.getProperty("jacocoEnabled") ?: "false"
+    // def usedProfile = project.getProperty("profile") ?: "dev"
+
+    // Main variables to control the execution:
+    jacocoEnabled = project.getProperty("jacocoEnabled") ?: "false"
+    carvedTests = project.getProperty("carvedTests") ?: "false"
+
+    println "jacocoEnabled: " + jacocoEnabled.toBoolean()
+    println "carvedTests:   " + carvedTests.toBoolean()
+    // jacocoEnabled = System.properties.getProperty("jacocoEnabled") ?: "false"
+    // carvedTests = System.properties.getProperty("carvedTests") ?: "false"
+    // Default values here, they may be overwritten inside app/build.gradle
+    testReportPrefix = "${buildDir}/carvedTest/testExecution"
+    coverageReportPrefix = "${buildDir}/carvedTest/coverage"
 }
 
 task clean(type: Delete) {
