@@ -1,18 +1,25 @@
+
 package de.unipassau.abc.parsing;
 
 import java.io.File;
-import java.nio.file.Files;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-import de.unipassau.abc.instrumentation.SceneInstrumenterWithMethodParameters;
-import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
-import edu.emory.mathcs.backport.java.util.Arrays;
-import soot.*;
+import soot.G;
+import soot.IntType;
+import soot.Scene;
+import soot.SootClass;
+import soot.SootField;
+import soot.SootMethod;
 import soot.jimple.infoflow.android.manifest.ProcessManifest;
 import soot.options.Options;
 import soot.tagkit.IntegerConstantValueTag;
@@ -61,25 +68,53 @@ public class ParsingUtils {
 			orderedClasses.add(sc);
 		}
 		final String finaApkPackageName = apkPackageName;
+		
 		if(!apkPackageName.equals("")){
-			Collections.sort(orderedClasses, new Comparator<SootClass>() {
-				@Override
-				public int compare(SootClass o1, SootClass o2) {
-					if(o1.getPackageName().equals(o2.getPackageName()) && o1.getPackageName().startsWith(finaApkPackageName)) {
-						return 0;
-					}
-					else if(o1.getPackageName().startsWith(finaApkPackageName)){
-						return -1;
-					}
-					else if(o2.getPackageName().startsWith(finaApkPackageName)){
-						return 1;
-					}
-					else{
-						return 0;
-					}
-				}
-			});
+			
+		    // Sort classes alfabetically, but process first classes that belong to the APK
+//		    Collections.sort(orderedClasses, new Comparator<SootClass>() {
+//			    
+//				@Override
+//				public int compare(SootClass o1, SootClass o2) {
+//					if(o1.getPackageName().equals(o2.getPackageName()) && o1.getPackageName().startsWith(finaApkPackageName)) {
+//						return 0;
+//					}
+//					else if(o1.getPackageName().startsWith(finaApkPackageName)){
+//						return -1;
+//					}
+//					else if(o2.getPackageName().startsWith(finaApkPackageName)){
+//						return 1;
+//					}
+//					else{
+//						return 0;
+//					}
+//				}
+//			});
+		    
+		    Collections.sort(orderedClasses, new Comparator<SootClass>() {
+                
+                @Override
+                public int compare(SootClass o1, SootClass o2) {
+                    return o1.getJavaStyleName().compareTo( o2.getJavaStyleName() );
+                }
+            });
+		    
+		  List<SootClass> sortedClassesWithApk = new ArrayList<SootClass>();
+		  List<SootClass> otherSortedClasses = new ArrayList<SootClass>();
+		  for(SootClass sootClass : orderedClasses) {
+		      if( sootClass.getPackageName().equals(apkPackageName) ) {
+		          sortedClassesWithApk.add(sootClass);
+		      } else {
+		          otherSortedClasses.add(sootClass);
+		      }
+		  }
+		  // Merge back the two sub-sorted lists in the oderedClasses
+		  orderedClasses.clear();
+		  orderedClasses.addAll( sortedClassesWithApk );
+		  orderedClasses.addAll( otherSortedClasses );
+		    
 		}
+		
 		//process classes (first we process classes from the apk)
 		for(SootClass sc:orderedClasses){
 			String className = sc.getShortName();
