@@ -3,7 +3,9 @@ package de.unipassau.abc.generation.data;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.ExecutionFlowGraph;
@@ -14,6 +16,10 @@ import de.unipassau.abc.generation.mocks.CarvingMock;
 import de.unipassau.abc.generation.mocks.CarvingShadow;
 
 public class CarvedTest {
+
+    private static AtomicInteger identityCounter = new AtomicInteger(0);
+
+    private String uniqueIdentifier;
 
 	// We need to keep track of this explicitly as assertions are invocations added
 	// AFTER the execution of this method
@@ -42,6 +48,7 @@ public class CarvedTest {
 	public CarvedTest(MethodInvocation methodInvocationUnderTest, ExecutionFlowGraph executionFlowGraph,
 			DataDependencyGraph dataDependencyGraph, CatchBlock catchExpectedException,
 			CatchBlock catchUnexpectedException) {
+        this.uniqueIdentifier = String.valueOf(identityCounter.incrementAndGet());
 		this.methodInvocationUnderTest = methodInvocationUnderTest;
 		this.executionFlowGraph = executionFlowGraph;
 		this.dataDependencyGraph = dataDependencyGraph;
@@ -49,12 +56,13 @@ public class CarvedTest {
 		this.catchUnexpectedException = catchUnexpectedException;
 		//
 		this.assertions = new ArrayList<CarvingAssertion>();
-    this.mocks = new ArrayList<CarvingMock>();
-    this.shadows = new ArrayList<CarvingShadow>();
+        this.mocks = new ArrayList<CarvingMock>();
+        this.shadows = new ArrayList<CarvingShadow>();
 	}
 
 	public CarvedTest(MethodInvocation methodInvocationUnderTest, ExecutionFlowGraph executionFlowGraph,
 			DataDependencyGraph dataDependencyGraph) {
+        this.uniqueIdentifier = String.valueOf(identityCounter.incrementAndGet());
 		this.methodInvocationUnderTest = methodInvocationUnderTest;
 		this.executionFlowGraph = executionFlowGraph;
 		this.dataDependencyGraph = dataDependencyGraph;
@@ -63,6 +71,10 @@ public class CarvedTest {
         this.mocks = new ArrayList<CarvingMock>();
         this.shadows = new ArrayList<CarvingShadow>();
 	}
+
+    public String getUniqueIdentifier() {
+        return uniqueIdentifier;
+    }
 
     public void setExecutionFlowGraph(ExecutionFlowGraph executionFlowGraph) {
         this.executionFlowGraph = executionFlowGraph;

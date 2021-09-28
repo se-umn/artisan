@@ -440,7 +440,7 @@ public class MockGenerator {
                 continue;
             }
 
-            String shadowType = "ABC" + returnValue.getType().split("\\.")[returnValue.getType().split("\\.").length - 1] + "Shadow";
+            String shadowType = "ABC" + returnValue.getType().split("\\.")[returnValue.getType().split("\\.").length - 1] + "Shadow" + carvedTest.getUniqueIdentifier();
             ObjectInstance extractReturn = ObjectInstanceFactory.get(String.format("%s@%d", shadowType, id.getAndIncrement()));
             CarvingShadow carvingShadow = new CarvingShadow(returnValue.getType(), shadowType);
             carvedTest.addShadow(carvingShadow);

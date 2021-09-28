@@ -26,31 +26,40 @@ public class ShadowWriter {
 
     public static final String SHADOWS_PACKAGE = "abc.shadows";
 
-    public void generateAndWriteShadows(List<TestClass> testClasses, File sourceFolder){
+    public void generateAndWriteShadows(List<TestClass> testClasses, File sourceFolder) {
         //generate shadows needed for test cases
         Map<String, String> shadowToType = new HashMap<String, String>();
         Map<String, Set<String>> shadowToMethods = new HashMap<String, Set<String>>();
+        // each test case is a set of carved tests
+        // no, this is actually a whole carved test?
         for (TestClass testCase : testClasses) {
+            System.out.println("TEST CLASS NAME: " + testCase.getName());
+            // iterate over the carved tests in each test case
             for(CarvedTest carvedTest:testCase.getCarvedTests()){
+                System.out.println("CARVED TEST FOR TEST CLASS: " + carvedTest.getUniqueIdentifier());
+                // iterate over the shadows in each carved test
                 for(CarvingShadow carvingShadow:carvedTest.getShadows()){
-                    if(shadowToType.containsKey(carvingShadow.getShadowName())){
-                        if(!shadowToType.get(carvingShadow.getShadowName()).equals(carvingShadow.getStubbedType())){
+                    String shadowNameForTest = carvingShadow.getShadowName();
+                    if(shadowToType.containsKey(shadowNameForTest)){
+                        // this should not occur
+                        if(!shadowToType.get(shadowNameForTest).equals(carvingShadow.getStubbedType())){
                             throw new RuntimeException("Shadow types do not match:"+
-                                    shadowToType.get(carvingShadow.getShadowName())+"/"+carvingShadow.getStubbedType());
+                                    shadowToType.get(shadowNameForTest)+"/"+carvingShadow.getStubbedType());
                         }
+                    // if the shadow was not already in the map, insert it
+                    // there and associate it with the correct stubbed type
+                    } else {
+                        shadowToType.put(shadowNameForTest, carvingShadow.getStubbedType());
                     }
-                    else {
-                        shadowToType.put(carvingShadow.getShadowName(), carvingShadow.getStubbedType());
-                    }
-                    for(String stubbedMethod:carvingShadow.getStubbedMethods()){
-                        if(shadowToMethods.containsKey(carvingShadow.getShadowName())){
-                            Set<String> methods = shadowToMethods.get(carvingShadow.getShadowName());
+
+                    for (String stubbedMethod:carvingShadow.getStubbedMethods()) {
+                        if(shadowToMethods.containsKey(shadowNameForTest)) {
+                            Set<String> methods = shadowToMethods.get(shadowNameForTest);
                             methods.add(stubbedMethod);
-                        }
-                        else {
+                        } else {
                             Set<String> methods = new HashSet<String>();
                             methods.add(stubbedMethod);
-                            shadowToMethods.put(carvingShadow.getShadowName(),methods);
+                            shadowToMethods.put(shadowNameForTest, methods);
                         }
                     }
                 }
@@ -245,10 +254,11 @@ public class ShadowWriter {
                 methodBody.setStatements(stmtsInMethodBody);
                 methodDeclaration.setBody(methodBody);
             }
-            //write to file
+            // write to file
             File shadowFileFolder = new File(sourceFolder,
                     ShadowWriter.SHADOWS_PACKAGE.replaceAll("\\.", File.separator));
             shadowFileFolder.mkdirs();
+            // we will need to modify the shadow name
             File testFile = new File(shadowFileFolder, shadowName + ".java");
             try {
                 PrintStream out = new PrintStream(new FileOutputStream(testFile));
@@ -262,7 +272,7 @@ public class ShadowWriter {
     }
 
 
-    public String getSuperClass(String type){
+    public String getSuperClass(String type) {
         String superType = "";
         if(type.equals("android.widget.TextView")){
             return "org.robolectric.shadows.ShadowTextView";
