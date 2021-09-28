@@ -26,6 +26,7 @@ import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import de.unipassau.abc.generation.mocks.CarvingShadow;
 import de.unipassau.abc.generation.shadowwriter.ShadowWriter;
+import de.unipassau.abc.generation.utils.*;
 import de.unipassau.abc.instrumentation.SceneInstrumenterWithMethodParameters;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
@@ -41,11 +42,6 @@ import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.BasicTestGenerator;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.testwriters.JUnitTestCaseWriter;
-import de.unipassau.abc.generation.utils.NameTestCaseGlobally;
-import de.unipassau.abc.generation.utils.TestCaseNamer;
-import de.unipassau.abc.generation.utils.TestCaseOrganizer;
-import de.unipassau.abc.generation.utils.TestCaseOrganizers;
-import de.unipassau.abc.generation.utils.TestClass;
 import de.unipassau.abc.parsing.ParsedTrace;
 import de.unipassau.abc.parsing.ParsingUtils;
 import de.unipassau.abc.parsing.TraceParser;
@@ -136,7 +132,7 @@ public class Main {
         ParsingUtils.setupSoot(cli.getAndroidJar(), cli.getApk());
         idsInApk = ParsingUtils.getIdsMap(cli.getApk());
 
-        TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
+        TestCaseNamer testClassNameBasedOnCarvedTest = new NameTestCaseBasedOnCarvedTest();
 
         // Collect some stats
         int totalTraces = 0;
@@ -209,7 +205,7 @@ public class Main {
                 totalCarvedTests = totalCarvedTests + carvedTargets;
                 
                 // Put each test in a separate test case
-                TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+                TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameBasedOnCarvedTest);
                 Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
 
                 // Write test cases to files and try to compile them
