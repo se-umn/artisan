@@ -30,8 +30,8 @@ ext{
     // def usedProfile = project.getProperty("profile") ?: "dev"
 
     // Main variables to control the execution:
-    jacocoEnabled = project.getProperty("jacocoEnabled") ?: "false"
-    carvedTests = project.getProperty("carvedTests") ?: "false"
+    jacocoEnabled = System.properties.getProperty("jacocoEnabled") ?: "false"
+    carvedTests = System.properties.getProperty("carvedTests") ?: "false"
 
     println "jacocoEnabled: " + jacocoEnabled.toBoolean()
     println "carvedTests:   " + carvedTests.toBoolean()
