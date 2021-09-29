@@ -105,7 +105,10 @@ carve-cached-traces : app-original.apk
 		$(ABC) carve-all app-original.apk traces app/src/carvedTest force-clean 2>&1 | tee carving.log
 
 # Run but do not collect coverage
-run-all-carved-tests :
+run-all-carved-tests : .carved
+	$(GW) -PjacocoEnabled=false clean testDebugUnitTest -PcarvedTests 2>&1 | tee carvedTests.log
+
+run-all-existing-carved-tests :
 	$(GW) -PjacocoEnabled=false clean testDebugUnitTest -PcarvedTests 2>&1 | tee carvedTests.log
 
 ### ### ### ### ### ### ### 
@@ -128,8 +131,12 @@ coverage-unit-tests :
 	mv -v app/build/reports/jacoco/jacocoUnitTestCoverage unit-tests-coverage
 
 # UPDATE THIS WITH TO CHECK THE RIGHT FILES .covered or index.html.  --info
-coverage-carved-tests :
+coverage-carved-tests : .carved
 	$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage
 	$(RM) -r  carved-test-coverage
 	mv -v build/carvedTest/coverage carved-test-coverage
 
+coverage-existing-carved-tests :
+	$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage
+	$(RM) -r  carved-test-coverage
+	mv -v build/carvedTest/coverage carved-test-coverage
