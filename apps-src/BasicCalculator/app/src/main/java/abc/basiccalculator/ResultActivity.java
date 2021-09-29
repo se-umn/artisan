@@ -41,6 +41,9 @@ public class ResultActivity extends Activity {
 
         resultView = findViewById(R.id.resultView);
         resultView.setText(result + "");
+        if(result==2){
+            Log.d("BasicCalculator", "Check coverage");
+        }
 
         incrementButtonByOne = findViewById(R.id.incrementButtonByOne);
         /**
@@ -65,7 +68,6 @@ public class ResultActivity extends Activity {
         } catch (Exception e) {
             Log.d("BasicCalculator", e.getMessage());
         }
-
     }
 
     public void incrementByTwo(View view) {
