@@ -39,27 +39,26 @@ public class ShadowWriter {
                 System.out.println("CARVED TEST FOR TEST CLASS: " + carvedTest.getUniqueIdentifier());
                 // iterate over the shadows in each carved test
                 for(CarvingShadow carvingShadow:carvedTest.getShadows()){
-                    String shadowNameForTest = carvingShadow.getShadowName();
-                    if(shadowToType.containsKey(shadowNameForTest)){
+                    if(shadowToType.containsKey(carvingShadow.getShadowName())){
                         // this should not occur
-                        if(!shadowToType.get(shadowNameForTest).equals(carvingShadow.getStubbedType())){
+                        if(!shadowToType.get(carvingShadow.getShadowName()).equals(carvingShadow.getStubbedType())){
                             throw new RuntimeException("Shadow types do not match:"+
-                                    shadowToType.get(shadowNameForTest)+"/"+carvingShadow.getStubbedType());
+                                    shadowToType.get(carvingShadow.getShadowName())+"/"+carvingShadow.getStubbedType());
                         }
                     // if the shadow was not already in the map, insert it
                     // there and associate it with the correct stubbed type
                     } else {
-                        shadowToType.put(shadowNameForTest, carvingShadow.getStubbedType());
+                        shadowToType.put(carvingShadow.getShadowName(), carvingShadow.getStubbedType());
                     }
 
                     for (String stubbedMethod:carvingShadow.getStubbedMethods()) {
-                        if(shadowToMethods.containsKey(shadowNameForTest)) {
-                            Set<String> methods = shadowToMethods.get(shadowNameForTest);
+                        if(shadowToMethods.containsKey(carvingShadow.getShadowName())) {
+                            Set<String> methods = shadowToMethods.get(carvingShadow.getShadowName());
                             methods.add(stubbedMethod);
                         } else {
                             Set<String> methods = new HashSet<String>();
                             methods.add(stubbedMethod);
-                            shadowToMethods.put(shadowNameForTest, methods);
+                            shadowToMethods.put(carvingShadow.getShadowName(), methods);
                         }
                     }
                 }

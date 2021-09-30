@@ -16,7 +16,7 @@ public class NameTestCaseBasedOnCarvedTest implements TestCaseNamer {
 
 	@Override
 	public String generateTestClassName(CarvedTest carvedTest) {
-		return "Test" + String.format("%03d", Integer.parseInt(carvedTest.getUniqueIdentifier()));
+		return "Test" + String.format("%03d", carvedTest.getUniqueIdentifier());
 	}
 
 }

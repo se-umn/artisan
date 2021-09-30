@@ -19,7 +19,7 @@ public class CarvedTest {
 
     private static AtomicInteger identityCounter = new AtomicInteger(0);
 
-    private String uniqueIdentifier;
+    private int uniqueIdentifier;
 
 	// We need to keep track of this explicitly as assertions are invocations added
 	// AFTER the execution of this method
@@ -48,7 +48,7 @@ public class CarvedTest {
 	public CarvedTest(MethodInvocation methodInvocationUnderTest, ExecutionFlowGraph executionFlowGraph,
 			DataDependencyGraph dataDependencyGraph, CatchBlock catchExpectedException,
 			CatchBlock catchUnexpectedException) {
-        this.uniqueIdentifier = String.valueOf(identityCounter.incrementAndGet());
+        this.uniqueIdentifier = identityCounter.incrementAndGet();
 		this.methodInvocationUnderTest = methodInvocationUnderTest;
 		this.executionFlowGraph = executionFlowGraph;
 		this.dataDependencyGraph = dataDependencyGraph;
@@ -62,7 +62,7 @@ public class CarvedTest {
 
 	public CarvedTest(MethodInvocation methodInvocationUnderTest, ExecutionFlowGraph executionFlowGraph,
 			DataDependencyGraph dataDependencyGraph) {
-        this.uniqueIdentifier = String.valueOf(identityCounter.incrementAndGet());
+        this.uniqueIdentifier = identityCounter.incrementAndGet();
 		this.methodInvocationUnderTest = methodInvocationUnderTest;
 		this.executionFlowGraph = executionFlowGraph;
 		this.dataDependencyGraph = dataDependencyGraph;
@@ -72,7 +72,7 @@ public class CarvedTest {
         this.shadows = new ArrayList<CarvingShadow>();
 	}
 
-    public String getUniqueIdentifier() {
+    public int getUniqueIdentifier() {
         return uniqueIdentifier;
     }
 
