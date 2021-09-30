@@ -108,6 +108,9 @@ carve-cached-traces : app-original.apk
 run-all-carved-tests : .carved
 	$(GW) -PjacocoEnabled=false clean testDebugUnitTest -PcarvedTests 2>&1 | tee carvedTests.log
 
+run-all-existing-carved-tests :
+	$(GW) -PjacocoEnabled=false clean testDebugUnitTest -PcarvedTests 2>&1 | tee carvedTests.log
+
 ### ### ### ### ### ### ### 
 ### Coverage targets
 ### ### ### ### ### ### ### 
@@ -133,3 +136,7 @@ coverage-carved-tests : .carved
 	$(RM) -r  carved-test-coverage
 	mv -v build/carvedTest/coverage carved-test-coverage
 
+coverage-existing-carved-tests :
+	$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage
+	$(RM) -r  carved-test-coverage
+	mv -v build/carvedTest/coverage carved-test-coverage
