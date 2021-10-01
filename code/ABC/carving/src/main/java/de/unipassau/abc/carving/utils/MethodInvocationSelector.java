@@ -8,6 +8,7 @@ import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.MethodInvocation;
+import de.unipassau.abc.data.MethodInvocationMatcher;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.parsing.ParsedTrace;
 
@@ -23,8 +24,6 @@ public class MethodInvocationSelector {
     public enum StrategyEnum {
         SELECT_ALL, SELECT_ONE;
     }
-
-
 
     /**
      * Return the list of method invocations that can be carved. Carvable method
@@ -71,6 +70,24 @@ public class MethodInvocationSelector {
             if (!uniqueMethodInvocationSignatures.contains(methodInvocation.getMethodSignature())) {
                 carvableMethodInvocations.add(methodInvocation);
                 uniqueMethodInvocationSignatures.add(methodInvocation.getMethodSignature());
+            }
+        }
+        return carvableMethodInvocations;
+
+    }
+
+    /**
+     * Return a list of method invocations that match the Method Invocation Matcher
+     * 
+     * @return
+     */
+    public Set<MethodInvocation> findByMethodInvocationMatcher(ParsedTrace parsedTrace,
+            MethodInvocationMatcher matcInvocationMatcher) {
+        Set<MethodInvocation> carvableMethodInvocations = new HashSet<MethodInvocation>();
+        Set<MethodInvocation> allCarvableMethodInvocations = findAllCarvableMethodInvocations(parsedTrace);
+        for (MethodInvocation methodInvocation : allCarvableMethodInvocations) {
+            if (matcInvocationMatcher.matches(methodInvocation)) {
+                carvableMethodInvocations.add(methodInvocation);
             }
         }
         return carvableMethodInvocations;
