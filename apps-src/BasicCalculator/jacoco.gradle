@@ -60,6 +60,7 @@ tasks.withType(Test) {
 //     //        "/jacoco/testDebugUnitTest.exec"])
 // }
 
+// ALESSIO: This seems to be triggered even if we invoke jacocoGUITestCoverage... Not sure why...
 task jacocoUnitTestCoverage(type : JacocoReport, dependsOn : ['testDebugUnitTest']) {
     group       = 'Reporting'
     description = 'Generate JaCoCo coverage report for unit tests'
@@ -90,9 +91,21 @@ task jacocoGUITestCoverage(type : JacocoReport, dependsOn : ['connectedDebugAndr
     group       = 'Reporting'
     description = 'Generate JaCoCo coverage report for GUI tests'
     reports {
+
+        // if ( carvedTests.toBoolean() ) {
+        //     throw new GradleException("carvedTests cannot be True for GUI tests")
+        // }
+
         xml.enabled  = true
         html.enabled = true
+
+        println "\n\n\n"
+        println " jacocoGUITestCoverage: Reporting to -- " + html.destination
+        println "\n\n\n"
     }
+
+    
+
     def fileFilter = ['**/R.class', '**/BuildConfig.class','**/R.class','**/R$*.class', '**/BuildConfig.*', '**/Manifest*.*', '**/*Test*.*', 'android/**/*.*']
     def coverageSourceDirs = ["${project.projectDir}/src/main/java"]
     getClassDirectories().setFrom(fileTree(dir:"${buildDir}/intermediates/javac/debug/classes", excludes: fileFilter))
