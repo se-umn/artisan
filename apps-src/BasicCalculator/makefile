@@ -160,13 +160,9 @@ $(ESPRESSO_TESTS_COVERAGE):
 	@if [ "$(FIRST_RUN)" == "2" ]; then \
 		echo "Resetting the data of the apk"; \
 		$(ADB) shell pm clear abc.basiccalculator; \
-	else \
-	 	echo "Installing instrumented apk" ;\
-		export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-instrumented.apk; \
-		echo "Installing test apk" ;\
-		export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-androidTest.apk; \
 	fi
 # Execute the gradle target
+	@echo "Running Test $(TEST_NAME)"
 	$(GW) -PjacocoEnabled=true -PcarvedTests=false -Pandroid.testInstrumentationRunnerArguments.class=$(TEST_NAME) jacocoGUITestCoverage
 	mv -v app/build/reports/jacoco/jacocoGUITestCoverage $(COVERAGE_FOLDER)
 	
