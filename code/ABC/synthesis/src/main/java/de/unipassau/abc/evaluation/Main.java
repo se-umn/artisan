@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -22,13 +21,6 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
-import com.github.javaparser.ast.Modifier;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-import de.unipassau.abc.generation.mocks.CarvingShadow;
-import de.unipassau.abc.generation.shadowwriter.ShadowWriter;
-import de.unipassau.abc.generation.utils.*;
-import de.unipassau.abc.instrumentation.SceneInstrumenterWithMethodParameters;
-import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,16 +33,19 @@ import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.BasicTestGenerator;
 import de.unipassau.abc.generation.data.CarvedTest;
+import de.unipassau.abc.generation.shadowwriter.ShadowWriter;
 import de.unipassau.abc.generation.testwriters.JUnitTestCaseWriter;
+import de.unipassau.abc.generation.utils.NameTestCaseBasedOnCarvedTest;
+import de.unipassau.abc.generation.utils.TestCaseNamer;
+import de.unipassau.abc.generation.utils.TestCaseOrganizer;
+import de.unipassau.abc.generation.utils.TestCaseOrganizers;
+import de.unipassau.abc.generation.utils.TestClass;
 import de.unipassau.abc.parsing.ParsedTrace;
 import de.unipassau.abc.parsing.ParsingUtils;
 import de.unipassau.abc.parsing.TraceParser;
 import de.unipassau.abc.parsing.TraceParserImpl;
 import de.unipassau.abc.parsing.postprocessing.AndroidParsedTraceDecorator;
 import de.unipassau.abc.parsing.postprocessing.ParsedTraceDecorator;
-import soot.*;
-import soot.jimple.infoflow.android.manifest.ProcessManifest;
-import soot.options.Options;
 
 public class Main {
 

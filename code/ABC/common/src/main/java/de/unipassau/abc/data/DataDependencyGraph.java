@@ -11,120 +11,140 @@ import soot.Value;
 
 public interface DataDependencyGraph {
 
-	/**
-	 * Return the list of parameters used for the method invocation. Order matters!
-	 * 
-	 * @param methodInvocation
-	 * @return
-	 */
-	public List<DataNode> getParametersOf(MethodInvocation methodInvocation);
+    /**
+     * Return the list of parameters used for the method invocation. Order matters!
+     * 
+     * @param methodInvocation
+     * @return
+     */
+    public List<DataNode> getParametersOf(MethodInvocation methodInvocation);
 
-	/**
-	 * Method used during parsing to link the DataNode to the method invocation. 
-	 * TODO Does positions start at 0 or 1? 
-	 * 
-	 * @param methodInvocation
-	 * @param actualParameter
-	 * @param position
-	 */
-	public void addDataDependencyOnActualParameter(MethodInvocation methodInvocation, DataNode actualParameter,
-			int position);
+    /**
+     * Return the list of data dependencies that are NOT parameters. Examples are
+     * objects accessed using static methods (not yet implemented), and objects
+     * retrieved from logically "external" APIs. One example are Intent accessed
+     * using the Activity.getIntent() method inside Activity Lifecycle methods
+     * 
+     * @param relevantMethodInvocation
+     * @return
+     */
+    public List<DataNode> getImplicitDataDependenciesOf(MethodInvocation relevantMethodInvocation);
 
-	/**
-	 * Return the node that corresponds to the return value of this methodInvocation
-	 * or Optional.empty if the signature is void. If the methodI invocation is not
-	 * tied to any return value an exception will be thrown
-	 * 
-	 * @param mi
-	 * @return
-	 * @throws ABCException if a return value cannot be found for a method that is
-	 *                      not declared as void
-	 */
-	public Optional<DataNode> getReturnValue(MethodInvocation mi) throws ABCException;
+    /**
+     * Method used during parsing to link the DataNode to the method invocation.
+     * TODO Does positions start at 0 or 1?
+     * 
+     * @param methodInvocation
+     * @param actualParameter
+     * @param position
+     */
+    public void addDataDependencyOnActualParameter(MethodInvocation methodInvocation, DataNode actualParameter,
+            int position);
 
-	/**
-	 * Return all the weakly connected components that can be formed considering the
-	 * given methodInvocations (and their dependencies)
-	 * 
-	 * @param methodInvocations
-	 * @return
-	 */
-	public Collection<DataDependencyGraph> extrapolate(Set<MethodInvocation> methodInvocations);
+    /**
+     * Method used during post-parsing to link the DataNode corresponding to the
+     * implicit dependency to the method invocation.
+     * 
+     * @param methodInvocation
+     * @param implicitDataDependency
+     */
+    public void addImplicitDataDependency(MethodInvocation methodInvocation, DataNode implicitDataDependency);
 
-	/**
-	 * Return a set containing the object instances for which we cannot establish
-	 * provenance, that is, object instances that appear out-of-the-blue. Null
-	 * objects and objects that are modeled as primitive values (e.g., Strings) are
-	 * not considered here.
-	 * 
-	 * @return
-	 */
-	public Set<ObjectInstance> getDanglingObjects();
+    /**
+     * Return the node that corresponds to the return value of this methodInvocation
+     * or Optional.empty if the signature is void. If the methodI invocation is not
+     * tied to any return value an exception will be thrown
+     * 
+     * @param mi
+     * @return
+     * @throws ABCException if a return value cannot be found for a method that is
+     *                      not declared as void
+     */
+    public Optional<DataNode> getReturnValue(MethodInvocation mi) throws ABCException;
 
-	public void visualize();
+    /**
+     * Return all the weakly connected components that can be formed considering the
+     * given methodInvocations (and their dependencies)
+     * 
+     * @param methodInvocations
+     * @return
+     */
+    public Collection<DataDependencyGraph> extrapolate(Set<MethodInvocation> methodInvocations);
 
-	public Collection<ObjectInstance> getObjectInstances();
+    /**
+     * Return a set containing the object instances for which we cannot establish
+     * provenance, that is, object instances that appear out-of-the-blue. Null
+     * objects and objects that are modeled as primitive values (e.g., Strings) are
+     * not considered here.
+     * 
+     * @return
+     */
+    public Set<ObjectInstance> getDanglingObjects();
 
-	public Collection<? extends MethodInvocation> getMethodInvocationsForOwner(ObjectInstance startingIntent);
+    public void visualize();
 
-	public DataDependencyGraph getSubGraph(ExecutionFlowGraph executionFlowGraph);
+    public Collection<ObjectInstance> getObjectInstances();
 
-	public void include(DataDependencyGraph second);
+    public Collection<? extends MethodInvocation> getMethodInvocationsForOwner(ObjectInstance startingIntent);
 
-	public boolean verifyObjectInstanceProvenance();
+    public DataDependencyGraph getSubGraph(ExecutionFlowGraph executionFlowGraph);
 
-	public void addDataDependencyOnDummy(MethodInvocation call1, MethodInvocation call2);
+    public void include(DataDependencyGraph second);
 
-	public void addDataDependencyOnOwner(MethodInvocation controllerLifecycleMethod, ObjectInstance objectInstance);
+    public boolean verifyObjectInstanceProvenance();
 
-	public void addMethodInvocationWithoutAnyDependency(MethodInvocation controllerLifecycleMethod);
+    public void addDataDependencyOnDummy(MethodInvocation call1, MethodInvocation call2);
 
-	public void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl);
+    public void addDataDependencyOnOwner(MethodInvocation controllerLifecycleMethod, ObjectInstance objectInstance);
 
-	public void summarize(ExecutionFlowGraph executionFlowGraph);
+    public void addMethodInvocationWithoutAnyDependency(MethodInvocation controllerLifecycleMethod);
 
-	public Set<ObjectInstance> getAliasesOf(ObjectInstance owner);
+    public void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl);
 
-	public void addDataDependencyOnReturn(MethodInvocation methodInvocationToCarve, DataNode returnValue);
+    public void summarize(ExecutionFlowGraph executionFlowGraph);
 
-	public DataDependencyGraph getSubGraph(List<MethodInvocation> orderedSlice);
+    public Set<ObjectInstance> getAliasesOf(ObjectInstance owner);
 
-	public void markNodeAsExternalInterface(MethodInvocation mi);
+    public void addDataDependencyOnReturn(MethodInvocation methodInvocationToCarve, DataNode returnValue);
 
-	public Set<MethodInvocation> getWeaklyConnectedComponentContaining(MethodInvocation methodInvocationUnderTest);
+    public DataDependencyGraph getSubGraph(List<MethodInvocation> orderedSlice);
 
-	public void refine(Set<MethodInvocation> coreMethodInvocations);
+    public void markNodeAsExternalInterface(MethodInvocation mi);
 
-	public void purge();
+    public Set<MethodInvocation> getWeaklyConnectedComponentContaining(MethodInvocation methodInvocationUnderTest);
 
-	public Optional<MethodInvocation> getConstructorOf(ObjectInstance objectInstance);
+    public void refine(Set<MethodInvocation> coreMethodInvocations);
 
-	public Collection<MethodInvocation> getMethodInvocationsWhichUse(DataNode dataNode);
+    public void purge();
 
-	public ObjectInstance getOwnerFor(MethodInvocation methodInvocationToCarve);
+    public Optional<MethodInvocation> getConstructorOf(ObjectInstance objectInstance);
 
-	public Set<MethodInvocation> getMethodInvocationsWhichReturn(ObjectInstance objectInstanceToCarve);
+    public Collection<MethodInvocation> getMethodInvocationsWhichUse(DataNode dataNode);
 
-	public MethodInvocation getInitMethodInvocationFor(ObjectInstance data);
+    public ObjectInstance getOwnerFor(MethodInvocation methodInvocationToCarve);
 
-	public Collection<MethodInvocation> getMethodInvocationsRecheableFrom(MethodInvocation methodInvocation);
+    public Set<MethodInvocation> getMethodInvocationsWhichReturn(ObjectInstance objectInstanceToCarve);
 
-	public Set<DataNode> getDataNodes();
+    public MethodInvocation getInitMethodInvocationFor(ObjectInstance data);
 
-	public Value getReturnObjectLocalFor(MethodInvocation mut);
+    public Collection<MethodInvocation> getMethodInvocationsRecheableFrom(MethodInvocation methodInvocation);
 
-	public Local getObjectLocalFor(MethodInvocation mut);
+    public Set<DataNode> getDataNodes();
 
-	public List<Value> getParametersSootValueFor(MethodInvocation methodInvocation);
+    public Value getReturnObjectLocalFor(MethodInvocation mut);
 
-	public void setSootValueFor(DataNode node, Value localVariable);
+    public Local getObjectLocalFor(MethodInvocation mut);
 
-	/**
-	 * This is mostly used for testing. Returns all the methods invocations in this
-	 * graph.
-	 * 
-	 * @return
-	 */
-	public Collection<MethodInvocation> getAllMethodInvocations();
+    public List<Value> getParametersSootValueFor(MethodInvocation methodInvocation);
+
+    public void setSootValueFor(DataNode node, Value localVariable);
+
+    /**
+     * This is mostly used for testing. Returns all the methods invocations in this
+     * graph.
+     * 
+     * @return
+     */
+    public Collection<MethodInvocation> getAllMethodInvocations();
 
 }

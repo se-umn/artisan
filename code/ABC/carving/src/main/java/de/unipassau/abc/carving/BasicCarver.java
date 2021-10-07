@@ -12,6 +12,9 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
@@ -34,6 +37,8 @@ import de.unipassau.abc.parsing.ParsedTrace;
  */
 public class BasicCarver implements MethodCarver {
 
+    private static Logger logger = LoggerFactory.getLogger(BasicCarver.class);
+            
 	private ExecutionFlowGraph executionFlowGraph;
 	private DataDependencyGraph dataDependencyGraph;
 	private CallGraph callGraph;
@@ -81,8 +86,10 @@ public class BasicCarver implements MethodCarver {
 		}
 
 		/*
-		 * Other relevant method invocations are the ones that have been called before
-		 * on the same object, including the constructor used to instatiate it
+		 * Relevant method invocations are the ones that have been called before
+		 * on the SAME object, including the constructor used to instantiate it.
+		 * 
+		 * TODO Note that System-level factory methods may be considered necessary at this point
 		 */
 		if (!methodInvocation.isStatic()) {
 			final ObjectInstance methodInvocationOwner = methodInvocation.getOwner();
@@ -97,13 +104,18 @@ public class BasicCarver implements MethodCarver {
 					 * fails silenty and return an empyt set
 					 */
 					t -> methodInvocationOwner.equals(t.getOwner())));
-		}
-		// The last relevant method invocations are the one that have been called by the
-		// objects used at some point
-
-		// Keep track at which point an object as been used, as we need only the last
-		// one (the ones before will be included automatically)
+		} 
+		
+		
+		/*
+		 * The last relevant method invocations are the one that have been called by the
+		 * objects used by this methodInvocation at some point
+		 */
 		Map<ObjectInstance, List<MethodInvocation>> relevantUses = new HashMap<>();
+		
+		/*
+		 * Regular Uses
+		 */
 		for (MethodInvocation relevantMethodInvocation : relevantMethodInvocations) {
 			for (DataNode parameter : this.dataDependencyGraph.getParametersOf(relevantMethodInvocation)) {
 				if (parameter instanceof NullInstance) {
@@ -115,6 +127,17 @@ public class BasicCarver implements MethodCarver {
 					relevantUses.get(objectParameter).add(relevantMethodInvocation);
 				}
 			}
+			//
+			for (DataNode implicitDataDependency : this.dataDependencyGraph.getImplicitDataDependenciesOf(relevantMethodInvocation)) {
+                if (implicitDataDependency instanceof NullInstance) {
+                    continue;
+                }
+                if (implicitDataDependency instanceof ObjectInstance) {
+                    ObjectInstance objectParameter = (ObjectInstance) implicitDataDependency;
+                    relevantUses.putIfAbsent(objectParameter, new ArrayList<>());
+                    relevantUses.get(objectParameter).add(relevantMethodInvocation);
+                }
+            }
 		}
 
 		// At this point we find the last method before the use that have been called on
