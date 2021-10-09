@@ -2,8 +2,8 @@ package de.unipassau.abc.data;
 
 public class ObjectInstance implements DataNode, Cloneable {
 
-	// TODO At some point we need to figure out of to handle static
-	// classes/singletons and the like
+    // TODO At some point we need to figure out of to handle static
+    // classes/singletons and the like
 //	static class StaticObjectInstance extends ObjectInstance {
 //
 //		private String type;
@@ -29,120 +29,144 @@ public class ObjectInstance implements DataNode, Cloneable {
 //	public final static ObjectInstance systemOut = new StaticObjectInstance("java.lang.System.out@0",
 //			System.out.getClass().getName());
 
-	// TODO How to flag this ? -> Call chain to init of android or type
-	// inference with soot or something...
-	// DuckTyping
-	@Deprecated
-	private boolean isAndroidActivity = false;
+    // TODO How to flag this ? -> Call chain to init of android or type
+    // inference with soot or something...
+    // DuckTyping
+    @Deprecated
+    private boolean isAndroidActivity = false;
 
-	@Deprecated
-	private boolean isAndroidFragment;
+    @Deprecated
+    private boolean isAndroidFragment;
 
-	private String objectId;
+    private String objectId;
 
-	private String type;
+    private String type;
 
-	private String stringValue;
+    private String stringValue;
 
-	public ObjectInstance clone() {
-		ObjectInstance cloned = new ObjectInstance(objectId);
-		cloned.isAndroidActivity = isAndroidActivity;
-		cloned.isAndroidFragment = isAndroidFragment;
-		cloned.objectId = objectId;
-		cloned.stringValue = stringValue;
-		cloned.type = type;
-		return cloned;
-	}
+    private boolean requiresIntent;
 
-	public ObjectInstance(String objectId) {
-		if (objectId == null)
-			throw new IllegalArgumentException("ObjectInstance cannot have null objectId");
+    private ObjectInstance intentObjectInstance;
 
-		if (objectId.contains(":")) {
-			this.stringValue = objectId.split(":")[1];
-			this.objectId = objectId.split(":")[0];
-		} else {
-			this.objectId = objectId;
-		}
-		this.type = objectId.split("@")[0];
+    public ObjectInstance clone() {
+        ObjectInstance cloned = new ObjectInstance(objectId);
+        cloned.isAndroidActivity = isAndroidActivity;
+        cloned.isAndroidFragment = isAndroidFragment;
+        cloned.objectId = objectId;
+        cloned.stringValue = stringValue;
+        cloned.type = type;
+        cloned.intentObjectInstance = intentObjectInstance;
+        cloned.requiresIntent = requiresIntent;
+                
+        return cloned;
+    }
 
-	}
+    public ObjectInstance(String objectId) {
+        if (objectId == null)
+            throw new IllegalArgumentException("ObjectInstance cannot have null objectId");
 
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		ObjectInstance other = (ObjectInstance) obj;
-		if (objectId == null) {
-			if (other.objectId != null)
-				return false;
-		} else if (!objectId.equals(other.objectId))
-			return false;
-		if (stringValue == null) {
-			if (other.stringValue != null)
-				return false;
-		} else if (!stringValue.equals(other.stringValue))
-			return false;
-		return true;
-	}
+        if (objectId.contains(":")) {
+            this.stringValue = objectId.split(":")[1];
+            this.objectId = objectId.split(":")[0];
+        } else {
+            this.objectId = objectId;
+        }
+        this.type = objectId.split("@")[0];
 
-	public String getObjectId() {
-		return objectId;
-	}
+    }
 
-	// Only for boxed primitives... Maybe we cou
-	public String getStringValue() {
-		return stringValue;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        ObjectInstance other = (ObjectInstance) obj;
+        if (objectId == null) {
+            if (other.objectId != null)
+                return false;
+        } else if (!objectId.equals(other.objectId))
+            return false;
+        if (stringValue == null) {
+            if (other.stringValue != null)
+                return false;
+        } else if (!stringValue.equals(other.stringValue))
+            return false;
+        return true;
+    }
 
-	public String getType() {
-		return type;
-	}
+    public String getObjectId() {
+        return objectId;
+    }
 
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + ((objectId == null) ? 0 : objectId.hashCode());
-		result = prime * result + ((stringValue == null) ? 0 : stringValue.hashCode());
-		return result;
-	}
+    // Only for boxed primitives... Maybe we cou
+    public String getStringValue() {
+        return stringValue;
+    }
 
-	public boolean isAndroidActivity() {
-		return isAndroidActivity;
-	}
+    public String getType() {
+        return type;
+    }
 
-	public void setAndroidActivity(boolean isAndroidActivity) {
-		this.isAndroidActivity = isAndroidActivity;
-	}
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((objectId == null) ? 0 : objectId.hashCode());
+        result = prime * result + ((stringValue == null) ? 0 : stringValue.hashCode());
+        return result;
+    }
 
-	public boolean isAndroidFragment() {
-		return isAndroidFragment;
-	}
+    public boolean isAndroidActivity() {
+        return isAndroidActivity;
+    }
 
-	public void setAndroidFragment(boolean isAndroidFragment) {
-		this.isAndroidFragment = isAndroidFragment;
-	}
+    public void setRequiresIntent(boolean requiresIntent) {
+        this.requiresIntent = requiresIntent;
+    }
 
-	@Override
-	public String toString() {
-		return objectId;
-	}
+    public void setAndroidActivity(boolean isAndroidActivity) {
+        this.isAndroidActivity = isAndroidActivity;
+    }
 
-	public boolean isBoxedPrimitive() {
-		return JimpleUtils.isBoxedPrimitive(getType());
-	}
+    public boolean isAndroidFragment() {
+        return isAndroidFragment;
+    }
 
-	public static void retype(ObjectInstance objectInstance, String newType) {
-		objectInstance.type = newType;
-	}
+    public void setAndroidFragment(boolean isAndroidFragment) {
+        this.isAndroidFragment = isAndroidFragment;
+    }
 
-	public boolean isNull() {
-		return (this instanceof NullInstance || objectId.endsWith("@0"));
-	}
+    @Override
+    public String toString() {
+        return objectId;
+    }
+
+    public boolean isBoxedPrimitive() {
+        return JimpleUtils.isBoxedPrimitive(getType());
+    }
+
+    public static void retype(ObjectInstance objectInstance, String newType) {
+        objectInstance.type = newType;
+    }
+
+    public boolean isNull() {
+        return (this instanceof NullInstance || objectId.endsWith("@0"));
+    }
+
+    // TODO Simplify using Optional?
+    public boolean requiresIntent() {
+        return requiresIntent;
+    }
+
+    public ObjectInstance getIntent() {
+        return intentObjectInstance;
+    }
+
+    public void setIntent(ObjectInstance intentObjectInstance) {
+        this.intentObjectInstance = intentObjectInstance;
+    }
 
 }

@@ -40,7 +40,8 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 
     // Parameter to a call
     public static final String DATA_DEPENDENCY_PREFIX = "DataNode";
-    // Identify all other dependencies of a method that are not captured by its parameters
+    // Identify all other dependencies of a method that are not captured by its
+    // parameters
     public static final String IMPLICIT_DATA_DEPENDENCY_PREFIX = "Implicit_DataNode";
 
     public static final String RETURN_DEPENDENCY_PREFIX = "Return";
@@ -95,6 +96,27 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
         }
     }
 
+    // This makes sense only on ObjectInstances
+    public void addAliasingDataDependency(ObjectInstance node, ObjectInstance alias) {
+        // Aliasing is possible only on Existing nodes
+        if (!graph.containsVertex(node)) {
+            System.out.println("ERROR: DataDependencyGraphImpl.addAliasingDataDependency() Cannot find " + node);
+            // TODO Maybe some exception?
+            return;
+        }
+        if (!graph.containsVertex(alias)) {
+            System.out.println("ERROR: DataDependencyGraphImpl.addAliasingDataDependency() Cannot find " + alias);
+            // TODO Maybe some exception?
+            return;
+        }
+        if (alias != null && compatibleClasses(node, alias)) {
+            // Recording the aliasing relation - This is bidirectional
+            graph.addEdge(ALIAS_DEPENDENCY_PREFIX + "_" + id.getAndIncrement(), node, alias, EdgeType.DIRECTED);
+            graph.addEdge(ALIAS_DEPENDENCY_PREFIX + "_" + id.getAndIncrement(), alias, node, EdgeType.DIRECTED);
+//            System.out.println(" >> Aliasing " + node + " and " + alias);
+        }
+    }
+
     /*
      * The positional information is ENCODED in the edge label !
      */
@@ -127,7 +149,54 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 
         graph.addEdge(edgeName, node, methodInvocation, EdgeType.DIRECTED);
     }
-    
+
+    /*
+     * The positional information is ENCODED in the edge label ! THIS IS UNSAFE, WE
+     * DO NOT CHECK FOR TYPES AND THE LIKE!
+     */
+    public void replaceDataDependencyOnActualParameter(MethodInvocation methodInvocation, DataNode actualParameter,
+            int position) {
+        DataNode node = null;
+
+        // Find the link of the parameter to be replaced
+        String edgeToRemove = null;
+        for (String incomingEdge : getIncomingEdges(methodInvocation)) {
+
+            if (incomingEdge.startsWith(DATA_DEPENDENCY_PREFIX)) {
+
+                if (Integer.parseInt(incomingEdge.split("_")[1]) == position) {
+                    edgeToRemove = incomingEdge;
+                    break;
+                }
+            }
+        }
+
+        if (!graph.removeEdge(edgeToRemove)) {
+            logger.warn("Cannot remove " + edgeToRemove + " while replacing dependency at position " + position
+                    + " for " + methodInvocation);
+        } else {
+            if (!graph.containsVertex(actualParameter)) {
+
+                // Null instances are treated like primitive types, but they are
+                // unique ... otherwise we create all sort of deps over null
+                if (actualParameter instanceof ObjectInstance) {
+                    node = handleDanglingObjectInstance((ObjectInstance) actualParameter);
+                } else {
+                    // Primitives, Strings, etc.
+                    node = actualParameter;
+                }
+
+                graph.addVertex(node);
+
+            } else {
+                node = actualParameter;
+            }
+
+            // Note: We reuse the just removed edge name to maintain consistency
+            graph.addEdge(edgeToRemove, node, methodInvocation, EdgeType.DIRECTED);
+        }
+    }
+
     @Override
     public void addImplicitDataDependency(MethodInvocation methodInvocation, DataNode implicitDataDependency) {
         DataNode node = null;
@@ -157,7 +226,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
         } while (graph.containsEdge(edgeName));
 
         graph.addEdge(edgeName, node, methodInvocation, EdgeType.DIRECTED);
-        
+
     }
 
     public void addDataDependencyOnReturn(MethodInvocation methodInvocation, DataNode returnValue) {
@@ -383,7 +452,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
                 // Recording the aliasing relation - This is bidirectional
                 graph.addEdge(ALIAS_DEPENDENCY_PREFIX + "_" + id.getAndIncrement(), node, alias, EdgeType.DIRECTED);
                 graph.addEdge(ALIAS_DEPENDENCY_PREFIX + "_" + id.getAndIncrement(), alias, node, EdgeType.DIRECTED);
-                logger.debug("DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with " + alias);
+                logger.info("DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with " + alias);
                 // TODO MAYBE we shall encode directly here the type for the alias relation, and
                 // only have it one-directional?
 //                Maybe we can directly "retype" ? But to what? there might be more options ....
@@ -970,14 +1039,14 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
              * Identify incident relations to method invocation tagged as data. The
              * parameter is the other end of the incoming link.
              * 
-             * TODO We may need to add tags
-             * to distinguish the various types of implicit data dependency
+             * TODO We may need to add tags to distinguish the various types of implicit
+             * data dependency
              */
             if (incomingEdge.startsWith(IMPLICIT_DATA_DEPENDENCY_PREFIX)) {
                 implicitDataDependencies.add((DataNode) graph.getOpposite(methodInvocation, incomingEdge));
             }
         }
-        
+
         return implicitDataDependencies;
 
     }
@@ -1373,7 +1442,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
     }
 
     public Set<ObjectInstance> getAliasesOf(ObjectInstance objectInstanceToCarve) {
-        // Aliase is bidirectional but to be sure let's check both sides...
+        // Aliasing is a bidirectional relation but to be sure let's check both sides...
         Set<ObjectInstance> aliases = new HashSet<>();
         for (String edge : graph.getInEdges(objectInstanceToCarve)) {
             if (edge.startsWith(ALIAS_DEPENDENCY_PREFIX)) {
@@ -1504,15 +1573,18 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
                 .filter(v -> MethodInvocation.class.isInstance(v))//
                 .map(MethodInvocation.class::cast)//
                 .collect(Collectors.toSet());
-
+        
         // Add all method invocation nodes - clone them in the process
         for (MethodInvocation methodInvocation : methodInvocationsToExtrapolate) {
+            
+            System.out.println("DataDependencyGraphImpl.extrapolate() " + methodInvocation);
             // Avoid using incomplete information from methodInvocation
             MethodInvocation originalMethodInvocation = allMethodInvocations.parallelStream()
                     .filter(mi -> mi.getInvocationCount() == methodInvocation.getInvocationCount())//
                     .findAny().orElse(null);
 
             //
+            
             MethodInvocation cloned = originalMethodInvocation.clone();
             union.addVertex(cloned);
             cloneMap.put(cloned, originalMethodInvocation);
@@ -1606,6 +1678,5 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
         return extrapolated;
 
     }
-
 
 }

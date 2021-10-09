@@ -31,6 +31,16 @@ public interface DataDependencyGraph {
     public List<DataNode> getImplicitDataDependenciesOf(MethodInvocation relevantMethodInvocation);
 
     /**
+     * Record the aliasing of two objects. This is needed for example to track
+     * intents across activities that are different instances but logically the same
+     * object.
+     * 
+     * @param node
+     * @param alias
+     */
+    public void addAliasingDataDependency(ObjectInstance node, ObjectInstance alias);
+
+    /**
      * Method used during parsing to link the DataNode to the method invocation.
      * TODO Does positions start at 0 or 1?
      * 
@@ -39,6 +49,18 @@ public interface DataDependencyGraph {
      * @param position
      */
     public void addDataDependencyOnActualParameter(MethodInvocation methodInvocation, DataNode actualParameter,
+            int position);
+
+    /**
+     * Method used during post-parsing to replace parameters. This is needed to
+     * inject dummy values and place holders and to break dependencies that are know
+     * to be non-useful
+     * 
+     * @param methodInvocation
+     * @param actualParameter
+     * @param position
+     */
+    public void replaceDataDependencyOnActualParameter(MethodInvocation methodInvocation, DataNode actualParameter,
             int position);
 
     /**
@@ -85,7 +107,7 @@ public interface DataDependencyGraph {
 
     public Collection<ObjectInstance> getObjectInstances();
 
-    public Collection<? extends MethodInvocation> getMethodInvocationsForOwner(ObjectInstance startingIntent);
+    public Collection<MethodInvocation> getMethodInvocationsForOwner(ObjectInstance startingIntent);
 
     public DataDependencyGraph getSubGraph(ExecutionFlowGraph executionFlowGraph);
 
