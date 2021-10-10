@@ -51,6 +51,7 @@ public class Main {
 
     public static final Logger logger = LoggerFactory.getLogger(Main.class);
 
+    // ALESSIO: THIS IS PROBABLY MISPLACED? Why this should be a property of the Main method?
     public static Map<Integer, String> idsInApk;
 
     public interface CLI {
@@ -126,6 +127,8 @@ public class Main {
          */
         ParsingUtils.setupSoot(cli.getAndroidJar(), cli.getApk());
         idsInApk = ParsingUtils.getIdsMap(cli.getApk());
+        
+        assert idsInApk != null;
 
         TestCaseNamer testClassNameBasedOnCarvedTest = new NameTestCaseBasedOnCarvedTest();
 
@@ -244,7 +247,7 @@ public class Main {
                         }
                         generatedTests.put(testCase, testFile);
 
-                    } catch (Exception e) {
+                    } catch (Throwable e) {
                         System.err.println("Cannot generate test " + testCase.getName());
                         e.printStackTrace();
                     }

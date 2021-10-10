@@ -177,6 +177,9 @@ public class SmokeTest {
         }
 
     }
+    
+    
+//    Trace-NPE
 
     @Ignore // This has hardcoded paths
     @Test
@@ -220,7 +223,11 @@ public class SmokeTest {
                 "src/test/resources/de.lebenshilfe_muenster.uk_gebaerden_muensterland/apks/app-original.apk");
 
         ParsingUtils.setupSoot(androidJAR, theAPK);
-
+        
+        Main.idsInApk = ParsingUtils.getIdsMap(theAPK);
+        
+        
+        
         // Parse and start the carving
         TraceParser parser = new TraceParserImpl();
         ParsedTrace _parsedTrace = parser.parseTrace(traceFile);

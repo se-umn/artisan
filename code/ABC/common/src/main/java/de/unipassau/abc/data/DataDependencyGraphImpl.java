@@ -1441,6 +1441,14 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
         }
     }
 
+    // This assume we are indeed working on the instances stored in the graph, not
+    // shallow copy of them
+    public void remove(ObjectInstance toRemove) {
+        if (!graph.removeVertex(toRemove)) {
+            logger.warn("Cannot Remove " + toRemove);
+        }
+    }
+
     public Set<ObjectInstance> getAliasesOf(ObjectInstance objectInstanceToCarve) {
         // Aliasing is a bidirectional relation but to be sure let's check both sides...
         Set<ObjectInstance> aliases = new HashSet<>();
@@ -1573,10 +1581,10 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
                 .filter(v -> MethodInvocation.class.isInstance(v))//
                 .map(MethodInvocation.class::cast)//
                 .collect(Collectors.toSet());
-        
+
         // Add all method invocation nodes - clone them in the process
         for (MethodInvocation methodInvocation : methodInvocationsToExtrapolate) {
-            
+
             System.out.println("DataDependencyGraphImpl.extrapolate() " + methodInvocation);
             // Avoid using incomplete information from methodInvocation
             MethodInvocation originalMethodInvocation = allMethodInvocations.parallelStream()
@@ -1584,7 +1592,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
                     .findAny().orElse(null);
 
             //
-            
+
             MethodInvocation cloned = originalMethodInvocation.clone();
             union.addVertex(cloned);
             cloneMap.put(cloned, originalMethodInvocation);

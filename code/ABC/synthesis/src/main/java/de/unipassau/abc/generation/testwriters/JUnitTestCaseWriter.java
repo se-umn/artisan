@@ -155,6 +155,12 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 //		ClassOrInterfaceType carvedCategoryAnnotation = parseClassOrInterfaceType(ABC_CATEGORY);
 //		testClass.addSingleMemberAnnotation(Category.class, carvedCategoryAnnotation.getNameAsString() + ".class");
 
+        // add import for intent carving, in 4.x ShadowApplication was deprecated in
+        // favor to ApplicationProvider
+        // Also ShadowApplication does not have a method getApplicationContext()
+//        cu.addImport("org.robolectric.shadows.ShadowApplication");
+        cu.addImport("androidx.test.core.app.ApplicationProvider");
+
         // adding import for shadows
         for (CarvedTest carvedTest : testCase.getCarvedTests()) {
             for (CarvingShadow cs : carvedTest.getShadows()) {
@@ -670,7 +676,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                 case SyntheticMethodSignatures.GENERATE_DEFAULT_CONTEXT:
                     // Add a patch to replace abc.DefaultContextGenerator.generateDefaultContext();
                     // Note that the last () are missing by design
-                    methodCallExpr = new MethodCallExpr("ShadowApplication.getInstance().getApplicationContext");
+                    methodCallExpr = new MethodCallExpr("ApplicationProvider.getApplicationContext");
                     break;
                 default:
                     throw new NotImplementedException(
@@ -846,6 +852,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         declaredControllers.put(activityType, objectInstance);
         // Assuming we only have one activity or whatsoever per test, so we can use the
         // type as key
+//        System.out.println("JUnitTestCaseWriter.declareControllerFor()" + objectInstance + "-->" + variableName);
         declaredVariables.put(objectInstance, variableName);
 
         return declareVariableFor(variableName, type, methodBody, initializer);
@@ -871,6 +878,8 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         variableName = variableName.replaceAll("\\[", "").replaceAll("\\]", "");
 
         // We need to match the method invocations with variable names
+        System.out.println("JUnitTestCaseWriter.declareVariableFor() " +dataNode + " --> " + variableName );
+
         declaredVariables.put(dataNode, variableName);
 
         // Link all the alias to the same variable if any

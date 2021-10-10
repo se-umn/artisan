@@ -2,8 +2,6 @@ package de.unipassau.abc.generation.mocks;
 
 import static java.util.Collections.reverse;
 
-
-import de.unipassau.abc.parsing.TraceParser;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -11,6 +9,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.function.UnaryOperator;
 
 import org.slf4j.Logger;
@@ -18,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import de.unipassau.abc.carving.CarvedExecution;
 import de.unipassau.abc.data.DataDependencyGraph;
+import de.unipassau.abc.data.DataDependencyGraphImpl;
 import de.unipassau.abc.data.DataNode;
 import de.unipassau.abc.data.DataNodeFactory;
 import de.unipassau.abc.data.ExecutionFlowGraph;
@@ -32,8 +32,6 @@ import de.unipassau.abc.data.PrimitiveValue;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.data.CarvedTest;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
-import soot.jimple.Jimple;
-import soot.jimple.StringConstant;
 
 public class MockGenerator {
 
@@ -57,21 +55,31 @@ public class MockGenerator {
         // Basically, we can see each test as made of logical blocks (mocks+shadows,
         // test body, assertions)
 
+        logger.info("-------------------------");
+        logger.info("Generate Mocks for " + carvedTest.getMethodUnderTest());
+        logger.info("-------------------------");
+
         ExecutionFlowGraph carvedTestExecutionFlowGraph = carvedTest.getExecutionFlowGraph();
         DataDependencyGraph carvedTestDataDependencyGraph = carvedTest.getDataDependencyGraph();
         MethodInvocation methodInvocationUnderTest = carvedTest.getMethodUnderTest();
-        
+
         List<MockInfo> mockInfoList = new ArrayList<MockInfo>();
 
         for (ObjectInstance danglingObject : carvedTest.getDataDependencyGraph().getDanglingObjects()) {
 
-            // skip string mocks here?
-            
+            logger.info(" Found dangling object " + danglingObject);
+
             ObjectInstance classToMock = ObjectInstanceFactory
                     .get(danglingObject.getType() + "@" + id.getAndIncrement());
             DataNode classLiteralToMock = PrimitiveNodeFactory.createClassLiteralFor(classToMock);
 
-            MethodInvocation initMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), MOCK_SIGNATURE);
+            // A mock object is created calling the Mockito framework and then configured.
+            // At each configuration a new instance is returned
+            // so we need to get the very last one and replace all the uses of the dangling
+            // objects with that mocked one
+
+            MethodInvocation initMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
+                    id.getAndIncrement(), MOCK_SIGNATURE);
             initMock.setHasGenericReturnType(true);
             initMock.setStatic(true);
             initMock.setActualParameterInstances(Arrays.asList(classLiteralToMock));
@@ -85,11 +93,14 @@ public class MockGenerator {
             // need to use the carved execution here because the methods we care about are
             // not be in the test yet
             for (MethodInvocation dependentCall : carvedExecution
+                    // TODO ALESSIO: What's this?
                     .getDataDependencyGraphContainingTheMethodInvocationUnderTest()
                     .getMethodInvocationsForOwner(danglingObject)) {
 
-                // if return value is non-primitive (ie, an ObjectInstance), we may want to use a previously defined mock here (or at least try)
-                // relatedly, handle java.lang.String objects as below (can strings appear as dangling objects???)
+                // if return value is non-primitive (ie, an ObjectInstance), we may want to use
+                // a previously defined mock here (or at least try)
+                // relatedly, handle java.lang.String objects as below (can strings appear as
+                // dangling objects???)
                 DataNode returnValue = null;
 
                 try {
@@ -103,12 +114,14 @@ public class MockGenerator {
                 ObjectInstance doReturnReturn = ObjectInstanceFactory
                         .get("org.mockito.stubbing.Stubber@" + id.getAndIncrement());
 
-                MethodInvocation doReturnMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), RETURN_SIGNATURE);
+                MethodInvocation doReturnMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
+                        id.getAndIncrement(), RETURN_SIGNATURE);
                 doReturnMock.setStatic(true);
                 doReturnMock.setActualParameterInstances(Arrays.asList(doReturnArgument));
                 doReturnMock.setReturnValue((DataNode) doReturnReturn);
 
                 carvedTestExecutionFlowGraph.enqueueMethodInvocations(doReturnMock);
+
                 carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(doReturnMock);
                 carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(doReturnMock, doReturnArgument, 0);
                 carvedTestDataDependencyGraph.addDataDependencyOnReturn(doReturnMock, doReturnReturn);
@@ -116,7 +129,8 @@ public class MockGenerator {
                 ObjectInstance whenReturn = ObjectInstanceFactory
                         .get(danglingObject.getType() + "@" + id.getAndIncrement());
 
-                MethodInvocation whenMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), WHEN_SIGNATURE);
+                MethodInvocation whenMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
+                        id.getAndIncrement(), WHEN_SIGNATURE);
                 whenMock.setHasGenericReturnType(true);
                 whenMock.setOwner(doReturnReturn);
                 whenMock.setActualParameterInstances(Arrays.asList(classToMock));
@@ -124,6 +138,7 @@ public class MockGenerator {
 
                 carvedTestExecutionFlowGraph.enqueueMethodInvocations(whenMock);
                 carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(whenMock);
+
                 carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(whenMock, classToMock, 0);
                 carvedTestDataDependencyGraph.addDataDependencyOnOwner(whenMock, doReturnReturn);
                 carvedTestDataDependencyGraph.addDataDependencyOnReturn(whenMock, whenReturn);
@@ -137,15 +152,16 @@ public class MockGenerator {
                 carvedTestExecutionFlowGraph.enqueueMethodInvocations(dependentCallCopy);
                 carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(dependentCallCopy);
                 carvedTestDataDependencyGraph.addDataDependencyOnOwner(dependentCallCopy, whenReturn);
+
                 // handle calls to mock
                 callSet.add(doReturnMock);
                 callSet.add(whenMock);
                 callSet.add(dependentCallCopy);
             }
+
             mockInfoList.add(new MockInfo(initMock, callSet));
 
-            // THIS DATA DEPENDENCY GRAPH MAY NEED TO BE THE TEST'S; NEED TO CHANGE METHODS
-            // IN TEST DIRECTLY
+            // We need also to get rid of the calls to the dangling object?
             for (MethodInvocation dependentCall : carvedTest.getDataDependencyGraph()
                     .getMethodInvocationsWhichUse(danglingObject)) {
                 List<DataNode> dependentCallParameters = carvedTest.getDataDependencyGraph()
@@ -166,24 +182,39 @@ public class MockGenerator {
                 // adding to datadep graph not needed?? (this doesn't work???)
                 carvedTestDataDependencyGraph.replaceMethodInvocation(dependentCall, newDependentCall);
             }
+
+            // TODO We need to clean up the graphs by removing all the calls to any method
+            // of the original danglingObject
+            Collection<MethodInvocation> callsToDanglingObject = carvedTest.getDataDependencyGraph()
+                    .getMethodInvocationsForOwner(danglingObject);
+            for (MethodInvocation callToDanglingObject : callsToDanglingObject) {
+                logger.info("Removing " + callToDanglingObject + " from carved test");
+                carvedTest.getExecutionFlowGraph().removeMethodInvocation(callToDanglingObject);
+            }
+            // We now have to get rid of the dangling object since we mocked it
+            logger.info("Removing " + danglingObject + " from the data dependency graph of the test");
+            // TODO If it works, promote to API/Interface
+            ((DataDependencyGraphImpl) carvedTestDataDependencyGraph).remove(danglingObject);
+
         }
 
         List<MethodInvocation> candidateMethodInvocations = carvedTest.getExecutionFlowGraph()
-            .getOrderedMethodInvocations();
+                .getOrderedMethodInvocations();
 
         List<MethodInvocation> subsumedCandidateMethodInvocations = new ArrayList<MethodInvocation>();
-        
-        if (!JimpleUtils.isActivityLifecycle(carvedTest.getMethodUnderTest().getMethodSignature())) {            
-            subsumedCandidateMethodInvocations.addAll(carvedExecution
-                    .getCallGraphContainingTheMethodInvocationUnderTest()
-                    .getMethodInvocationsSubsumedBy(carvedTest.getMethodUnderTest()));
+
+        if (!JimpleUtils.isActivityLifecycle(carvedTest.getMethodUnderTest().getMethodSignature())) {
+            subsumedCandidateMethodInvocations
+                    .addAll(carvedExecution.getCallGraphContainingTheMethodInvocationUnderTest()
+                            .getMethodInvocationsSubsumedBy(carvedTest.getMethodUnderTest()));
         }
 //        else {
 //            System.out.println(">> Skipping LifeCycle Method: " + carvedTest.getMethodUnderTest().getMethodSignature());
 //        }
 
         for (MethodInvocation subsumedCandidate : subsumedCandidateMethodInvocations) {
-            if (subsumedCandidate.getMethodSignature().equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>")) {
+            if (subsumedCandidate.getMethodSignature().equals(
+                    "<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>")) {
                 carvedTestExecutionFlowGraph.enqueueMethodInvocations(subsumedCandidate);
                 carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(subsumedCandidate);
             }
@@ -197,7 +228,8 @@ public class MockGenerator {
         int subsumedCallCount = 0;
 
         for (MethodInvocation call : candidateMethodInvocations) {
-            if (call.getMethodSignature().equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>")) {
+            if (call.getMethodSignature().equals(
+                    "<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>")) {
                 if (subsumedCandidateMethodInvocations.contains(call)) {
                     subsumedCallCount += 1;
                 }
@@ -227,8 +259,7 @@ public class MockGenerator {
                 if (transitiveCall.getReturnValue() instanceof ObjectInstance) {
                     Collection<? extends MethodInvocation> dependentCalls = carvedExecution
                             .getDataDependencyGraphContainingTheMethodInvocationUnderTest()
-                            .getMethodInvocationsForOwner(
-                                    (ObjectInstance) transitiveCall.getReturnValue());
+                            .getMethodInvocationsForOwner((ObjectInstance) transitiveCall.getReturnValue());
 
                     if (transitiveMethodOwners.contains(transitiveCall.getReturnValue())) {
                         transitiveMethodInvocations.get(transitiveMethodOwners.indexOf(transitiveCall.getReturnValue()))
@@ -307,10 +338,12 @@ public class MockGenerator {
             }
 
             // create mock for owner
-            ObjectInstance classToMock = ObjectInstanceFactory.get(mockTarget.getFirst().getType() + "@" + id.getAndIncrement());
+            ObjectInstance classToMock = ObjectInstanceFactory
+                    .get(mockTarget.getFirst().getType() + "@" + id.getAndIncrement());
             DataNode classLiteralToMock = PrimitiveNodeFactory.createClassLiteralFor(classToMock);
 
-            MethodInvocation initMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), MOCK_SIGNATURE);
+            MethodInvocation initMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
+                    id.getAndIncrement(), MOCK_SIGNATURE);
             initMock.setHasGenericReturnType(true);
             initMock.setStatic(true);
             initMock.setActualParameterInstances(Collections.singletonList(classLiteralToMock));
@@ -361,7 +394,8 @@ public class MockGenerator {
                 ObjectInstance doReturnReturn = ObjectInstanceFactory
                         .get("org.mockito.stubbing.Stubber@" + id.getAndIncrement());
 
-                MethodInvocation doReturnMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), RETURN_SIGNATURE);
+                MethodInvocation doReturnMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
+                        id.getAndIncrement(), RETURN_SIGNATURE);
                 doReturnMock.setStatic(true);
                 doReturnMock.setActualParameterInstances(Arrays.asList(doReturnArgument));
                 doReturnMock.setReturnValue((DataNode) doReturnReturn);
@@ -375,7 +409,8 @@ public class MockGenerator {
                 ObjectInstance whenReturn = ObjectInstanceFactory
                         .get(mockTarget.getFirst().getType() + "@" + id.getAndIncrement());
 
-                MethodInvocation whenMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), WHEN_SIGNATURE);
+                MethodInvocation whenMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
+                        id.getAndIncrement(), WHEN_SIGNATURE);
                 whenMock.setHasGenericReturnType(true);
                 whenMock.setOwner(doReturnReturn);
                 whenMock.setActualParameterInstances(Arrays.asList(classToMock));
@@ -430,7 +465,8 @@ public class MockGenerator {
 
         for (MethodInvocation targetCall : targetMethodList) {
 
-            // need no special string/ObjectInstance handling here, because we must always directly use the value findViewById() returns
+            // need no special string/ObjectInstance handling here, because we must always
+            // directly use the value findViewById() returns
             DataNode returnValue;
 
             try {
@@ -440,13 +476,16 @@ public class MockGenerator {
                 continue;
             }
 
-            String shadowType = "ABC" + returnValue.getType().split("\\.")[returnValue.getType().split("\\.").length - 1] + "Shadow" + carvedTest.getUniqueIdentifier();
-            ObjectInstance extractReturn = ObjectInstanceFactory.get(String.format("%s@%d", shadowType, id.getAndIncrement()));
+            String shadowType = "ABC"
+                    + returnValue.getType().split("\\.")[returnValue.getType().split("\\.").length - 1] + "Shadow"
+                    + carvedTest.getUniqueIdentifier();
+            ObjectInstance extractReturn = ObjectInstanceFactory
+                    .get(String.format("%s@%d", shadowType, id.getAndIncrement()));
             CarvingShadow carvingShadow = new CarvingShadow(returnValue.getType(), shadowType);
             carvedTest.addShadow(carvingShadow);
 
-            
-            MethodInvocation extractShadow = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), EXTRACT_SIGNATURE);
+            MethodInvocation extractShadow = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
+                    id.getAndIncrement(), EXTRACT_SIGNATURE);
 
             extractShadow.setHasGenericReturnType(true);
             extractShadow.setStatic(true);
@@ -478,7 +517,8 @@ public class MockGenerator {
                 DataNode setShadowParameter = new PrimitiveValue(id.getAndIncrement(), "java.lang.String",
                         callTargetCodepoints.toString());
 
-                MethodInvocation setShadow = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), SET_SIGNATURE);
+                MethodInvocation setShadow = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
+                        id.getAndIncrement(), SET_SIGNATURE);
                 setShadow.setOwner(extractReturn);
                 setShadow.setActualParameterInstances(Arrays.asList(setShadowParameter, mockClassTarget));
 
@@ -490,8 +530,8 @@ public class MockGenerator {
                 // handle calls to shadow
                 callSet.add(setShadow);
 
-
-                MethodInvocation strictShadow = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), STRICT_SIGNATURE);
+                MethodInvocation strictShadow = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
+                        id.getAndIncrement(), STRICT_SIGNATURE);
                 strictShadow.setOwner(extractReturn);
                 strictShadow.setActualParameterInstances(Arrays.asList());
 
@@ -501,9 +541,9 @@ public class MockGenerator {
                 // handle calls to shadow
                 callSet.add(strictShadow);
 
-                if(setShadowParameter instanceof PrimitiveValue){
+                if (setShadowParameter instanceof PrimitiveValue) {
                     PrimitiveValue pv = (PrimitiveValue) setShadowParameter;
-                    carvingShadow.getStubbedMethods().add(pv.toString().replaceAll("\"",""));
+                    carvingShadow.getStubbedMethods().add(pv.toString().replaceAll("\"", ""));
                 }
             }
             shadowInfoList.add(new ShadowInfo(extractShadow, callSet));
@@ -544,17 +584,21 @@ public class MockGenerator {
 
         for (ShadowSequence shadowSequence : shadowSequenceList) {
             for (MethodInvocation orderedMethodInvocationInstance : orderedMethodInvocations) {
-                if (orderedMethodInvocationInstance.getInvocationCount() > shadowSequence.getTargetCallInstance().getInvocationCount()) {
-                    orderedMethodInvocationInstance.setInvocationCount(orderedMethodInvocationInstance.getInvocationCount() + shadowSequence.getSetMockCallInstances().size() + 1);
+                if (orderedMethodInvocationInstance.getInvocationCount() > shadowSequence.getTargetCallInstance()
+                        .getInvocationCount()) {
+                    orderedMethodInvocationInstance
+                            .setInvocationCount(orderedMethodInvocationInstance.getInvocationCount()
+                                    + shadowSequence.getSetMockCallInstances().size() + 1);
                 }
             }
 
             orderedMethodInvocations.get(orderedMethodInvocations.indexOf(shadowSequence.getExtractCallInstance()))
-                .setInvocationCount(shadowSequence.getTargetCallInstance().getInvocationCount() + 1);
+                    .setInvocationCount(shadowSequence.getTargetCallInstance().getInvocationCount() + 1);
 
             for (int idIncr = 2; idIncr <= shadowSequence.getSetMockCallInstances().size() + 1; idIncr++) {
-                orderedMethodInvocations.get(orderedMethodInvocations.indexOf(shadowSequence.getSetMockCallInstances().get(idIncr - 2)))
-                    .setInvocationCount(shadowSequence.getTargetCallInstance().getInvocationCount() + idIncr);
+                orderedMethodInvocations
+                        .get(orderedMethodInvocations.indexOf(shadowSequence.getSetMockCallInstances().get(idIncr - 2)))
+                        .setInvocationCount(shadowSequence.getTargetCallInstance().getInvocationCount() + idIncr);
             }
         }
 
