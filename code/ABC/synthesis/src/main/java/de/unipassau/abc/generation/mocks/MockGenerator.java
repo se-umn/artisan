@@ -56,7 +56,7 @@ public class MockGenerator {
         // test body, assertions)
 
         logger.info("-------------------------");
-        logger.info("Generate Mocks for " + carvedTest.getMethodUnderTest());
+        logger.info("  MOCKING " + carvedTest.getMethodUnderTest());
         logger.info("-------------------------");
 
         ExecutionFlowGraph carvedTestExecutionFlowGraph = carvedTest.getExecutionFlowGraph();
@@ -67,7 +67,7 @@ public class MockGenerator {
 
         for (ObjectInstance danglingObject : carvedTest.getDataDependencyGraph().getDanglingObjects()) {
 
-            logger.info(" Found dangling object " + danglingObject);
+            logger.debug("Found dangling object " + danglingObject);
 
             ObjectInstance classToMock = ObjectInstanceFactory
                     .get(danglingObject.getType() + "@" + id.getAndIncrement());
@@ -188,13 +188,13 @@ public class MockGenerator {
             Collection<MethodInvocation> callsToDanglingObject = carvedTest.getDataDependencyGraph()
                     .getMethodInvocationsForOwner(danglingObject);
             for (MethodInvocation callToDanglingObject : callsToDanglingObject) {
-                logger.info("Removing " + callToDanglingObject + " from carved test");
+                logger.debug("Removing " + callToDanglingObject + " from carved test");
                 carvedTest.getExecutionFlowGraph().removeMethodInvocation(callToDanglingObject);
             }
             // We now have to get rid of the dangling object since we mocked it
-            logger.info("Removing " + danglingObject + " from the data dependency graph of the test");
+            logger.debug("Removing " + danglingObject + " from the data dependency graph of the test");
             // TODO If it works, promote to API/Interface
-            ((DataDependencyGraphImpl) carvedTestDataDependencyGraph).remove(danglingObject);
+            carvedTestDataDependencyGraph.remove(danglingObject);
 
         }
 

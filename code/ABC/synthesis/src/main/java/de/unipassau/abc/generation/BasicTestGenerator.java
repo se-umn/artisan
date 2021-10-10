@@ -122,9 +122,9 @@ public class BasicTestGenerator implements TestGenerator {
 
         MethodInvocation methodInvocationUnderTest = carvedExecution.methodInvocationUnderTest;
         // logging
-
-        logger.info("Generate Carved Test " + methodInvocationUnderTest);
-
+        logger.debug("-------------------------");
+        logger.debug("  GENERATING TEST FOR: " + methodInvocationUnderTest);
+        logger.debug("-------------------------");
 //        // Is this a generic or a specific test case?
 //        // Does the method under test belongs to an Activity?
 //        // NOTE This is an heuristic!
@@ -174,8 +174,8 @@ public class BasicTestGenerator implements TestGenerator {
         carvedExecution.callGraphs.forEach(callGraph -> directlyCallableMethodInvocations.addAll(callGraph.getRoots()));
         Collections.sort(directlyCallableMethodInvocations);
         // logging
-        logger.info("Directly callable method invocations:");
-        directlyCallableMethodInvocations.stream().map(m -> m.toString()).forEach(logger::info);
+        logger.debug("Directly callable method invocations:");
+        directlyCallableMethodInvocations.stream().map(m -> m.toString()).forEach(logger::debug);
 
         /*
          * Validation: If the directlyCallableMethodInvocations do not contain the
@@ -186,7 +186,7 @@ public class BasicTestGenerator implements TestGenerator {
         if (!directlyCallableMethodInvocations.stream()
                 .anyMatch(mi -> mi.equals(carvedExecution.methodInvocationUnderTest))) {
 
-            logger.info("Method invocation under test " + carvedExecution.methodInvocationUnderTest
+            logger.debug("Method invocation under test " + carvedExecution.methodInvocationUnderTest
                     + " is not visible. Try to recover ...");
             needsFix = true;
 
@@ -204,8 +204,8 @@ public class BasicTestGenerator implements TestGenerator {
             List<MethodInvocation> methodsSubsumingMethodInvocationUnderTest = callGraph
                     .getOrderedSubsumingMethodInvocationsFor(carvedExecution.methodInvocationUnderTest);
             // logging
-            logger.info("Subsuming method invocations:");
-            methodsSubsumingMethodInvocationUnderTest.stream().map(m -> m.toString()).forEach(logger::info);
+            logger.debug("Subsuming method invocations:");
+            methodsSubsumingMethodInvocationUnderTest.stream().map(m -> m.toString()).forEach(logger::debug);
 
             ListIterator<MethodInvocation> listIterator = methodsSubsumingMethodInvocationUnderTest
                     .listIterator(methodsSubsumingMethodInvocationUnderTest.size());
@@ -229,8 +229,8 @@ public class BasicTestGenerator implements TestGenerator {
             List<MethodInvocation> unecessaryMethodInvocations = callGraph.getRoots().stream()
                     .filter(mi -> !mi.isNecessary()).collect(Collectors.toList());
             // logging
-            logger.info("Unnecessary method invocations:");
-            unecessaryMethodInvocations.stream().map(m -> m.toString()).forEach(logger::info);
+            logger.debug("Unnecessary method invocations:");
+            unecessaryMethodInvocations.stream().map(m -> m.toString()).forEach(logger::debug);
 
             for (MethodInvocation removeMe : unecessaryMethodInvocations) {
                 /*
@@ -247,8 +247,8 @@ public class BasicTestGenerator implements TestGenerator {
         carvedExecution.callGraphs.forEach(callGraph -> directlyCallableMethodInvocations.addAll(callGraph.getRoots()));
         if (needsFix) {
             // logging
-            logger.info("New directly callable method invocations:");
-            directlyCallableMethodInvocations.stream().map(m -> m.toString()).forEach(logger::info);
+            logger.debug("New directly callable method invocations:");
+            directlyCallableMethodInvocations.stream().map(m -> m.toString()).forEach(logger::debug);
         }
 
         if (!directlyCallableMethodInvocations.stream()

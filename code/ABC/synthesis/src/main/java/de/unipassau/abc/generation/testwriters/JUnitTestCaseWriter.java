@@ -878,7 +878,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         variableName = variableName.replaceAll("\\[", "").replaceAll("\\]", "");
 
         // We need to match the method invocations with variable names
-        System.out.println("JUnitTestCaseWriter.declareVariableFor() " +dataNode + " --> " + variableName );
+//        System.out.println("JUnitTestCaseWriter.declareVariableFor() " +dataNode + " --> " + variableName );
 
         declaredVariables.put(dataNode, variableName);
 

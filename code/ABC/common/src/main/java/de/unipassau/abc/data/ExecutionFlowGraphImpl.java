@@ -130,7 +130,6 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 
     public void prependMethodInvocation(MethodInvocation methodInvocation) {
         if (firstMethodInvocation == null) {
-            System.out.println("ExecutionFlowGraphImpl.prependMethodInvocation() Empty graph");
             // In this case, we can simply add it
             enqueueMethodInvocations(methodInvocation);
         } else {
@@ -139,10 +138,10 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
             methodInvocation.invocationCount = headID;
             if (!graph.containsVertex(methodInvocation)) {
                 // Otherwise
-                System.out.println("ExecutionFlowGraphImpl.prependMethodInvocation() " + methodInvocation);
                 graph.addVertex(methodInvocation);
                 // Add it to the graph as FIRST !
-                graph.addEdge("ExecutionDependency-" + headID, methodInvocation, firstMethodInvocation, EdgeType.DIRECTED);
+                graph.addEdge("ExecutionDependency-" + headID, methodInvocation, firstMethodInvocation,
+                        EdgeType.DIRECTED);
                 // Update the head of the queue
                 firstMethodInvocation = methodInvocation;
             }

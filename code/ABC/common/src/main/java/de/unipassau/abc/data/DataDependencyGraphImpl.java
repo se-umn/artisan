@@ -1585,7 +1585,6 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
         // Add all method invocation nodes - clone them in the process
         for (MethodInvocation methodInvocation : methodInvocationsToExtrapolate) {
 
-            System.out.println("DataDependencyGraphImpl.extrapolate() " + methodInvocation);
             // Avoid using incomplete information from methodInvocation
             MethodInvocation originalMethodInvocation = allMethodInvocations.parallelStream()
                     .filter(mi -> mi.getInvocationCount() == methodInvocation.getInvocationCount())//

@@ -9,8 +9,8 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 import org.apache.commons.collections.map.HashedMap;
-
-import com.jcabi.log.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import de.unipassau.abc.data.AndroidMethodInvocation;
 import de.unipassau.abc.data.CallGraph;
@@ -32,8 +32,12 @@ import edu.emory.mathcs.backport.java.util.Arrays;
 
 public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
 
+    public final static Logger logger = LoggerFactory.getLogger(AndroidParsedTraceDecorator.class);
+
     @Override
     public ParsedTrace decorate(ParsedTrace parsedTrace) {
+        // Note: the order of applications of those methods matters!
+
         // Include additional metadata about Android invocations
         ParsedTrace decorated = decorateWithAndroidMetadata(parsedTrace);
         // Include implicit data dependencies that are Android-specific
@@ -143,8 +147,8 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                             .equals("<android.content.Intent: android.content.Intent putExtra(java.lang.String,int)>")
                             && ((PrimitiveValue) mi.getActualParameterInstances().get(0)).toString()
                                     .equals(intentTagAsString)) {
-//                        System.out.println(
-//                                "Intent " + obj + " is SOURCE of TAINT " + mi.getActualParameterInstances().get(1));
+                        logger.trace(
+                                "Intent " + obj + " is SOURCE of TAINT " + mi.getActualParameterInstances().get(1));
                         sourceIntents.put(mi.getActualParameterInstances().get(1).toString(), obj);
                     }
 
@@ -152,7 +156,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                             .equals("<android.content.Intent: int getIntExtra(java.lang.String,int)>")
                             && ((PrimitiveValue) mi.getActualParameterInstances().get(0)).toString()
                                     .equals(intentTagAsString)) {
-//                        System.out.println("Intent " + obj + " is SINK of TAINT " + mi.getReturnValue());
+                        logger.trace("Intent " + obj + " is SINK of TAINT " + mi.getReturnValue());
                         sinkIntents.put(mi.getReturnValue().toString(), obj);
                     }
                 }
@@ -172,14 +176,14 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
             for (Entry<String, ObjectInstance> source : sourceIntents.entrySet()) {
                 String taint = source.getKey();
                 if (sinkIntents.containsKey(taint)) {
-                    System.out.println("AndroidParsedTraceDecorator.decorateWithAliasForIntents() Add aliasing for taint " + taint );
-                    
+                    logger.trace("Add aliasing for taint " + taint);
+
                     dataDependencyGraph.addAliasingDataDependency(source.getValue(), sinkIntents.get(taint));
-                    
+
                     // Make sure we replace the sink intents for the activities that require them
                     for (ObjectInstance activity : androidActivities) {
                         if (activity.requiresIntent() && activity.getIntent().equals(sinkIntents.get(taint))) {
-                            System.out.println("Replace sink intent with source intent for taint " + taint);
+                            logger.trace("Replace sink intent with source intent for taint " + taint);
                             activity.setIntent(source.getValue());
                         }
                     }
