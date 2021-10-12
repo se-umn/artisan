@@ -43,7 +43,7 @@ public class ModVisitor extends ModifierVisitor<String> {
             }
         }
         if(declaresRelevantVar && nullAssignment){
-            logger.info("Removed:"+expr);
+            logger.debug("Removed:"+expr);
             return null;
         }
         else if(declaresRelevantVar && mce!=null){

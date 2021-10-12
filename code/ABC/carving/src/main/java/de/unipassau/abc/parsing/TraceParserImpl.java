@@ -1,6 +1,12 @@
 package de.unipassau.abc.parsing;
 
-import de.unipassau.abc.carving.android.AndroidActivityCarver;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.CallGraphImpl;
 import de.unipassau.abc.data.DataDependencyGraph;
@@ -15,13 +21,6 @@ import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.tracing.Trace;
-import java.io.File;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import soot.SootMethod;
 
 /**

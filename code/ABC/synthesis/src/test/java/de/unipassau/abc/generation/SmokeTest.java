@@ -3,8 +3,6 @@ package de.unipassau.abc.generation;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.PrintStream;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -21,6 +19,8 @@ import com.github.javaparser.ast.CompilationUnit;
 
 import de.unipassau.abc.carving.utils.MethodInvocationSelector;
 import de.unipassau.abc.data.MethodInvocation;
+import de.unipassau.abc.data.MethodInvocationMatcher;
+import de.unipassau.abc.evaluation.Main;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.testwriters.JUnitTestCaseWriter;
@@ -30,6 +30,7 @@ import de.unipassau.abc.generation.utils.TestCaseOrganizer;
 import de.unipassau.abc.generation.utils.TestCaseOrganizers;
 import de.unipassau.abc.generation.utils.TestClass;
 import de.unipassau.abc.parsing.ParsedTrace;
+import de.unipassau.abc.parsing.ParsingUtils;
 import de.unipassau.abc.parsing.TraceParser;
 import de.unipassau.abc.parsing.TraceParserImpl;
 import de.unipassau.abc.parsing.postprocessing.AndroidParsedTraceDecorator;
@@ -114,6 +115,63 @@ public class SmokeTest {
 //        }
 //    }
 
+    // Trace-NPE
+    @Test
+    public void testNPEAfterCarvingIntents() throws FileNotFoundException, IOException, ABCException {
+        File traceFile = new File("./src/test/resources/abc.basiccalculator/Trace-NPE.txt");
+        TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
+
+        // TODO Is is not going to work, since the IDs are regenerated every time...
+        File theAPK = new File("./src/test/resources/abc.basiccalculator/app-original.apk");                
+        Main.idsInApk = ParsingUtils.getIdsMap(theAPK);
+
+        TraceParser parser = new TraceParserImpl();
+        ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+        ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
+        ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+
+        // Find the target method invocation
+        String methodSignature = "<abc.basiccalculator.MainActivity: java.lang.String eval(java.lang.String)>";
+        int invocationCount = 16;
+        int invocationTraceId = 31;
+
+        // Ensure we use the actual method invocation, not a shallow copy of it!
+        MethodInvocationSelector mis = new MethodInvocationSelector();
+        MethodInvocationMatcher matcher = MethodInvocationMatcher
+                .fromMethodInvocation(new MethodInvocation(invocationTraceId, invocationCount, methodSignature));
+        List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
+                mis.findByMethodInvocationMatcher(parsedTrace, matcher));
+
+        logger.debug("Carvable targets ");
+        for (MethodInvocation m : listOfTargetMethodsInvocations) {
+            logger.debug("" + m);
+        }
+
+        BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
+        List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
+        targetMethodsInvocationsList.addAll(listOfTargetMethodsInvocations);
+        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
+                parsedTrace);
+
+        int carvedTargets = carvedTests.size();
+
+        logger.info("Carved targets " + carvedTargets + " / " + listOfTargetMethodsInvocations.size());
+
+        // Put each test in a separate test case
+        TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+        Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+
+        // Write test cases to files and try to compile them
+
+        JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+
+        for (TestClass testCase : testSuite) {
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+            logger.info(cu.toString());
+        }
+
+    }
+
     @Test
     public void brokenTestGeneration() throws FileNotFoundException, IOException, ABCException {
         File traceFile = new File("./src/test/resources/com.better.alarm/Trace-1622638473760.txt");
@@ -141,9 +199,10 @@ public class SmokeTest {
         targetMethodsInvocations.addAll(listOfTargetMethodsInvocations);
 
         BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
-         List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
+        List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
         targetMethodsInvocationsList.addAll(targetMethodsInvocations);
-        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList, parsedTrace);
+        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
+                parsedTrace);
 
         int carvedTargets = carvedTests.size();
 
@@ -161,17 +220,19 @@ public class SmokeTest {
             try {
                 CompilationUnit cu = writer.generateJUnitTestCase(testCase);
                 logger.info(cu.toString());
-                generatedTests.add( cu );
+                generatedTests.add(cu);
             } catch (Exception e) {
                 logger.error("Cannot generate test " + testCase.getPackageName() + "." + testCase.getName(), e);
             }
         }
-        
-        System.out.println("Generated tests " +  generatedTests.size() + "/" + carvedTargets);
+
+        System.out.println("Generated tests " + generatedTests.size() + "/" + carvedTargets);
     }
 
     @Test
     public void testDebugMocks() throws FileNotFoundException, IOException, ABCException {
+        // Test whether we can understand an intent is a dep to a method call
+//        <abc.basiccalculator.ResultActivity: void onCreate(android.os.Bundle)>_29_57
         File traceFile = new File(
                 "./src/test/resources/abc.basiccalculator/Trace-testCalculateAndIncrementByOneWithLogging-1603454200461.txt");
         TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
@@ -185,22 +246,70 @@ public class SmokeTest {
         List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
                 mis.findAllCarvableMethodInvocations(parsedTrace));
 
-        logger.debug("Carvable targets ");
-        for (MethodInvocation m : listOfTargetMethodsInvocations) {
-            logger.debug("" + m);
-        }
-
-//        // SELECT THE ACTUAL carved execution to consider
         Set<MethodInvocation> targetMethodsInvocations = new HashSet<MethodInvocation>();
-//        for(MethodInvocation targetMethod:listOfTargetMethodsInvocations){
-//            targetMethodsInvocations.add(targetMethod);
-//        }
+//      for(MethodInvocation targetMethod:listOfTargetMethodsInvocations){
+//          targetMethodsInvocations.add(targetMethod);
+//      }
         targetMethodsInvocations.addAll(listOfTargetMethodsInvocations);
 
         BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
         List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
         targetMethodsInvocationsList.addAll(targetMethodsInvocations);
-        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList, parsedTrace);
+        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
+                parsedTrace);
+
+        int carvedTargets = carvedTests.size();
+
+        logger.info("Carved targets " + carvedTargets + " / " + listOfTargetMethodsInvocations.size());
+
+        // Put each test in a separate test case
+        TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+        Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+
+        // Write test cases to files and try to compile them
+
+        JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+
+        for (TestClass testCase : testSuite) {
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+            logger.info(cu.toString());
+        }
+
+    }
+
+    @Test
+    public void testCarveIntents() throws FileNotFoundException, IOException, ABCException {
+        File traceFile = new File(
+                "./src/test/resources/abc.basiccalculator/Trace-testCalculateAndIncrementByOneWithLogging-1603454200461.txt");
+        TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
+
+        TraceParser parser = new TraceParserImpl();
+        ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+        ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
+        ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+
+        // Find the target method invocation
+        String methodSignature = "<abc.basiccalculator.ResultActivity: void onCreate(android.os.Bundle)>";
+        int invocationCount = 29;
+        int invocationTraceId = 57;
+
+        // Ensure we use the actual method invocation, not a shallow copy of it!
+        MethodInvocationSelector mis = new MethodInvocationSelector();
+        MethodInvocationMatcher matcher = MethodInvocationMatcher
+                .fromMethodInvocation(new MethodInvocation(invocationTraceId, invocationCount, methodSignature));
+        List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
+                mis.findByMethodInvocationMatcher(parsedTrace, matcher));
+
+        logger.debug("Carvable targets ");
+        for (MethodInvocation m : listOfTargetMethodsInvocations) {
+            logger.debug("" + m);
+        }
+
+        BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
+        List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
+        targetMethodsInvocationsList.addAll(listOfTargetMethodsInvocations);
+        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
+                parsedTrace);
 
         int carvedTargets = carvedTests.size();
 

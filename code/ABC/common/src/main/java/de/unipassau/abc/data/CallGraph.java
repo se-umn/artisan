@@ -88,7 +88,7 @@ public interface CallGraph {
 
 	/**
 	 * Return the collection of weakly connected components that can be formed from
-	 * the given method invocations
+	 * the given method invocations. In case there are none, the node itself is the WCC
 	 * 
 	 * @param necessaryMethodInvocations
 	 * @return
