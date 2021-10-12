@@ -51,7 +51,7 @@ clean-all :
 app-original.apk : 
 	export ABC_CONFIG=$(ABC_CFG) && \
 	$(GW) -PjacocoEnabled=false assembleDebug && \
-	mv app/build/outputs/apk/debug/app-debug.apk . && \
+	mv app/build/outputs/apk/debug/app-debug.apk app-debug.apk && \
 	$(ABC) sign-apk app-debug.apk && \
 	mv -v app-debug.apk app-original.apk
 
@@ -64,19 +64,19 @@ app-instrumented.apk : app-original.apk
 app-androidTest.apk :
 	export ABC_CONFIG=$(ABC_CFG) && \
 	$(GW) assembleAndroidTest && \
-	mv ./app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk app-androidTest-unsigned.apk && \
+	mv app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk app-androidTest-unsigned.apk && \
 	$(ABC) sign-apk app-androidTest-unsigned.apk && \
 	mv -v app-androidTest-unsigned.apk app-androidTest.apk
 
 # Utility
 stop-emulator:
-	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators 
+	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 
 # Trace all depends on tracing all the tests
 trace-all : $(ESPRESSO_TESTS)
 # Run the emulator
 	@echo "Tracing: $(shell echo $? | tr " " "\n")"
-	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators 
+	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	@echo "Done"
 
 # Try to trace all tests
@@ -109,13 +109,13 @@ $(ESPRESSO_TESTS) : app-androidTest.apk app-instrumented.apk
 # This will always run because it's a phony target
 carve-all : .carved-all
 	@echo "Carving All"
-	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators 
+	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	@echo "Done"
 
 .carved-all : $(ESPRESSO_TESTS)
 	@echo "Requiement $?"
 	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) carve-all app-original.apk traces app/src/carvedTest force-clean 2>&1 | tee carving.log
-	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators 
+	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 # 	Make sure this file has a timestamp after the prerequiesing
 	@sleep 1; echo "" > .carved-all
 
@@ -142,7 +142,7 @@ coverage-espresso-tests :
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator
 	$(GW) -PjacocoEnabled=true -PcarvedTests=false clean jacocoGUITestCoverage
 	mv -v app/build/reports/jacoco/jacocoGUITestCoverage espresso-test-coverage
-	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators 
+	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 
 # Required to run each test on its own to compute the coverage report
 $(ESPRESSO_TESTS_COVERAGE):
@@ -169,7 +169,7 @@ $(ESPRESSO_TESTS_COVERAGE):
 # Phony  target
 coverage-for-each-espresso-test :  $(ESPRESSO_TESTS_COVERAGE)
 	@echo "Processing: $(shell echo $? | tr " " "\n")"
-	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators 
+	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	@echo "Done"
 
 
