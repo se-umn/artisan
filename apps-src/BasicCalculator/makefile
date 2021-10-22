@@ -2,7 +2,9 @@
 GW=./gradlew
 ABC=../../scripts/abc.sh
 ABC_CFG=../../scripts/.abc-config
-JAVA_OPTS=" -Dabc.instrument.fields.operations -Dabc.taint.android.intents -Dabc.instrument.include=abc.basiccalculator"
+# -Dabc.make.android.lifecycle.events.explicit
+# -Dabc.instrument.array.operations
+JAVA_OPTS=" -Dabc.instrument.array.operations -Dabc.instrument.fields.operations -Dabc.taint.android.intents -Dabc.instrument.include=abc.basiccalculator"
 
 ADB := $(shell $(ABC) show-config  ANDROID_ADB_EXE | sed -e "s|ANDROID_ADB_EXE=||")
 # Create a list of expected test executions from tests.txt Those corresponds to the traces
@@ -175,17 +177,17 @@ coverage-for-each-espresso-test :  $(ESPRESSO_TESTS_COVERAGE)
 
 # Run existing unit tests (not carved ones)
 coverage-unit-tests :
-	$(GW) -PjacocoEnabled=true -PcarvedTests=false clean jacocoUnitTestCoverage
+	$(GW) -PjacocoEnabled=true -PcarvedTests=false clean jacocoUnitTestCoverage 2>&1 | tee ${@}.log
 	$(RM) -r unit-tests-coverage
-	mv -v app/build/reports/jacoco/jacocoUnitTestCoverage unit-tests-coverage
+	mv -v app/build/reports/jacoco/jacocoUnitTestCoverage unit-tests-coverage 
 
 # UPDATE THIS WITH TO CHECK THE RIGHT FILES .covered or index.html.  --info
 coverage-carved-tests : .carved-all
-	$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage
+	$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage 2>&1 | tee ${@}.log
 	$(RM) -r carved-test-coverage
-	mv -v build/carvedTest/coverage carved-test-coverage
+	mv -v build/carvedTest/coverage carved-test-coverage 
 
 coverage-existing-carved-tests :
-	$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage
+	$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage  2>&1 | tee ${@}.log
 	$(RM) -r  carved-test-coverage
 	mv -v build/carvedTest/coverage carved-test-coverage

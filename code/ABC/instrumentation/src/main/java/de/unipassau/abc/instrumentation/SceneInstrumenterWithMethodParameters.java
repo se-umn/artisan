@@ -1067,7 +1067,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
              * Make sure we properly report ArrayOperations. TODO Are we sure those apply
              * ONLY to AssignStmt?
              */
-            if (INSTRUMENT_ARRAY_OPERATIONS) {
+            if (INSTRUMENT_ARRAY_OPERATIONS && canInstrumentArrayOperations(currentlyInstrumentedMethod)) {
                 currentUnit.apply(new ArrayConstructorTransformer(currentlyInstrumentedMethod,
                         currentlyInstrumentedMethodBody, currentlyInstrumentedMethodBodyUnitChain, userClasses));
                 currentUnit.apply(new ArrayAccessTransformer(currentlyInstrumentedMethod,
@@ -1076,6 +1076,21 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
                         currentlyInstrumentedMethodBody, currentlyInstrumentedMethodBodyUnitChain, userClasses));
             }
         }
+
+    }
+
+    /**
+     * This methods decides whether we can instrument array operations for the
+     * SootMethod. The issue is that we may simply generate too much method
+     * invocations by introducing our instrumentation.
+     * 
+     * @param currentlyInstrumentedMethod
+     * @return
+     */
+    public boolean canInstrumentArrayOperations(SootMethod currentlyInstrumentedMethod) {
+        // TODO Heuristic here... Skip all the <package=name>.R$ classes, e.g.,
+        // abc/basiccalculator/R$styleable
+        return !currentlyInstrumentedMethod.getDeclaringClass().getName().contains(".R$");
 
     }
 
@@ -1132,7 +1147,8 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
         methodStartParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
 
         // Object[] methodParameters
-        // Make sure that if a parameter is null, we do not trace it as void@0 but we use the formal parameter of the method
+        // Make sure that if a parameter is null, we do not trace it as void@0 but we
+        // use the formal parameter of the method
         List<Local> parameterList = currentlyInstrumentedMethodBody.getParameterLocals();
         Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter.generateParameterArrayFromParametersLocal(
                 RefType.v("java.lang.Object"), parameterList, currentlyInstrumentedMethodBody);

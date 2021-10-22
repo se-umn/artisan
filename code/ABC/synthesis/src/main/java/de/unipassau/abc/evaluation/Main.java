@@ -46,6 +46,7 @@ import de.unipassau.abc.parsing.TraceParser;
 import de.unipassau.abc.parsing.TraceParserImpl;
 import de.unipassau.abc.parsing.postprocessing.AndroidParsedTraceDecorator;
 import de.unipassau.abc.parsing.postprocessing.ParsedTraceDecorator;
+import de.unipassau.abc.parsing.postprocessing.StaticParsedTraceDecorator;
 
 public class Main {
 
@@ -150,8 +151,13 @@ public class Main {
 
                 TraceParser parser = new TraceParserImpl();
                 ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+                //
                 ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
                 ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+                
+                ParsedTraceDecorator staticDecorator = new StaticParsedTraceDecorator();
+                parsedTrace = staticDecorator.decorate(parsedTrace);
+
 
                 totalParsedTraces = totalParsedTraces + 1;
 

@@ -123,6 +123,7 @@ dependencies {
     // The following raise the error: "java.lang.RuntimeException: huh? java 11, need help!"
     // With java 8 and robolectric 4.1 work
     testImplementation 'org.robolectric:robolectric:4.2'
+    testCompile 'org.robolectric:robolectric:4.2'
     // testImplementation 'org.robolectric:robolectric:4.1'
     // testImplementation 'de.unipassau.abc:test-utils:1.0-SNAPSHOT'
     // testImplementation 'com.google.guava:guava:27.0.1-jre'
@@ -135,4 +136,5 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
     androidTestImplementation 'androidx.test:runner:1.3.0'
     androidTestImplementation 'androidx.test:rules:1.3.0'
+    implementation 'junit:junit:4.12'
 }

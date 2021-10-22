@@ -266,7 +266,9 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             logger.debug("" + methodInvocation);
             // Now we create each method calls making sure that variables and the like
             // matches
-            if (methodInvocation.isConstructor()) {
+            if (methodInvocation.isConstructor() && methodInvocation.isStatic()) {
+                logger.warn("Skipping Static Constructor " + methodInvocation);
+            } else if (methodInvocation.isConstructor()) {
                 String generatedVariable = generateConstructorCall(methodInvocation, blockStmt);
                 if (methodInvocation.equals(carvedTest.getMethodUnderTest())) {
                     referenceToActualValue = generatedVariable;
@@ -525,6 +527,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
          * doing so it is tricky as arguments used in the constructor must be
          * initialized and set before use so we simply reassign the variable...
          */
+        System.out.println("JUnitTestCaseWriter.generateConstructorCall() " + methodInvocation);
         ObjectInstance owner = methodInvocation.getOwner();
         String variableName = getVariableFor(owner, methodBody);
         Expression variableInitializingExpr;
@@ -537,6 +540,9 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                 // understand how to handle this case
                 // when we do NOT taint intents... or the entire app is startet with an Intent
                 final String intentVariableName = declaredVariables.get(intent);
+
+                assert (intentVariableName != null) : "Intent Variable for " + intent + " is NOT YET defined?!";
+
                 final NameExpr intentNameExpr = new NameExpr(intentVariableName);
 
                 // We first build and initialize the activity controller for the corresponding
@@ -861,7 +867,13 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
     // TODO Contenxtualize on MethodBody/scope !
     private String declareVariableFor(DataNode dataNode, BlockStmt methodBody, Expression initializer) {
 
-        String variableType = TypeUtils.getActualTypeFor(dataNode);
+        // TODO Replace this with get Best Type For?
+        String variableType = null;
+        try {
+            variableType = TypeUtils.getActualTypeFor(dataNode);
+        } catch (Exception e) {
+
+        }
         // TODO Move to Utils methods as this is used in many places
         String className = variableType.substring(variableType.lastIndexOf('.') + 1);
 

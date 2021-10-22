@@ -35,6 +35,7 @@ import de.unipassau.abc.parsing.TraceParser;
 import de.unipassau.abc.parsing.TraceParserImpl;
 import de.unipassau.abc.parsing.postprocessing.AndroidParsedTraceDecorator;
 import de.unipassau.abc.parsing.postprocessing.ParsedTraceDecorator;
+import de.unipassau.abc.parsing.postprocessing.StaticParsedTraceDecorator;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 
 public class SmokeTest {
@@ -117,12 +118,81 @@ public class SmokeTest {
 
     // Trace-NPE
     @Test
+    public void testStaticDependencies() throws FileNotFoundException, IOException, ABCException {
+
+        // NOTE: This trace was patched: loadUiElements has been made PUBLIC !
+
+        File traceFile = new File("./src/test/resources/abc.basiccalculator/Trace-UiStorage.txt");
+        TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
+
+        // TODO Is is not going to work, since the IDs are regenerated every time...
+        File theAPK = new File("./src/test/resources/abc.basiccalculator/app-original.apk");
+        Main.idsInApk = ParsingUtils.getIdsMap(theAPK);
+
+        TraceParser parser = new TraceParserImpl();
+        ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+        //
+
+        // Make sure we do NOT decorate our own decorators and methods !
+        ParsedTraceDecorator decorator = new StaticParsedTraceDecorator();
+        ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+        //
+        decorator = new AndroidParsedTraceDecorator();
+        parsedTrace = decorator.decorate(parsedTrace);
+
+        // Find the target method invocation
+//        abc.basiccalculator.ExtendedResultActivity@259693653;
+//        String methodSignature = "<abc.basiccalculator.ExtendedResultActivity: void onCreate(android.os.Bundle)>";
+//        int invocationCount = 85;
+//        int invocationTraceId = 169;
+        String methodSignature = "<abc.basiccalculator.ExtendedResultActivity: void loadUiElements()>";
+        int invocationCount = 91;
+        int invocationTraceId = 180;
+        // Ensure we use the actual method invocation, not a shallow copy of it!
+        MethodInvocationSelector mis = new MethodInvocationSelector();
+        MethodInvocationMatcher matcher = MethodInvocationMatcher
+                .fromMethodInvocation(new MethodInvocation(invocationTraceId, invocationCount, methodSignature));
+        List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
+                mis.findByMethodInvocationMatcher(parsedTrace, matcher));
+
+        logger.debug("Carvable targets ");
+        for (MethodInvocation m : listOfTargetMethodsInvocations) {
+            logger.debug("" + m);
+        }
+
+        BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
+        List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
+        targetMethodsInvocationsList.addAll(listOfTargetMethodsInvocations);
+        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
+                parsedTrace);
+
+        int carvedTargets = carvedTests.size();
+
+        logger.info("Carved targets " + carvedTargets + " / " + listOfTargetMethodsInvocations.size());
+
+        // Put each test in a separate test case
+        TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+        Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+
+        // Write test cases to files and try to compile them
+
+        JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+
+        for (TestClass testCase : testSuite) {
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+            logger.info(cu.toString());
+        }
+
+    }
+
+    // Trace-NPE
+    @Test
     public void testNPEAfterCarvingIntents() throws FileNotFoundException, IOException, ABCException {
         File traceFile = new File("./src/test/resources/abc.basiccalculator/Trace-NPE.txt");
         TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
 
         // TODO Is is not going to work, since the IDs are regenerated every time...
-        File theAPK = new File("./src/test/resources/abc.basiccalculator/app-original.apk");                
+        File theAPK = new File("./src/test/resources/abc.basiccalculator/app-original.apk");
         Main.idsInApk = ParsingUtils.getIdsMap(theAPK);
 
         TraceParser parser = new TraceParserImpl();
