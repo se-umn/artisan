@@ -185,6 +185,29 @@ public class SmokeTest {
 
     }
 
+    @Test
+    public void testFailedParsingForNullElementInPair() throws FileNotFoundException, IOException, ABCException {
+
+        File traceFile = new File("./src/test/resources/abc.basiccalculator/Trace-NullPair.txt");
+        TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
+
+        // TODO Is is not going to work, since the IDs are regenerated every time...
+        File theAPK = new File("./src/test/resources/abc.basiccalculator/app-original.apk");
+        Main.idsInApk = ParsingUtils.getIdsMap(theAPK);
+
+        TraceParser parser = new TraceParserImpl();
+        ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+        //
+
+        // Make sure we do NOT decorate our own decorators and methods !
+        ParsedTraceDecorator decorator = new StaticParsedTraceDecorator();
+        ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+        //
+        decorator = new AndroidParsedTraceDecorator();
+        parsedTrace = decorator.decorate(parsedTrace);
+
+    }
+
     // Trace-NPE
     @Test
     public void testNPEAfterCarvingIntents() throws FileNotFoundException, IOException, ABCException {

@@ -152,11 +152,14 @@ public class Main {
                 TraceParser parser = new TraceParserImpl();
                 ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
                 //
-                ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
-                ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
-                
                 ParsedTraceDecorator staticDecorator = new StaticParsedTraceDecorator();
-                parsedTrace = staticDecorator.decorate(parsedTrace);
+                ParsedTrace parsedTrace = staticDecorator.decorate(_parsedTrace);
+                //
+                ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
+                parsedTrace = decorator.decorate(parsedTrace);
+                
+                
+                
 
 
                 totalParsedTraces = totalParsedTraces + 1;
