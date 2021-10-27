@@ -258,8 +258,16 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                                 // Create the dependency to the intent
                                 dataDependencyGraph.addImplicitDataDependency(methodThatRequireTheDependencyOnTheIntent,
                                         intent);
+
                                 activity.setRequiresIntent(true);
                                 activity.setIntent((ObjectInstance) intent);
+
+                                // TODO Patch: Make sure we automatically declares that also the constructor
+                                // requires the same intent!
+
+                                MethodInvocation activityConstructor = dataDependencyGraph
+                                        .getInitMethodInvocationFor(activity);
+                                dataDependencyGraph.addImplicitDataDependency(activityConstructor, intent);
                             } catch (ABCException e) {
                                 // TODO Auto-generated catch block
 //                            e.printStackTrace();
