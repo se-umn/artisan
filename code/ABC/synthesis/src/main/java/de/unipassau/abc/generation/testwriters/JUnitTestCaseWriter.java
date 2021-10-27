@@ -3,27 +3,7 @@ package de.unipassau.abc.generation.testwriters;
 import static com.github.javaparser.StaticJavaParser.parseClassOrInterfaceType;
 import static com.github.javaparser.StaticJavaParser.parseType;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.*;
-import java.util.stream.Collectors;
-
-import com.github.javaparser.ast.stmt.*;
-import de.unipassau.abc.evaluation.Main;
-import de.unipassau.abc.generation.ast.visitors.DefVisitor;
-import de.unipassau.abc.generation.ast.visitors.ModVisitor;
-import de.unipassau.abc.generation.ast.visitors.UseVisitor;
-import de.unipassau.abc.generation.mocks.CarvingShadow;
-import de.unipassau.abc.generation.shadowwriter.ShadowWriter;
-import org.apache.commons.lang.NotImplementedException;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.robolectric.RobolectricTestRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import com.github.javaparser.ast.ArrayCreationLevel;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.NodeList;
@@ -31,12 +11,15 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.ArrayAccessExpr;
+import com.github.javaparser.ast.expr.ArrayCreationExpr;
 import com.github.javaparser.ast.expr.ArrayInitializerExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.AssignExpr.Operator;
 import com.github.javaparser.ast.expr.CastExpr;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.IntegerLiteralExpr;
 import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.Name;
@@ -46,8 +29,13 @@ import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.TypeExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
+import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.CatchClause;
+import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.stmt.ThrowStmt;
+import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
-
 import de.unipassau.abc.data.AndroidMethodInvocation;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.DataNode;
@@ -59,16 +47,42 @@ import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.PlaceholderDataNode;
 import de.unipassau.abc.data.PrimitiveValue;
+import de.unipassau.abc.evaluation.Main;
 import de.unipassau.abc.generation.SyntheticMethodSignatures;
 import de.unipassau.abc.generation.TestCaseWriter;
 import de.unipassau.abc.generation.assertions.CarvingAssertion;
+import de.unipassau.abc.generation.ast.visitors.DefVisitor;
+import de.unipassau.abc.generation.ast.visitors.ModVisitor;
+import de.unipassau.abc.generation.ast.visitors.UseVisitor;
 import de.unipassau.abc.generation.data.AndroidCarvedTest;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
+import de.unipassau.abc.generation.mocks.CarvingShadow;
+import de.unipassau.abc.generation.shadowwriter.ShadowWriter;
 import de.unipassau.abc.generation.utils.TestCaseOrganizer;
 import de.unipassau.abc.generation.utils.TestClass;
 import de.unipassau.abc.generation.utils.TypeUtils;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.commons.lang.NotImplementedException;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Generate the source code implementing the carved tests as tests were
@@ -270,6 +284,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                 logger.warn("Skipping Static Constructor " + methodInvocation);
             } else if (methodInvocation.isConstructor()) {
                 String generatedVariable = generateConstructorCall(methodInvocation, blockStmt);
+
                 if (methodInvocation.equals(carvedTest.getMethodUnderTest())) {
                     referenceToActualValue = generatedVariable;
                 }
@@ -579,24 +594,43 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             throw new RuntimeException("Not implemented yet AndroidFragment generation");
 
         } else {
+            String className = JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature());
 
-            // TODO No idea what scope is
-            ClassOrInterfaceType type = new ClassOrInterfaceType(null,
-                    JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature()));
-            ObjectCreationExpr constructorCall = new ObjectCreationExpr();
-            constructorCall.setType(type);
+            List<String> arguments = methodInvocation.getActualParameterInstances()
+                  .stream()
+                  .map(parameter -> {
+                      if (parameter instanceof PlaceholderDataNode) {
+                          PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
+                          return declaredVariables.get(placeholderDataNode.getOriginalDataNode());
+                      } else {
+                          return getParameterFor(parameter, methodBody);
+                      }
+                  }).collect(Collectors.toList());
 
-            for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
-                if (parameter instanceof PlaceholderDataNode) {
-                    PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
-                    String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
-                    constructorCall.addArgument(variable);
-                } else {
-                    constructorCall.addArgument(getParameterFor(parameter, methodBody));
-                }
+            // Arrays must be created differently with javaparser, otherwise we're gonna get
+            // something like new String[](2)
+            if (JimpleUtils.isArray(className)) {
+                // TODO this only considers things like new int[2],
+                // but no direct array initialization, i.e., new int[] {1, 2, 3}
+                ClassOrInterfaceType type = new ClassOrInterfaceType(null,
+                      JimpleUtils.getArrayElementType(className));
+
+                List<ArrayCreationLevel> levels = arguments.stream().map(arg -> {
+                    Expression dimension = new IntegerLiteralExpr(arg);
+                    return new ArrayCreationLevel(dimension);
+                }).collect(Collectors.toList());
+
+                variableInitializingExpr = new ArrayCreationExpr(type, NodeList.nodeList(levels), null);
+            } else {
+                // TODO No idea what scope is
+                ClassOrInterfaceType type = new ClassOrInterfaceType(null,
+                      JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature()));
+                ObjectCreationExpr constructorCall = new ObjectCreationExpr();
+                constructorCall.setType(type);
+                arguments.forEach(constructorCall::addArgument);
+
+                variableInitializingExpr = constructorCall;
             }
-
-            variableInitializingExpr = constructorCall;
         }
 
         AssignExpr variableAssignment = new AssignExpr(new NameExpr(variableName), variableInitializingExpr,
@@ -649,8 +683,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
      */
     private Optional<String> generateMethodCall(MethodInvocation methodInvocation, BlockStmt methodBody) {
         String methodName = JimpleUtils.getMethodName(methodInvocation.getMethodSignature());
-        MethodCallExpr methodCallExpr;
-
+        Expression methodCallExpr;
         String variableName = null;
         /**
          * Step 1: prepare the invocation of the method
@@ -660,13 +693,40 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             // TODO what about fragment callbacks?
             return Optional.ofNullable(generateRobolectricLifecycleCall(methodInvocation, methodBody));
         } else if (!methodInvocation.isStatic()) {
-
             ObjectInstance owner = methodInvocation.getOwner();
             String variableNameOwner = getVariableFor(owner, methodBody);
-
             NameExpr nameExpr = new NameExpr(variableNameOwner);
-            methodCallExpr = new MethodCallExpr(nameExpr, methodName);
 
+            if (!JimpleUtils.isArray(owner.getType())) {
+                methodCallExpr = new MethodCallExpr(nameExpr, methodName);
+            } else {
+
+                // A writable array access like arr.store(0, "value")
+                if (methodName.equals("store")) {
+                    // The first argument must be an index, while the second one ist the new value
+                    List<String> arguments = methodInvocation.getActualParameterInstances()
+                          .stream()
+                          .map(parameter -> {
+                              if (parameter instanceof PlaceholderDataNode) {
+                                  PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
+                                  return declaredVariables.get(placeholderDataNode.getOriginalDataNode());
+                              } else {
+                                  return getParameterFor(parameter, methodBody);
+                              }
+                          })
+                          .limit(2)
+                          .collect(Collectors.toList());
+
+                    IntegerLiteralExpr index = new IntegerLiteralExpr(arguments.get(0));
+                    NameExpr value = new NameExpr(arguments.get(1));
+
+                    ArrayAccessExpr arrayAccessExpr = new ArrayAccessExpr(nameExpr, index);
+                    methodCallExpr = new AssignExpr(arrayAccessExpr, value, Operator.ASSIGN);
+                } else {
+                    throw new NotImplementedException("Operations other then array store are not implemented yet");
+                }
+
+            }
         } else {
             // TODO Here we use JUnit assertions, while we should be using Hamcrest
             // https://stackoverflow.com/questions/56772801/assert-fail-equivalent-using-hamcrest
@@ -711,15 +771,15 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
             String referenceToViewId = referenceToR + "." + referenceToViewName;
 
-            methodCallExpr.addArgument(referenceToViewId);
+            methodCallExpr.asMethodCallExpr().addArgument(referenceToViewId);
         } else if (methodInvocation.getMethodSignature().equals("<android.app.Activity: void setContentView(int)>")) {
             DataNode dataValueForInt = methodInvocation.getActualParameterInstances().get(0);
             String dataValueString = getParameterFor(dataValueForInt, methodBody);
             Integer integerValue = Integer.parseInt(dataValueString);
             if (Main.idsInApk.containsKey(integerValue)) {
-                methodCallExpr.addArgument(Main.idsInApk.get(integerValue));
+                methodCallExpr.asMethodCallExpr().addArgument(Main.idsInApk.get(integerValue));
             } else {
-                methodCallExpr.addArgument(dataValueString);
+                methodCallExpr.asMethodCallExpr().addArgument(dataValueString);
             }
         } else if (methodInvocation.getMethodSignature()
                 .equals("<org.mockito.Mockito: org.mockito.stubbing.Stubber doReturn(java.lang.Object)>")) {
@@ -728,33 +788,35 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                 String dataValueString = getParameterFor(dataValue, methodBody);
                 Integer integerValue = Integer.parseInt(dataValueString);
                 if (Main.idsInApk.containsKey(integerValue)) {
-                    methodCallExpr.addArgument(Main.idsInApk.get(integerValue));
+                    methodCallExpr.asMethodCallExpr().addArgument(Main.idsInApk.get(integerValue));
                 } else {
                     if (dataValue instanceof PlaceholderDataNode) {
                         PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) dataValue;
                         String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
-                        methodCallExpr.addArgument(variable);
+                        methodCallExpr.asMethodCallExpr().addArgument(variable);
                     } else {
-                        methodCallExpr.addArgument(getParameterFor(dataValue, methodBody));
+                        methodCallExpr.asMethodCallExpr().addArgument(getParameterFor(dataValue, methodBody));
                     }
                 }
             } else {
                 if (dataValue instanceof PlaceholderDataNode) {
                     PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) dataValue;
                     String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
-                    methodCallExpr.addArgument(variable);
+                    methodCallExpr.asMethodCallExpr().addArgument(variable);
                 } else {
-                    methodCallExpr.addArgument(getParameterFor(dataValue, methodBody));
+                    methodCallExpr.asMethodCallExpr().addArgument(getParameterFor(dataValue, methodBody));
                 }
             }
+        } else if (!methodInvocation.isStatic() && JimpleUtils.isArray(methodInvocation.getOwner().getType())) {
+            // Skip, we already defined the array statement
         } else {
             for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
                 if (parameter instanceof PlaceholderDataNode) {
                     PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
                     String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
-                    methodCallExpr.addArgument(variable);
+                    methodCallExpr.asMethodCallExpr().addArgument(variable);
                 } else {
-                    methodCallExpr.addArgument(getParameterFor(parameter, methodBody));
+                    methodCallExpr.asMethodCallExpr().addArgument(getParameterFor(parameter, methodBody));
                 }
             }
         }
