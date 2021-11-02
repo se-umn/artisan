@@ -51,20 +51,12 @@ public class MainActivity extends Activity {
         String result = eval(input);
 
 
-        if (getSomeStrings().isEmpty()) {
-
-        } else if (!result.equals(ERROR_STRING)) {
+        if (!result.equals(ERROR_STRING)) {
             intent.putExtra(RESULT_MESSAGE, Integer.parseInt(result));
             startActivity(intent);
         } else {
             inputField.setText(ERROR_STRING);
         }
-    }
-
-    public List<String> getSomeStrings() {
-        List<String> strings = new ArrayList<>();
-        strings.add("Hello");
-        return strings;
     }
 
     /**
