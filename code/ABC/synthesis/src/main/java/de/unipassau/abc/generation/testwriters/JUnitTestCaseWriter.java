@@ -10,7 +10,7 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
-import com.github.javaparser.ast.comments.LineComment;
+import com.github.javaparser.ast.comments.JavadocComment;
 import com.github.javaparser.ast.expr.ArrayInitializerExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.AssignExpr.Operator;
@@ -222,8 +222,11 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             // Add the generic Exception throwing
             testMethod.addThrownException(Exception.class);
 
-            String generatedFromComment = String.format("Generated from %s", carvedTest.getTraceId());
-            testMethod.setComment(new LineComment(generatedFromComment));
+            String generatedFromComment = String.format(
+                  "%nGenerated from %s%nMethod invocation under test: %s",
+                  carvedTest.getTraceId(), carvedTest.getMethodUnderTest().getMethodSignature()
+            );
+            testMethod.setComment(new JavadocComment(generatedFromComment));
 
             // Generate method body
             generateMethodBody(testMethod, carvedTest);
