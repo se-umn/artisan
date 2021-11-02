@@ -3,27 +3,6 @@ package de.unipassau.abc.generation.testwriters;
 import static com.github.javaparser.StaticJavaParser.parseClassOrInterfaceType;
 import static com.github.javaparser.StaticJavaParser.parseType;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.*;
-import java.util.stream.Collectors;
-
-import com.github.javaparser.ast.stmt.*;
-import de.unipassau.abc.evaluation.Main;
-import de.unipassau.abc.generation.ast.visitors.DefVisitor;
-import de.unipassau.abc.generation.ast.visitors.ModVisitor;
-import de.unipassau.abc.generation.ast.visitors.UseVisitor;
-import de.unipassau.abc.generation.mocks.CarvingShadow;
-import de.unipassau.abc.generation.shadowwriter.ShadowWriter;
-import org.apache.commons.lang.NotImplementedException;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.robolectric.RobolectricTestRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.NodeList;
@@ -31,6 +10,7 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.comments.JavadocComment;
 import com.github.javaparser.ast.expr.ArrayInitializerExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.AssignExpr.Operator;
@@ -46,8 +26,13 @@ import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.TypeExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
+import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.CatchClause;
+import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.stmt.ThrowStmt;
+import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
-
 import de.unipassau.abc.data.AndroidMethodInvocation;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.DataNode;
@@ -59,16 +44,42 @@ import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.PlaceholderDataNode;
 import de.unipassau.abc.data.PrimitiveValue;
+import de.unipassau.abc.evaluation.Main;
 import de.unipassau.abc.generation.SyntheticMethodSignatures;
 import de.unipassau.abc.generation.TestCaseWriter;
 import de.unipassau.abc.generation.assertions.CarvingAssertion;
+import de.unipassau.abc.generation.ast.visitors.DefVisitor;
+import de.unipassau.abc.generation.ast.visitors.ModVisitor;
+import de.unipassau.abc.generation.ast.visitors.UseVisitor;
 import de.unipassau.abc.generation.data.AndroidCarvedTest;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
+import de.unipassau.abc.generation.mocks.CarvingShadow;
+import de.unipassau.abc.generation.shadowwriter.ShadowWriter;
 import de.unipassau.abc.generation.utils.TestCaseOrganizer;
 import de.unipassau.abc.generation.utils.TestClass;
 import de.unipassau.abc.generation.utils.TypeUtils;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.commons.lang.NotImplementedException;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Generate the source code implementing the carved tests as tests were
@@ -210,6 +221,12 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             annotation.getPairs().add(timeout);
             // Add the generic Exception throwing
             testMethod.addThrownException(Exception.class);
+
+            String generatedFromComment = String.format(
+                  "%nGenerated from %s%nMethod invocation under test: %s",
+                  carvedTest.getTraceId(), carvedTest.getMethodUnderTest().getMethodSignature()
+            );
+            testMethod.setComment(new JavadocComment(generatedFromComment));
 
             // Generate method body
             generateMethodBody(testMethod, carvedTest);

@@ -1,20 +1,5 @@
 package de.unipassau.abc.generation;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Set;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-
-import de.unipassau.abc.evaluation.Main;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import de.unipassau.abc.carving.BasicCarver;
 import de.unipassau.abc.carving.CarvedExecution;
 import de.unipassau.abc.carving.exceptions.CarvingException;
@@ -39,19 +24,15 @@ import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
 import de.unipassau.abc.generation.mocks.MockGenerator;
 import de.unipassau.abc.parsing.ParsedTrace;
-import de.unipassau.abc.parsing.TraceParser;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
-import java.util.Set;
 import java.util.stream.Collectors;
-import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import soot.jimple.StaticFieldRef;
 
 public class BasicTestGenerator implements TestGenerator {
 
@@ -119,7 +100,6 @@ public class BasicTestGenerator implements TestGenerator {
          */
         ExecutionFlowGraph executionFlowGraph = new ExecutionFlowGraphImpl();
         DataDependencyGraph dataDependencyGraph = new DataDependencyGraphImpl();
-
         MethodInvocation methodInvocationUnderTest = carvedExecution.methodInvocationUnderTest;
         // logging
         logger.debug("-------------------------");
@@ -429,11 +409,11 @@ public class BasicTestGenerator implements TestGenerator {
                  * unexpectedExceptionCatchBlockDataDependencyGraph);
                  */
                 carvedTest = new AndroidCarvedTest(methodInvocationUnderTest, executionFlowGraph, dataDependencyGraph,
-                        catchExpectedException, catchUnexpectedException);
+                        catchExpectedException, catchUnexpectedException, carvedExecution.traceId);
             } else {
                 carvedTest = new CarvedTest(methodInvocationUnderTest, //
                         executionFlowGraph, dataDependencyGraph, // Test Body + Fail
-                        catchExpectedException, catchUnexpectedException);
+                        catchExpectedException, catchUnexpectedException, carvedExecution.traceId);
             }
         } else {
 
@@ -442,10 +422,10 @@ public class BasicTestGenerator implements TestGenerator {
                     carvedExecution.callGraphs);
             if (containsAndroidMethodInvocations) {
                 carvedTest = new AndroidCarvedTest(methodInvocationUnderTest, //
-                        executionFlowGraph, dataDependencyGraph);
+                        executionFlowGraph, dataDependencyGraph, carvedExecution.traceId);
             } else {
                 carvedTest = new CarvedTest(methodInvocationUnderTest, //
-                        executionFlowGraph, dataDependencyGraph);
+                        executionFlowGraph, dataDependencyGraph, carvedExecution.traceId);
             }
             // Add the assertions using the AssertionGenerationPipeline (basically, add all
             // the assertions that can be added).

@@ -114,7 +114,7 @@ public class TaintendIntentCarver extends AbstractObjectCarver {
 		// potentially is a large cartesian product.
 
 		Map<MethodInvocation, List<CarvedExecution>> carvedExecutions = basicCarver
-				.carve(new ArrayList<MethodInvocation>(relevantMethodInvocations));
+				.carve(new ArrayList<>(relevantMethodInvocations));
 
 		/*
 		 * Now we pick one carved execution for each of the method call that we carved.
@@ -125,7 +125,7 @@ public class TaintendIntentCarver extends AbstractObjectCarver {
 
 		// For simplicity, we produce a single carved execution as result. Pretty sure
 		// there's a better way to do this...
-		CarvedExecution result = new CarvedExecution();
+		CarvedExecution result = new CarvedExecution(parsedTrace.traceFileName());
 		result.methodInvocationUnderTest = contextMethodInvocation;
 		result.carvedObject = intentObjectInstance;
 
