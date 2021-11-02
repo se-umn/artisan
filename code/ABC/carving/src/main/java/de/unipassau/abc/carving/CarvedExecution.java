@@ -32,11 +32,13 @@ public class CarvedExecution {
 	public Collection<ExecutionFlowGraph> executionFlowGraphs;
 	public Collection<DataDependencyGraph> dataDependencyGraphs;
 	public Collection<CallGraph> callGraphs;
+	public String traceId;
 
-	public CarvedExecution() {
+	public CarvedExecution(String traceId) {
 		this.executionFlowGraphs = new ArrayList<>();
 		this.dataDependencyGraphs = new ArrayList<>();
 		this.callGraphs = new ArrayList<>();
+		this.traceId = traceId;
 	}
 
 	/**

@@ -1,12 +1,5 @@
 package de.unipassau.abc.generation.data;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Random;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.MethodInvocation;
@@ -14,6 +7,11 @@ import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.generation.assertions.CarvingAssertion;
 import de.unipassau.abc.generation.mocks.CarvingMock;
 import de.unipassau.abc.generation.mocks.CarvingShadow;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class CarvedTest {
 
@@ -43,11 +41,12 @@ public class CarvedTest {
 	private List<CarvingAssertion> assertions;
     private List<CarvingMock> mocks;
     private List<CarvingShadow> shadows;
+	private String traceId;
 
 	// Basic Tests
 	public CarvedTest(MethodInvocation methodInvocationUnderTest, ExecutionFlowGraph executionFlowGraph,
 			DataDependencyGraph dataDependencyGraph, CatchBlock catchExpectedException,
-			CatchBlock catchUnexpectedException) {
+			CatchBlock catchUnexpectedException, String traceId) {
         this.uniqueIdentifier = identityCounter.incrementAndGet();
 		this.methodInvocationUnderTest = methodInvocationUnderTest;
 		this.executionFlowGraph = executionFlowGraph;
@@ -55,24 +54,30 @@ public class CarvedTest {
 		this.catchExpectedException = catchExpectedException;
 		this.catchUnexpectedException = catchUnexpectedException;
 		//
-		this.assertions = new ArrayList<CarvingAssertion>();
-        this.mocks = new ArrayList<CarvingMock>();
-        this.shadows = new ArrayList<CarvingShadow>();
+		this.assertions = new ArrayList<>();
+        this.mocks = new ArrayList<>();
+        this.shadows = new ArrayList<>();
+		this.traceId = traceId;
 	}
 
 	public CarvedTest(MethodInvocation methodInvocationUnderTest, ExecutionFlowGraph executionFlowGraph,
-			DataDependencyGraph dataDependencyGraph) {
+			DataDependencyGraph dataDependencyGraph, String traceId) {
         this.uniqueIdentifier = identityCounter.incrementAndGet();
 		this.methodInvocationUnderTest = methodInvocationUnderTest;
 		this.executionFlowGraph = executionFlowGraph;
 		this.dataDependencyGraph = dataDependencyGraph;
 		//
-		this.assertions = new ArrayList<CarvingAssertion>();
-        this.mocks = new ArrayList<CarvingMock>();
-        this.shadows = new ArrayList<CarvingShadow>();
+		this.assertions = new ArrayList<>();
+        this.mocks = new ArrayList<>();
+        this.shadows = new ArrayList<>();
+		this.traceId = traceId;
 	}
 
-    public int getUniqueIdentifier() {
+	public String getTraceId() {
+		return traceId;
+	}
+
+	public int getUniqueIdentifier() {
         return uniqueIdentifier;
     }
 

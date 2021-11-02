@@ -1,23 +1,5 @@
 package de.unipassau.abc.carving;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.Queue;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
@@ -29,6 +11,20 @@ import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.parsing.ParsedTrace;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Basic carver is a method carver, that is, it will produce a carved execution
@@ -45,6 +41,7 @@ public class BasicCarver implements MethodCarver {
     private ExecutionFlowGraph executionFlowGraph;
     private DataDependencyGraph dataDependencyGraph;
     private CallGraph callGraph;
+    private String traceId;
 
     // Bookkeep the carved method invocations.
     private Set<MethodInvocation> carvedMethodInvocationsCache = new HashSet<MethodInvocation>();
@@ -56,6 +53,7 @@ public class BasicCarver implements MethodCarver {
         this.executionFlowGraph = executionTraceForMainThread.getFirst();
         this.dataDependencyGraph = executionTraceForMainThread.getSecond();
         this.callGraph = executionTraceForMainThread.getThird();
+        this.traceId = parsedTrace.traceFileName();
     }
 
     /**
@@ -448,7 +446,7 @@ public class BasicCarver implements MethodCarver {
          */
 
         logger.debug("Extrapolating method invocations from graphs");
-        CarvedExecution carvedExecution = new CarvedExecution();
+        CarvedExecution carvedExecution = new CarvedExecution(traceId);
         // How do we ensure that whatever we extrapolate from the graphs belong
         // together? We order method invocations per id of the first call?
         carvedExecution.executionFlowGraphs = this.executionFlowGraph.extrapolate(new HashSet(allMethodInvocations));

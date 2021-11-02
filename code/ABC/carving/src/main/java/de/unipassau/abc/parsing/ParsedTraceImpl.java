@@ -121,4 +121,9 @@ public class ParsedTraceImpl implements ParsedTrace {
 		return content.keySet().size();
 	}
 
+	@Override
+	public String traceFileName() {
+		return systemTestID;
+	}
+
 }
