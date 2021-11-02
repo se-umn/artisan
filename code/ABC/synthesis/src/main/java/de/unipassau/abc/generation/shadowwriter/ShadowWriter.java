@@ -35,15 +35,15 @@ public class ShadowWriter {
         for (TestClass testCase : testClasses) {
             System.out.println("TEST CLASS NAME: " + testCase.getName());
             // iterate over the carved tests in each test case
-            for(CarvedTest carvedTest:testCase.getCarvedTests()){
+            for (CarvedTest carvedTest : testCase.getCarvedTests()) {
                 System.out.println("CARVED TEST FOR TEST CLASS: " + carvedTest.getUniqueIdentifier());
                 // iterate over the shadows in each carved test
-                for(CarvingShadow carvingShadow:carvedTest.getShadows()){
-                    if(shadowToType.containsKey(carvingShadow.getShadowName())){
+                for (CarvingShadow carvingShadow : carvedTest.getShadows()) {
+                    if (shadowToType.containsKey(carvingShadow.getShadowName())) {
                         // this should not occur
-                        if(!shadowToType.get(carvingShadow.getShadowName()).equals(carvingShadow.getStubbedType())){
-                            throw new RuntimeException("Shadow types do not match:"+
-                                    shadowToType.get(carvingShadow.getShadowName())+"/"+carvingShadow.getStubbedType());
+                        if (!shadowToType.get(carvingShadow.getShadowName()).equals(carvingShadow.getStubbedType())) {
+                            throw new RuntimeException("Shadow types do not match: " +
+                                    shadowToType.get(carvingShadow.getShadowName()) + "/" + carvingShadow.getStubbedType());
                         }
                     // if the shadow was not already in the map, insert it
                     // there and associate it with the correct stubbed type
@@ -51,15 +51,12 @@ public class ShadowWriter {
                         shadowToType.put(carvingShadow.getShadowName(), carvingShadow.getStubbedType());
                     }
 
+                    shadowToMethods.put(carvingShadow.getShadowName(), new HashSet<String>());
+
                     for (String stubbedMethod:carvingShadow.getStubbedMethods()) {
-                        if(shadowToMethods.containsKey(carvingShadow.getShadowName())) {
-                            Set<String> methods = shadowToMethods.get(carvingShadow.getShadowName());
-                            methods.add(stubbedMethod);
-                        } else {
-                            Set<String> methods = new HashSet<String>();
-                            methods.add(stubbedMethod);
-                            shadowToMethods.put(carvingShadow.getShadowName(), methods);
-                        }
+                        System.out.println("Shadow " + carvingShadow.getShadowName() + " has stubbed methods!");
+                        Set<String> methods = shadowToMethods.get(carvingShadow.getShadowName());
+                        methods.add(stubbedMethod);
                     }
                 }
             }
@@ -149,7 +146,16 @@ public class ShadowWriter {
             setStrictMethodBody.setStatements(stmtsInSetStrictMethodBody);
             setStrictMethod.setBody(setStrictMethodBody);
             //create a method for each mocked method
-            for(String methodSignature: shadowToMethods.get(shadowName)){
+            Set<String> methodsForShadow = shadowToMethods.get(shadowName);
+
+            if (methodsForShadow == null) {
+                System.out.println("Shadow name: " + shadowName);
+                System.out.println(shadowToMethods.entrySet());
+                System.out.println(shadowToType.entrySet());
+                System.out.println("this list is null! something is likely wrong");
+            }
+
+            for (String methodSignature : methodsForShadow) {
                 String methodName = JimpleUtils.getMethodName(methodSignature);
                 String returnType = JimpleUtils.getReturnType(methodSignature);
                 String parameters[] = JimpleUtils.getParameterList(methodSignature);
