@@ -20,10 +20,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import org.graphstream.ui.graphicGraph.stylesheet.parser.StyleSheetParserTokenManager;
 import org.xmlpull.v1.XmlPullParserException;
 
 import de.unipassau.abc.data.Pair;
 import dev.navids.soottutorial.visual.Visualizer;
+import edu.emory.mathcs.backport.java.util.Collections;
 import soot.Body;
 import soot.IntType;
 import soot.Local;
@@ -32,6 +34,7 @@ import soot.RefType;
 import soot.Scene;
 import soot.SceneTransformer;
 import soot.SootClass;
+import soot.SootField;
 import soot.SootMethod;
 import soot.Trap;
 import soot.Type;
@@ -41,6 +44,7 @@ import soot.Value;
 import soot.VoidType;
 import soot.jimple.AbstractStmtSwitch;
 import soot.jimple.AssignStmt;
+import soot.jimple.FieldRef;
 import soot.jimple.IdentityStmt;
 import soot.jimple.IntConstant;
 import soot.jimple.InvokeExpr;
@@ -51,10 +55,13 @@ import soot.jimple.NullConstant;
 import soot.jimple.ReturnStmt;
 import soot.jimple.ReturnVoidStmt;
 import soot.jimple.SpecialInvokeExpr;
+import soot.jimple.StaticFieldRef;
+import soot.jimple.StaticInvokeExpr;
 import soot.jimple.Stmt;
 import soot.jimple.StringConstant;
 import soot.jimple.ThrowStmt;
 import soot.toolkits.graph.ExceptionalUnitGraph;
+import soot.toolkits.scalar.ConstantValueToInitializerTransformer;
 import soot.util.Chain;
 import utils.Constants;
 
@@ -99,8 +106,6 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
     // Additional inputs that cannot be easily passed using command line
     private static final String INCLUDE_FILTER = System.getProperty("abc.instrument.include", "");
 
-    private static final boolean DEBUG = System.getProperties().containsKey("abc.debug");
-
     // Class which is invoked dynamically from the inserted probes to trace the
     // execution.
     // The actual class will be choosen dynamically
@@ -138,6 +143,9 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
     // values for an android application
     private SootClass rIdClass;
 
+    private boolean DEBUG = System.getProperties().containsKey("abc.instrument.debug");
+    private boolean CONSIDER_MULTIPLE_THREADS = System.getProperties().containsKey("abc.instrument.multithreaded");
+
     protected static boolean bProgramStartInClinit = false;
 //	protected static Options opts = new Options();
 
@@ -156,6 +164,14 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
         if (packageFilters != null) {
             packageFilters.forEach(s -> this.packageFilters.add(Pattern.compile(s)));
         }
+    }
+
+    public void setDebug(boolean debug) {
+        DEBUG = debug;
+    }
+
+    public void setMultiThreadedExecution(boolean considerMultipleThreads) {
+        this.CONSIDER_MULTIPLE_THREADS = considerMultipleThreads;
     }
 
     /**
@@ -376,6 +392,87 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
             monitorOnAppMethodReturnExceptionally = clsMonitor.getMethodByName("onAppMethodReturnExceptionally");
             monitorOnAppMethodCaptureException = clsMonitor.getMethodByName("onAppMethodCaptureException");
             monitorOnAppMethodThrowException = clsMonitor.getMethodByName("onAppMethodThrowException");
+
+            /*
+             * To configure the clsMonitor class we directly change its code and set the
+             * value of the variables as defined by the Java properties passed to this class
+             */
+
+            /*
+             * Since we know those are static fields, we need to capture the moment of their
+             * allocation. However, those are not primitives, so to set their value we need
+             * to go the long way: create a local variable, and assign that to the fields in
+             * the class initializer
+             */
+            SootMethod staticInitializer = clsMonitor.getMethodByName("<clinit>");
+
+            final Body staticInitializerMethodBody = staticInitializer.retrieveActiveBody();
+            UnitPatchingChain staticInitializerMethodBodyUnitChain = staticInitializerMethodBody.getUnits();
+            for (final Iterator<Unit> iter = staticInitializerMethodBodyUnitChain.snapshotIterator(); iter.hasNext();) {
+                final Unit currentUnit = iter.next();
+
+                System.out.println(currentUnit);
+                currentUnit.apply(new AbstractStmtSwitch() {
+
+                    @Override
+                    public void caseAssignStmt(AssignStmt stmt) {
+                        Local booleanLocal = null;
+                        SootClass sootClass = Scene.v().getSootClass("java.lang.Boolean");
+                        SootMethod valueOfMethod = sootClass.getMethod("java.lang.Boolean valueOf(boolean)");
+                        StaticInvokeExpr staticInvokeExpr = null;
+                        Unit newAssignStmt = null;
+                        if (stmt.getLeftOp() instanceof StaticFieldRef) {
+                            StaticFieldRef ref = (StaticFieldRef) stmt.getLeftOp();
+                            final String fieldName = ref.getField().getName();
+                            switch (fieldName) {
+                            case "DEBUG":
+
+                                // Add a new local
+                                booleanLocal = UtilInstrumenter.generateFreshLocal(staticInitializerMethodBody,
+                                        RefType.v("java.lang.Boolean"));
+                                staticInvokeExpr = Jimple.v().newStaticInvokeExpr(valueOfMethod.makeRef(),
+                                        IntConstant.v((DEBUG ? 1 : 0)));
+                                newAssignStmt = Jimple.v().newAssignStmt(booleanLocal, staticInvokeExpr);
+                                UtilInstrumenter.instrumentBeforeWithAndTag(staticInitializerMethodBodyUnitChain, stmt,
+                                        Collections.singletonList(newAssignStmt));
+                                //
+                                stmt.setRightOp(booleanLocal);
+                                System.out.println("Setting Monitoring field to " + stmt + " - " + DEBUG);
+                                break;
+                            case "REPORT_ONLY_MAIN_THREAD":
+                                // Note that this is the negation!
+                                // Add a new local
+                                booleanLocal = UtilInstrumenter.generateFreshLocal(staticInitializerMethodBody,
+                                        RefType.v("java.lang.Boolean"));
+                                staticInvokeExpr = Jimple.v().newStaticInvokeExpr(valueOfMethod.makeRef(),
+                                        IntConstant.v((CONSIDER_MULTIPLE_THREADS ? 0 : 1)));
+                                newAssignStmt = Jimple.v().newAssignStmt(booleanLocal, staticInvokeExpr);
+                                UtilInstrumenter.instrumentBeforeWithAndTag(staticInitializerMethodBodyUnitChain, stmt,
+                                        Collections.singletonList(newAssignStmt));
+                                //
+                                stmt.setRightOp(booleanLocal);
+                                System.out.println(
+                                        "Setting Monitoring field to " + stmt + " - " + CONSIDER_MULTIPLE_THREADS);
+                                break;
+                            default:
+                                break;
+                            }
+                        }
+                        super.caseAssignStmt(stmt);
+                    }
+                });
+
+            }
+
+            /*
+             * void handleAssign(DefinitionStmt stmt) { Value lval = stmt.getLeftOp(); Value
+             * rval = stmt.getRightOp(); Variable rvar; if (lval instanceof Local) { rvar =
+             * getLocalVariable((Local)lval); } else { rvar = jt.makeVariable(rval); }
+             * et.translateExpr(rvar, stmt.getRightOpBox()); if (lval instanceof ArrayRef) {
+             * notSupported("We do not support arrays"); } else if (lval instanceof
+             * FieldRef) { notSupported("We do not support field references"); } }
+             * 
+             */
 
         } catch (Throwable t) {
             t.printStackTrace();
