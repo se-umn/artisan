@@ -145,9 +145,10 @@ public class ObjectInstance implements DataNode, Cloneable {
         this.isAndroidFragment = isAndroidFragment;
     }
 
+    // TODO Why do we have to add also the System.identityHashCode(this)?
     @Override
     public String toString() {
-        return objectId + " ( " + System.identityHashCode(this) + ")";
+        return objectId; // + " (" + System.identityHashCode(this) + ")";
     }
 
     public boolean isBoxedPrimitive() {
