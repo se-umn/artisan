@@ -21,15 +21,14 @@ public class MainTest {
         File theAPK = new File("src/test/resources/app-original.apk");
         File androidJAR = new File("src/test/resources/android-28.jar");
         String[] args = new String[] { "--apk", theAPK.getAbsolutePath(), //
-            "--android-jar", androidJAR.getAbsolutePath(), //
-            "--output-to", outputDIR.getAbsolutePath() };
+                "--android-jar", androidJAR.getAbsolutePath(), //
+                "--output-to", outputDIR.getAbsolutePath() };
 
 //        System.setProperty("abc.taint.android.intents", "true");
-        System.setProperty( "abc.instrument.fields.operations", "true");
-        
-        System.setProperty( "abc.instrument.debug", "true");
-        System.setProperty( "abc.instrument.multithreaded", "true");
-        
+        System.setProperty("abc.instrument.fields.operations", "true");
+        System.setProperty("abc.instrument.debug", "true");
+        System.setProperty("abc.instrument.multithreaded", "true");
+
         Main m = new Main();
         m.main(args);
     }

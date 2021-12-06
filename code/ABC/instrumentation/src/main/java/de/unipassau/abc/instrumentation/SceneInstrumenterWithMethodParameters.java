@@ -1375,10 +1375,11 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
         ExceptionalUnitGraph exceptionalUnitGraph = new ExceptionalUnitGraph(
                 currentlyInstrumentedSootMethod.getActiveBody());
 
-        if (DEBUG) {
-            Visualizer.v().addUnitGraph(exceptionalUnitGraph);
-            Visualizer.v().draw();
-        }
+        // Plotting is not supported !
+//        if (DEBUG) {
+//            Visualizer.v().addUnitGraph(exceptionalUnitGraph);
+//            Visualizer.v().draw();
+//        }
 
         final String currentlyInstrumentedMethodSignature = currentlyInstrumentedSootMethod.getSignature();
         /*
