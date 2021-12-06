@@ -65,8 +65,8 @@ public class BasicTestGenerator implements TestGenerator {
             for (CarvedExecution carvedExecution : carver.carve(targetMethodInvocation)) {
                 try {
 
-//                    ALESSIO: CarvedExecution CONTAINS the implicit dependencies, not sure whyt the CARVED test does
-//                    not, maybe we cut them away to simplify synthesis] i
+//                    ALESSIO: CarvedExecution CONTAINS the implicit dependencies, not sure why the CARVED test does
+//                    not, maybe we cut them away to simplify synthesis?
 
                     carvedTests.add(generateCarvedTestFromCarvedExecution(carvedExecution));
                     logger.info("-------------------------");
@@ -499,6 +499,9 @@ public class BasicTestGenerator implements TestGenerator {
             }
         }
 
+        /*
+         * Finally add mocks and shadows
+         */
         MockGenerator mockGenerator = new MockGenerator();
         mockGenerator.generateMocks(carvedTest, carvedExecution);
 

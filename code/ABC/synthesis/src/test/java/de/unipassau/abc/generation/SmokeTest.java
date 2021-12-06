@@ -117,6 +117,69 @@ public class SmokeTest {
 //    }
 
     @Test
+    public void testMissingShadows() throws FileNotFoundException, IOException, ABCException {
+        String folder = "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/traces/abc.basiccalculator.ExtendedMainActivityTest#testCalculateNullPointerThrownByResultActivity";
+        String file = "Trace-testCalculateNullPointerThrownByResultActivity-1638792884899.txt";
+        
+        File traceFile = new File(folder, file);
+        
+        TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
+
+        // TODO Is is not going to work, since the IDs are regenerated every time...
+        File theAPK = new File("./src/test/resources/abc.basiccalculator/app-original.apk");
+        Main.idsInApk = ParsingUtils.getIdsMap(theAPK);
+
+        TraceParser parser = new TraceParserImpl();
+        ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+        //
+
+        // Make sure we do NOT decorate our own decorators and methods !
+        ParsedTraceDecorator decorator = new StaticParsedTraceDecorator();
+        ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+        //
+        decorator = new AndroidParsedTraceDecorator();
+        parsedTrace = decorator.decorate(parsedTrace);
+
+        String methodSignature = "<abc.basiccalculator.UiStorage: java.util.List getElements()>";
+        int invocationCount = 64;
+        int invocationTraceId = 126;
+        // Ensure we use the actual method invocation, not a shallow copy of it!
+        MethodInvocationSelector mis = new MethodInvocationSelector();
+        MethodInvocationMatcher matcher = MethodInvocationMatcher
+                .fromMethodInvocation(new MethodInvocation(invocationTraceId, invocationCount, methodSignature));
+        List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
+                mis.findByMethodInvocationMatcher(parsedTrace, matcher));
+
+        logger.debug("Carvable targets ");
+        for (MethodInvocation m : listOfTargetMethodsInvocations) {
+            logger.debug("" + m);
+        }
+
+        BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
+        List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
+        targetMethodsInvocationsList.addAll(listOfTargetMethodsInvocations);
+        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
+                parsedTrace);
+
+        int carvedTargets = carvedTests.size();
+
+        logger.info("Carved targets " + carvedTargets + " / " + listOfTargetMethodsInvocations.size());
+
+        // Put each test in a separate test case
+        TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+        Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+
+        // Write test cases to files and try to compile them
+
+        JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+
+        for (TestClass testCase : testSuite) {
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+            logger.info(cu.toString());
+        }
+    }
+
+    @Test
     public void testNPEonActivityConstructor() throws FileNotFoundException, IOException, ABCException {
         /*
          * The issue here is that ResultActivity logically requires an Intent, probably

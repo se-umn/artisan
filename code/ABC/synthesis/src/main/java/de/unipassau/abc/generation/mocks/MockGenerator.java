@@ -198,28 +198,54 @@ public class MockGenerator {
 
         }
 
+        logger.info("-------------------------");
+        logger.info("  SHADOWING " + carvedTest.getMethodUnderTest());
+        logger.info("-------------------------");
+        // Look up whether we need to create a shadow by looking at how findViewById
+        // methods are called in the test
+
         List<MethodInvocation> candidateMethodInvocations = carvedTest.getExecutionFlowGraph()
                 .getOrderedMethodInvocations();
 
         List<MethodInvocation> subsumedCandidateMethodInvocations = new ArrayList<MethodInvocation>();
 
-        if (!JimpleUtils.isActivityLifecycle(carvedTest.getMethodUnderTest().getMethodSignature())) {
-            subsumedCandidateMethodInvocations
-                    .addAll(carvedExecution.getCallGraphContainingTheMethodInvocationUnderTest()
-                            .getMethodInvocationsSubsumedBy(carvedTest.getMethodUnderTest()));
-        }
-//        else {
-//            System.out.println(">> Skipping LifeCycle Method: " + carvedTest.getMethodUnderTest().getMethodSignature());
+        // ALESSIO: Why here we limit ONLY to look at the call graph that contains the
+        // method under
+        // test
+//        if (!JimpleUtils.isActivityLifecycle(carvedTest.getMethodUnderTest().getMethodSignature())) {
+//            subsumedCandidateMethodInvocations
+//                    .addAll(carvedExecution.getCallGraphContainingTheMethodInvocationUnderTest()
+//                            .getMethodInvocationsSubsumedBy(carvedTest.getMethodUnderTest()));
 //        }
+////        else {
+////            System.out.println(">> Skipping LifeCycle Method: " + carvedTest.getMethodUnderTest().getMethodSignature());
+////        }
 
+        // Accumulate ALL the calls to made in this test unless the method under test is an ActivityLifecycle...
+        // TODO Maybe explicitly referring to "onCreate" is better...
+        if (!JimpleUtils.isActivityLifecycle(carvedTest.getMethodUnderTest().getMethodSignature())) {
+         
+            for (MethodInvocation candidateMethodInvocation : candidateMethodInvocations) {
+                subsumedCandidateMethodInvocations
+                        .addAll(carvedExecution.getCallGraphContainingTheMethodInvocation(candidateMethodInvocation)
+                                .getMethodInvocationsSubsumedBy(candidateMethodInvocation));
+            }
+        }
+
+        // Make sure we do not consider activity (and probably fragments and similar
+        // here?)
         for (MethodInvocation subsumedCandidate : subsumedCandidateMethodInvocations) {
             if (subsumedCandidate.getMethodSignature().equals(
                     "<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>")) {
+                logger.info(" Found " + subsumedCandidate + " called on " + subsumedCandidate.getOwner());
                 carvedTestExecutionFlowGraph.enqueueMethodInvocations(subsumedCandidate);
                 carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(subsumedCandidate);
             }
         }
 
+        // TODO What to do with the calls INSIDE the method under test?
+
+        // TODO Pay attention to duplicate calls !
         candidateMethodInvocations.addAll(subsumedCandidateMethodInvocations);
 
         List<List<MethodInvocation>> targetMethodInvocations = new ArrayList<>();
@@ -228,6 +254,7 @@ public class MockGenerator {
         int subsumedCallCount = 0;
 
         for (MethodInvocation call : candidateMethodInvocations) {
+
             if (call.getMethodSignature().equals(
                     "<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>")) {
                 if (subsumedCandidateMethodInvocations.contains(call)) {
