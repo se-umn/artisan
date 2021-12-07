@@ -5,12 +5,15 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
@@ -23,6 +26,7 @@ import de.unipassau.abc.data.MethodInvocationMatcher;
 import de.unipassau.abc.evaluation.Main;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.data.CarvedTest;
+import de.unipassau.abc.generation.shadowwriter.ShadowWriter;
 import de.unipassau.abc.generation.testwriters.JUnitTestCaseWriter;
 import de.unipassau.abc.generation.utils.NameTestCaseGlobally;
 import de.unipassau.abc.generation.utils.TestCaseNamer;
@@ -43,6 +47,9 @@ public class SmokeTest {
     @Rule
     public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
 
+    @Rule
+    public TemporaryFolder tempFolder = new TemporaryFolder();
+    
     private final static Logger logger = LoggerFactory.getLogger(SmokeTest.class);
 
     /*
@@ -177,6 +184,22 @@ public class SmokeTest {
             CompilationUnit cu = writer.generateJUnitTestCase(testCase);
             logger.info(cu.toString());
         }
+        
+        // TODO How does this work when we need to process multiple traces?
+        logger.info("Generating shadows");
+        // generate shadows needed for test cases
+        
+        List<TestClass> sortedTestSuiteList = new ArrayList(testSuite);
+//        Collections.sort(sortedTestSuiteList, new Comparator<TestClass>() {
+//            public int compare(TestClass left, TestClass right) {
+//                return indexInTraceList.get(testSuiteList.indexOf(left))
+//                        - indexInTraceList.get(testSuiteList.indexOf(right));
+//            }
+//        });
+
+        ShadowWriter shadowWriter = new ShadowWriter();
+        shadowWriter.generateAndWriteShadows(sortedTestSuiteList, tempFolder.newFolder());
+
     }
 
     @Test
