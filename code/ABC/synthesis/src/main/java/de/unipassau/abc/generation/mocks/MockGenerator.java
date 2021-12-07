@@ -255,17 +255,25 @@ public class MockGenerator {
 
         for (MethodInvocation call : candidateMethodInvocations) {
 
-            if (call.getMethodSignature().equals(
-                    "<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>")) {
+            if (call.getMethodSignature().equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>")) {
+
                 if (subsumedCandidateMethodInvocations.contains(call)) {
+
                     subsumedCallCount += 1;
                 }
+
                 call.setHasGenericReturnType(true);
+
                 if (targetMethodOwners.contains(call.getOwner())) {
+
                     targetMethodInvocations.get(targetMethodOwners.indexOf(call.getOwner())).add(call);
+
                 } else {
+
                     targetMethodOwners.add(call.getOwner());
+
                     targetMethodInvocations.add(new ArrayList<>());
+
                     targetMethodInvocations.get(targetMethodInvocations.size() - 1).add(call);
                 }
             }
@@ -595,7 +603,7 @@ public class MockGenerator {
 
         List<MethodInvocation> orderedMethodInvocations = carvedTestExecutionFlowGraph.getMethodInvocationsSortedByID();
 
-        int maxInvocationCount = carvedTest.getMethodUnderTest().getInvocationCount();
+        int maxInvocationCount = deduceMaximumShadowMethodInvocationCount(targetMethodOwners, carvedTest, carvedExecution);
         int incrementalInvocationCount = 0;
 
         for (MethodInvocation targetCandidate : orderedMethodInvocations) {
@@ -638,5 +646,32 @@ public class MockGenerator {
         carvedTest.setExecutionFlowGraph(reorderedExecutionFlowGraph);
 
 //        System.out.println(orderedMethodInvocations);
+    }
+
+    private int deduceMaximumShadowMethodInvocationCount(List<ObjectInstance> methodOwners, CarvedTest carvedTest, CarvedExecution carvedExecution) {
+
+        int invocationCount = carvedTest.getMethodUnderTest().getInvocationCount();
+        
+        for (ObjectInstance objectInstance : methodOwners) {
+
+            Collection<MethodInvocation> ownerMethods = carvedExecution.getDataDependencyGraphContainingTheMethodInvocationUnderTest()
+                .getMethodInvocationsForOwner(objectInstance);
+
+            for (MethodInvocation mi : ownerMethods) {
+                
+                if (mi.getInvocationCount() < invocationCount &&
+                        !mi.getMethodSignature().equals("<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>") &&
+                        !mi.getMethodSignature().contains("void <init>") &&
+                        !JimpleUtils.isActivityLifecycle(mi.getMethodSignature())) {
+
+                    logger.info("Identified new bound: " + mi);
+
+                    invocationCount = mi.getInvocationCount();
+
+                }
+            }
+        }
+
+        return invocationCount;
     }
 }
