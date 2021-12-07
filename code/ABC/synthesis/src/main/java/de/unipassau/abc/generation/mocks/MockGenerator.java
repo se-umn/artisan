@@ -648,12 +648,17 @@ public class MockGenerator {
 //        System.out.println(orderedMethodInvocations);
     }
 
+    // find the minimum method invocation count of all the MethodInvocations
+    // which are owned by the same object as the findViewById calls we have
+    // found, excluding MethodInvocations which are those findViewById calls,
+    // the init method, or onCreate
     private int deduceMaximumShadowMethodInvocationCount(List<ObjectInstance> methodOwners, CarvedTest carvedTest, CarvedExecution carvedExecution) {
 
         int invocationCount = carvedTest.getMethodUnderTest().getInvocationCount();
         
         for (ObjectInstance objectInstance : methodOwners) {
 
+            // should we attempt to get a different callgraph here?
             Collection<MethodInvocation> ownerMethods = carvedExecution.getDataDependencyGraphContainingTheMethodInvocationUnderTest()
                 .getMethodInvocationsForOwner(objectInstance);
 
