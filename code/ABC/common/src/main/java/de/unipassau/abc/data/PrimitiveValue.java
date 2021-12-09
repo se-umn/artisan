@@ -1,5 +1,7 @@
 package de.unipassau.abc.data;
 
+import org.robolectric.util.Logger;
+
 import soot.Value;
 import soot.jimple.DoubleConstant;
 import soot.jimple.FloatConstant;
@@ -113,6 +115,7 @@ public class PrimitiveValue implements ValueNode, Cloneable {
             if (stringValue == null) {
                 return NullConstant.v();
             } else {
+                System.out.println("PrimitiveValue.getData() Creating String using value " + stringValue );
                 return StringConstant.v(stringValue);
             }
         default:
