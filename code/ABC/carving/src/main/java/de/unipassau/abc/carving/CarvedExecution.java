@@ -1,14 +1,17 @@
 package de.unipassau.abc.carving;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.NoSuchElementException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.NoSuchElementException;
-import java.util.Set;
 
 /**
  * This class holds all the fragments extracted during the carving. For the
@@ -19,6 +22,8 @@ import java.util.Set;
  */
 public class CarvedExecution {
 
+    
+    private static final Logger logger = LoggerFactory.getLogger(CarvedExecution.class);
     /*
      * This method invocation can be either the invocation carved or the context for
      * carving the object. If the object is not null, then it is the latter,
@@ -104,7 +109,7 @@ public class CarvedExecution {
     }
 
     public void remove(MethodInvocation methodInvocationToRemove) {
-        System.out.println("CarvedExecution.remove() Remove " + methodInvocationToRemove);
+        logger.debug("CarvedExecution.remove() Remove " + methodInvocationToRemove);
 
         // Null may happen because of transitive removal of subsumed nodes
         if (getCallGraphContainingTheMethodInvocation(methodInvocationToRemove) != null) {
