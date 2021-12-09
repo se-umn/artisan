@@ -31,7 +31,8 @@ public class AndroidMultiActivitySimplifier implements CarvedExecutionSimplifier
         // Remove Lambdas and the like no matter what
         CarvedExecution simplifiedCarvedExecution = removeLambdas(carvedExecution);
 
-        // This simplifications applies ONLY if the test requires two or more activities at once
+        // This simplifications applies ONLY if the test requires two or more activities
+        // at once
         while (countActivities(simplifiedCarvedExecution) >= 2) {
 
             // Find the methods that ORIGINALLY resulted in bringing in all the dependencies
@@ -64,7 +65,8 @@ public class AndroidMultiActivitySimplifier implements CarvedExecutionSimplifier
             //
             logger.info("Selected Problematic invocation:" + problematicMethodInvocation);
 
-            simplifiedCarvedExecution = getRidOfProblematicMethodInvocation(carvedExecution, problematicMethodInvocation);
+            simplifiedCarvedExecution = getRidOfProblematicMethodInvocation(carvedExecution,
+                    problematicMethodInvocation);
 
         }
         return simplifiedCarvedExecution;
@@ -136,7 +138,7 @@ public class AndroidMultiActivitySimplifier implements CarvedExecutionSimplifier
             Set<MethodInvocation> methodInvocationsToRemove = new HashSet<MethodInvocation>();
             for (MethodInvocation mi : callGraph.getAllMethodInvocations()) {
                 if (JimpleUtils.getClassNameForMethod(mi.getMethodSignature()).contains("$Lambda$")) {
-                    System.out.println("AndroidMultiActivitySimplifier.simplify() Removing " + mi + " has type Lambda "
+                    logger.debug("AndroidMultiActivitySimplifier.simplify() Removing " + mi + " has type Lambda "
                             + JimpleUtils.getClassNameForMethod(mi.getMethodSignature()));
                     // Note that this removes the lambda and all its content! This should be ok, as
                     // lambda will be executed only later so they do not matter now
@@ -147,7 +149,7 @@ public class AndroidMultiActivitySimplifier implements CarvedExecutionSimplifier
 
                 if ((int) mi.getActualParameterInstances().stream().filter(dn -> dn.getType().contains("$Lambda$"))
                         .count() > 0) {
-                    System.out.println("AndroidMultiActivitySimplifier.simplify() Removing " + mi
+                    logger.debug("AndroidMultiActivitySimplifier.simplify() Removing " + mi
                             + " has it depends on a Lambda as parameter " + mi.getActualParameterInstances());
                     // Note that this removes the lambda and all its content! This should be ok, as
                     // lambda will be executed only later so they do not matter now
@@ -164,7 +166,7 @@ public class AndroidMultiActivitySimplifier implements CarvedExecutionSimplifier
                 carvedExecution.remove(miToRemove);
             }
         });
-        
+
         return carvedExecution;
     }
 
@@ -186,9 +188,9 @@ public class AndroidMultiActivitySimplifier implements CarvedExecutionSimplifier
             if (problematicDependencies.size() == 1) {
                 // TODO This may be a corner case in which mi depends on two activities at once.
                 // Not sure whether this is possible!
-                System.out.println(
+                logger.debug(
                         "AndroidMultiActivitySimplifier.simplify() Found the following problematic deps for " + mi);
-                problematicDependencies.forEach(System.out::println);
+//                problematicDependencies.forEach(System.out::println);
 
                 // Problematic Dependencies should not contain the mi itself? what about
 
@@ -199,14 +201,14 @@ public class AndroidMultiActivitySimplifier implements CarvedExecutionSimplifier
                 problematicDependencies = problematicDependencies.stream().filter(_mi -> !_mi.equals(mi))
                         .collect(Collectors.toList());
 
-                System.out.println(
+                logger.debug(
                         "AndroidMultiActivitySimplifier.simplify() Found the following problematic deps for " + mi);
-                problematicDependencies.forEach(System.out::println);
+//                problematicDependencies.forEach(System.out::println);
 
                 // Stop at the first one. We break one by one
                 break;
             } else {
-                System.out.println("AndroidMultiActivitySimplifier.simplify() No problematic deps for " + mi);
+                logger.debug("AndroidMultiActivitySimplifier.simplify() No problematic deps for " + mi);
             }
         }
 
@@ -329,7 +331,7 @@ public class AndroidMultiActivitySimplifier implements CarvedExecutionSimplifier
             Collections.sort(workList);
             Collections.reverse(workList);
 
-            System.out.println("AndroidMultiActivitySimplifier.onWhichActivityDepends() dataDependecy " + dataDependecy
+            logger.debug("AndroidMultiActivitySimplifier.onWhichActivityDepends() dataDependecy " + dataDependecy
                     + " introduces the following NEW dependencies");
 
             workList.forEach(System.out::println);
@@ -340,8 +342,7 @@ public class AndroidMultiActivitySimplifier implements CarvedExecutionSimplifier
                         problematicDepdendencies);
                 //
                 if (involvedActivities.size() > 1) {
-                    System.out.println(
-                            "AndroidMultiActivitySimplifier.onWhichActivityDepends() Short circuit the worklist");
+                    logger.debug("AndroidMultiActivitySimplifier.onWhichActivityDepends() Short circuit the worklist");
                     // But keep track of the chain of calls
                     problematicDepdendencies.add(methodInvocation);
                     break;
@@ -360,7 +361,7 @@ public class AndroidMultiActivitySimplifier implements CarvedExecutionSimplifier
             activities.addAll(dataDependencyGraph.getObjectInstances().stream().filter(obj -> obj.isAndroidActivity())
                     .collect(Collectors.toSet()));
         }
-        System.out.println("AndroidMultiActivitySimplifier.countActivities() activies: " + activities);
+        logger.debug("AndroidMultiActivitySimplifier.countActivities() activies: " + activities);
         return activities.size();
     }
 

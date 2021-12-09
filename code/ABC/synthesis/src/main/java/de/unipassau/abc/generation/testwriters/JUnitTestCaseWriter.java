@@ -596,24 +596,21 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         } else {
             String className = JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature());
 
-            List<String> arguments = methodInvocation.getActualParameterInstances()
-                  .stream()
-                  .map(parameter -> {
-                      if (parameter instanceof PlaceholderDataNode) {
-                          PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
-                          return declaredVariables.get(placeholderDataNode.getOriginalDataNode());
-                      } else {
-                          return getParameterFor(parameter, methodBody);
-                      }
-                  }).collect(Collectors.toList());
+            List<String> arguments = methodInvocation.getActualParameterInstances().stream().map(parameter -> {
+                if (parameter instanceof PlaceholderDataNode) {
+                    PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
+                    return declaredVariables.get(placeholderDataNode.getOriginalDataNode());
+                } else {
+                    return getParameterFor(parameter, methodBody);
+                }
+            }).collect(Collectors.toList());
 
             // Arrays must be created differently with javaparser, otherwise we're gonna get
             // something like new String[](2)
             if (JimpleUtils.isArray(className)) {
                 // TODO this only considers things like new int[2],
                 // but no direct array initialization, i.e., new int[] {1, 2, 3}
-                ClassOrInterfaceType type = new ClassOrInterfaceType(null,
-                      JimpleUtils.getArrayElementType(className));
+                ClassOrInterfaceType type = new ClassOrInterfaceType(null, JimpleUtils.getArrayElementType(className));
 
                 List<ArrayCreationLevel> levels = arguments.stream().map(arg -> {
                     Expression dimension = new IntegerLiteralExpr(arg);
@@ -624,7 +621,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             } else {
                 // TODO No idea what scope is
                 ClassOrInterfaceType type = new ClassOrInterfaceType(null,
-                      JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature()));
+                        JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature()));
                 ObjectCreationExpr constructorCall = new ObjectCreationExpr();
                 constructorCall.setType(type);
                 arguments.forEach(constructorCall::addArgument);
@@ -704,18 +701,14 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                 // A writable array access like arr.store(0, "value")
                 if (methodName.equals("store")) {
                     // The first argument must be an index, while the second one ist the new value
-                    List<String> arguments = methodInvocation.getActualParameterInstances()
-                          .stream()
-                          .map(parameter -> {
-                              if (parameter instanceof PlaceholderDataNode) {
-                                  PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
-                                  return declaredVariables.get(placeholderDataNode.getOriginalDataNode());
-                              } else {
-                                  return getParameterFor(parameter, methodBody);
-                              }
-                          })
-                          .limit(2)
-                          .collect(Collectors.toList());
+                    List<String> arguments = methodInvocation.getActualParameterInstances().stream().map(parameter -> {
+                        if (parameter instanceof PlaceholderDataNode) {
+                            PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
+                            return declaredVariables.get(placeholderDataNode.getOriginalDataNode());
+                        } else {
+                            return getParameterFor(parameter, methodBody);
+                        }
+                    }).limit(2).collect(Collectors.toList());
 
                     IntegerLiteralExpr index = new IntegerLiteralExpr(arguments.get(0));
                     NameExpr value = new NameExpr(arguments.get(1));
@@ -781,8 +774,11 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             } else {
                 methodCallExpr.asMethodCallExpr().addArgument(dataValueString);
             }
-        } else if (methodInvocation.getMethodSignature()
-                .equals("<org.mockito.Mockito: org.mockito.stubbing.Stubber doReturn(java.lang.Object)>")) {
+        } else if (methodInvocation.getMethodSignature().equals("<org.mockito.Mockito: org.mockito.stubbing.Stubber doReturn(java.lang.Object)>")) {
+            
+            
+            logger.info("GENERATING CODE FOR " + methodInvocation);
+            
             DataNode dataValue = methodInvocation.getActualParameterInstances().get(0);
             if (dataValue.getType() != null && dataValue.getType().equals("int")) {
                 String dataValueString = getParameterFor(dataValue, methodBody);
@@ -864,16 +860,23 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
      */
     private String getParameterFor(DataNode dataNode, BlockStmt methodBody) {
         if (dataNode instanceof PrimitiveValue) {
-
-            if (Class.class.getName().equals(dataNode.getType())) {
-                return ((PrimitiveValue) dataNode).getStringValue();
-            } else {
-                /*
-                 * We use toString() instead of getStringValue() to wrap strings which have two
-                 * different representations.
-                 */
-                return dataNode.toString();
+            logger.info("Get Parameter for data node " + dataNode.getType() );
+            try {
+                if (Class.class.getName().equals(dataNode.getType())) {
+                    return ((PrimitiveValue) dataNode).getStringValue();
+                } else {
+                    /*
+                     * We use toString() instead of getStringValue() to wrap strings which have two
+                     * different representations.
+                     */
+                    return dataNode.toString();
+                }
+            } catch (Throwable t) {
+                logger.error("Error processing data node" + dataNode, t);
+                // TODO: handle exception
+                throw t;
             }
+
         } else if (dataNode instanceof MethodCallLiteralValue) {
             throw new NotImplementedException();
 //			MethodCallLiteralValue methodCall = (MethodCallLiteralValue) dataNode;
