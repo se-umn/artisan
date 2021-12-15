@@ -88,14 +88,14 @@ $$(ESPRESSO_TESTS) : app-androidTest.apk app-instrumented.apk
 		export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) start-clean-emulator; \
 	fi
 
-	$$(eval FIRST_RUN := $$(shell $$(ADB) shell pm list packages | grep -c ${make_app_package}))
+	$$(eval FIRST_RUN := $$(shell $$(ADB) shell pm list packages | grep -c ${make_app_debug_package}))
 	@if [ "$$(FIRST_RUN)" == "2" ]; then \
 		echo "Resetting the data of the apk"; \
-		$$(ADB) shell pm clear ${make_app_package}; \
+		$$(ADB) shell pm clear ${make_app_debug_package}; \
 	else \
 	 	echo "Installing instrumented apk" ;\
 		export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) install-apk app-instrumented.apk; \
-		echo "Installing test apk" ;\
+		${permissions}echo "Installing test apk" ;\
 		export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) install-apk app-androidTest.apk; \
 	fi
 #	Evalualte the current test name. Note that test names use #
@@ -104,7 +104,7 @@ $$(ESPRESSO_TESTS) : app-androidTest.apk app-instrumented.apk
 #	Log directly to the expected file
 	$$(ADB) shell am instrument -w -e class $$(TEST_NAME) ${make_test_runner} 2>&1 | tee $$(@)
 #	Copy the traces if the previous command succeded
-	export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) copy-traces ${make_app_package} ./traces/$$(TEST_NAME) force-clean
+	export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) copy-traces ${make_app_debug_package} ./traces/$$(TEST_NAME) force-clean
 
 # Carving all requires to have all of them traced
 # This will always run because it's a phony target
@@ -157,10 +157,10 @@ $$(ESPRESSO_TESTS_COVERAGE):
 	$$(eval TEST_NAME := $$(shell echo "$$(@)" | sed -e 's|__|\\\#|g' -e 's|/html/index.html||' -e 's|espresso-test-coverage-for-||'))
 	$$(eval COVERAGE_FOLDER := $$(shell echo "$$(@)" | sed -e 's|/html/index.html||'))
 # Ensure we clean up stuff before running each test
-	$$(eval FIRST_RUN := $$(shell $$(ADB) shell pm list packages | grep -c ${make_app_package}))
+	$$(eval FIRST_RUN := $$(shell $$(ADB) shell pm list packages | grep -c ${make_app_debug_package}))
 	@if [ "$$(FIRST_RUN)" == "2" ]; then \
 		echo "Resetting the data of the apk"; \
-		$$(ADB) shell pm clear ${make_app_package}; \
+		$$(ADB) shell pm clear ${make_app_debug_package}; \
 	fi
 # Execute the gradle target
 	@echo "Running Test $$(TEST_NAME)"
