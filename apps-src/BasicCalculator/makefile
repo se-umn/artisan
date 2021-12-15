@@ -4,6 +4,7 @@ ABC=../../scripts/abc.sh
 ABC_CFG=../../scripts/.abc-config
 # -Dabc.make.android.lifecycle.events.explicit
 # -Dabc.instrument.array.operations
+# -Dabc.instrument.debug -Dabc.instrument.multithreaded"
 JAVA_OPTS=" -Dabc.instrument.array.operations -Dabc.instrument.fields.operations -Dabc.taint.android.intents -Dabc.instrument.include=abc.basiccalculator"
 
 ADB := $(shell $(ABC) show-config  ANDROID_ADB_EXE | sed -e "s|ANDROID_ADB_EXE=||")
@@ -33,8 +34,17 @@ list-tests : $(ESPRESSO_TESTS)
 
 list-coverage-targets:
 	@ echo $(ESPRESSO_TESTS_COVERAGE) | tr " " "\n"
-	
-clean-all :
+
+# Clean up carved tests
+clean-carved-tests :
+	$(RM) -rv app/src/carvedTest
+	$(RM) -rv .carved-all
+
+clean-carved-coverage :
+	$(RM) -rv carved-test-coverage
+
+
+clean-all : clean-carved-tests clean-carved-coverage
 # Clean up apk-related targets
 	$(RM) -v *.apk
 # Clean up all the logs
@@ -42,9 +52,6 @@ clean-all :
 # Clean up tracing
 	$(RM) -v *.testlog
 	$(RM) -rv traces
-# Clean up carved tests
-	$(RM) -rv app/src/carvedTest
-	$(RM) -rv .carved-all
 # Clean up Coverage
 	$(RM) -rv espresso-tests-coverage unit-tests-coverage carved-test-coverage
 	$(RM) -rv espresso-test-coverage-for-*
@@ -122,7 +129,7 @@ carve-all : .carved-all
 	@sleep 1; echo "" > .carved-all
 
 
-run-all-carved-tests : carvedTests.log
+run-carved-tests : carvedTests.log
 	@echo "Done"
 
 carvedTests.log : .carved-all
@@ -139,15 +146,23 @@ carvedTests.log : .carved-all
 ### Coverage targets
 ### ### ### ### ### ### ### 
 
-# Always run. 
-coverage-espresso-tests : 
+espresso-test-coverage/html/index.html :
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator
 	$(GW) -PjacocoEnabled=true -PcarvedTests=false clean jacocoGUITestCoverage
+	$(RM) -r espresso-test-coverage
 	mv -v app/build/reports/jacoco/jacocoGUITestCoverage espresso-test-coverage
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators 
 
+
+coverage-espresso-tests : espresso-test-coverage/html/index.html
+	@echo "Done"
+
+clean-coverage-espresso-tests : 
+	$(RM) -r espresso-test-coverage
+
+
 # Required to run each test on its own to compute the coverage report
-$(ESPRESSO_TESTS_COVERAGE):
+$(ESPRESSO_TESTS_COVERAGE): app-original.apk app-androidTest.apk
 	
 	$(eval IR_RUNNING := $(shell export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator | wc -l))
 	@if [ "$(IR_RUNNING)" == "0" ]; then \
@@ -162,6 +177,11 @@ $(ESPRESSO_TESTS_COVERAGE):
 	@if [ "$(FIRST_RUN)" == "2" ]; then \
 		echo "Resetting the data of the apk"; \
 		$(ADB) shell pm clear abc.basiccalculator; \
+	else \
+	 	echo "Installing instrumented apk" ;\
+		export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-original.apk; \
+		echo "Installing test apk" ;\
+		export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-androidTest.apk; \
 	fi
 # Execute the gradle target
 	@echo "Running Test $(TEST_NAME)"
