@@ -30,7 +30,7 @@ android {
         test {
             if (carvedTests.toBoolean()) {
                 java.srcDirs = ["$carvedTestSrcDir"]
-            }            
+            }
         }
     }
 
@@ -77,11 +77,6 @@ android {
                 showStandardStreams = true
             }
 
-            // ALESSIO Not sure I need this...
-            // jacoco {
-            //     includeNoLocationClasses = true
-            // }
-
             test {
                 //Get last path of default set path.
                 def junitXmlTestTaskName = file("$reports.junitXml.destination").name
@@ -92,6 +87,13 @@ android {
                     reports.junitXml.destination = file("$testReportPrefix/$junitXmlTestTaskName")
                     reports.html.destination = file("$testReportPrefix/$junitXmlTestTaskName")
                 } 
+                
+                filter {
+                    //specific test method
+                    if (project.hasProperty('carvedTestsFilter')){
+                        includeTestsMatching project.carvedTestsFilter
+                    }
+                }
             }
         }
     } 
