@@ -40,6 +40,7 @@ import de.unipassau.abc.generation.utils.TestCaseNamer;
 import de.unipassau.abc.generation.utils.TestCaseOrganizer;
 import de.unipassau.abc.generation.utils.TestCaseOrganizers;
 import de.unipassau.abc.generation.utils.TestClass;
+import de.unipassau.abc.generation.utils.TestMethodNamer;
 import de.unipassau.abc.parsing.ParsedTrace;
 import de.unipassau.abc.parsing.ParsingUtils;
 import de.unipassau.abc.parsing.TraceParser;
@@ -51,7 +52,8 @@ public class Main {
 
     public static final Logger logger = LoggerFactory.getLogger(Main.class);
 
-    // ALESSIO: THIS IS PROBABLY MISPLACED? Why this should be a property of the Main method?
+    // ALESSIO: THIS IS PROBABLY MISPLACED? Why this should be a property of the
+    // Main method?
     public static Map<Integer, String> idsInApk;
 
     public interface CLI {
@@ -127,9 +129,13 @@ public class Main {
          */
         ParsingUtils.setupSoot(cli.getAndroidJar(), cli.getApk());
         idsInApk = ParsingUtils.getIdsMap(cli.getApk());
-        
+
         assert idsInApk != null;
 
+        /*
+         * This class is in charge of give a proper name to the test classes, not test
+         * methods !
+         */
         TestCaseNamer testClassNameBasedOnCarvedTest = new NameTestCaseBasedOnCarvedTest();
 
         // Collect some stats
@@ -170,8 +176,9 @@ public class Main {
 
                 int selectedCarvableTargets = targetMethodsInvocations.size();
 
-                logger.info("Selected " + selectedCarvableTargets + " targets from trace file " + traceFile);
-                
+                logger.info("Selected " + selectedCarvableTargets + " targets from trace file " + traceFile
+                        + " using strategy " + cli.getSelectionStrategy());
+
                 totalCarvableTargets = totalCarvableTargets + selectedCarvableTargets;
 
                 List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
@@ -199,9 +206,9 @@ public class Main {
                 int carvedTargets = carvedTests.size();
 
                 logger.info("Carved targets " + carvedTargets + " / " + selectedCarvableTargets);
-                
+
                 totalCarvedTests = totalCarvedTests + carvedTargets;
-                
+
                 // Put each test in a separate test case
                 TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameBasedOnCarvedTest);
                 Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
@@ -234,10 +241,15 @@ public class Main {
                     }
                 });
 
+                // This create names like test001, test002, etc.
+                // TestMethodNamer testMethodNamer = new LocalCounterNamer();
+                //
+                TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
+                
                 // generate unit tests
                 for (TestClass testCase : sortedTestSuiteList) {
                     try {
-                        CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+                        CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
                         File testFileFolder = new File(sourceFolder,
                                 testCase.getPackageName().replaceAll("\\.", File.separator));
                         testFileFolder.mkdirs();
@@ -256,7 +268,7 @@ public class Main {
                 logger.info("Generated tests " + generatedTests.size() + " / " + carvedTargets);
 
                 totalGeneratedTests = totalGeneratedTests + generatedTests.size();
-                
+
                 // TODO How does this work when we need to process multiple traces?
                 logger.info("Generating shadows");
                 // generate shadows needed for test cases
@@ -272,11 +284,11 @@ public class Main {
 
         // Output some statistics
         StringBuffer stats = new StringBuffer();
-        stats.append("Input traces: ").append( totalTraces ).append("\n");
-        stats.append("Parsed traces: ").append( totalParsedTraces ).append("\n");
-        stats.append("Carvable Targets: ").append( totalCarvableTargets).append("\n");
-        stats.append("Carved Tests: ").append( totalCarvedTests).append("\n");
-        stats.append("Generated Tests: ").append( totalGeneratedTests).append("\n");
+        stats.append("Input traces: ").append(totalTraces).append("\n");
+        stats.append("Parsed traces: ").append(totalParsedTraces).append("\n");
+        stats.append("Carvable Targets: ").append(totalCarvableTargets).append("\n");
+        stats.append("Carved Tests: ").append(totalCarvedTests).append("\n");
+        stats.append("Generated Tests: ").append(totalGeneratedTests).append("\n");
         System.out.println(stats);
     }
 }

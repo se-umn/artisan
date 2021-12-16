@@ -37,6 +37,7 @@ import de.unipassau.abc.generation.utils.TestCaseNamer;
 import de.unipassau.abc.generation.utils.TestCaseOrganizer;
 import de.unipassau.abc.generation.utils.TestCaseOrganizers;
 import de.unipassau.abc.generation.utils.TestClass;
+import de.unipassau.abc.generation.utils.TestMethodNamer;
 import de.unipassau.abc.parsing.ParsedTrace;
 import de.unipassau.abc.parsing.ParsingUtils;
 import de.unipassau.abc.parsing.TraceParser;
@@ -167,7 +168,8 @@ public class SmokeTest {
         // generate unit tests
         for (TestClass testCase : sortedTestSuiteList) {
             try {
-                CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+                TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
+                CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
                 System.out.print(cu.toString());
 
             } catch (Exception e) {

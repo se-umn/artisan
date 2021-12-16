@@ -21,6 +21,7 @@ import de.unipassau.abc.carving.utils.MethodInvocationSelector;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.MethodInvocationMatcher;
 import de.unipassau.abc.evaluation.Main;
+import de.unipassau.abc.evaluation.MethodUnderTestWithLocalCounterNamer;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.testwriters.JUnitTestCaseWriter;
@@ -29,6 +30,7 @@ import de.unipassau.abc.generation.utils.TestCaseNamer;
 import de.unipassau.abc.generation.utils.TestCaseOrganizer;
 import de.unipassau.abc.generation.utils.TestCaseOrganizers;
 import de.unipassau.abc.generation.utils.TestClass;
+import de.unipassau.abc.generation.utils.TestMethodNamer;
 import de.unipassau.abc.parsing.ParsedTrace;
 import de.unipassau.abc.parsing.ParsingUtils;
 import de.unipassau.abc.parsing.TraceParser;
@@ -122,7 +124,7 @@ public class SmokeTest {
         TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
 
         // TODO Is is not going to work, since the IDs are regenerated every time...
-        File theAPK = new File("./src/test/resources/abc.basiccalculator/app-original.apk");                
+        File theAPK = new File("./src/test/resources/abc.basiccalculator/app-original.apk");
         Main.idsInApk = ParsingUtils.getIdsMap(theAPK);
 
         TraceParser parser = new TraceParserImpl();
@@ -166,7 +168,8 @@ public class SmokeTest {
         JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
 
         for (TestClass testCase : testSuite) {
-            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+            TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
             logger.info(cu.toString());
         }
 
@@ -218,7 +221,8 @@ public class SmokeTest {
         List<CompilationUnit> generatedTests = new ArrayList<CompilationUnit>();
         for (TestClass testCase : testSuite) {
             try {
-                CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+                TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
+                CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
                 logger.info(cu.toString());
                 generatedTests.add(cu);
             } catch (Exception e) {
@@ -271,7 +275,8 @@ public class SmokeTest {
         JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
 
         for (TestClass testCase : testSuite) {
-            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+            TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
             logger.info(cu.toString());
         }
 
@@ -324,7 +329,8 @@ public class SmokeTest {
         JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
 
         for (TestClass testCase : testSuite) {
-            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+            TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
             logger.info(cu.toString());
         }
     }

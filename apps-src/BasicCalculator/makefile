@@ -4,14 +4,23 @@ ABC=../../scripts/abc.sh
 ABC_CFG=../../scripts/.abc-config
 JAVA_OPTS=" -Dabc.instrument.fields.operations -Dabc.taint.android.intents -Dabc.instrument.include=abc.basiccalculator"
 
+# Default
+SED=/usr/bin/sed
+UNAME := $(shell uname)
+# Override if on Mac Os. Assume that you have installed Gnu SED (gsed)
+ifeq ($(UNAME),Darwin)
+SED := $(shell echo /usr/local/bin/gsed)
+endif
+
 ADB := $(shell $(ABC) show-config  ANDROID_ADB_EXE | sed -e "s|ANDROID_ADB_EXE=||")
 # Create a list of expected test executions from tests.txt Those corresponds to the traces
 ESPRESSO_TESTS := $(shell cat tests.txt | sed '/^[[:space:]]*$$/d' | sed -e 's| |__|g' -e 's|^\(.*\)$$|\1.testlog|')
 # Create the list of expected carved targets from tests.txt
 ESPRESSO_TESTS_CARVED := $(shell cat tests.txt | sed '/^[[:space:]]*$$/d' | sed -e 's| |__|g' -e 's|^\(.*\)$$|\1.carved|')
-# Create the list of expected coverage targets from tests.txt
+# Create the list of expected coverage targets from tests.txt. This points to the html file because make works with files
 ESPRESSO_TESTS_COVERAGE := $(shell cat tests.txt | sed '/^[[:space:]]*$$/d' | sed -e 's| |__|g' -e 's|^\(.*\)$$|espresso-test-coverage-for-\1/html/index.html|')
-
+# Create the list of carved tests to measure coverage. This points to the html file because make works with files
+CARVED_TESTS_COVERAGE := $(shell cat carved-tests.log | grep ">" | grep "PASSED" | tr ">" " " | awk '{print $$1, $$2}' | tr " " "." | sed 's|\(.*\)|carved-test-coverage-for-\1/html/index.html|' | sort | uniq)
 
 .PHONY: clean-gradle clean-all carve-all run-espresso-tests trace-espresso-tests
 
@@ -21,17 +30,22 @@ show :
 clean-gradle :
 	$(GW) clean
 
+list-sed:
+	@echo $(UNAME) -- $(SED)
+
 # Debug Target
 list-all-tests :
 	@echo $(ESPRESSO_TESTS) | tr " " "\n"
 	
-
 list-tests : $(ESPRESSO_TESTS)
 	@echo $? | tr " " "\n"
 
 list-coverage-targets:
 	@ echo $(ESPRESSO_TESTS_COVERAGE) | tr " " "\n"
 	
+list-coverage-carved-targets:
+	@ echo $(CARVED_TESTS_COVERAGE) | tr " " "\n"
+
 clean-all :
 # Clean up apk-related targets
 	$(RM) -v *.apk
@@ -44,9 +58,18 @@ clean-all :
 	$(RM) -rv app/src/carvedTest
 	$(RM) -rv .carved-all
 # Clean up Coverage
-	$(RM) -rv espresso-tests-coverage unit-tests-coverage carved-test-coverage
+	$(RM) -rv espresso-tests-coverage 
+	$(RM) -rv unit-tests-coverage 
+	$(RM) -rv carved-tests-coverage
 	$(RM) -rv espresso-test-coverage-for-*
 	$(RM) -rv jacoco-espresso-coverage
+	$(RM) -rv carved-test-coverage-for-*
+	$(RM) -rv carved-coverage-for-selection.csv
+# Selection using coverage
+	$(RM) carved-tests.log
+	$(RM) carved-coverage-for-selection.csv
+	$(RM) selected-carved-tests.csv
+	$(RM) white-listed-tests.txt
 
 # Build the various apks
 app-original.apk : 
@@ -127,12 +150,6 @@ run-all-carved-tests : carvedTests.log
 carvedTests.log : .carved-all
 	@echo "Done"
 	@touch carvedTests.log
-# $(GW) -PjacocoEnabled=false clean testDebugUnitTest -PcarvedTests 2>&1 | tee carvedTests.log
-
-# # This run whatever tests is in the carvedTest folder -  UNSAFE
-# # Does not ensures carved tests are there but always run
-# run-all-existing-carved-tests :
-# 	$(GW) -PjacocoEnabled=false clean testDebugUnitTest -PcarvedTests 2>&1 | tee carvedTests.log
 
 ### ### ### ### ### ### ### 
 ### Coverage targets
@@ -142,7 +159,7 @@ carvedTests.log : .carved-all
 coverage-espresso-tests : 
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator
 	$(GW) -PjacocoEnabled=true -PcarvedTests=false clean jacocoGUITestCoverage
-	mv -v app/build/reports/jacoco/jacocoGUITestCoverage espresso-test-coverage
+	mv -v app/build/reports/jacoco/jacocoGUITestCoverage espresso-tests-coverage
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 
 # Required to run each test on its own to compute the coverage report
@@ -184,12 +201,68 @@ coverage-unit-tests :
 	mv -v app/build/reports/jacoco/jacocoUnitTestCoverage unit-tests-coverage
 
 # UPDATE THIS WITH TO CHECK THE RIGHT FILES .covered or index.html.  --info
-coverage-carved-tests : .carved-all
-	$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage
-	$(RM) -r carved-test-coverage
-	mv -v build/carvedTest/coverage carved-test-coverage
+coverage-carved-tests : carved-tests.log
+	@echo "Done"
 
-coverage-existing-carved-tests :
-	$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage
-	$(RM) -r  carved-test-coverage
-	mv -v build/carvedTest/coverage carved-test-coverage
+carved-tests.log : .carved-all
+	$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage 2>&1 | tee carved-tests.log
+	$(RM) -r carved-tests-coverage
+	mv -v build/carvedTest/coverage carved-tests-coverage
+
+# TODO This thing is not robust we need first to create the carved-tests.log once we have that, we evaluate the 
+# CARVED_TESTS_COVERAGE targets
+coverage-for-each-carved-test : carved-tests.log $(CARVED_TESTS_COVERAGE)
+	@echo "Done"
+
+# Requires to run all the tests at least one to list them all
+$(CARVED_TESTS_COVERAGE): carved-tests.log
+# Extract the test name from the target folder
+	$(eval TEST_NAME := $(shell echo "$(@)" | sed -e 's|/html/index.html||' -e 's|carved-test-coverage-for-||'))
+	$(eval COVERAGE_FOLDER := $(shell echo "$(@)" | sed -e 's|/html/index.html||'))
+# Clean up the coverage folder (this should not be necessary) 
+	$(RM) -rv $(COVERAGE_FOLDER)
+# Run the single unit test and collect coverage
+	$(GW) -PjacocoEnabled=true -PcarvedTests=true -PcarvedTestsFilter=$(TEST_NAME) clean jacocoUnitTestCoverage
+# Copy the coverage folder in the expected place 
+	mv -v ./build/carvedTest/coverage $(COVERAGE_FOLDER)
+
+carved-coverage-for-selection.csv : $(CARVED_TESTS_COVERAGE)
+	@for COV in $(CARVED_TESTS_COVERAGE); do \
+		echo "Processing $$COV"; \
+		TEST_NAME=`echo "$$COV" | $(SED) -e 's|/html/index.html||' -e 's|carved-test-coverage-for-||'`; \
+		METHOD_UNDER_TEST=`echo "$$COV" | $(SED) -e 's|.*\.test_\(.*\)|\1|' | tr "_" " "| awk '{$$NF=""; print $$0}' | sed -e 's/[ \t]*$$//' | tr " " "."`; \
+		COV_HASH=`cat $$COV | tr ">" "\n" | $(SED) '1,/.*tfoot.*/d' | $(SED) '/.*<\/tfoot*/,$$d' | tr "\n" ">" | md5sum | cut -f1 -d" "`; \
+		echo "$$TEST_NAME, $$METHOD_UNDER_TEST, $$COV_HASH" >> carved-coverage-for-selection.csv; \
+	done
+
+# Select the first test among those what match the combination method under test + hash coverage
+selected-carved-tests.csv : SHELL := /bin/bash
+selected-carved-tests.csv : carved-coverage-for-selection.csv
+	@while read -r TOKEN; do \
+		grep "$$TOKEN" carved-coverage-for-selection.csv | head -1 ; \
+	done< <(cat carved-coverage-for-selection.csv  | awk '{print $$2, $$3}' | sort | uniq) > selected-carved-tests.csv
+
+# FOR THE MOMENT WE ASSUME A SINGLE TEST METHOD FOR EACH TEST. OTHERWISE, WE NEED TO UPDATE AND RECOMPILE THE CARVED TESTS
+white-listed-tests.txt : SHELL := /bin/bash
+white-listed-tests.txt : selected-carved-tests.csv
+	@while read TEST_PACKAGE TEST_CLASS METHOD_UNDER_TEST; do \
+		echo "app/src/carvedTest/$${TEST_PACKAGE//.//}/$$TEST_CLASS.java"; \
+	done< <(cat selected-carved-tests.csv | \
+		tr "," " " | \
+		awk '{print $$1}' | \
+		$(SED) 's|\(.*\)\.test_\(.*\)|\1 \2|' | \
+		$(SED) 's|\(.*\)\.\(.*\) \(.*\)|\1 \2 \3|') > white-listed-tests.txt
+
+delete-duplicated-carved-tests : white-listed-tests.txt
+	for TEST in $$(find app/src/carvedTest -iname "Test*.java"); do \
+		if [[ $$(grep -c $$TEST white-listed-tests.txt) -eq 1 ]]; then \
+			echo "Keep $$TEST"; \
+		else \
+			$(RM) -v $$TEST ; \
+		fi; \
+	done
+
+# coverage-existing-carved-tests :
+# 	$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage
+# 	$(RM) -r  carved-tests-coverage
+# 	mv -v build/carvedTest/coverage carved-tests-coverage
