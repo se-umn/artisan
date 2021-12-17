@@ -33,7 +33,8 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
      * methods creates "implicit" dependencies. We need to expose them as far as
      * possible. So we can introduce a "STATIC" dependency every time we have an
      * invocation to anything static related to a class hence we include all its
-     * (static) invocations
+     * (static) invocations. Any static dependency MUST be propagated to invoking
+     * (caller) methods.
      * 
      * TODO Possibly use a white/black list
      * 
@@ -55,37 +56,43 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
             DataDependencyGraph dataDependencyGraph = graphs.getSecond();
 
             // Get an handle to all the static methods.
-            // DO WE TRACK CLINIT ?
+            // We do not have to track clinit()
             List<MethodInvocation> staticMethodInvocations = executionFlowGraph.getOrderedMethodInvocations().stream()
-                    .filter(mi -> mi.isStatic() && !blackList.contains(mi.getMethodSignature()))
+                    .filter(mi -> mi.isStatic() && ! mi.isConstructor() && !blackList.contains(mi.getMethodSignature()))
                     .collect(Collectors.toList());
 
             HashMap<String, ObjectInstance> classNameToStaticDependency = new HashMap();
             for (MethodInvocation staticMethodInvocation : staticMethodInvocations) {
                 // TODO Simple of FQN?
-                String className = JimpleUtils.getClassNameForMethod(staticMethodInvocation.getMethodSignature());
-                if (!classNameToStaticDependency.containsKey(className)) {
+                String classNameProvidingStaticMethod = JimpleUtils
+                        .getClassNameForMethod(staticMethodInvocation.getMethodSignature());
+                if (!classNameToStaticDependency.containsKey(classNameProvidingStaticMethod)) {
                     // Generate the Default Dependency for this method invocation
-                    // Add this implicit dependency to the method that directly contains the
-                    // staticMethodInvocation if any
+                    // Add this implicit dependency to all the method that directly or indirectly
+                    // contains the
+                    // staticMethodInvocation
 
-                    classNameToStaticDependency.put(className,
-                            DataNodeFactory.getImplicitDependencyOnStaticClass(className));
+                    classNameToStaticDependency.put(classNameProvidingStaticMethod,
+                            DataNodeFactory.getImplicitDependencyOnStaticClass(classNameProvidingStaticMethod));
                 }
 
-                ObjectInstance theDependency = classNameToStaticDependency.get(className);
-                MethodInvocation methodThatRequireTheDependency = callGraph.getCallerOf(staticMethodInvocation);
+                ObjectInstance theDependency = classNameToStaticDependency.get(classNameProvidingStaticMethod);
 
-                if (methodThatRequireTheDependency != null) {
-                    logger.info(
-                            "StaticParsedTraceDecorator.decorateWithStaticDataDependencies() ADDING STATIC DEPENDECY "
-                                    + theDependency + " to " + methodThatRequireTheDependency + " via the call "
-                                    + staticMethodInvocation);
+                for (MethodInvocation methodThatRequireTheDependency : callGraph.getOrderedSubsumingMethodInvocationsFor(staticMethodInvocation)) {
+//                    MethodInvocation methodThatRequireTheDependency = callGraph.getCallerOf(staticMethodInvocation);
+                    
+                    //
+                    if (methodThatRequireTheDependency != null) {
+                        logger.info(
+                                "StaticParsedTraceDecorator.decorateWithStaticDataDependencies() ADDING STATIC DEPENDECY "
+                                        + theDependency + " to " + methodThatRequireTheDependency + " via the call "
+                                        + staticMethodInvocation);
 
-                    dataDependencyGraph.addImplicitDataDependency(methodThatRequireTheDependency, theDependency);
-                } else {
-                    logger.info("StaticParsedTraceDecorator. Static method " + staticMethodInvocation
-                            + "is a root method invocation");
+                        dataDependencyGraph.addImplicitDataDependency(methodThatRequireTheDependency, theDependency);
+                    } else {
+                        logger.info("StaticParsedTraceDecorator. Static method " + staticMethodInvocation
+                                + "is a root method invocation");
+                    }
                 }
             }
         });

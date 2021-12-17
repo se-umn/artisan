@@ -939,6 +939,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         } catch (Exception e) {
 
         }
+        
         // TODO Move to Utils methods as this is used in many places
         String className = variableType.substring(variableType.lastIndexOf('.') + 1);
 
