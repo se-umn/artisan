@@ -27,8 +27,6 @@ else
 $(info "Configuring CARVED_TESTS_COVERAGE")
 REQUIRE_RERUN=0
 CARVED_TESTS_COVERAGE := $(shell cat carved-tests.log | grep ">" | grep "PASSED" | tr ">" " " | awk '{print $$1, $$2}' | tr " " "." | sed 's|\(.*\)|carved-test-coverage-for-\1/html/index.html|' | sort | uniq)
-#$(info "$(CARVED_TESTS_COVERAGE)")
-$(info REQUIRE_RERUN = $(REQUIRE_RERUN))
 endif
 
 
@@ -249,7 +247,6 @@ endif
 		TEST_NAME=`echo "$$COV" | $(SED) -e 's|/html/index.html||' -e 's|carved-test-coverage-for-||'`; \
 		METHOD_UNDER_TEST=`echo "$$COV" | $(SED) -e 's|.*\.test_\(.*\)|\1|' | tr "_" " "| awk '{$$NF=""; print $$0}' | sed -e 's/[ \t]*$$//' | tr " " "."`; \
 		COV_HASH=`cat $$COV | tr ">" "\n" | $(SED) '1,/.*tfoot.*/d' | $(SED) '/.*<\/tfoot*/,$$d' | tr "\n" ">" | md5sum | cut -f1 -d" "`; \
-		echo "$$TEST_NAME, $$METHOD_UNDER_TEST, $$COV_HASH"; \
 		echo "$$TEST_NAME, $$METHOD_UNDER_TEST, $$COV_HASH" >> carved-coverage-for-selection.csv; \
 	done
 
@@ -260,7 +257,6 @@ ifeq ($(REQUIRE_RERUN), 1)
 	$(error "$(REQUIRE_RERUN) We need to restart make to ensure the right preconditions are there");
 endif
 	@while read -r TOKEN; do \
-
 		grep "$$TOKEN" carved-coverage-for-selection.csv | head -1 ; \
 	done< <(cat carved-coverage-for-selection.csv  | awk '{print $$2, $$3}' | sort | uniq) > selected-carved-tests.csv
 
