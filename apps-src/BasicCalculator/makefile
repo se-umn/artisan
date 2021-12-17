@@ -20,7 +20,17 @@ ESPRESSO_TESTS_CARVED := $(shell cat tests.txt | sed '/^[[:space:]]*$$/d' | sed 
 # Create the list of expected coverage targets from tests.txt. This points to the html file because make works with files
 ESPRESSO_TESTS_COVERAGE := $(shell cat tests.txt | sed '/^[[:space:]]*$$/d' | sed -e 's| |__|g' -e 's|^\(.*\)$$|espresso-test-coverage-for-\1/html/index.html|')
 # Create the list of carved tests to measure coverage. This points to the html file because make works with files
+ifeq (,$(wildcard carved-tests.log))
+$(info "carved-tests.log missing. We probably need to re-run make after computing it")
+REQUIRE_RERUN=1
+else
+$(info "Configuring CARVED_TESTS_COVERAGE")
+REQUIRE_RERUN=0
 CARVED_TESTS_COVERAGE := $(shell cat carved-tests.log | grep ">" | grep "PASSED" | tr ">" " " | awk '{print $$1, $$2}' | tr " " "." | sed 's|\(.*\)|carved-test-coverage-for-\1/html/index.html|' | sort | uniq)
+#$(info "$(CARVED_TESTS_COVERAGE)")
+$(info REQUIRE_RERUN = $(REQUIRE_RERUN))
+endif
+
 
 .PHONY: clean-gradle clean-all carve-all run-espresso-tests trace-espresso-tests
 
@@ -43,7 +53,7 @@ list-tests : $(ESPRESSO_TESTS)
 list-coverage-targets:
 	@ echo $(ESPRESSO_TESTS_COVERAGE) | tr " " "\n"
 	
-list-coverage-carved-targets:
+list-coverage-carved-targets: 
 	@ echo $(CARVED_TESTS_COVERAGE) | tr " " "\n"
 
 clean-all :
@@ -67,7 +77,7 @@ clean-all :
 	$(RM) -rv carved-coverage-for-selection.csv
 # Selection using coverage
 	$(RM) carved-tests.log
-	$(RM) carved-coverage-for-selection.csv
+	
 	$(RM) selected-carved-tests.csv
 	$(RM) white-listed-tests.txt
 
@@ -137,7 +147,6 @@ carve-all : .carved-all
 	@echo "Done"
 
 .carved-all : $(ESPRESSO_TESTS)
-	@echo "Requiement $?"
 	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) carve-all app-original.apk traces app/src/carvedTest force-clean 2>&1 | tee carving.log
 	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 # 	Make sure this file has a timestamp after the prerequiesing
@@ -209,12 +218,6 @@ carved-tests.log : .carved-all
 	$(RM) -r carved-tests-coverage
 	mv -v build/carvedTest/coverage carved-tests-coverage
 
-# TODO This thing is not robust we need first to create the carved-tests.log once we have that, we evaluate the 
-# CARVED_TESTS_COVERAGE targets
-coverage-for-each-carved-test : carved-tests.log $(CARVED_TESTS_COVERAGE)
-	@echo "Done"
-
-# Requires to run all the tests at least one to list them all
 $(CARVED_TESTS_COVERAGE): carved-tests.log
 # Extract the test name from the target folder
 	$(eval TEST_NAME := $(shell echo "$(@)" | sed -e 's|/html/index.html||' -e 's|carved-test-coverage-for-||'))
@@ -226,25 +229,47 @@ $(CARVED_TESTS_COVERAGE): carved-tests.log
 # Copy the coverage folder in the expected place 
 	mv -v ./build/carvedTest/coverage $(COVERAGE_FOLDER)
 
-carved-coverage-for-selection.csv : $(CARVED_TESTS_COVERAGE)
+coverage-for-each-carved-test : carved-tests.log $(CARVED_TESTS_COVERAGE) 
+ifeq ($(REQUIRE_RERUN), 1)
+	$(error "$(REQUIRE_RERUN) We need to restart make to ensure the right preconditions are there");
+endif
+	@echo "Done"
+
+#
+# TODO Alessio: This is broken, cannot split correctly stuff, This requires the right naming convention. Provided by
+# !268
+#
+carved-coverage-for-selection.csv : carved-tests.log $(CARVED_TESTS_COVERAGE)
+ifeq ($(REQUIRE_RERUN), 1)
+	$(error "$(REQUIRE_RERUN) We need to restart make to ensure the right preconditions are there");
+endif
+	
 	@for COV in $(CARVED_TESTS_COVERAGE); do \
 		echo "Processing $$COV"; \
 		TEST_NAME=`echo "$$COV" | $(SED) -e 's|/html/index.html||' -e 's|carved-test-coverage-for-||'`; \
 		METHOD_UNDER_TEST=`echo "$$COV" | $(SED) -e 's|.*\.test_\(.*\)|\1|' | tr "_" " "| awk '{$$NF=""; print $$0}' | sed -e 's/[ \t]*$$//' | tr " " "."`; \
 		COV_HASH=`cat $$COV | tr ">" "\n" | $(SED) '1,/.*tfoot.*/d' | $(SED) '/.*<\/tfoot*/,$$d' | tr "\n" ">" | md5sum | cut -f1 -d" "`; \
+		echo "$$TEST_NAME, $$METHOD_UNDER_TEST, $$COV_HASH"; \
 		echo "$$TEST_NAME, $$METHOD_UNDER_TEST, $$COV_HASH" >> carved-coverage-for-selection.csv; \
 	done
 
 # Select the first test among those what match the combination method under test + hash coverage
 selected-carved-tests.csv : SHELL := /bin/bash
-selected-carved-tests.csv : carved-coverage-for-selection.csv
+selected-carved-tests.csv : carved-tests.log carved-coverage-for-selection.csv
+ifeq ($(REQUIRE_RERUN), 1)
+	$(error "$(REQUIRE_RERUN) We need to restart make to ensure the right preconditions are there");
+endif
 	@while read -r TOKEN; do \
+
 		grep "$$TOKEN" carved-coverage-for-selection.csv | head -1 ; \
 	done< <(cat carved-coverage-for-selection.csv  | awk '{print $$2, $$3}' | sort | uniq) > selected-carved-tests.csv
 
 # FOR THE MOMENT WE ASSUME A SINGLE TEST METHOD FOR EACH TEST. OTHERWISE, WE NEED TO UPDATE AND RECOMPILE THE CARVED TESTS
 white-listed-tests.txt : SHELL := /bin/bash
-white-listed-tests.txt : selected-carved-tests.csv
+white-listed-tests.txt : carved-tests.log selected-carved-tests.csv
+ifeq ($(REQUIRE_RERUN), 1)
+	$(error "$(REQUIRE_RERUN) We need to restart make to ensure the right preconditions are there");
+endif
 	@while read TEST_PACKAGE TEST_CLASS METHOD_UNDER_TEST; do \
 		echo "app/src/carvedTest/$${TEST_PACKAGE//.//}/$$TEST_CLASS.java"; \
 	done< <(cat selected-carved-tests.csv | \
@@ -253,12 +278,15 @@ white-listed-tests.txt : selected-carved-tests.csv
 		$(SED) 's|\(.*\)\.test_\(.*\)|\1 \2|' | \
 		$(SED) 's|\(.*\)\.\(.*\) \(.*\)|\1 \2 \3|') > white-listed-tests.txt
 
-delete-duplicated-carved-tests : white-listed-tests.txt
+delete-duplicated-carved-tests : carved-tests.log white-listed-tests.txt
+ifeq ($(REQUIRE_RERUN), 1)
+	$(error "$(REQUIRE_RERUN) We need to restart make to ensure the right preconditions are there");
+endif
 	for TEST in $$(find app/src/carvedTest -iname "Test*.java"); do \
 		if [[ $$(grep -c $$TEST white-listed-tests.txt) -eq 1 ]]; then \
 			echo "Keep $$TEST"; \
 		else \
-			$(RM) -v $$TEST ; \
+			mv -v $$TEST $$TEST.removed ; \
 		fi; \
 	done
 
