@@ -12,7 +12,10 @@ catch() {
   fi
 }
 
-export JAVA_HOME=$(/usr/libexec/java_home -v 1.8)
+if [[ -z ${JAVA_HOME} ]]; then
+    export JAVA_HOME=$(/usr/libexec/java_home -v 1.8)
+fi
+
 
 # This script location
 SCRIPT_LOCATION=$(dirname $(realpath $0))

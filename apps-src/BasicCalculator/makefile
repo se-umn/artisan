@@ -45,6 +45,8 @@ clean-carved-coverage :
 
 
 clean-all : clean-carved-tests clean-carved-coverage
+# Clean build files
+	$(GW) clean
 # Clean up apk-related targets
 	$(RM) -v *.apk
 # Clean up all the logs
@@ -60,7 +62,7 @@ clean-all : clean-carved-tests clean-carved-coverage
 app-original.apk : 
 	export ABC_CONFIG=$(ABC_CFG) && \
 	$(GW) -PjacocoEnabled=false assembleDebug && \
-	mv app/build/outputs/apk/debug/app-debug.apk . && \
+	mv ./app/build/outputs/apk/debug/app-debug.apk . && \
 	$(ABC) sign-apk app-debug.apk && \
 	mv -v app-debug.apk app-original.apk
 
@@ -77,6 +79,13 @@ app-androidTest.apk :
 	$(ABC) sign-apk app-androidTest-unsigned.apk && \
 	mv -v app-androidTest-unsigned.apk app-androidTest.apk
 
+## the assembleAndroidTest task also builds the app if it starts from a clean build
+app-and-instrumented-tests-for-coverage.apk :
+	export ABC_CONFIG=$(ABC_CFG) && \
+	$(GW) -PjacocoEnabled=true clean assembleDebug assembleAndroidTest && \
+	mv ./app/build/outputs/apk/debug/app-debug.apk app-original-for-coverage.apk  && \
+	mv ./app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk app-androidTest-for-coverage.apk
+
 # Utility
 stop-emulator:
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators 
@@ -89,7 +98,7 @@ trace-all : $(ESPRESSO_TESTS)
 	@echo "Done"
 
 # Try to trace all tests
-$(ESPRESSO_TESTS) : app-androidTest.apk app-instrumented.apk
+$(ESPRESSO_TESTS) : remove-apk-and-instrumented-tests app-androidTest.apk app-instrumented.apk
 
 	$(eval IR_RUNNING := $(shell export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator | wc -l))
 	@if [ "$(IR_RUNNING)" == "0" ]; then \
@@ -146,7 +155,7 @@ carvedTests.log : .carved-all
 ### Coverage targets
 ### ### ### ### ### ### ### 
 
-espresso-test-coverage/html/index.html :
+espresso-test-coverage/html/index.html : remove-apk-and-instrumented-tests
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator
 	$(GW) -PjacocoEnabled=true -PcarvedTests=false clean jacocoGUITestCoverage
 	$(RM) -r espresso-test-coverage
@@ -162,7 +171,7 @@ clean-coverage-espresso-tests :
 
 
 # Required to run each test on its own to compute the coverage report
-$(ESPRESSO_TESTS_COVERAGE): app-original.apk app-androidTest.apk
+$(ESPRESSO_TESTS_COVERAGE):
 	
 	$(eval IR_RUNNING := $(shell export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator | wc -l))
 	@if [ "$(IR_RUNNING)" == "0" ]; then \
@@ -178,20 +187,34 @@ $(ESPRESSO_TESTS_COVERAGE): app-original.apk app-androidTest.apk
 		echo "Resetting the data of the apk"; \
 		$(ADB) shell pm clear abc.basiccalculator; \
 	else \
-	 	echo "Installing instrumented apk" ;\
-		export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-original.apk; \
+	 	echo "Installing apk" ;\
+		export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-original-for-coverage.apk; \
 		echo "Installing test apk" ;\
-		export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-androidTest.apk; \
+		export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-androidTest-for-coverage.apk; \
 	fi
 # Execute the gradle target
 	@echo "Running Test $(TEST_NAME)"
 	$(GW) -PjacocoEnabled=true -PcarvedTests=false -Pandroid.testInstrumentationRunnerArguments.class=$(TEST_NAME) jacocoGUITestCoverage
 	mv -v app/build/reports/jacoco/jacocoGUITestCoverage $(COVERAGE_FOLDER)
 	
+remove-apk-and-instrumented-tests :
+	$(eval IR_RUNNING := $(shell export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator | wc -l))
+	@if [ "$(IR_RUNNING)" == "0" ]; then \
+		export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator; \
+	fi
+	$(eval APP_INSTALLED := $(shell $(ADB) shell pm list packages | grep -c "abc.basiccalculator$$"))
+	@if [ "$(APP_INSTALLED)" == "1" ]; then \
+		$(ADB) uninstall abc.basiccalculator; \
+	fi
+	$(eval INSTRUMENTATION_TESTS_INSTALLED := $(shell $(ADB) shell pm list packages | grep -c "abc.basiccalculator.test$$"))
+	@if [ "$(INSTRUMENTATION_TESTS_INSTALLED)" == "1" ]; then \
+		$(ADB) uninstall abc.basiccalculator.test; \
+	fi
+
 # Phony  target
-coverage-for-each-espresso-test :  $(ESPRESSO_TESTS_COVERAGE)
+coverage-for-each-espresso-test : remove-apk-and-instrumented-tests $(ESPRESSO_TESTS_COVERAGE)
 	@echo "Processing: $(shell echo $? | tr " " "\n")"
-	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators 
+	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	@echo "Done"
 
 
