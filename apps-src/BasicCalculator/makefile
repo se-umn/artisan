@@ -91,14 +91,14 @@ stop-emulator:
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators 
 
 # Trace all depends on tracing all the tests
-trace-all : $(ESPRESSO_TESTS)
+trace-all : app-instrumented.apk app-androidTest.apk remove-apk-and-instrumented-tests $(ESPRESSO_TESTS)
 # Run the emulator
 	@echo "Tracing: $(shell echo $? | tr " " "\n")"
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators 
 	@echo "Done"
 
 # Try to trace all tests
-$(ESPRESSO_TESTS) : remove-apk-and-instrumented-tests app-androidTest.apk app-instrumented.apk
+$(ESPRESSO_TESTS) :
 
 	$(eval IR_RUNNING := $(shell export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator | wc -l))
 	@if [ "$(IR_RUNNING)" == "0" ]; then \
@@ -212,8 +212,8 @@ remove-apk-and-instrumented-tests :
 	fi
 
 # Phony  target
-coverage-for-each-espresso-test : remove-apk-and-instrumented-tests $(ESPRESSO_TESTS_COVERAGE)
-	@echo "Processing: $(shell echo $? | tr " " "\n")"
+coverage-for-each-espresso-test : remove-apk-and-instrumented-tests app-and-instrumented-tests-for-coverage.apk $(ESPRESSO_TESTS_COVERAGE)
+	@echo "Processed: $(shell echo $? | tr " " "\n")"
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	@echo "Done"
 
