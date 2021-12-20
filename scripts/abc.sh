@@ -734,8 +734,23 @@ function show-config() {
   fi
 }
 
-function set-java-opts() {
+# shellcheck disable=SC2120
+function make() {
+  MAKE_GENERATOR="${MAKE_GENERATOR:-$(dirname "$0")/make-makefile.py}"
 
+  local app_root="${1:?Missing application root directory}"
+  local absolute_app_root=$(realpath "${app_root}")
+  #(echo >&2 "Application root: $app_root")
+
+  if [[ -f "${app_root}/abc-apk-config" ]]; then
+    python3 "${MAKE_GENERATOR}" "${absolute_app_root}"
+  else
+    (echo >&2 "$app_root/abc-apk-config does not exist")
+    return 1
+  fi
+}
+
+function set-java-opts() {
 	apk="$1"
 	if [[ ! -f "$apk" ]]; then
 		(printf >&2 "Apk %s does not exist\n" "$apk")

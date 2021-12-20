@@ -7,15 +7,15 @@ import de.unipassau.abc.data.MethodInvocation;
 public class AndroidCarvedTest extends CarvedTest {
 
 	public AndroidCarvedTest(MethodInvocation methodInvocationUnderTest, ExecutionFlowGraph executionFlowGraph,
-			DataDependencyGraph dataDependencyGraph) {
-		super(methodInvocationUnderTest, executionFlowGraph, dataDependencyGraph);
+			DataDependencyGraph dataDependencyGraph, String traceId) {
+		super(methodInvocationUnderTest, executionFlowGraph, dataDependencyGraph, traceId);
 	}
 
 	public AndroidCarvedTest(MethodInvocation methodInvocationUnderTest, ExecutionFlowGraph executionFlowGraph,
 			DataDependencyGraph dataDependencyGraph, CatchBlock catchExpectedException,
-			CatchBlock catchUnexpectedException) {
+			CatchBlock catchUnexpectedException, String traceId) {
 		super(methodInvocationUnderTest, executionFlowGraph, dataDependencyGraph, catchExpectedException,
-				catchUnexpectedException);
+				catchUnexpectedException, traceId);
 	}
 
 }

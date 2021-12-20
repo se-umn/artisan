@@ -112,7 +112,6 @@ public class BasicTestGenerator implements TestGenerator {
          */
         ExecutionFlowGraph executionFlowGraph = new ExecutionFlowGraphImpl();
         DataDependencyGraph dataDependencyGraph = new DataDependencyGraphImpl();
-
         MethodInvocation methodInvocationUnderTest = optimisticCarvedExecution.methodInvocationUnderTest;
         // logging
         logger.info("-------------------------");
@@ -425,11 +424,11 @@ public class BasicTestGenerator implements TestGenerator {
                  * unexpectedExceptionCatchBlockDataDependencyGraph);
                  */
                 carvedTest = new AndroidCarvedTest(methodInvocationUnderTest, executionFlowGraph, dataDependencyGraph,
-                        catchExpectedException, catchUnexpectedException);
+                        catchExpectedException, catchUnexpectedException, carvedExecution.traceId);
             } else {
                 carvedTest = new CarvedTest(methodInvocationUnderTest, //
                         executionFlowGraph, dataDependencyGraph, // Test Body + Fail
-                        catchExpectedException, catchUnexpectedException);
+                        catchExpectedException, catchUnexpectedException, carvedExecution.traceId);
             }
         } else {
 
@@ -438,10 +437,10 @@ public class BasicTestGenerator implements TestGenerator {
                     carvedExecution.callGraphs);
             if (containsAndroidMethodInvocations) {
                 carvedTest = new AndroidCarvedTest(methodInvocationUnderTest, //
-                        executionFlowGraph, dataDependencyGraph);
+                        executionFlowGraph, dataDependencyGraph, carvedExecution.traceId);
             } else {
                 carvedTest = new CarvedTest(methodInvocationUnderTest, //
-                        executionFlowGraph, dataDependencyGraph);
+                        executionFlowGraph, dataDependencyGraph, carvedExecution.traceId);
             }
             // Add the assertions using the AssertionGenerationPipeline (basically, add all
             // the assertions that can be added).

@@ -10,6 +10,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 
+import java.util.ArrayList;
+import java.util.List;
 import net.objecthunter.exp4j.Expression;
 import net.objecthunter.exp4j.ExpressionBuilder;
 
@@ -47,6 +49,7 @@ public class MainActivity extends Activity {
 
         String input = inputField.getText().toString();
         String result = eval(input);
+
 
         if (!result.equals(ERROR_STRING)) {
             intent.putExtra(RESULT_MESSAGE, Integer.parseInt(result));

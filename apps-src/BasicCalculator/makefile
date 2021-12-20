@@ -57,6 +57,7 @@ clean-all : clean-carved-tests clean-carved-coverage
 # Clean up Coverage
 	$(RM) -rv espresso-tests-coverage unit-tests-coverage carved-test-coverage
 	$(RM) -rv espresso-test-coverage-for-*
+	$(RM) -rv jacoco-espresso-coverage
 
 # Build the various apks
 app-original.apk : 
@@ -75,7 +76,7 @@ app-instrumented.apk : app-original.apk
 app-androidTest.apk :
 	export ABC_CONFIG=$(ABC_CFG) && \
 	$(GW) assembleAndroidTest && \
-	mv ./app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk app-androidTest-unsigned.apk && \
+	mv app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk app-androidTest-unsigned.apk && \
 	$(ABC) sign-apk app-androidTest-unsigned.apk && \
 	mv -v app-androidTest-unsigned.apk app-androidTest.apk
 
@@ -88,13 +89,13 @@ app-and-instrumented-tests-for-coverage.apk :
 
 # Utility
 stop-emulator:
-	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators 
+	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 
 # Trace all depends on tracing all the tests
 trace-all : app-instrumented.apk app-androidTest.apk remove-apk-and-instrumented-tests $(ESPRESSO_TESTS)
 # Run the emulator
 	@echo "Tracing: $(shell echo $? | tr " " "\n")"
-	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators 
+	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	@echo "Done"
 
 # Try to trace all tests
@@ -127,13 +128,13 @@ $(ESPRESSO_TESTS) :
 # This will always run because it's a phony target
 carve-all : .carved-all
 	@echo "Carving All"
-	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators 
+	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	@echo "Done"
 
 .carved-all : $(ESPRESSO_TESTS)
 	@echo "Requiement $?"
 	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) carve-all app-original.apk traces app/src/carvedTest force-clean 2>&1 | tee carving.log
-	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators 
+	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 # 	Make sure this file has a timestamp after the prerequiesing
 	@sleep 1; echo "" > .carved-all
 
@@ -160,7 +161,7 @@ espresso-test-coverage/html/index.html : remove-apk-and-instrumented-tests
 	$(GW) -PjacocoEnabled=true -PcarvedTests=false clean jacocoGUITestCoverage
 	$(RM) -r espresso-test-coverage
 	mv -v app/build/reports/jacoco/jacocoGUITestCoverage espresso-test-coverage
-	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators 
+	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 
 
 coverage-espresso-tests : espresso-test-coverage/html/index.html
@@ -196,6 +197,7 @@ $(ESPRESSO_TESTS_COVERAGE):
 	@echo "Running Test $(TEST_NAME)"
 	$(GW) -PjacocoEnabled=true -PcarvedTests=false -Pandroid.testInstrumentationRunnerArguments.class=$(TEST_NAME) jacocoGUITestCoverage
 	mv -v app/build/reports/jacoco/jacocoGUITestCoverage $(COVERAGE_FOLDER)
+	mv -v app/build/outputs/code_coverage/debugAndroidTest/connected/*coverage.ec $(COVERAGE_FOLDER)/$(TEST_NAME).ec
 	
 remove-apk-and-instrumented-tests :
 	$(eval IR_RUNNING := $(shell export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator | wc -l))
@@ -211,12 +213,11 @@ remove-apk-and-instrumented-tests :
 		$(ADB) uninstall abc.basiccalculator.test; \
 	fi
 
-# Phony  target
+# Calling "remove-apk-and-instrumented-tests" breaks the logic of make
 coverage-for-each-espresso-test : remove-apk-and-instrumented-tests app-and-instrumented-tests-for-coverage.apk $(ESPRESSO_TESTS_COVERAGE)
 	@echo "Processed: $(shell echo $? | tr " " "\n")"
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	@echo "Done"
-
 
 # Run existing unit tests (not carved ones)
 coverage-unit-tests :

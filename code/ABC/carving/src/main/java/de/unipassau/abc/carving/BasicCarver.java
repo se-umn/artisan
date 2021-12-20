@@ -8,17 +8,14 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.Queue;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.app.admin.SystemUpdateInfo;
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.CallGraphImpl;
@@ -51,6 +48,7 @@ public class BasicCarver implements MethodCarver {
     private ExecutionFlowGraph executionFlowGraph;
     private DataDependencyGraph dataDependencyGraph;
     private CallGraph callGraph;
+    private String traceId;
 
     // Bookkeep the carved method invocations.
     private Set<MethodInvocation> carvedMethodInvocationsCache = new HashSet<MethodInvocation>();
@@ -77,6 +75,7 @@ public class BasicCarver implements MethodCarver {
         this.executionFlowGraph = executionTraceForMainThread.getFirst();
         this.dataDependencyGraph = executionTraceForMainThread.getSecond();
         this.callGraph = executionTraceForMainThread.getThird();
+        this.traceId = parsedTrace.traceFileName();
     }
 
     /**
@@ -135,22 +134,24 @@ public class BasicCarver implements MethodCarver {
                     t -> methodInvocationOwner.equals(t.getOwner())));
             logger.info("Adding method invocations on owner: " + Arrays.toString(relevantMethodInvocations.toArray()));
         } else {
-            // TODO In theory those are NOT mutually exclusive since a class may have static methods and instances...
-            
-            /* 
-             * Locate all the method invocations the have been invoked on the same STATIC object
-             * before invoking methodInvocation
+            // TODO In theory those are NOT mutually exclusive since a class may have static
+            // methods and instances...
+
+            /*
+             * Locate all the method invocations the have been invoked on the same STATIC
+             * object before invoking methodInvocation
              */
-            List<MethodInvocation> staticMethodsOnSameClass = new ArrayList(this.executionFlowGraph
-                    .getMethodInvocationsBefore(methodInvocation, t -> t.isStatic() && JimpleUtils
-                            .getClassNameForMethod(t.getMethodSignature()).equals(JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature()))));
+            List<MethodInvocation> staticMethodsOnSameClass = new ArrayList(
+                    this.executionFlowGraph.getMethodInvocationsBefore(methodInvocation,
+                            t -> t.isStatic() && JimpleUtils.getClassNameForMethod(t.getMethodSignature())
+                                    .equals(JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature()))));
 
             relevantMethodInvocations.addAll(staticMethodsOnSameClass);
-            
-            logger.info("Adding method invocations on STATIC of same class: " + Arrays.toString(relevantMethodInvocations.toArray()));
+
+            logger.info("Adding method invocations on STATIC of same class: "
+                    + Arrays.toString(relevantMethodInvocations.toArray()));
 
         }
-        
 
         Set<MethodInvocation> relevantMethodInvocationsOnAliases = new HashSet<>();
 
@@ -510,8 +511,9 @@ public class BasicCarver implements MethodCarver {
          * 
          */
 
-        logger.info("Extrapolating method invocations from graphs");
-        CarvedExecution carvedExecution = new CarvedExecution();
+        logger.debug("Extrapolating method invocations from graphs");
+        CarvedExecution carvedExecution = new CarvedExecution(traceId);
+
         // How do we ensure that whatever we extrapolate from the graphs belong
         // together? We order method invocations per id of the first call?
         carvedExecution.executionFlowGraphs = this.executionFlowGraph.extrapolate(new HashSet(allMethodInvocations));

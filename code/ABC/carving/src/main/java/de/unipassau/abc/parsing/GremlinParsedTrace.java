@@ -56,6 +56,11 @@ public class GremlinParsedTrace implements ParsedTrace {
 	}
 
 	@Override
+	public String traceFileName() {
+		return traceID;
+	}
+
+	@Override
 	public Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> getParsedTrace() {
 		// TODO Auto-generated method stub
 		return null;

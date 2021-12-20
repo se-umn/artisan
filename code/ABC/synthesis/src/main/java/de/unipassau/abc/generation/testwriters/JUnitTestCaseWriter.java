@@ -13,6 +13,7 @@ import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.ArrayAccessExpr;
 import com.github.javaparser.ast.expr.ArrayCreationExpr;
+import com.github.javaparser.ast.comments.JavadocComment;
 import com.github.javaparser.ast.expr.ArrayInitializerExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.AssignExpr.Operator;
@@ -224,6 +225,12 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             annotation.getPairs().add(timeout);
             // Add the generic Exception throwing
             testMethod.addThrownException(Exception.class);
+
+            String generatedFromComment = String.format(
+                  "%nGenerated from %s%nMethod invocation under test: %s",
+                  carvedTest.getTraceId(), carvedTest.getMethodUnderTest().getMethodSignature()
+            );
+            testMethod.setComment(new JavadocComment(generatedFromComment));
 
             // Generate method body
             generateMethodBody(testMethod, carvedTest);
