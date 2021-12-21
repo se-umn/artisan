@@ -54,16 +54,19 @@ public class Monitor {
     public final static String METHOD_END_TOKEN = "[<]";
     public final static String METHOD_END_TOKEN_FROM_EXCEPTION = "[<E]";
 
+    // This is public to enable EspressoTest changing it using reflection, see
+    // MonitorRule or make Soot change these values dynamically during
+    // instrumentation
+    // Not those are inlined constants
+    public static Boolean REPORT_ONLY_MAIN_THREAD = Boolean.TRUE;
+    public static Boolean DEBUG = Boolean.FALSE;
+
     // We still need to account for the fact that there's many threads using this
     // class
     private static ReentrantLock lock = new ReentrantLock();
 
     // Store trace info inside the phone memory
     private static BufferedWriter traceFileOutputWriter;
-
-    // This is public to enable EspressoTest changing it using reflection, see
-    // MonitorRule
-    public static boolean DEBUG = false;
 
     // Simplified version of the stack trace for
     private static Stack<StackElement> stackTrace = new Stack<StackElement>();
@@ -140,6 +143,9 @@ public class Monitor {
 
         android.util.Log.e(ABC_TAG, "---- Monitor initialized");
         android.util.Log.e(ABC_TAG, "---- Monitor version 2.1 Simple Monitor");
+        android.util.Log.e(ABC_TAG, "---- DEBUG " + DEBUG);
+        android.util.Log.e(ABC_TAG, "---- TRACE ONLY MAIN " + REPORT_ONLY_MAIN_THREAD);
+
         synchronized (globalCounter) {
             // Reset the counter.
             globalCounter = 1;
@@ -164,7 +170,7 @@ public class Monitor {
             traceFileOutputWriter = new BufferedWriter(new FileWriter(traceFile));
 
             StringBuffer sb = new StringBuffer();
-            sb.append(globalCounter).append("---- STARTING TRACING for ").append(packageName).append(" output to ")
+            sb.append("---- STARTING TRACING for ").append(packageName).append(" output to ")
                     .append(traceFile.getAbsolutePath()).append(" ----");
 
             android.util.Log.e(ABC_TAG, sb.toString());
@@ -205,7 +211,7 @@ public class Monitor {
             }
 
             // Respond to this method only if the method call is executed by the main thread
-            if (!isUiThread()) {
+            if (REPORT_ONLY_MAIN_THREAD && !isUiThread()) {
                 return;
             }
 
@@ -252,7 +258,7 @@ public class Monitor {
             }
 
             // Respond to this method only if the method call is executed by the main thread
-            if (!isUiThread()) {
+            if (REPORT_ONLY_MAIN_THREAD && !isUiThread()) {
                 return;
             }
 
@@ -301,7 +307,7 @@ public class Monitor {
             }
 
             // Respond to this method only if the method call is executed by the main thread
-            if (!isUiThread()) {
+            if (REPORT_ONLY_MAIN_THREAD && !isUiThread()) {
                 return;
             }
 
@@ -355,7 +361,7 @@ public class Monitor {
             }
 
             // Respond to this method only if the method call is executed by the main thread
-            if (!isUiThread()) {
+            if (REPORT_ONLY_MAIN_THREAD && !isUiThread()) {
                 return;
             }
 
@@ -409,7 +415,7 @@ public class Monitor {
             }
 
             // Respond to this method only if the method call is executed by the main thread
-            if (!isUiThread()) {
+            if (REPORT_ONLY_MAIN_THREAD && !isUiThread()) {
                 return;
             }
 
@@ -460,10 +466,9 @@ public class Monitor {
             }
 
             // Respond to this method only if the method call is executed by the main thread
-            if (!isUiThread()) {
+            if (REPORT_ONLY_MAIN_THREAD && !isUiThread()) {
                 return;
             }
-
             // Book keeping
             popCallFromStackTrace(methodSignature);
 
@@ -519,10 +524,9 @@ public class Monitor {
             }
 
             // Respond to this method only if the method call is executed by the main thread
-            if (!isUiThread()) {
+            if (REPORT_ONLY_MAIN_THREAD && !isUiThread()) {
                 return;
             }
-
             // Clear the data. Note that the exception received as input should match with
             // the one stored here.
             // TODO Do we need to check this?
@@ -591,10 +595,9 @@ public class Monitor {
             }
 
             // Respond to this method only if the method call is executed by the main thread
-            if (!isUiThread()) {
+            if (REPORT_ONLY_MAIN_THREAD && !isUiThread()) {
                 return;
             }
-
             // Book keeping
             popCallFromStackTrace(methodSignature);
 
@@ -642,10 +645,9 @@ public class Monitor {
             }
 
             // Respond to this method only if the method call is executed by the main thread
-            if (!isUiThread()) {
+            if (REPORT_ONLY_MAIN_THREAD && !isUiThread()) {
                 return;
             }
-
             /*
              * Store the exception that will be raised
              */
@@ -695,9 +697,9 @@ public class Monitor {
 
         stackTrace.push(se);
 
-        if (DEBUG) {
-            Log.i(ABC_TAG, String.join("", Collections.nCopies(stackTrace.size(), "-") + "}" + se.methodSignature));
-        }
+//        if (DEBUG) {
+//            Log.i(ABC_TAG, String.join("", Collections.nCopies(stackTrace.size(), "-") + "}" + se.methodSignature));
+//        }
     }
 
     /**
@@ -714,9 +716,9 @@ public class Monitor {
         // Use the stack of active lib calls. Match by signature
         StackElement activeCall = stackTrace.peek();
 
-        if (DEBUG) {
-            Log.i(ABC_TAG, String.join("", Collections.nCopies(stackTrace.size(), "-") + "{" + methodSignature));
-        }
+//        if (DEBUG) {
+//            Log.i(ABC_TAG, String.join("", Collections.nCopies(stackTrace.size(), "-") + "{" + methodSignature));
+//        }
 
         if (!activeCall.methodSignature.equals(methodSignature)) {
             android.util.Log.e(ABC_TAG, "Mismatch for active call " + activeCall.methodSignature + ". Got: "
@@ -1096,52 +1098,6 @@ public class Monitor {
                 Looper.getMainLooper().isCurrentThread() : //
                 Thread.currentThread() == Looper.getMainLooper().getThread();
     }
-//    /* the callee could be either an actual method called or a trap */
-//
-//    /*
-//     * dump the Execute-After sequence that is converted from the two event maps
-//     * upon program termination event this is, however, not required but useful for
-//     * debugging
-//     * 
-//     * 
-//     * TODO I do not think we ever use this one...
-//     */
-//    @Deprecated
-//    public static void terminate(String where) throws Exception {
-//        lock.lock();
-//        try {
-//            if (bInitialized) {
-//                bInitialized = false;
-//                terminate_impl(where);
-//            } else {
-//                // Already terminated here
-//                return;
-//            }
-//
-//            synchronized (globalCounter) {
-//                globalCounter = g_lgclock.getLTS();
-////				A.put(g_counter, "program end");
-//            }
-//
-//            /** need permission to write files in android environment */
-//            /*
-//             * serializeEvents();
-//             *
-//             * if (dumpCallmap) { dumpCallmap(); }
-//             */
-//        } catch (Throwable t) {
-//            android.util.Log.e(ABC_TAG, "ERROR !", t);
-//            throw t;
-//        } finally {
-//            lock.unlock();
-//        }
-//    }
-//
-//    public static void terminate_impl(String where) {
-//		if (dumpCallmap) {
-//        android.util.Log.e(ABC_TAG + globalCounter, "Application Terminated at " + where);
-//		}
-//    }
 
     private static String[] extractParameterTypes(String method) {
         Pattern argsPattern = Pattern.compile("\\((.*?)\\)");

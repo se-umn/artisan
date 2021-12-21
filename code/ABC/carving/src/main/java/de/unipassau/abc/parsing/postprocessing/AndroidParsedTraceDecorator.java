@@ -1,8 +1,10 @@
 package de.unipassau.abc.parsing.postprocessing;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -89,21 +91,38 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
             // Make sure we add the proper data dependencies
             dataDependencyGraph.addDataDependencyOnReturn(generateDefaultAndroidContext, defaultContext);
 
+            // Now we can replace USES of ANY instance of android.content.Context AS
+            // PARAMETER with the default CONTEXT
             // Find intents and replace their context with the default one
-            for (ObjectInstance obj : dataDependencyGraph.getObjectInstances()) {
-                if (!obj.getType().equals("android.content.Intent")) {
-                    continue;
-                }
-                for (MethodInvocation mi : dataDependencyGraph.getMethodInvocationsForOwner(obj)) {
-                    // In general we could look for any instance of android.content.Context but we
-                    // keep it tight here
-                    if (mi.getMethodSignature()
-                            .equals("<android.content.Intent: void <init>(android.content.Context,java.lang.Class)>")) {
-                        // Overwrite the FIRST parameter. Set it to NULL at this point... otherwise we
-                        // need a special TAG
+//            for (ObjectInstance obj : dataDependencyGraph.getObjectInstances()) {
+//                if (!obj.getType().equals("android.content.Intent")) {
+//                    continue;
+//                }
+            for (MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations()) {
+                // In general we could look for any instance of android.content.Context but we
+                // keep it tight here
+                // TODO Here we can work only at syntactic level, no type resolution whatsoever
+                if (mi.getMethodSignature().contains("android.content.Context")) {
 
-                        // TODO Not sure this works also as replace...
-                        int positionOfParameterToReplace = 0;
+                    // Find the parameters to replace. Forget about replacing instances of the
+                    // Context
+                    List<Integer> positions = new ArrayList<Integer>();
+                    int currentPosition = 0;
+                    for (String formalParameter : JimpleUtils.getParameterList(mi.getMethodSignature())) {
+                        if (formalParameter.equals("android.content.Context")) {
+                            positions.add(currentPosition);
+                        }
+                        currentPosition = currentPosition + 1;
+                    }
+
+                    // Replace them
+                    for (Integer positionOfParameterToReplace : positions) {
+                        // This works also by replacing the Default Contenxt with itself
+                        logger.info("Replacing Actual Context "
+                                + mi.getActualParameterInstances().get(positionOfParameterToReplace)
+                                + " with DefaultContext one in method " + mi + " at position "
+                                + positionOfParameterToReplace);
+
                         dataDependencyGraph.replaceDataDependencyOnActualParameter(mi, defaultContext,
                                 positionOfParameterToReplace);
                         // Update also the object!
@@ -111,8 +130,10 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                         updatedParameters[positionOfParameterToReplace] = defaultContext;
                         // TODO Is this enough or should I do the same for actualParameters?
                         mi.setActualParameterInstances(Arrays.asList(updatedParameters));
+
                     }
                 }
+//                }
             }
         });
         return parsedTrace;
@@ -147,8 +168,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                             .equals("<android.content.Intent: android.content.Intent putExtra(java.lang.String,int)>")
                             && ((PrimitiveValue) mi.getActualParameterInstances().get(0)).toString()
                                     .equals(intentTagAsString)) {
-                        logger.trace(
-                                "Intent " + obj + " is SOURCE of TAINT " + mi.getActualParameterInstances().get(1));
+                        logger.info("Intent " + obj + " is SOURCE of TAINT " + mi.getActualParameterInstances().get(1));
                         sourceIntents.put(mi.getActualParameterInstances().get(1).toString(), obj);
                     }
 
@@ -156,7 +176,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                             .equals("<android.content.Intent: int getIntExtra(java.lang.String,int)>")
                             && ((PrimitiveValue) mi.getActualParameterInstances().get(0)).toString()
                                     .equals(intentTagAsString)) {
-                        logger.trace("Intent " + obj + " is SINK of TAINT " + mi.getReturnValue());
+                        logger.info("Intent " + obj + " is SINK of TAINT " + mi.getReturnValue());
                         sinkIntents.put(mi.getReturnValue().toString(), obj);
                     }
                 }
@@ -176,14 +196,14 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
             for (Entry<String, ObjectInstance> source : sourceIntents.entrySet()) {
                 String taint = source.getKey();
                 if (sinkIntents.containsKey(taint)) {
-                    logger.trace("Add aliasing for taint " + taint);
+                    logger.info("Add aliasing for taint " + taint);
 
                     dataDependencyGraph.addAliasingDataDependency(source.getValue(), sinkIntents.get(taint));
 
                     // Make sure we replace the sink intents for the activities that require them
                     for (ObjectInstance activity : androidActivities) {
                         if (activity.requiresIntent() && activity.getIntent().equals(sinkIntents.get(taint))) {
-                            logger.trace("Replace sink intent with source intent for taint " + taint);
+                            logger.info("Replace sink intent with source intent for taint " + taint);
                             activity.setIntent(source.getValue());
                         }
                     }
@@ -238,8 +258,16 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                                 // Create the dependency to the intent
                                 dataDependencyGraph.addImplicitDataDependency(methodThatRequireTheDependencyOnTheIntent,
                                         intent);
+
                                 activity.setRequiresIntent(true);
                                 activity.setIntent((ObjectInstance) intent);
+
+                                // TODO Patch: Make sure we automatically declares that also the constructor
+                                // requires the same intent!
+
+                                MethodInvocation activityConstructor = dataDependencyGraph
+                                        .getInitMethodInvocationFor(activity);
+                                dataDependencyGraph.addImplicitDataDependency(activityConstructor, intent);
                             } catch (ABCException e) {
                                 // TODO Auto-generated catch block
 //                            e.printStackTrace();

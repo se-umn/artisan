@@ -49,9 +49,15 @@ public class ObjectInstance implements DataNode, Cloneable {
     private ObjectInstance intentObjectInstance;
 
     public ObjectInstance clone() {
-        ObjectInstance cloned = new ObjectInstance(objectId);
-        cloned.isAndroidActivity = isAndroidActivity;
-        cloned.isAndroidFragment = isAndroidFragment;
+        ObjectInstance cloned = null;
+        try {
+            cloned = (ObjectInstance) super.clone();
+        } catch (CloneNotSupportedException e) {
+           new RuntimeException(e);
+        }
+        
+        cloned.isAndroidActivity = this.isAndroidActivity;
+        cloned.isAndroidFragment = this.isAndroidFragment;
         cloned.objectId = objectId;
         cloned.stringValue = stringValue;
         cloned.type = type;
@@ -139,9 +145,10 @@ public class ObjectInstance implements DataNode, Cloneable {
         this.isAndroidFragment = isAndroidFragment;
     }
 
+    // TODO Why do we have to add also the System.identityHashCode(this)?
     @Override
     public String toString() {
-        return objectId;
+        return objectId; // + " (" + System.identityHashCode(this) + ")";
     }
 
     public boolean isBoxedPrimitive() {

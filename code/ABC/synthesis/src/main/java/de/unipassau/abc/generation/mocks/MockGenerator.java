@@ -24,6 +24,7 @@ import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.ExecutionFlowGraphImpl;
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
+import de.unipassau.abc.data.NullInstance;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.ObjectInstanceFactory;
 import de.unipassau.abc.data.Pair;
@@ -67,7 +68,7 @@ public class MockGenerator {
 
         for (ObjectInstance danglingObject : carvedTest.getDataDependencyGraph().getDanglingObjects()) {
 
-            logger.debug("Found dangling object " + danglingObject);
+            logger.info("Found dangling object " + danglingObject);
 
             ObjectInstance classToMock = ObjectInstanceFactory
                     .get(danglingObject.getType() + "@" + id.getAndIncrement());
@@ -110,7 +111,17 @@ public class MockGenerator {
                     continue;
                 }
 
-                DataNode doReturnArgument = DataNodeFactory.get(returnValue.getType(), returnValue.toString());
+                DataNode doReturnArgument = null;
+                if (returnValue instanceof NullInstance) {
+                    doReturnArgument = DataNodeFactory.get(returnValue.getType(), null);
+                } else if (returnValue instanceof PrimitiveValue) {
+                    doReturnArgument = DataNodeFactory.get(returnValue.getType(),
+                            ((PrimitiveValue) returnValue).getStringValue());
+                } else {
+                    doReturnArgument = DataNodeFactory.get(returnValue.getType(), returnValue.toString());
+                }
+                // If return value is a NullInstance we should retun a Null Instance
+
                 ObjectInstance doReturnReturn = ObjectInstanceFactory
                         .get("org.mockito.stubbing.Stubber@" + id.getAndIncrement());
 
@@ -188,38 +199,69 @@ public class MockGenerator {
             Collection<MethodInvocation> callsToDanglingObject = carvedTest.getDataDependencyGraph()
                     .getMethodInvocationsForOwner(danglingObject);
             for (MethodInvocation callToDanglingObject : callsToDanglingObject) {
-                logger.debug("Removing " + callToDanglingObject + " from carved test");
+                logger.info("Removing " + callToDanglingObject + " from carved test");
                 carvedTest.getExecutionFlowGraph().removeMethodInvocation(callToDanglingObject);
             }
             // We now have to get rid of the dangling object since we mocked it
-            logger.debug("Removing " + danglingObject + " from the data dependency graph of the test");
+            logger.info("Removing " + danglingObject + " from the data dependency graph of the test");
             // TODO If it works, promote to API/Interface
             carvedTestDataDependencyGraph.remove(danglingObject);
 
         }
+
+        logger.info("-------------------------");
+        logger.info("  SHADOWING " + carvedTest.getMethodUnderTest());
+        logger.info("-------------------------");
+        // Look up whether we need to create a shadow by looking at how findViewById
+        // methods are called in the test
 
         List<MethodInvocation> candidateMethodInvocations = carvedTest.getExecutionFlowGraph()
                 .getOrderedMethodInvocations();
 
         List<MethodInvocation> subsumedCandidateMethodInvocations = new ArrayList<MethodInvocation>();
 
-        if (!JimpleUtils.isActivityLifecycle(carvedTest.getMethodUnderTest().getMethodSignature())) {
-            subsumedCandidateMethodInvocations
-                    .addAll(carvedExecution.getCallGraphContainingTheMethodInvocationUnderTest()
-                            .getMethodInvocationsSubsumedBy(carvedTest.getMethodUnderTest()));
-        }
-//        else {
-//            System.out.println(">> Skipping LifeCycle Method: " + carvedTest.getMethodUnderTest().getMethodSignature());
+        // ALESSIO: Why here we limit ONLY to look at the call graph that contains the
+        // method under
+        // test
+//        if (!JimpleUtils.isActivityLifecycle(carvedTest.getMethodUnderTest().getMethodSignature())) {
+//            subsumedCandidateMethodInvocations
+//                    .addAll(carvedExecution.getCallGraphContainingTheMethodInvocationUnderTest()
+//                            .getMethodInvocationsSubsumedBy(carvedTest.getMethodUnderTest()));
 //        }
+////        else {
+////            System.out.println(">> Skipping LifeCycle Method: " + carvedTest.getMethodUnderTest().getMethodSignature());
+////        }
 
+        // Accumulate ALL the calls to made in this test unless the method under test is
+        // an ActivityLifecycle...
+        // TODO Maybe explicitly referring to "onCreate" is better...
+        if (!JimpleUtils.isActivityLifecycle(carvedTest.getMethodUnderTest().getMethodSignature())) {
+
+            for (MethodInvocation candidateMethodInvocation : candidateMethodInvocations) {
+
+                if (candidateMethodInvocation.isSynthetic()) {
+                    continue;
+                }
+                subsumedCandidateMethodInvocations
+                        .addAll(carvedExecution.getCallGraphContainingTheMethodInvocation(candidateMethodInvocation)
+                                .getMethodInvocationsSubsumedBy(candidateMethodInvocation));
+            }
+        }
+
+        // Make sure we do not consider activity (and probably fragments and similar
+        // here?)
         for (MethodInvocation subsumedCandidate : subsumedCandidateMethodInvocations) {
             if (subsumedCandidate.getMethodSignature().equals(
                     "<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>")) {
+                logger.info(" Found " + subsumedCandidate + " called on " + subsumedCandidate.getOwner());
                 carvedTestExecutionFlowGraph.enqueueMethodInvocations(subsumedCandidate);
                 carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(subsumedCandidate);
             }
         }
 
+        // TODO What to do with the calls INSIDE the method under test?
+
+        // TODO Pay attention to duplicate calls !
         candidateMethodInvocations.addAll(subsumedCandidateMethodInvocations);
 
         List<List<MethodInvocation>> targetMethodInvocations = new ArrayList<>();
@@ -228,17 +270,27 @@ public class MockGenerator {
         int subsumedCallCount = 0;
 
         for (MethodInvocation call : candidateMethodInvocations) {
+
             if (call.getMethodSignature().equals(
                     "<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>")) {
+
                 if (subsumedCandidateMethodInvocations.contains(call)) {
+
                     subsumedCallCount += 1;
                 }
+
                 call.setHasGenericReturnType(true);
+
                 if (targetMethodOwners.contains(call.getOwner())) {
+
                     targetMethodInvocations.get(targetMethodOwners.indexOf(call.getOwner())).add(call);
+
                 } else {
+
                     targetMethodOwners.add(call.getOwner());
+
                     targetMethodInvocations.add(new ArrayList<>());
+
                     targetMethodInvocations.get(targetMethodInvocations.size() - 1).add(call);
                 }
             }
@@ -387,7 +439,7 @@ public class MockGenerator {
                      * with their same type and content.
                      */
                     doReturnArgument = returnValue;
-                    logger.debug("" + returnValue);
+                    logger.info("" + returnValue);
 
                 }
 
@@ -568,7 +620,8 @@ public class MockGenerator {
 
         List<MethodInvocation> orderedMethodInvocations = carvedTestExecutionFlowGraph.getMethodInvocationsSortedByID();
 
-        int maxInvocationCount = carvedTest.getMethodUnderTest().getInvocationCount();
+        int maxInvocationCount = deduceMaximumShadowMethodInvocationCount(targetMethodOwners, carvedTest,
+                carvedExecution);
         int incrementalInvocationCount = 0;
 
         for (MethodInvocation targetCandidate : orderedMethodInvocations) {
@@ -611,5 +664,39 @@ public class MockGenerator {
         carvedTest.setExecutionFlowGraph(reorderedExecutionFlowGraph);
 
 //        System.out.println(orderedMethodInvocations);
+    }
+
+    // find the minimum method invocation count of all the MethodInvocations
+    // which are owned by the same object as the findViewById calls we have
+    // found, excluding MethodInvocations which are those findViewById calls,
+    // the init method, or onCreate
+    private int deduceMaximumShadowMethodInvocationCount(List<ObjectInstance> methodOwners, CarvedTest carvedTest,
+            CarvedExecution carvedExecution) {
+
+        int invocationCount = carvedTest.getMethodUnderTest().getInvocationCount();
+
+        for (ObjectInstance objectInstance : methodOwners) {
+
+            // should we attempt to get a different callgraph here?
+            Collection<MethodInvocation> ownerMethods = carvedExecution
+                    .getDataDependencyGraphContainingTheMethodInvocationUnderTest()
+                    .getMethodInvocationsForOwner(objectInstance);
+
+            for (MethodInvocation mi : ownerMethods) {
+
+                if (mi.getInvocationCount() < invocationCount && !mi.getMethodSignature().equals(
+                        "<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>")
+                        && !mi.getMethodSignature().contains("void <init>")
+                        && !JimpleUtils.isActivityLifecycle(mi.getMethodSignature())) {
+
+                    logger.info("Identified new bound: " + mi);
+
+                    invocationCount = mi.getInvocationCount();
+
+                }
+            }
+        }
+
+        return invocationCount;
     }
 }

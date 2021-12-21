@@ -46,6 +46,7 @@ import de.unipassau.abc.parsing.TraceParser;
 import de.unipassau.abc.parsing.TraceParserImpl;
 import de.unipassau.abc.parsing.postprocessing.AndroidParsedTraceDecorator;
 import de.unipassau.abc.parsing.postprocessing.ParsedTraceDecorator;
+import de.unipassau.abc.parsing.postprocessing.StaticParsedTraceDecorator;
 
 public class Main {
 
@@ -150,8 +151,16 @@ public class Main {
 
                 TraceParser parser = new TraceParserImpl();
                 ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+                //
+                ParsedTraceDecorator staticDecorator = new StaticParsedTraceDecorator();
+                ParsedTrace parsedTrace = staticDecorator.decorate(_parsedTrace);
+                //
                 ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
-                ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+                parsedTrace = decorator.decorate(parsedTrace);
+                
+                
+                
+
 
                 totalParsedTraces = totalParsedTraces + 1;
 
@@ -170,7 +179,7 @@ public class Main {
 
                 int selectedCarvableTargets = targetMethodsInvocations.size();
 
-                logger.info("Selected " + selectedCarvableTargets + " targets from trace file " + traceFile);
+                logger.info("** Selected " + selectedCarvableTargets + " targets from trace file " + traceFile);
                 
                 totalCarvableTargets = totalCarvableTargets + selectedCarvableTargets;
 
@@ -189,7 +198,7 @@ public class Main {
                     }
                 });
                 for (MethodInvocation mi : targetMethodsInvocationsList) {
-                    logger.info(mi.toString());
+                    logger.info("** " + mi.toString());
                 }
 
                 BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
@@ -198,7 +207,7 @@ public class Main {
 
                 int carvedTargets = carvedTests.size();
 
-                logger.info("Carved targets " + carvedTargets + " / " + selectedCarvableTargets);
+                logger.info("** Carved targets " + carvedTargets + " / " + selectedCarvableTargets);
                 
                 totalCarvedTests = totalCarvedTests + carvedTargets;
                 
@@ -253,12 +262,12 @@ public class Main {
                     }
                 }
 
-                logger.info("Generated tests " + generatedTests.size() + " / " + carvedTargets);
+                logger.info("** Generated tests " + generatedTests.size() + " / " + carvedTargets);
 
                 totalGeneratedTests = totalGeneratedTests + generatedTests.size();
                 
                 // TODO How does this work when we need to process multiple traces?
-                logger.info("Generating shadows");
+                logger.info("** Generating shadows");
                 // generate shadows needed for test cases
                 ShadowWriter shadowWriter = new ShadowWriter();
                 shadowWriter.generateAndWriteShadows(sortedTestSuiteList, sourceFolder);
