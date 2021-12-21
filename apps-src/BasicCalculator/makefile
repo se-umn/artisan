@@ -10,10 +10,62 @@ JAVA_OPTS=" -Dabc.instrument.array.operations -Dabc.instrument.fields.operations
 ADB := $(shell $(ABC) show-config  ANDROID_ADB_EXE | sed -e "s|ANDROID_ADB_EXE=||")
 # Create a list of expected test executions from tests.txt Those corresponds to the traces
 ESPRESSO_TESTS := $(shell cat tests.txt | sed '/^[[:space:]]*$$/d' | sed -e 's| |__|g' -e 's|^\(.*\)$$|\1.testlog|')
-# Create the list of expected carved targets from tests.txt
-ESPRESSO_TESTS_CARVED := $(shell cat tests.txt | sed '/^[[:space:]]*$$/d' | sed -e 's| |__|g' -e 's|^\(.*\)$$|\1.carved|')
 # Create the list of expected coverage targets from tests.txt
 ESPRESSO_TESTS_COVERAGE := $(shell cat tests.txt | sed '/^[[:space:]]*$$/d' | sed -e 's| |__|g' -e 's|^\(.*\)$$|espresso-test-coverage-for-\1/html/index.html|')
+
+TRACING_APKS_INSTALLED := 0
+
+define remove-apk-and-instrumented-tests
+$(info INFO: Removing APK and instrumented tests)
+$(shell IS_RUNNING=$$(export ABC_CONFIG=$(ABC_CFG) && $(ABC) list-running-emulators | wc -l | sed 's| ||g'); \
+if [ "$$IS_RUNNING" == "0" ]; then \
+        (>&2 echo "No need to remove anything from emulator. No emulator running!"); \
+elif [ "$$IS_RUNNING" == "1" ]; then \
+        APP_INSTALLED=$$($(ADB) shell pm list packages | grep -c "abc.basiccalculator$$"); \
+        INSTRUMENTATION_TESTS_INSTALLED=$$($(ADB) shell pm list packages | grep -c "abc.basiccalculator.test$$"); \
+        if [ "$$APP_INSTALLED" == "1" ]; then \
+				(>&2 echo "Removing app"); \
+                $(ADB) uninstall abc.basiccalculator > /dev/null; \
+        else \
+                (>&2 echo "App not installed"); \
+        fi; \
+        if [ "$$INSTRUMENTATION_TESTS_INSTALLED" == "1" ]; then \
+				(>&2 echo "Removing test app"); \
+                $(ADB) uninstall abc.basiccalculator.test > /dev/null; \
+        else \
+                (>&2 echo "Test app not installed"); \
+        fi; \
+else \
+    (>&2 echo "Too many emulators running at the same time: $(IS_RUNNING)"); \
+fi)
+$(eval TRACING_APKS_INSTALLED := 0)
+$(eval COVERAGE_APKS_INSTALLED := 0)
+endef
+
+# ifeq/ifneq conditionals are in fact directives, not functions. They can't be used inside variable definition and in functions.
+# app-instrumented.apk app-androidTest.apk 
+define ensure_tracing_apks
+$(info INFO: Ensure tracing APKs are installed [$(TRACING_APKS_INSTALLED)].)
+$(eval IS_RUNNING := $(shell export ABC_CONFIG=$(ABC_CFG) && $(ABC) list-running-emulators | wc -l))
+$(info INFO: Emulator running [$(IS_RUNNING)])
+$(shell if [ "$(IS_RUNNING)" == "0" ]; then \
+	(>&2 echo "No Emulator is running. Start a fresh one"); \
+	export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator; \
+fi)
+$(if $(filter $(IS_RUNNING),0),$(eval TRACING_APKS_INSTALLED := 0),)
+$(if $(filter $(IS_RUNNING),1),$(if $(filter $(TRACING_APKS_INSTALLED),0), $(call remove-apk-and-instrumented-tests),),)
+$(shell if [ "$(TRACING_APKS_INSTALLED)" == "0" ]; then \
+	(>&2 echo "Installing instrumented apk"); \
+	export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-instrumented.apk; \
+	(>&2 echo "Installing test apk") ;\
+	export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-androidTest.apk; \
+else \
+	(>&2 echo "Resetting the data of the apk"); \
+	$(ADB) shell pm clear abc.basiccalculator > /dev/null; \
+fi)
+$(eval TRACING_APKS_INSTALLED := 1)
+$(info INFO: Final value [$(TRACING_APKS_INSTALLED)].)
+endef
 
 
 .PHONY: clean-gradle clean-all carve-all run-espresso-tests trace-espresso-tests
@@ -23,6 +75,11 @@ show :
 
 clean-gradle :
 	$(GW) clean
+
+try-out: app-instrumented.apk app-androidTest.apk 
+	$(call ensure_tracing_apks)
+	$(call ensure_tracing_apks)
+	$(call ensure_tracing_apks)
 
 # Debug Target
 list-all-tests :
@@ -91,31 +148,15 @@ app-and-instrumented-tests-for-coverage.apk :
 stop-emulator:
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 
-# Trace all depends on tracing all the tests
-trace-all : app-instrumented.apk app-androidTest.apk remove-apk-and-instrumented-tests $(ESPRESSO_TESTS)
-# Run the emulator
+# Trace all depends simply wraps all the tests to trace.
+trace-all : $(ESPRESSO_TESTS)
 	@echo "Tracing: $(shell echo $? | tr " " "\n")"
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	@echo "Done"
 
-# Try to trace all tests
-$(ESPRESSO_TESTS) :
-
-	$(eval IR_RUNNING := $(shell export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator | wc -l))
-	@if [ "$(IR_RUNNING)" == "0" ]; then \
-		export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator; \
-	fi
-
-	$(eval FIRST_RUN := $(shell $(ADB) shell pm list packages | grep -c abc.basiccalculator))
-	@if [ "$(FIRST_RUN)" == "2" ]; then \
-		echo "Resetting the data of the apk"; \
-		$(ADB) shell pm clear abc.basiccalculator; \
-	else \
-	 	echo "Installing instrumented apk" ;\
-		export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-instrumented.apk; \
-		echo "Installing test apk" ;\
-		export ABC_CONFIG=$(ABC_CFG) && $(ABC) install-apk app-androidTest.apk; \
-	fi
+$(ESPRESSO_TESTS) : app-instrumented.apk app-androidTest.apk 
+# We need to ensure that when we trace the right apks are installed
+	$(call ensure_tracing_apks)
 #	Evalualte the current test name. Note that test names use #
 	$(eval TEST_NAME := $(shell echo "$(@)" | sed -e 's|__|\\\#|g' -e 's|.testlog||'))
 	@echo "Tracing test $(TEST_NAME)"
@@ -156,7 +197,8 @@ carvedTests.log : .carved-all
 ### Coverage targets
 ### ### ### ### ### ### ### 
 
-espresso-test-coverage/html/index.html : remove-apk-and-instrumented-tests
+espresso-test-coverage/html/index.html : 
+	$(call remove-apk-and-instrumented-tests)
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator
 	$(GW) -PjacocoEnabled=true -PcarvedTests=false clean jacocoGUITestCoverage
 	$(RM) -r espresso-test-coverage
@@ -198,23 +240,10 @@ $(ESPRESSO_TESTS_COVERAGE):
 	$(GW) -PjacocoEnabled=true -PcarvedTests=false -Pandroid.testInstrumentationRunnerArguments.class=$(TEST_NAME) jacocoGUITestCoverage
 	mv -v app/build/reports/jacoco/jacocoGUITestCoverage $(COVERAGE_FOLDER)
 	mv -v app/build/outputs/code_coverage/debugAndroidTest/connected/*coverage.ec $(COVERAGE_FOLDER)/$(TEST_NAME).ec
-	
-remove-apk-and-instrumented-tests :
-	$(eval IR_RUNNING := $(shell export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator | wc -l))
-	@if [ "$(IR_RUNNING)" == "0" ]; then \
-		export ABC_CONFIG=$(ABC_CFG) && $(ABC) start-clean-emulator; \
-	fi
-	$(eval APP_INSTALLED := $(shell $(ADB) shell pm list packages | grep -c "abc.basiccalculator$$"))
-	@if [ "$(APP_INSTALLED)" == "1" ]; then \
-		$(ADB) uninstall abc.basiccalculator; \
-	fi
-	$(eval INSTRUMENTATION_TESTS_INSTALLED := $(shell $(ADB) shell pm list packages | grep -c "abc.basiccalculator.test$$"))
-	@if [ "$(INSTRUMENTATION_TESTS_INSTALLED)" == "1" ]; then \
-		$(ADB) uninstall abc.basiccalculator.test; \
-	fi
 
 # Calling "remove-apk-and-instrumented-tests" breaks the logic of make
-coverage-for-each-espresso-test : remove-apk-and-instrumented-tests app-and-instrumented-tests-for-coverage.apk $(ESPRESSO_TESTS_COVERAGE)
+coverage-for-each-espresso-test : app-and-instrumented-tests-for-coverage.apk $(ESPRESSO_TESTS_COVERAGE)
+	$(call remove-apk-and-instrumented-tests)
 	@echo "Processed: $(shell echo $? | tr " " "\n")"
 	export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	@echo "Done"
