@@ -170,10 +170,11 @@ public interface DataDependencyGraph {
     public Collection<MethodInvocation> getAllMethodInvocations();
 
     /**
-     * Remove the ObjectInstance from the graph and all the connected edges
+     * Remove the the node from the graph and all the connected edges
      * 
      * @param danglingObject
      */
-    public void remove(ObjectInstance danglingObject);
+    public void remove(GraphNode graphNodeToRemove);
+//    public void remove(ObjectInstance danglingObject);
 
 }

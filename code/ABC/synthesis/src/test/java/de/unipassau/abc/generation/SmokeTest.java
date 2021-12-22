@@ -11,6 +11,7 @@ import java.util.Set;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
@@ -24,6 +25,7 @@ import de.unipassau.abc.evaluation.Main;
 import de.unipassau.abc.evaluation.MethodUnderTestWithLocalCounterNamer;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.data.CarvedTest;
+import de.unipassau.abc.generation.shadowwriter.ShadowWriter;
 import de.unipassau.abc.generation.testwriters.JUnitTestCaseWriter;
 import de.unipassau.abc.generation.utils.NameTestCaseGlobally;
 import de.unipassau.abc.generation.utils.TestCaseNamer;
@@ -37,12 +39,16 @@ import de.unipassau.abc.parsing.TraceParser;
 import de.unipassau.abc.parsing.TraceParserImpl;
 import de.unipassau.abc.parsing.postprocessing.AndroidParsedTraceDecorator;
 import de.unipassau.abc.parsing.postprocessing.ParsedTraceDecorator;
+import de.unipassau.abc.parsing.postprocessing.StaticParsedTraceDecorator;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 
 public class SmokeTest {
 
     @Rule
-    public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.DEBUG);
+    public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
+
+    @Rule
+    public TemporaryFolder tempFolder = new TemporaryFolder();
 
     private final static Logger logger = LoggerFactory.getLogger(SmokeTest.class);
 
@@ -116,6 +122,530 @@ public class SmokeTest {
 //            }
 //        }
 //    }
+
+    @Test
+    public void testNPEWhileGenerating() throws FileNotFoundException, IOException, ABCException {
+        String folder = "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/traces/abc.basiccalculator.ExtendedMainActivityTest#testCalculateAndReturnBackToMain";
+        String file = "Trace-testCalculateAndReturnBackToMain-1639739283539.txt";
+
+        File traceFile = new File(folder, file);
+
+        TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
+
+        // TODO Is is not going to work, since the IDs are regenerated every time...
+        File theAPK = new File("./src/test/resources/abc.basiccalculator/app-original.apk");
+        Main.idsInApk = ParsingUtils.getIdsMap(theAPK);
+
+        TraceParser parser = new TraceParserImpl();
+        ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+        //
+
+        // Make sure we do NOT decorate our own decorators and methods !
+        ParsedTraceDecorator decorator = new StaticParsedTraceDecorator();
+        ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+        //
+        decorator = new AndroidParsedTraceDecorator();
+        parsedTrace = decorator.decorate(parsedTrace);
+
+        String methodSignature = "<abc.basiccalculator.ExtendedMainActivity: void sendResult(android.view.View)>";
+        int invocationCount = 10;
+        int invocationTraceId = 20;
+        // Ensure we use the actual method invocation, not a shallow copy of it!
+        MethodInvocationSelector mis = new MethodInvocationSelector();
+        MethodInvocationMatcher matcher = MethodInvocationMatcher
+                .fromMethodInvocation(new MethodInvocation(invocationTraceId, invocationCount, methodSignature));
+        List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
+                mis.findByMethodInvocationMatcher(parsedTrace, matcher));
+
+        logger.debug("Carvable targets ");
+        for (MethodInvocation m : listOfTargetMethodsInvocations) {
+            logger.debug("" + m);
+        }
+
+        BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
+        List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
+        targetMethodsInvocationsList.addAll(listOfTargetMethodsInvocations);
+        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
+                parsedTrace);
+
+        int carvedTargets = carvedTests.size();
+
+        logger.info("Carved targets " + carvedTargets + " / " + listOfTargetMethodsInvocations.size());
+
+        // Put each test in a separate test case
+        TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+        Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+
+        // Write test cases to files and try to compile them
+
+        JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+        TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
+        for (TestClass testCase : testSuite) {
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
+            logger.info(cu.toString());
+        }
+
+    }
+
+//    traces/abc.basiccalculator.ExtendedMainActivityTest#testCalculateAndReturnBackToMain/Trace-testCalculateAndReturnBackToMain-1639739283539.txt
+    @Test
+    public void testNumberFormatException() throws FileNotFoundException, IOException, ABCException {
+        String folder = "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/traces/abc.basiccalculator.ExtendedMainActivityTest#testCalculateAndReturnBackToMain";
+        String file = "Trace-testCalculateAndReturnBackToMain-1639041266003.txt";
+
+        File traceFile = new File(folder, file);
+
+        TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
+
+        // TODO Is is not going to work, since the IDs are regenerated every time...
+        File theAPK = new File("./src/test/resources/abc.basiccalculator/app-original.apk");
+        Main.idsInApk = ParsingUtils.getIdsMap(theAPK);
+
+        TraceParser parser = new TraceParserImpl();
+        ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+        //
+
+        // Make sure we do NOT decorate our own decorators and methods !
+        ParsedTraceDecorator decorator = new StaticParsedTraceDecorator();
+        ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+        //
+        decorator = new AndroidParsedTraceDecorator();
+        parsedTrace = decorator.decorate(parsedTrace);
+
+        String methodSignature = "<abc.basiccalculator.ExtendedResultActivity: void onCreate(android.os.Bundle)>";
+        int invocationCount = 60;
+        int invocationTraceId = 120;
+        // Ensure we use the actual method invocation, not a shallow copy of it!
+        MethodInvocationSelector mis = new MethodInvocationSelector();
+        MethodInvocationMatcher matcher = MethodInvocationMatcher
+                .fromMethodInvocation(new MethodInvocation(invocationTraceId, invocationCount, methodSignature));
+        List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
+                mis.findByMethodInvocationMatcher(parsedTrace, matcher));
+
+        logger.debug("Carvable targets ");
+        for (MethodInvocation m : listOfTargetMethodsInvocations) {
+            logger.debug("" + m);
+        }
+
+        BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
+        List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
+        targetMethodsInvocationsList.addAll(listOfTargetMethodsInvocations);
+        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
+                parsedTrace);
+
+        int carvedTargets = carvedTests.size();
+
+        logger.info("Carved targets " + carvedTargets + " / " + listOfTargetMethodsInvocations.size());
+
+        // Put each test in a separate test case
+        TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+        Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+
+        // Write test cases to files and try to compile them
+
+        JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+        TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
+        for (TestClass testCase : testSuite) {
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
+            logger.info(cu.toString());
+        }
+        // TODO How does this work when we need to process multiple traces?
+        logger.info("Generating shadows");
+        // generate shadows needed for test cases
+
+        List<TestClass> sortedTestSuiteList = new ArrayList(testSuite);
+//        Collections.sort(sortedTestSuiteList, new Comparator<TestClass>() {
+//            public int compare(TestClass left, TestClass right) {
+//                return indexInTraceList.get(testSuiteList.indexOf(left))
+//                        - indexInTraceList.get(testSuiteList.indexOf(right));
+//            }
+//        });
+
+        ShadowWriter shadowWriter = new ShadowWriter();
+        shadowWriter.generateAndWriteShadows(sortedTestSuiteList, tempFolder.newFolder());
+
+    }
+
+    @Test
+    public void testAnotherNumberFormatException() throws FileNotFoundException, IOException, ABCException {
+        String folder = "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/traces/abc.basiccalculator.ExtendedMainActivityTest#testCalculateWithValidComment";
+        String file = "Trace-testCalculateWithValidComment-1639041274941.txt";
+
+        File traceFile = new File(folder, file);
+
+        TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
+
+        // TODO Is is not going to work, since the IDs are regenerated every time...
+        File theAPK = new File("./src/test/resources/abc.basiccalculator/app-original.apk");
+        Main.idsInApk = ParsingUtils.getIdsMap(theAPK);
+
+        TraceParser parser = new TraceParserImpl();
+        ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+        //
+
+        // Make sure we do NOT decorate our own decorators and methods !
+        ParsedTraceDecorator decorator = new StaticParsedTraceDecorator();
+        ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+        //
+        decorator = new AndroidParsedTraceDecorator();
+        parsedTrace = decorator.decorate(parsedTrace);
+
+        String methodSignature = "<abc.basiccalculator.ExtendedResultActivity: void onCreate(android.os.Bundle)>";
+        int invocationCount = 88;
+        int invocationTraceId = 176;
+        // Ensure we use the actual method invocation, not a shallow copy of it!
+        MethodInvocationSelector mis = new MethodInvocationSelector();
+        MethodInvocationMatcher matcher = MethodInvocationMatcher
+                .fromMethodInvocation(new MethodInvocation(invocationTraceId, invocationCount, methodSignature));
+        List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
+                mis.findByMethodInvocationMatcher(parsedTrace, matcher));
+
+        logger.debug("Carvable targets ");
+        for (MethodInvocation m : listOfTargetMethodsInvocations) {
+            logger.debug("" + m);
+        }
+
+        BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
+        List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
+        targetMethodsInvocationsList.addAll(listOfTargetMethodsInvocations);
+        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
+                parsedTrace);
+
+        int carvedTargets = carvedTests.size();
+
+        logger.info("Carved targets " + carvedTargets + " / " + listOfTargetMethodsInvocations.size());
+
+        // Put each test in a separate test case
+        TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+        Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+
+        // Write test cases to files and try to compile them
+
+        JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+        TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
+        for (TestClass testCase : testSuite) {
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
+            logger.info(cu.toString());
+        }
+
+    }
+
+    @Test
+    public void testNPWWhileGeneratingMocks() throws FileNotFoundException, IOException, ABCException {
+        String folder = "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/traces/abc.basiccalculator.MainActivityTest#testCalculateAnExceptionAcrossMethods";
+        String file = "Trace-testCalculateAnExceptionAcrossMethods-1639041211999.txt";
+
+        File traceFile = new File(folder, file);
+
+        TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
+
+        // TODO Is is not going to work, since the IDs are regenerated every time...
+        File theAPK = new File("./src/test/resources/abc.basiccalculator/app-original.apk");
+        Main.idsInApk = ParsingUtils.getIdsMap(theAPK);
+
+        TraceParser parser = new TraceParserImpl();
+        ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+        //
+
+        // Make sure we do NOT decorate our own decorators and methods !
+        ParsedTraceDecorator decorator = new StaticParsedTraceDecorator();
+        ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+        //
+        decorator = new AndroidParsedTraceDecorator();
+        parsedTrace = decorator.decorate(parsedTrace);
+
+        String methodSignature = "<abc.basiccalculator.ResultActivity: void checkResult(java.lang.String)>";
+        int invocationCount = 51;
+        int invocationTraceId = 101;
+        // Ensure we use the actual method invocation, not a shallow copy of it!
+        MethodInvocationSelector mis = new MethodInvocationSelector();
+        MethodInvocationMatcher matcher = MethodInvocationMatcher
+                .fromMethodInvocation(new MethodInvocation(invocationTraceId, invocationCount, methodSignature));
+        List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
+                mis.findByMethodInvocationMatcher(parsedTrace, matcher));
+
+        logger.debug("Carvable targets ");
+        for (MethodInvocation m : listOfTargetMethodsInvocations) {
+            logger.debug("" + m);
+        }
+
+        BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
+        List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
+        targetMethodsInvocationsList.addAll(listOfTargetMethodsInvocations);
+        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
+                parsedTrace);
+
+        int carvedTargets = carvedTests.size();
+
+        logger.info("Carved targets " + carvedTargets + " / " + listOfTargetMethodsInvocations.size());
+
+        // Put each test in a separate test case
+        TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+        Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+
+        // Write test cases to files and try to compile them
+
+        JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+        TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
+        for (TestClass testCase : testSuite) {
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
+            logger.info(cu.toString());
+        }
+        // TODO How does this work when we need to process multiple traces?
+        logger.info("Generating shadows");
+        // generate shadows needed for test cases
+
+        List<TestClass> sortedTestSuiteList = new ArrayList(testSuite);
+//        Collections.sort(sortedTestSuiteList, new Comparator<TestClass>() {
+//            public int compare(TestClass left, TestClass right) {
+//                return indexInTraceList.get(testSuiteList.indexOf(left))
+//                        - indexInTraceList.get(testSuiteList.indexOf(right));
+//            }
+//        });
+
+        ShadowWriter shadowWriter = new ShadowWriter();
+        shadowWriter.generateAndWriteShadows(sortedTestSuiteList, tempFolder.newFolder());
+
+    }
+
+    @Test
+    public void testMissingShadows() throws FileNotFoundException, IOException, ABCException {
+        String folder = "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/traces/abc.basiccalculator.ExtendedMainActivityTest#testCalculateNullPointerThrownByResultActivity";
+        String file = "Trace-testCalculateNullPointerThrownByResultActivity-1638792884899.txt";
+
+        File traceFile = new File(folder, file);
+
+        TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
+
+        // TODO Is is not going to work, since the IDs are regenerated every time...
+        File theAPK = new File("./src/test/resources/abc.basiccalculator/app-original.apk");
+        Main.idsInApk = ParsingUtils.getIdsMap(theAPK);
+
+        TraceParser parser = new TraceParserImpl();
+        ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+        //
+
+        // Make sure we do NOT decorate our own decorators and methods !
+        ParsedTraceDecorator decorator = new StaticParsedTraceDecorator();
+        ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+        //
+        decorator = new AndroidParsedTraceDecorator();
+        parsedTrace = decorator.decorate(parsedTrace);
+
+        String methodSignature = "<abc.basiccalculator.UiStorage: java.util.List getElements()>";
+        int invocationCount = 64;
+        int invocationTraceId = 126;
+        // Ensure we use the actual method invocation, not a shallow copy of it!
+        MethodInvocationSelector mis = new MethodInvocationSelector();
+        MethodInvocationMatcher matcher = MethodInvocationMatcher
+                .fromMethodInvocation(new MethodInvocation(invocationTraceId, invocationCount, methodSignature));
+        List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
+                mis.findByMethodInvocationMatcher(parsedTrace, matcher));
+
+        logger.debug("Carvable targets ");
+        for (MethodInvocation m : listOfTargetMethodsInvocations) {
+            logger.debug("" + m);
+        }
+
+        BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
+        List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
+        targetMethodsInvocationsList.addAll(listOfTargetMethodsInvocations);
+        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
+                parsedTrace);
+
+        int carvedTargets = carvedTests.size();
+
+        logger.info("Carved targets " + carvedTargets + " / " + listOfTargetMethodsInvocations.size());
+
+        // Put each test in a separate test case
+        TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+        Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+
+        // Write test cases to files and try to compile them
+
+        JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+        TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
+        for (TestClass testCase : testSuite) {
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
+            logger.info(cu.toString());
+        }
+
+        // TODO How does this work when we need to process multiple traces?
+        logger.info("Generating shadows");
+        // generate shadows needed for test cases
+
+        List<TestClass> sortedTestSuiteList = new ArrayList(testSuite);
+//        Collections.sort(sortedTestSuiteList, new Comparator<TestClass>() {
+//            public int compare(TestClass left, TestClass right) {
+//                return indexInTraceList.get(testSuiteList.indexOf(left))
+//                        - indexInTraceList.get(testSuiteList.indexOf(right));
+//            }
+//        });
+
+        ShadowWriter shadowWriter = new ShadowWriter();
+        shadowWriter.generateAndWriteShadows(sortedTestSuiteList, tempFolder.newFolder());
+
+    }
+
+    @Test
+    public void testNPEonActivityConstructor() throws FileNotFoundException, IOException, ABCException {
+        /*
+         * The issue here is that ResultActivity logically requires an Intent, probably
+         * because it gets one in one of its methods. However, it does NOT requires it
+         * for creation <init>; therefore, the intent will NOT be included in the carved
+         * data structures. Unfortunately, since the Activity object requires the intent
+         * the synthesis tries to access that variable anyway.
+         * 
+         */
+
+        File traceFile = new File("./src/test/resources/abc.basiccalculator/Trace-NPE_on_constructor.txt");
+        TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
+
+        // TODO Is is not going to work, since the IDs are regenerated every time...
+        File theAPK = new File("./src/test/resources/abc.basiccalculator/app-original.apk");
+        Main.idsInApk = ParsingUtils.getIdsMap(theAPK);
+
+        TraceParser parser = new TraceParserImpl();
+        ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+        //
+
+        // Make sure we do NOT decorate our own decorators and methods !
+        ParsedTraceDecorator decorator = new StaticParsedTraceDecorator();
+        ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+        //
+        decorator = new AndroidParsedTraceDecorator();
+        parsedTrace = decorator.decorate(parsedTrace);
+
+        String methodSignature = "<abc.basiccalculator.ResultActivity: void <init>()>";
+        int invocationCount = 29;
+        int invocationTraceId = 58;
+        // Ensure we use the actual method invocation, not a shallow copy of it!
+        MethodInvocationSelector mis = new MethodInvocationSelector();
+        MethodInvocationMatcher matcher = MethodInvocationMatcher
+                .fromMethodInvocation(new MethodInvocation(invocationTraceId, invocationCount, methodSignature));
+        List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
+                mis.findByMethodInvocationMatcher(parsedTrace, matcher));
+
+        logger.debug("Carvable targets ");
+        for (MethodInvocation m : listOfTargetMethodsInvocations) {
+            logger.debug("" + m);
+        }
+
+        BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
+        List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
+        targetMethodsInvocationsList.addAll(listOfTargetMethodsInvocations);
+        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
+                parsedTrace);
+
+        int carvedTargets = carvedTests.size();
+
+        logger.info("Carved targets " + carvedTargets + " / " + listOfTargetMethodsInvocations.size());
+
+        // Put each test in a separate test case
+        TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+        Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+
+        // Write test cases to files and try to compile them
+
+        JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+        TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
+        for (TestClass testCase : testSuite) {
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
+            logger.info(cu.toString());
+        }
+    }
+
+    // Trace-NPE
+    @Test
+    public void testStaticDependencies() throws FileNotFoundException, IOException, ABCException {
+
+        // NOTE: This trace was patched: loadUiElements has been made PUBLIC !
+
+        File traceFile = new File("./src/test/resources/abc.basiccalculator/Trace-UiStorage.txt");
+        TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
+
+        // TODO Is is not going to work, since the IDs are regenerated every time...
+        File theAPK = new File("./src/test/resources/abc.basiccalculator/app-original.apk");
+        Main.idsInApk = ParsingUtils.getIdsMap(theAPK);
+
+        TraceParser parser = new TraceParserImpl();
+        ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+        //
+
+        // Make sure we do NOT decorate our own decorators and methods !
+        ParsedTraceDecorator decorator = new StaticParsedTraceDecorator();
+        ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+        //
+        decorator = new AndroidParsedTraceDecorator();
+        parsedTrace = decorator.decorate(parsedTrace);
+
+        // Find the target method invocation
+//        abc.basiccalculator.ExtendedResultActivity@259693653;
+//        String methodSignature = "<abc.basiccalculator.ExtendedResultActivity: void onCreate(android.os.Bundle)>";
+//        int invocationCount = 85;
+//        int invocationTraceId = 169;
+        String methodSignature = "<abc.basiccalculator.ExtendedResultActivity: void loadUiElements()>";
+        int invocationCount = 91;
+        int invocationTraceId = 180;
+        // Ensure we use the actual method invocation, not a shallow copy of it!
+        MethodInvocationSelector mis = new MethodInvocationSelector();
+        MethodInvocationMatcher matcher = MethodInvocationMatcher
+                .fromMethodInvocation(new MethodInvocation(invocationTraceId, invocationCount, methodSignature));
+        List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
+                mis.findByMethodInvocationMatcher(parsedTrace, matcher));
+
+        logger.debug("Carvable targets ");
+        for (MethodInvocation m : listOfTargetMethodsInvocations) {
+            logger.debug("" + m);
+        }
+
+        BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
+        List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
+        targetMethodsInvocationsList.addAll(listOfTargetMethodsInvocations);
+        Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
+                parsedTrace);
+
+        int carvedTargets = carvedTests.size();
+
+        logger.info("Carved targets " + carvedTargets + " / " + listOfTargetMethodsInvocations.size());
+
+        // Put each test in a separate test case
+        TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameUsingGlobalId);
+        Set<TestClass> testSuite = organizer.organize(carvedTests.toArray(new CarvedTest[] {}));
+
+        // Write test cases to files and try to compile them
+
+        JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+        TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
+        for (TestClass testCase : testSuite) {
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
+            logger.info(cu.toString());
+        }
+
+    }
+
+    @Test
+    public void testFailedParsingForNullElementInPair() throws FileNotFoundException, IOException, ABCException {
+
+        File traceFile = new File("./src/test/resources/abc.basiccalculator/Trace-NullPair.txt");
+        TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
+
+        // TODO Is is not going to work, since the IDs are regenerated every time...
+        File theAPK = new File("./src/test/resources/abc.basiccalculator/app-original.apk");
+        Main.idsInApk = ParsingUtils.getIdsMap(theAPK);
+
+        TraceParser parser = new TraceParserImpl();
+        ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+        //
+
+        // Make sure we do NOT decorate our own decorators and methods !
+        ParsedTraceDecorator decorator = new StaticParsedTraceDecorator();
+        ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+        //
+        decorator = new AndroidParsedTraceDecorator();
+        parsedTrace = decorator.decorate(parsedTrace);
+
+    }
 
     // Trace-NPE
     @Test

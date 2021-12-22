@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -384,6 +385,10 @@ public class CallGraphImpl implements CallGraph {
 
     public void remove(MethodInvocation node) {
 
+        if (!graph.containsVertex(node)) {
+            return;
+        }
+
         for (MethodInvocation child : getSuccessors(node)) {
             remove(child);
         }
@@ -555,6 +560,49 @@ public class CallGraphImpl implements CallGraph {
         // Basically this is some kind of isolated call, it is not called in the context
         // of anything and it will not call any other method
         graph.addVertex(methodInvocation);
+    }
+
+    /**
+     * In some cases there we observed weird behaviors if we assume that the library
+     * cannot realize that two different instances represent the same vertex.
+     * Probably, somewhere it uses == and in others .equals(). This will fail if the
+     * node cannot be found! (and probably should fail if there are more than one...
+     * 
+     * @param vertex
+     * @return
+     */
+    private MethodInvocation retrieveTheActualVertex(MethodInvocation vertex) {
+        Optional<MethodInvocation> optionalActualNode = graph.getVertices().stream().filter(n -> n.equals(vertex))
+                .findFirst();
+        return optionalActualNode.get();
+    }
+
+    @Override
+    public void include(CallGraph _second) {
+
+        // We need to cast to access low-level graph functionality!
+        CallGraphImpl second = (CallGraphImpl) _second;
+
+        /*
+         * Add vertices. Brutally as they are
+         */
+        for (MethodInvocation vertex : second.graph.getVertices()) {
+            graph.addVertex(vertex);
+        }
+        // Add the relations if they are not there already
+        // What if one of the two vertices was inside and the other was not ?!
+        for (String edge : second.graph.getEdges()) {
+            if (!graph.containsEdge(edge)) {
+                EdgeType edgeType = second.graph.getEdgeType(edge);
+                MethodInvocation v1 = this.retrieveTheActualVertex(second.graph.getSource(edge));
+                MethodInvocation v2 = this.retrieveTheActualVertex(second.graph.getDest(edge));
+
+                if (!graph.addEdge(edge, v1, v2, edgeType)) {
+                    logger.warn("Merge of datadependency failed for edge" + edge + " " + v1 + " -> " + v2);
+                }
+            }
+        }
+
     }
 
 }

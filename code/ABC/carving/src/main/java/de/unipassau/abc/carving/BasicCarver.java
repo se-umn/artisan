@@ -1,16 +1,5 @@
 package de.unipassau.abc.carving;
 
-import de.unipassau.abc.carving.exceptions.CarvingException;
-import de.unipassau.abc.data.CallGraph;
-import de.unipassau.abc.data.DataDependencyGraph;
-import de.unipassau.abc.data.DataNode;
-import de.unipassau.abc.data.ExecutionFlowGraph;
-import de.unipassau.abc.data.MethodInvocation;
-import de.unipassau.abc.data.NullInstance;
-import de.unipassau.abc.data.ObjectInstance;
-import de.unipassau.abc.data.Triplette;
-import de.unipassau.abc.exceptions.ABCException;
-import de.unipassau.abc.parsing.ParsedTrace;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -23,8 +12,26 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import de.unipassau.abc.carving.exceptions.CarvingException;
+import de.unipassau.abc.data.CallGraph;
+import de.unipassau.abc.data.CallGraphImpl;
+import de.unipassau.abc.data.DataDependencyGraph;
+import de.unipassau.abc.data.DataDependencyGraphImpl;
+import de.unipassau.abc.data.DataNode;
+import de.unipassau.abc.data.ExecutionFlowGraph;
+import de.unipassau.abc.data.ExecutionFlowGraphImpl;
+import de.unipassau.abc.data.ImplicitDependencyOnStaticClass;
+import de.unipassau.abc.data.JimpleUtils;
+import de.unipassau.abc.data.MethodInvocation;
+import de.unipassau.abc.data.NullInstance;
+import de.unipassau.abc.data.ObjectInstance;
+import de.unipassau.abc.data.Triplette;
+import de.unipassau.abc.exceptions.ABCException;
+import de.unipassau.abc.parsing.ParsedTrace;
 
 /**
  * Basic carver is a method carver, that is, it will produce a carved execution
@@ -45,6 +52,21 @@ public class BasicCarver implements MethodCarver {
 
     // Bookkeep the carved method invocations.
     private Set<MethodInvocation> carvedMethodInvocationsCache = new HashSet<MethodInvocation>();
+
+    // This enables carving from a carvedExecution
+    public BasicCarver(CarvedExecution carvedExecution) {
+        // We need to MERGE the clusters back together
+        // Here we assume that the graphs can be simply merged together...
+
+        this.dataDependencyGraph = new DataDependencyGraphImpl();
+        carvedExecution.dataDependencyGraphs.stream().forEach(ddg -> this.dataDependencyGraph.include(ddg));
+
+        this.executionFlowGraph = new ExecutionFlowGraphImpl();
+        carvedExecution.executionFlowGraphs.stream().forEach(efg -> this.executionFlowGraph.include(efg));
+
+        this.callGraph = new CallGraphImpl();
+        carvedExecution.callGraphs.stream().forEach(cg -> this.callGraph.include(cg));
+    }
 
     public BasicCarver(ParsedTrace parsedTrace) {
         Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph> executionTraceForMainThread = parsedTrace
@@ -77,7 +99,7 @@ public class BasicCarver implements MethodCarver {
 
     private Set<MethodInvocation> findNecessaryMethodInvocations(MethodInvocation methodInvocation) {
 
-        logger.debug("* Find necessary method invocations for" + methodInvocation.toString());
+        logger.info("* Find necessary method invocations for" + methodInvocation.toString());
 
         Set<MethodInvocation> relevantMethodInvocations = new HashSet<>();
 
@@ -85,7 +107,7 @@ public class BasicCarver implements MethodCarver {
         relevantMethodInvocations.add(methodInvocation);
 
         if (isMethodInvocationAlreadyCarved(methodInvocation)) {
-            logger.debug("Method invocation already cached: " + methodInvocation.toString());
+            logger.info("Method invocation already cached: " + methodInvocation.toString());
             // Return an empty result
             return relevantMethodInvocations;
         }
@@ -110,8 +132,26 @@ public class BasicCarver implements MethodCarver {
                      * fails silenty and return an empyt set
                      */
                     t -> methodInvocationOwner.equals(t.getOwner())));
+            logger.info("Adding method invocations on owner: " + Arrays.toString(relevantMethodInvocations.toArray()));
+        } else {
+            // TODO In theory those are NOT mutually exclusive since a class may have static
+            // methods and instances...
+
+            /*
+             * Locate all the method invocations the have been invoked on the same STATIC
+             * object before invoking methodInvocation
+             */
+            List<MethodInvocation> staticMethodsOnSameClass = new ArrayList(
+                    this.executionFlowGraph.getMethodInvocationsBefore(methodInvocation,
+                            t -> t.isStatic() && JimpleUtils.getClassNameForMethod(t.getMethodSignature())
+                                    .equals(JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature()))));
+
+            relevantMethodInvocations.addAll(staticMethodsOnSameClass);
+
+            logger.info("Adding method invocations on STATIC of same class: "
+                    + Arrays.toString(relevantMethodInvocations.toArray()));
+
         }
-        logger.debug("Adding method invocations on owner " + Arrays.toString(relevantMethodInvocations.toArray()));
 
         Set<MethodInvocation> relevantMethodInvocationsOnAliases = new HashSet<>();
 
@@ -141,7 +181,7 @@ public class BasicCarver implements MethodCarver {
             }
         }
 
-        logger.debug("Adding method invocations on ALIAS owner "
+        logger.info("Adding method invocations on ALIAS owner "
                 + Arrays.toString(relevantMethodInvocationsOnAliases.toArray()));
 
         // Put them together
@@ -156,7 +196,7 @@ public class BasicCarver implements MethodCarver {
         /*
          * Relevant Uses (not sure what are they).
          */
-        logger.debug("Collecting data dependencies for relevant method invocations");
+        logger.info("Collecting data dependencies for relevant method invocations");
 
         // TODO Maybe we can avoid this because we have them cached? So we do not add
         // them
@@ -184,7 +224,7 @@ public class BasicCarver implements MethodCarver {
                 }
             }
 
-            logger.debug("DataDendencies for " + relevantMethodInvocation + ": "
+            logger.info("DataDendencies for " + relevantMethodInvocation + ": "
                     + Arrays.toString(dataDendencies.toArray()));
 
             // TODO Really we should also look at system calls that take this data as
@@ -201,17 +241,19 @@ public class BasicCarver implements MethodCarver {
                     continue;
                 }
 
+                // TODO For static methods this is tricky... because some of them are indeed
+                // needed
                 List<MethodInvocation> usesOfDataDep = new ArrayList(this.executionFlowGraph.getMethodInvocationsBefore(
                         methodInvocation, t -> !t.isStatic() && t.getOwner().equals(dataDep)));
                 // Be sure they are returned sorted
                 Collections.sort(usesOfDataDep);
-                logger.trace("Visible uses of " + dataDep + " before " + methodInvocation + " are : "
+                logger.info("Visible uses of " + dataDep + " before " + methodInvocation + " are : "
                         + Arrays.toString(usesOfDataDep.toArray()));
 
                 if (usesOfDataDep.size() > 0) {
                     MethodInvocation lastUse = usesOfDataDep.get(usesOfDataDep.size() - 1);
                     relevantMethodInvocationsOnDataDeps.add(lastUse);
-                    logger.debug("Last visible use of " + dataDep + " before " + methodInvocation + " is " + lastUse);
+                    logger.info("Last visible use of " + dataDep + " before " + methodInvocation + " is " + lastUse);
                 } else {
                     // This may happen for Implicit Data Dependencies
                     logger.warn("There are no last visible uses of " + dataDep + " before " + methodInvocation);
@@ -221,7 +263,7 @@ public class BasicCarver implements MethodCarver {
                     // methodInvocation?
                     // TODO We can limit ourselves to KNOWN situation here.. e.g.,
                     // abc.DefaultContextGenerator...
-                    logger.debug("Look for possible generators");
+                    logger.info("Look for possible generators");
                     List<MethodInvocation> generators = new ArrayList(this.executionFlowGraph
                             .getMethodInvocationsBefore(methodInvocation, t -> dataDep.equals(t.getReturnValue())));
                     if (generators.size() > 0) {
@@ -234,6 +276,30 @@ public class BasicCarver implements MethodCarver {
                         logger.warn("There are no visible generators for " + dataDep);
                     }
 
+                }
+            }
+
+            // Include Implicit Data Dependency on Static Method calls
+            for (final DataNode dataDep : dataDendencies.stream()
+                    .filter(dn -> dn instanceof ImplicitDependencyOnStaticClass).toArray(DataNode[]::new)) {
+                // TODO For static methods this is tricky... because some of them are indeed
+                // needed
+                List<MethodInvocation> usesOfDataDep = new ArrayList(this.executionFlowGraph
+                        .getMethodInvocationsBefore(methodInvocation, t -> t.isStatic() && JimpleUtils
+                                .getClassNameForMethod(t.getMethodSignature()).equals(dataDep.getType())));
+
+                // Be sure they are returned sorted
+                Collections.sort(usesOfDataDep);
+                logger.info("Visible uses of STATIC " + dataDep + " before " + methodInvocation + " are : "
+                        + Arrays.toString(usesOfDataDep.toArray()));
+
+                if (usesOfDataDep.size() > 0) {
+                    MethodInvocation lastUse = usesOfDataDep.get(usesOfDataDep.size() - 1);
+                    relevantMethodInvocationsOnDataDeps.add(lastUse);
+                    logger.info(
+                            "Last visible use of STATIC " + dataDep + " before " + methodInvocation + " is " + lastUse);
+                } else {
+                    logger.warn("There are no last visible uses of STATIC " + dataDep + " before " + methodInvocation);
                 }
             }
 
@@ -253,7 +319,7 @@ public class BasicCarver implements MethodCarver {
 //            }
 
         }
-        logger.debug("Adding method invocations on data deps and their aliases"
+        logger.info("Adding method invocations on data deps and their aliases"
                 + Arrays.toString(relevantMethodInvocationsOnDataDeps.toArray()));
 
         // Put them together
@@ -316,7 +382,7 @@ public class BasicCarver implements MethodCarver {
             if (!isMethodInvocationAlreadyCarved(relevantMethodInvocation)) {
                 queue.add(relevantMethodInvocation);
             } else {
-                logger.debug("Filter out relevantMethodInvocation " + relevantMethodInvocation
+                logger.info("Filter out relevantMethodInvocation " + relevantMethodInvocation
                         + " as it was already cached");
             }
         }
@@ -408,9 +474,9 @@ public class BasicCarver implements MethodCarver {
             }
         }
         Collections.sort(allMethodInvocations);
-        logger.debug("-------------------------");
-        logger.debug("NECESSARY INVOCATIONS INCLUDING SUBSUMED METHODS");
-        logger.debug("-------------------------");
+        logger.info("-------------------------");
+        logger.info("NECESSARY INVOCATIONS INCLUDING SUBSUMED METHODS");
+        logger.info("-------------------------");
         allMethodInvocations.stream().map(new Function<MethodInvocation, String>() {
 
             @Override
@@ -419,7 +485,7 @@ public class BasicCarver implements MethodCarver {
 //                t.getNestingLevel()
                 return (t.isNecessary() ? "* " : "") + t.toString();
             }
-        }).forEach(logger::debug);
+        }).forEach(logger::info);
 
         // ALESSIO: TODO Why the calls subsumed by necessary calls should be marked as
         // necessary as well?
@@ -447,52 +513,78 @@ public class BasicCarver implements MethodCarver {
 
         logger.debug("Extrapolating method invocations from graphs");
         CarvedExecution carvedExecution = new CarvedExecution(traceId);
+
         // How do we ensure that whatever we extrapolate from the graphs belong
         // together? We order method invocations per id of the first call?
         carvedExecution.executionFlowGraphs = this.executionFlowGraph.extrapolate(new HashSet(allMethodInvocations));
+
+        // List activities
+//        System.out.println("Listing Activities:");
+//        dataDependencyGraph.getObjectInstances().stream().filter(obj -> obj.getObjectId().contains("Activity"))
+//                .map(obj -> (obj.isAndroidActivity()) ? "** " + obj.toString() : "" + obj.toString())
+//                .forEach(System.out::println);
+
         carvedExecution.dataDependencyGraphs = this.dataDependencyGraph.extrapolate(new HashSet(allMethodInvocations));
+
+//        System.out.println("Listing Activities of the extrapolated graphs !:");
+//        for (DataDependencyGraph ddg : carvedExecution.dataDependencyGraphs) {
+//            ddg.getObjectInstances().stream().filter(obj -> obj.getObjectId().contains("Activity"))
+//                    .map(obj -> (obj.isAndroidActivity()) ? "** " + obj.toString() : "" + obj.toString())
+//                    .forEach(System.out::println);
+//        }
+
+        carvedExecution.dataDependencyGraphs = this.dataDependencyGraph.extrapolate(new HashSet(allMethodInvocations));
+
         carvedExecution.callGraphs = this.callGraph.extrapolate(new HashSet(allMethodInvocations));
 
-        logger.debug(">> Execution Flow Graphs:");
+        logger.trace(">> Execution Flow Graphs:");
         int i = 0;
         for (ExecutionFlowGraph executionFlowGraph : carvedExecution.executionFlowGraphs) {
-            logger.debug("SubGraph " + i);
+            logger.trace("SubGraph " + i);
             executionFlowGraph.getOrderedMethodInvocations().stream().map(new Function<MethodInvocation, String>() {
 
                 @Override
                 public String apply(MethodInvocation t) {
                     return (t.isNecessary() ? "* " : " ") + t.toString();
                 }
-            }).forEach(logger::debug);
+            }).forEach(logger::trace);
             i++;
         }
 
-        logger.debug("");
-        logger.debug(">> Data Dependency Graphs:");
+        logger.trace("");
+        logger.trace(">> Data Dependency Graphs:");
         i = 0;
 
         // TODO Somehow the extrapolated elements do not have the isNecessary attribute
         // anymore?
         for (DataDependencyGraph dataDependencyGraph : carvedExecution.dataDependencyGraphs) {
-            logger.debug("SubGraph " + i);
+
+            // List the activity here...
+
+            logger.trace("SubGraph " + i);
             List<MethodInvocation> sorted = new ArrayList<MethodInvocation>(
                     dataDependencyGraph.getAllMethodInvocations());
             Collections.sort(sorted);
+            // Use dataDepGraph.contextualize instead
             sorted.stream().map(new Function<MethodInvocation, String>() {
 
                 @Override
                 public String apply(MethodInvocation t) {
-                    return (t.isNecessary() ? "* " : " ") + t.toString();
+                    return (t.isNecessary() ? "* " : " ") + t.toString() + "\n" + //
+                    "- IN (DIRECT) : " + dataDependencyGraph.getParametersOf(t) + "\n" + //
+                    "- IN (IMPLICIT): " + dataDependencyGraph.getImplicitDataDependenciesOf(t) + "\n" + //
+                    "- OUT " + dataDependencyGraph.getReturnObjectLocalFor(t);
+
                 }
-            }).forEach(logger::debug);
+            }).forEach(logger::trace);
             i++;
         }
 
-        logger.debug("");
-        logger.debug(">> Call Graphs:");
+        logger.trace("");
+        logger.trace(">> Call Graphs:");
         i = 0;
         for (CallGraph callGraph : carvedExecution.callGraphs) {
-            logger.debug("SubGraph " + i);
+            logger.trace("SubGraph " + i);
 
             List<MethodInvocation> sorted = new ArrayList<MethodInvocation>(callGraph.getAllMethodInvocations());
             Collections.sort(sorted);
@@ -502,7 +594,7 @@ public class BasicCarver implements MethodCarver {
                 public String apply(MethodInvocation t) {
                     return (t.isNecessary() ? "* " : " ") + t.toString();
                 }
-            }).forEach(logger::debug);
+            }).forEach(logger::trace);
             i++;
         }
 

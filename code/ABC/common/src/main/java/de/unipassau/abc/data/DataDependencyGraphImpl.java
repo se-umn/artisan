@@ -1,6 +1,31 @@
 package de.unipassau.abc.data;
 
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Paint;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+
+import javax.swing.JFrame;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Function;
+
 import de.unipassau.abc.ABCGlobalOptions;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.utils.GraphUtility;
@@ -11,21 +36,11 @@ import edu.uci.ics.jung.graph.Graph;
 import edu.uci.ics.jung.graph.util.EdgeType;
 import edu.uci.ics.jung.visualization.VisualizationViewer;
 import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import soot.Local;
 import soot.Scene;
 import soot.SootClass;
 import soot.Value;
 import soot.jimple.NullConstant;
-
-import javax.swing.*;
-import java.awt.*;
-import java.util.List;
-import java.util.Queue;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 /**
  * @author gambi
@@ -67,11 +82,23 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
         additionalData = new HashMap<>();
     }
 
+    /**
+     * In some cases there we observed weird behaviors if we assume that the library
+     * cannot realize that two different instances represent the same vertex.
+     * Probably, somewhere it uses == and in others .equals(). This will fail if the
+     * node cannot be found! (and probably should fail if there are more than one...
+     * 
+     * @param vertex
+     * @return
+     */
+    private GraphNode retrieveTheActualVertex(GraphNode vertex) {
+        Optional<GraphNode> optionalActualNode = graph.getVertices().stream().filter(n -> n.equals(vertex)).findFirst();
+        return optionalActualNode.get();
+    }
+
     @Override
     public void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl) {
-        GraphNode originalNode = graph.getVertices().stream().filter(node -> node instanceof MethodInvocation)
-                .filter(methodInvocation -> methodInvocation.equals(orig)).findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No such method invocation"));
+        GraphNode originalNode = this.retrieveTheActualVertex(orig);
 
         Collection<String> inEdges = graph.getInEdges(originalNode);
         Collection<String> outEdges = graph.getOutEdges(originalNode);
@@ -99,17 +126,23 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
     // This makes sense only on ObjectInstances
     public void addAliasingDataDependency(ObjectInstance node, ObjectInstance alias) {
         // Aliasing is possible only on Existing nodes
-        if (!graph.containsVertex(node)) {
-            System.out.println("ERROR: DataDependencyGraphImpl.addAliasingDataDependency() Cannot find " + node);
-            // TODO Maybe some exception?
-            return;
-        }
-        if (!graph.containsVertex(alias)) {
-            System.out.println("ERROR: DataDependencyGraphImpl.addAliasingDataDependency() Cannot find " + alias);
-            // TODO Maybe some exception?
-            return;
-        }
-        if (alias != null && compatibleClasses(node, alias)) {
+//        if (!graph.containsVertex(node)) {
+//            System.out.println("ERROR: DataDependencyGraphImpl.addAliasingDataDependency() Cannot find " + node);
+//            // TODO Maybe some exception?
+//            return;
+//        } else {
+        // Can be improved using generics...
+        node = (ObjectInstance) this.retrieveTheActualVertex(node);
+//        }
+//        if (!graph.containsVertex(alias)) {
+//            System.out.println("ERROR: DataDependencyGraphImpl.addAliasingDataDependency() Cannot find " + alias);
+//            // TODO Maybe some exception?
+//            return;
+//        } else {
+        alias = (ObjectInstance) this.retrieveTheActualVertex(alias);
+//        }
+        if (// alias != null &&
+        compatibleClasses(node, alias)) {
             // Recording the aliasing relation - This is bidirectional
             graph.addEdge(ALIAS_DEPENDENCY_PREFIX + "_" + id.getAndIncrement(), node, alias, EdgeType.DIRECTED);
             graph.addEdge(ALIAS_DEPENDENCY_PREFIX + "_" + id.getAndIncrement(), alias, node, EdgeType.DIRECTED);
@@ -128,6 +161,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 
             // Null instances are treated like primitive types, but they are
             // unique ... otherwise we create all sort of deps over null
+            // TODO Not sure what to do here...
             if (actualParameter instanceof ObjectInstance) {
                 node = handleDanglingObjectInstance((ObjectInstance) actualParameter);
             } else {
@@ -138,7 +172,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
             graph.addVertex(node);
 
         } else {
-            node = actualParameter;
+            node = (DataNode) this.retrieveTheActualVertex(actualParameter);
         }
 
         // There might be name collisions, therefore we look for the next free id
@@ -148,6 +182,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
         } while (graph.containsEdge(edgeName));
 
         graph.addEdge(edgeName, node, methodInvocation, EdgeType.DIRECTED);
+
     }
 
     /*
@@ -157,6 +192,8 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
     public void replaceDataDependencyOnActualParameter(MethodInvocation methodInvocation, DataNode actualParameter,
             int position) {
         DataNode node = null;
+
+        methodInvocation = (MethodInvocation) this.retrieveTheActualVertex(methodInvocation);
 
         // Find the link of the parameter to be replaced
         String edgeToRemove = null;
@@ -174,6 +211,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
         if (!graph.removeEdge(edgeToRemove)) {
             logger.warn("Cannot remove " + edgeToRemove + " while replacing dependency at position " + position
                     + " for " + methodInvocation);
+            // TODO Replace with an exception
         } else {
             if (!graph.containsVertex(actualParameter)) {
 
@@ -189,7 +227,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
                 graph.addVertex(node);
 
             } else {
-                node = actualParameter;
+                node = (DataNode) this.retrieveTheActualVertex(actualParameter);
             }
 
             // Note: We reuse the just removed edge name to maintain consistency
@@ -215,7 +253,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
             graph.addVertex(node);
 
         } else {
-            node = implicitDataDependency;
+            node = (DataNode) this.retrieveTheActualVertex(implicitDataDependency);
         }
 
         // There might be name collisions, therefore we look for the next free id
@@ -246,7 +284,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
             }
             graph.addVertex(node);
         } else {
-            node = returnValue;
+            node = (DataNode) this.retrieveTheActualVertex(returnValue);
         }
 
         // TODO do we have to check for collisions here?
@@ -263,8 +301,11 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
     @SuppressWarnings("unchecked")
     public void addMethodInvocation(MethodInvocation methodInvocation) {
 
+        // TODO Add and return can be defined here as an utility method
         if (!graph.containsVertex(methodInvocation)) {
             graph.addVertex(methodInvocation);
+        } else {
+            methodInvocation = (MethodInvocation) this.retrieveTheActualVertex(methodInvocation);
         }
 
         String[] actualParameters = methodInvocation.getActualParameters();
@@ -388,6 +429,8 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 
                 graph.addVertex(node);
 
+            } else {
+                node = (DataNode) this.retrieveTheActualVertex(node);
             }
 
             graph.addEdge(DATA_DEPENDENCY_PREFIX + "_" + position + "_" + id.getAndIncrement(), node, methodInvocation,
@@ -518,6 +561,8 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 
         if (!graph.containsVertex(methodInvocation)) {
             graph.addVertex(methodInvocation);
+        } else {
+            methodInvocation = (MethodInvocation) this.retrieveTheActualVertex(methodInvocation);
         }
 
         //
@@ -560,6 +605,8 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 
             graph.addVertex(node);
 
+        } else {
+            node = (DataNode) this.retrieveTheActualVertex(node);
         }
 
         graph.addEdge(RETURN_DEPENDENCY_PREFIX + id.getAndIncrement(), methodInvocation, node, EdgeType.DIRECTED);
@@ -585,6 +632,8 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
     public void addDataDependencyOnOwner(MethodInvocation methodInvocation, ObjectInstance objectInstance) {
         if (!graph.containsVertex(methodInvocation)) {
             graph.addVertex(methodInvocation);
+        } else {
+            methodInvocation = (MethodInvocation) this.retrieveTheActualVertex(methodInvocation);
         }
 
         ObjectInstance node = null;
@@ -594,7 +643,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
             graph.addVertex(node);
         } else {
             // Let's assume searching by object id is always stable
-            node = getVertexById(objectInstance.getObjectId());
+            node = (ObjectInstance) this.retrieveTheActualVertex(objectInstance); // getVertexById(objectInstance.getObjectId());
         }
 
         methodInvocation.setOwner(node);
@@ -685,6 +734,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 
     // Return all the nodes that are reacheable by any means from the method
     // under test. This does not include the methodInvocation
+    // TODO This can be replaced with a call to Clusterer?
     public Set<MethodInvocation> getWeaklyConnectedComponentContaining(MethodInvocation methodInvocation) {
         // Find all the Method invocation nodes that are reachable via
         // Dependency Graph from the method invocation
@@ -1277,33 +1327,33 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
     }
 
     /**
-     * Update this to include all the nodes from the "other" graph (union nodes) and
-     * the union of the dependencies
-     * 
-     * TODO this should check for duplicate relations !
+     * Update this graph to include all the nodes from the "other" graph (union
+     * nodes). According to Jung;s documentation one node can be only and only in
+     * one graph at the type, but we can copy them. Note: the _second graph will NOT
+     * be changed. However, we build our graphs using Clonables and not Vertex, so
+     * this is not possible here...
      * 
      * @param second
      */
     public void include(DataDependencyGraph _second) {
 
+        // We need to cast to access low-level graph functionality!
         DataDependencyGraphImpl second = (DataDependencyGraphImpl) _second;
 
         /*
-         * Add vertices - Note that this might lose information if we do not store data
-         * as datum !
+         * Add vertices
          */
         for (GraphNode vertex : second.graph.getVertices()) {
+            // TODO Do we need to clone them first ?
             graph.addVertex(vertex);
         }
         // Add the relations if they are not there already
-        // What if one of the two verted was inside and the other was not ?!
+        // What if one of the two vertives was inside and the other was not ?!
         for (String edge : second.graph.getEdges()) {
             if (!graph.containsEdge(edge)) {
                 EdgeType edgeType = second.graph.getEdgeType(edge);
-                GraphNode v1 = getVertex(second.graph.getSource(edge));
-                GraphNode v2 = getVertex(second.graph.getDest(edge));
-
-                // TODO Check that there are not already the same edge here !
+                GraphNode v1 = this.retrieveTheActualVertex(second.graph.getSource(edge));
+                GraphNode v2 = this.retrieveTheActualVertex(second.graph.getDest(edge));
 
                 if (!graph.addEdge(edge, v1, v2, edgeType)) {
                     logger.warn("Merge of datadependency failed for edge" + edge + " " + v1 + " -> " + v2);
@@ -1312,13 +1362,13 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
         }
     }
 
-    private GraphNode getVertex(GraphNode matching) {
-        if (!graph.containsVertex(matching)) {
-            logger.warn("Graph does not contain " + matching);
-        }
-        // TODO Must implement this ?
-        return matching;
-    }
+//    private GraphNode getVertex(GraphNode matching) {
+//        if (!graph.containsVertex(matching)) {
+//            logger.warn("Graph does not contain " + matching);
+//        }
+//        // TODO Must implement this ?
+//        return matching;
+//    }
 
     public Optional<MethodInvocation> getConstructorOf(ObjectInstance objectInstance) {
         for (MethodInvocation methodInvocation : getMethodInvocationsForOwner(objectInstance)) {
@@ -1378,6 +1428,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
         return dataNodes;
     }
 
+    // TODO Move to Utility class
     public String contextualize(DataNode dataNode) {
         // Where this is used ?
         StringBuffer sb = new StringBuffer();
@@ -1442,10 +1493,13 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
     }
 
     // This assume we are indeed working on the instances stored in the graph, not
-    // shallow copy of them
-    public void remove(ObjectInstance toRemove) {
-        if (!graph.removeVertex(toRemove)) {
-            logger.warn("Cannot Remove " + toRemove);
+    // shallow copy of them !
+    public void remove(GraphNode toRemove) {
+        if (graph.containsVertex(toRemove)) {
+            toRemove = this.retrieveTheActualVertex(toRemove);
+            if (!graph.removeVertex(toRemove)) {
+                logger.warn("Cannot Remove node " + toRemove);
+            }
         }
     }
 
@@ -1567,14 +1621,87 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
         return methodInvocations;
     }
 
+//    public class MyWeakComponentClusterer implements Function<Graph<GraphNode, String>, Set<Set<GraphNode>>> {
+//        /**
+//         * Extracts the weak components from a graph.
+//         * 
+//         * @param graph the graph whose weak components are to be extracted
+//         * @return the list of weak components
+//         */
+//        public Set<Set<GraphNode>> apply(Graph<GraphNode, String> graph) {
+//
+//            Set<Set<GraphNode>> clusterSet = new HashSet<Set<GraphNode>>();
+//
+//            System.out.println("\n\n DataDependencyGraphImpl.MyWeakComponentClusterer.apply() APPLY");
+//            graph.getVertices().stream().filter(gn -> gn instanceof ObjectInstance).map(gn -> (ObjectInstance) gn)
+//                    .map(obj -> (obj.isAndroidActivity() ? "** " + obj.toString() : "  " + obj.toString()))
+//                    .forEach(System.out::println);
+//
+//            HashSet<GraphNode> unvisitedVertices = new HashSet<GraphNode>(graph.getVertices());
+//
+//            System.out.println("\n\n DataDependencyGraphImpl.MyWeakComponentClusterer.apply() UNVISITED");
+//            unvisitedVertices.stream().filter(gn -> gn instanceof ObjectInstance).map(gn -> (ObjectInstance) gn)
+//                    .map(obj -> (obj.isAndroidActivity() ? "** " + obj.toString() : "  " + obj.toString()))
+//                    .forEach(System.out::println);
+//
+//            while (!unvisitedVertices.isEmpty()) {
+//                Set<GraphNode> cluster = new HashSet<GraphNode>();
+//                GraphNode root = unvisitedVertices.iterator().next();
+//
+//                if (root instanceof ObjectInstance) {
+//                    System.out.println("Clusterer Processing root " + root + " - Activity: "
+//                            + ((ObjectInstance) root).isAndroidActivity());
+//                }
+//
+//                unvisitedVertices.remove(root);
+//                cluster.add(root);
+//
+//                Queue<GraphNode> queue = new LinkedList<GraphNode>();
+//                queue.add(root);
+//
+//                while (!queue.isEmpty()) {
+//                    GraphNode currentVertex = queue.remove();
+//                    Collection<GraphNode> neighbors = graph.getNeighbors(currentVertex);
+//
+//                    if (currentVertex instanceof ObjectInstance) {
+//                        System.out.println(
+//                                "\n\n DataDependencyGraphImpl.MyWeakComponentClusterer.apply() OO neighbors of  OO "
+//                                        + (((ObjectInstance) currentVertex).isAndroidActivity()
+//                                                ? "** " + currentVertex.toString()
+//                                                : currentVertex.toString()));
+//                    } else {
+//                        System.out
+//                                .println("\n\n DataDependencyGraphImpl.MyWeakComponentClusterer.apply() OO neighbors of"
+//                                        + currentVertex);
+//                    }
+//                    neighbors.stream().filter(gn -> gn instanceof ObjectInstance).map(gn -> (ObjectInstance) gn)
+//                            .map(obj -> (obj.isAndroidActivity() ? "** " + obj.toString() : "  " + obj.toString()))
+//                            .forEach(System.out::println);
+//
+//                    for (GraphNode neighbor : neighbors) {
+//                        if (unvisitedVertices.contains(neighbor)) {
+//                            queue.add(neighbor);
+//                            unvisitedVertices.remove(neighbor);
+//                            cluster.add(neighbor);
+//
+//                        }
+//                    }
+//                }
+//                clusterSet.add(cluster);
+//            }
+//            return clusterSet;
+//        }
+//    }
+
+    // TODO There is no more need to copy and duplicate the data here. We need to be
+    // sure we use the right instances and then call the primitives to create new
+    // nodes and graphs!
     @Override
     public Collection<DataDependencyGraph> extrapolate(Set<MethodInvocation> methodInvocationsToExtrapolate) {
         Collection<DataDependencyGraph> extrapolated = new ArrayList<DataDependencyGraph>();
 
         Graph<GraphNode, String> union = new DirectedSparseMultigraph<GraphNode, String>();
 
-        // THIS IS REALLY ANNOYING ! We need to store the clones otherwise graph will
-        // not realize it is the same node ..
         Map<GraphNode, GraphNode> cloneMap = new HashMap<GraphNode, GraphNode>();
 
         final Set<MethodInvocation> allMethodInvocations = graph.getVertices().stream()//
@@ -1590,7 +1717,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
                     .filter(mi -> mi.getInvocationCount() == methodInvocation.getInvocationCount())//
                     .findAny().orElse(null);
 
-            //
+            // TODO Consider using the primitives to copy new nodes!
 
             MethodInvocation cloned = originalMethodInvocation.clone();
             union.addVertex(cloned);
@@ -1602,7 +1729,15 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
                 logger.trace(" - " + neighbor);
                 GraphNode clonedNode = neighbor.clone();
                 cloneMap.put(clonedNode, neighbor);
-                union.addVertex(clonedNode);
+                boolean added = union.addVertex(clonedNode);
+
+//                if (neighbor instanceof ObjectInstance) {
+//                    ObjectInstance obj = (ObjectInstance) neighbor;
+//                    if (obj.isAndroidActivity()) {
+//                        logger.info("** Source Node" + obj + " is ACTIVITY. Cloned? "
+//                                + ((ObjectInstance) clonedNode).isAndroidActivity());
+//                    }
+//                }
             }
 
             logger.trace("Node " + originalMethodInvocation + " has the following successors:");
@@ -1610,10 +1745,29 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
                 logger.trace(" - " + neighbor);
                 GraphNode clonedNode = neighbor.clone();
                 cloneMap.put(clonedNode, neighbor);
-                union.addVertex(clonedNode);
+
+                boolean added = union.addVertex(clonedNode);
+
+//                if (neighbor instanceof ObjectInstance) {
+//                    ObjectInstance obj = (ObjectInstance) neighbor;
+//                    if (obj.isAndroidActivity()) {
+//                        logger.info("** Source Node" + obj + " is ACTIVITY. Cloned? "
+//                                + ((ObjectInstance) clonedNode).isAndroidActivity());
+//                    }
+//                }
             }
         }
 
+//        for (GraphNode vv : union.getVertices()) {
+//            if (vv instanceof ObjectInstance) {
+//                ObjectInstance obj = (ObjectInstance) vv;
+//                if (obj.isAndroidActivity()) {
+//                    logger.info("* Activity " + obj + " cloned  ");
+//                }
+//            }
+//        }
+
+        // Above we see that cloned nodes are OK, below they are not?
         // Add all the edges between the nodes
         for (GraphNode clonedSource : union.getVertices()) {
             // TODO Do not check a node with itself
@@ -1623,14 +1777,14 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
                 GraphNode originalTarget = cloneMap.get(clonedTarget);
 
                 if (!graph.containsVertex(originalSource)) {
-                    logger.info("Graph does not contain " + clonedSource);
-                    logger.info("ALL VERTICES " + graph.getVertices());
+                    logger.trace("Graph does not contain " + clonedSource);
+                    logger.trace("ALL VERTICES " + graph.getVertices());
 
                 }
 
                 if (!graph.containsVertex(originalTarget)) {
-                    logger.info("Graph does not contain " + clonedTarget);
-                    logger.info("ALL VERTICES " + graph.getVertices());
+                    logger.trace("Graph does not contain " + clonedTarget);
+                    logger.trace("ALL VERTICES " + graph.getVertices());
 
                 }
 
@@ -1645,8 +1799,22 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
             }
         }
 
+//        for (GraphNode vv : union.getVertices()) {
+//            if (vv instanceof ObjectInstance) {
+//                ObjectInstance obj = (ObjectInstance) vv;
+//                if (obj.isAndroidActivity()) {
+//                    System.out.println("* Activity " + obj + " cloned  ");
+//                }
+//            }
+//        }
+
         // Find the weakly connected components
+//        this.graph.getVertices().stream().filter(gn -> gn instanceof ObjectInstance).map(gn -> (ObjectInstance) gn)
+//                .map(obj -> (obj.isAndroidActivity() ? "** " + obj.toString() : "  " + obj.toString()))
+//                .forEach(System.out::println);
+
         WeakComponentClusterer<GraphNode, String> clusterer = new WeakComponentClusterer<GraphNode, String>();
+//        MyWeakComponentClusterer clusterer = new MyWeakComponentClusterer();
         Set<Set<GraphNode>> clusters = clusterer.apply(union);
 
         // Clusters at this points are partitions of the nodes, nodes are clones of the
@@ -1654,7 +1822,15 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
         // Note that the extrapolated graphs will have different edges;
         // they will start from 0 and increment.
 
+        // Is it possible that this changes the attributes of the nodes?!!
+
         for (Set<GraphNode> cluster : clusters) {
+
+//            System.out.println("DataDependencyGraphImpl.extrapolate() NODES IN CLUSTER : ");
+//            cluster.stream().filter(gn -> gn instanceof ObjectInstance).map(gn -> (ObjectInstance) gn)
+//                    .map(obj -> (obj.isAndroidActivity() ? "** " + obj.toString() : "  " + obj.toString()))
+//                    .forEach(System.out::println);
+//            System.out.println("\n\n\n");
             logger.trace("Processing cluster " + cluster);
             // TODO Here probably one should use the INTERFACE not the implementation
             DataDependencyGraphImpl dataDependencyGraph = new DataDependencyGraphImpl();

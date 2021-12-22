@@ -1,5 +1,16 @@
 package de.unipassau.abc.generation;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import de.unipassau.abc.carving.BasicCarver;
 import de.unipassau.abc.carving.CarvedExecution;
 import de.unipassau.abc.carving.exceptions.CarvingException;
@@ -23,20 +34,15 @@ import de.unipassau.abc.generation.data.AndroidCarvedTest;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
 import de.unipassau.abc.generation.mocks.MockGenerator;
+import de.unipassau.abc.generation.simplifiers.AndroidMultiActivitySimplifier;
+import de.unipassau.abc.generation.simplifiers.CarvedExecutionSimplifier;
 import de.unipassau.abc.parsing.ParsedTrace;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class BasicTestGenerator implements TestGenerator {
 
     private final static Logger logger = LoggerFactory.getLogger(BasicTestGenerator.class);
+
+    private CarvedExecutionSimplifier simplifier = new AndroidMultiActivitySimplifier();
 
     @Override
     public Collection<CarvedTest> generateTests(List<MethodInvocation> targetMethodsInvocations, ParsedTrace trace)
@@ -58,10 +64,15 @@ public class BasicTestGenerator implements TestGenerator {
 
             for (CarvedExecution carvedExecution : carver.carve(targetMethodInvocation)) {
                 try {
+
+//                    ALESSIO: CarvedExecution CONTAINS the implicit dependencies, not sure why the CARVED test does
+//                    not, maybe we cut them away to simplify synthesis?
+
                     carvedTests.add(generateCarvedTestFromCarvedExecution(carvedExecution));
                     logger.info("-------------------------");
                     logger.info("DONE CARVING:" + targetMethodInvocation);
                     logger.info("-------------------------");
+
                 } catch (Exception e) {
                     // TODO May be too coarse exception
                     logger.error("-------------------------");
@@ -91,7 +102,8 @@ public class BasicTestGenerator implements TestGenerator {
      * @return
      * @throws CarvingException
      */
-    public CarvedTest generateCarvedTestFromCarvedExecution(CarvedExecution carvedExecution) throws CarvingException {
+    public CarvedTest generateCarvedTestFromCarvedExecution(CarvedExecution optimisticCarvedExecution)
+            throws CarvingException {
 
         /**
          * A carved test can be implemented as a list of method executions (i.e,.
@@ -100,49 +112,36 @@ public class BasicTestGenerator implements TestGenerator {
          */
         ExecutionFlowGraph executionFlowGraph = new ExecutionFlowGraphImpl();
         DataDependencyGraph dataDependencyGraph = new DataDependencyGraphImpl();
-        MethodInvocation methodInvocationUnderTest = carvedExecution.methodInvocationUnderTest;
+        MethodInvocation methodInvocationUnderTest = optimisticCarvedExecution.methodInvocationUnderTest;
         // logging
-        logger.debug("-------------------------");
-        logger.debug("  GENERATING TEST FOR: " + methodInvocationUnderTest);
-        logger.debug("-------------------------");
-//        // Is this a generic or a specific test case?
-//        // Does the method under test belongs to an Activity?
-//        // NOTE This is an heuristic!
-//        boolean mutBelongToAnActivity = carvedExecution.methodInvocationUnderTest.getOwner().isAndroidActivity();
-//
-//        if (mutBelongToAnActivity ) {
-//            // Does the activity require a specific intent to be invoked? e.g., does it call getIntent somewhere?
-//            ObjectInstance activity = carvedExecution.methodInvocationUnderTest.getOwner();
-//            
-//            // Collect all the calls
-//            Set<MethodInvocation> allMi = new HashSet<MethodInvocation>();
-//            for(DataDependencyGraph ddg : carvedExecution.dataDependencyGraphs ) {
-//                for(MethodInvocation mi : ddg.getMethodInvocationsForOwner(activity)) {
-//                    for(CallGraph cg : carvedExecution.callGraphs ) {
-//                        allMi.addAll(cg.getMethodInvocationsSubsumedBy(mi));
-//                    }
-//                }
-//            }
-//            // Check if any of them is getIntent
-//            // TODO Probably better/faster to look up the graphs instead...
-//            // TODO Can we simply look at the dep graphs to see whether there's an intent as dependency to any method of 
-//            boolean requiresIntent = allMi.stream().anyMatch( new Predicate<MethodInvocation>() {
-//
-//                @Override
-//                public boolean test(MethodInvocation t) {
-//                    return t.getMethodSignature().equals("<android.app.Activity: android.content.Intent getIntent()>");
-//                }
-//            });
-//            
-//            boolean anotherActivityStartedIt = 
-//            // In case we need to understand whether this Activigy was started from another acticity
-//            // <android.app.Activity: void startActivity(android.content.Intent)>
-//            
-//        } else {
-//            logger.info("Generate REGULAR Carved test");
-//        }
-//        
+        logger.info("-------------------------");
+        logger.info("  GENERATING TEST FOR: " + methodInvocationUnderTest);
+        logger.info("-------------------------");
 
+        logger.info("-------------------------");
+        logger.info("  TRY TO SIMPLIFY TEST EXECUTION");
+        logger.info("-------------------------");
+        // TODO At this point the carver selected the methods that belong to the trace.
+        // However, we may not be able to generate the test because it will nevertheless
+        // violates some conditions. For example, that more than ONE activity is
+        // created.
+        // Therefore we need to attempt simplify the slice to get as close as possible
+        // to what we want/need
+        AndroidMultiActivitySimplifier simplifier = new AndroidMultiActivitySimplifier();
+
+        CarvedExecution _carvedExecution = null;
+        try {
+            _carvedExecution = simplifier.simplify(optimisticCarvedExecution);
+        } catch (CarvingException ce) {
+            logger.error("Simplification Failed", ce);
+            throw ce;
+        } catch (ABCException e) {
+            logger.error("Simplification Failed", e);
+            throw new CarvingException("Simplification Failed", e);
+        }
+
+        //
+        final CarvedExecution carvedExecution = _carvedExecution;
         /*
          * The carved execution contains a collection of (complete) call graphs, but in
          * the test we can only directly invoke the root(s) of those graphs, as all the
@@ -154,8 +153,8 @@ public class BasicTestGenerator implements TestGenerator {
         carvedExecution.callGraphs.forEach(callGraph -> directlyCallableMethodInvocations.addAll(callGraph.getRoots()));
         Collections.sort(directlyCallableMethodInvocations);
         // logging
-        logger.debug("Directly callable method invocations:");
-        directlyCallableMethodInvocations.stream().map(m -> m.toString()).forEach(logger::debug);
+        logger.info("Directly callable method invocations:");
+        directlyCallableMethodInvocations.stream().map(m -> m.toString()).forEach(logger::info);
 
         /*
          * Validation: If the directlyCallableMethodInvocations do not contain the
@@ -166,7 +165,7 @@ public class BasicTestGenerator implements TestGenerator {
         if (!directlyCallableMethodInvocations.stream()
                 .anyMatch(mi -> mi.equals(carvedExecution.methodInvocationUnderTest))) {
 
-            logger.debug("Method invocation under test " + carvedExecution.methodInvocationUnderTest
+            logger.info("Method invocation under test " + carvedExecution.methodInvocationUnderTest
                     + " is not visible. Try to recover ...");
             needsFix = true;
 
@@ -184,8 +183,8 @@ public class BasicTestGenerator implements TestGenerator {
             List<MethodInvocation> methodsSubsumingMethodInvocationUnderTest = callGraph
                     .getOrderedSubsumingMethodInvocationsFor(carvedExecution.methodInvocationUnderTest);
             // logging
-            logger.debug("Subsuming method invocations:");
-            methodsSubsumingMethodInvocationUnderTest.stream().map(m -> m.toString()).forEach(logger::debug);
+            logger.info("Subsuming method invocations:");
+            methodsSubsumingMethodInvocationUnderTest.stream().map(m -> m.toString()).forEach(logger::info);
 
             ListIterator<MethodInvocation> listIterator = methodsSubsumingMethodInvocationUnderTest
                     .listIterator(methodsSubsumingMethodInvocationUnderTest.size());
@@ -209,8 +208,8 @@ public class BasicTestGenerator implements TestGenerator {
             List<MethodInvocation> unecessaryMethodInvocations = callGraph.getRoots().stream()
                     .filter(mi -> !mi.isNecessary()).collect(Collectors.toList());
             // logging
-            logger.debug("Unnecessary method invocations:");
-            unecessaryMethodInvocations.stream().map(m -> m.toString()).forEach(logger::debug);
+            logger.info("Unnecessary method invocations:");
+            unecessaryMethodInvocations.stream().map(m -> m.toString()).forEach(logger::info);
 
             for (MethodInvocation removeMe : unecessaryMethodInvocations) {
                 /*
@@ -227,8 +226,8 @@ public class BasicTestGenerator implements TestGenerator {
         carvedExecution.callGraphs.forEach(callGraph -> directlyCallableMethodInvocations.addAll(callGraph.getRoots()));
         if (needsFix) {
             // logging
-            logger.debug("New directly callable method invocations:");
-            directlyCallableMethodInvocations.stream().map(m -> m.toString()).forEach(logger::debug);
+            logger.info("New directly callable method invocations:");
+            directlyCallableMethodInvocations.stream().map(m -> m.toString()).forEach(logger::info);
         }
 
         if (!directlyCallableMethodInvocations.stream()
@@ -256,6 +255,10 @@ public class BasicTestGenerator implements TestGenerator {
          */
         Collections.sort(directlyCallableMethodInvocations);
 
+        // We need to ensure that dataDependecies are maintained in the carved test as
+        // they may undergo some post-processing that require to know that. But we need
+        // to be sure that theres nothing more than the necessary here.
+
         /*
          * Generate the structures required for test synthesis. MOVE THIS TO AN EXTERNAL
          * METHOD MAYBE?
@@ -281,6 +284,16 @@ public class BasicTestGenerator implements TestGenerator {
                 DataNode parameter = it.next();
                 dataDependencyGraph.addDataDependencyOnActualParameter(methodInvocation, parameter, position);
             }
+
+            // Add the implicit dependencies here
+            ListIterator<DataNode> implicitIt = carvedExecution
+                    .getDataDependencyGraphContainingTheMethodInvocation(methodInvocation)
+                    .getImplicitDataDependenciesOf(methodInvocation).listIterator();
+            while (implicitIt.hasNext()) {
+                DataNode implicitDataDependency = implicitIt.next();
+                dataDependencyGraph.addImplicitDataDependency(methodInvocation, implicitDataDependency);
+            }
+
         }
 
         // If the method is not exceptional (but this might not be 100% correct enables
@@ -296,6 +309,8 @@ public class BasicTestGenerator implements TestGenerator {
                         "Method Invocation under test is not visible in the carved tests. This requires SPY-ing, which not yet implemented!");
             }
         }
+
+        // Here we may need to do some post processing? Like simplification
 
         //
         CarvedTest carvedTest = null;
@@ -483,6 +498,9 @@ public class BasicTestGenerator implements TestGenerator {
             }
         }
 
+        /*
+         * Finally add mocks and shadows
+         */
         MockGenerator mockGenerator = new MockGenerator();
         mockGenerator.generateMocks(carvedTest, carvedExecution);
 

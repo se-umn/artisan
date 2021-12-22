@@ -302,6 +302,16 @@ public class JimpleUtils {
 				(res, curr) -> res || curr);
 	}
 
+	// Strip the [] from an array type
+	public static String getArrayElementType(String type) {
+		if (JimpleUtils.isArray(type)) {
+			String loweredType = type.substring(0, type.length() - 2);
+			return JimpleUtils.getArrayElementType(loweredType);
+		} else {
+			return type;
+		}
+	}
+
 	public static String getPackage(String methodSignature) {
 		String packageName = getClassNameForMethod(methodSignature);
 		packageName = packageName.substring(0, packageName.lastIndexOf('.'));

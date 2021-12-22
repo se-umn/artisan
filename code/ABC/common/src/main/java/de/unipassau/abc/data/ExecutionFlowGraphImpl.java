@@ -56,6 +56,54 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
         graph = new DirectedSparseMultigraph<>();
     }
 
+    private MethodInvocation retrieveActualVertex(MethodInvocation methodInvocation) {
+        MethodInvocation actualMethodInvocation = graph.getVertices().stream().filter(mi -> mi.equals(methodInvocation))
+                .findFirst().get();
+
+        return actualMethodInvocation;
+    }
+
+    @Override
+    public void remove(MethodInvocation methodInvocationToRemove) {
+
+        if (!graph.containsVertex(methodInvocationToRemove)) {
+            return;
+        } else {
+            methodInvocationToRemove = this.retrieveActualVertex(methodInvocationToRemove);
+        }
+
+        // Collect prev/next
+        MethodInvocation prev = null;
+        MethodInvocation succ = null;
+
+        if (graph.getPredecessorCount(methodInvocationToRemove) > 0) {
+            // NOTE By design there's only at most one predecessors
+            prev = graph.getPredecessors(methodInvocationToRemove).iterator().next();
+        }
+
+        if (graph.getSuccessorCount(methodInvocationToRemove) > 0) {
+            // NOTE By design there's only at most one predecessors
+            succ = graph.getSuccessors(methodInvocationToRemove).iterator().next();
+        }
+
+        // Remove the node - this removes also any in/out edges
+        graph.removeVertex(methodInvocationToRemove);
+
+        // Connect the previous prev to succ if they are both non-null
+        if (prev != null && succ != null) {
+            graph.addEdge("ExecutionDependency-" + id.getAndIncrement(), prev, succ, EdgeType.DIRECTED);
+        }
+
+        // Update Head/Tail
+        if (firstMethodInvocation == methodInvocationToRemove) {
+            firstMethodInvocation = succ;
+        }
+
+        if (lastMethodInvocation == methodInvocationToRemove) {
+            lastMethodInvocation = prev;
+        }
+    }
+
     public void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl) {
         MethodInvocation originalMethodInvocation = graph.getVertices().stream()
                 .filter(methodInvocation -> methodInvocation.equals(orig)).findFirst()

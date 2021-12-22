@@ -3,6 +3,7 @@ package de.unipassau.abc.carving;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.Assert;
@@ -11,85 +12,124 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.event.Level;
 
+import de.unipassau.abc.carving.utils.MethodInvocationSelector;
 import de.unipassau.abc.data.MethodInvocation;
+import de.unipassau.abc.data.MethodInvocationMatcher;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.parsing.ParsedTrace;
 import de.unipassau.abc.parsing.ParsingUtils;
 import de.unipassau.abc.parsing.TraceParser;
 import de.unipassau.abc.parsing.TraceParserImpl;
+import de.unipassau.abc.parsing.postprocessing.AndroidParsedTraceDecorator;
+import de.unipassau.abc.parsing.postprocessing.ParsedTraceDecorator;
+import de.unipassau.abc.parsing.postprocessing.StaticParsedTraceDecorator;
 import de.unipassau.abc.utils.Slf4jSimpleLoggerRule;
 
 // BROKEN TEST. We need to update it to use CarvedExecution instead of the Triplette
 public class BasicCarverTest {
-	@Rule
-	public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
+    @Rule
+    public Slf4jSimpleLoggerRule loggerLevelRule = new Slf4jSimpleLoggerRule(Level.TRACE);
 //
 //	// TODO Brittle, but cannot do otherwise for the moment. Maybe something from
 //	// the ENV?
 //	// Or some known location inside the project (with symlink as well)
-	private final static File ANDROID_JAR = new File(
-			"/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar");
+    private final static File ANDROID_JAR = new File(
+            "/Users/gambi/Library/Android/sdk/platforms/android-28/android.jar");
 
-	// This is to avoid reparsing the same trace over and over. The assumption is
-	// that the parsedTrace is NOT modified by the tests... Flakyness is around the
-	// corner
-	private static ParsedTrace parsedTrace;
+    // This is to avoid reparsing the same trace over and over. The assumption is
+    // that the parsedTrace is NOT modified by the tests... Flakyness is around the
+    // corner
+    private static ParsedTrace parsedTrace;
 
-	@BeforeClass
-	public static void parseAndSetup() throws FileNotFoundException, IOException, ABCException {
-		// Parse trace using TraceParserImpl
+    @BeforeClass
+    public static void parseAndSetup() throws FileNotFoundException, IOException, ABCException {
+        // Parse trace using TraceParserImpl
 //		File traceFile = new File("./src/test/resources/abc.basiccalculator/testCalculate-trace-small.txt");
-		File traceFile = new File("./src/test/resources/abc.basiccalculator/testCalculate-trace.txt");
-		File apk_file = new File("./src/test/resources/abc.basiccalculator/app-debug.apk");
+        File traceFile = new File("./src/test/resources/abc.basiccalculator/testCalculate-trace.txt");
+        File apk_file = new File("./src/test/resources/abc.basiccalculator/app-debug.apk");
 
-		ParsingUtils.setupSoot(ANDROID_JAR, apk_file);
+//        ParsingUtils.setupSoot(ANDROID_JAR, apk_file);
 
-		TraceParser parser = new TraceParserImpl();
-		parsedTrace = parser.parseTrace(traceFile);
-	}
+        TraceParser parser = new TraceParserImpl();
+        parsedTrace = parser.parseTrace(traceFile);
+    }
 
-	@Test
-	public void testCarvingNoArgsConstructor() throws FileNotFoundException, IOException, ABCException {
-		// Basic Carver gets' only a sigle structre
-		BasicCarver carver = new BasicCarver(parsedTrace);
+    @Test
+    public void testExceptionWhileCarving() throws FileNotFoundException, IOException, ABCException {
+        // Reparse the trace
+        TraceParser parser = new TraceParserImpl();
+        ParsedTrace _parsedTrace = parser.parseTrace(new File(
+                "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/traces",
+                "abc.basiccalculator.MainActivityTest#testCalculateAnExceptionAcrossMethods/Trace-testCalculateAnExceptionAcrossMethods-1639041211999.txt"));
 
-		// The first method invocation is the constructor of the Main Activity
-		MethodInvocation mainActivityConstructor = parsedTrace.getUIThreadParsedTrace().getFirst()
-				.getOrderedMethodInvocations().get(0);
+        // Make sure we do NOT decorate our own decorators and methods !
+        ParsedTraceDecorator decorator = new StaticParsedTraceDecorator();
+        ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
+        //
+        decorator = new AndroidParsedTraceDecorator();
+        parsedTrace = decorator.decorate(parsedTrace);
 
-		List<CarvedExecution> carvedExecutions = carver.carve(mainActivityConstructor);
+        BasicCarver carver = new BasicCarver(parsedTrace);
 
-		// Assert there's only one carved execution
-		Assert.assertEquals(1, carvedExecutions.size());
-		// Assert that this execution containt ONLY the targetMethodInvocation
-		CarvedExecution carvedExecution = carvedExecutions.iterator().next();
+        String methodSignature = "<abc.basiccalculator.ResultActivity: void checkResult(java.lang.String)>";
+        int invocationCount = 51;
+        int invocationTraceId = 101;
 
-		// Carved Execution contains collections of fragments
+        // Ensure we use the actual method invocation, not a shallow copy of it!
+        MethodInvocationSelector mis = new MethodInvocationSelector();
+        MethodInvocationMatcher matcher = MethodInvocationMatcher
+                .fromMethodInvocation(new MethodInvocation(invocationTraceId, invocationCount, methodSignature));
+        List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
+                mis.findByMethodInvocationMatcher(parsedTrace, matcher));
+
+        for (MethodInvocation m : listOfTargetMethodsInvocations) {
+            List<CarvedExecution> carvedExecutions = carver.carve(m);
+        }
+
+    }
+
+    @Test
+    public void testCarvingNoArgsConstructor() throws FileNotFoundException, IOException, ABCException {
+        // Basic Carver gets' only a sigle structre
+        BasicCarver carver = new BasicCarver(parsedTrace);
+
+        // The first method invocation is the constructor of the Main Activity
+        MethodInvocation mainActivityConstructor = parsedTrace.getUIThreadParsedTrace().getFirst()
+                .getOrderedMethodInvocations().get(0);
+
+        List<CarvedExecution> carvedExecutions = carver.carve(mainActivityConstructor);
+
+        // Assert there's only one carved execution
+        Assert.assertEquals(1, carvedExecutions.size());
+        // Assert that this execution containt ONLY the targetMethodInvocation
+        CarvedExecution carvedExecution = carvedExecutions.iterator().next();
+
+        // Carved Execution contains collections of fragments
 
 //		List<MethodInvocation> actual = carvedExecution.getFirst().getOrderedMethodInvocations();
 
 //		List<MethodInvocation> expected = Collections.singletonList(mainActivityConstructor);
 
 //		Assert.assertThat(actual, is(expected));
-	}
+    }
 
-	@Test
-	public void testCarveIntentPutExtra() throws FileNotFoundException, IOException, ABCException {
-		// Basic Carver gets' only a sigle structre
-		BasicCarver carver = new BasicCarver(parsedTrace);
+    @Test
+    public void testCarveIntentPutExtra() throws FileNotFoundException, IOException, ABCException {
+        // Basic Carver gets' only a sigle structre
+        BasicCarver carver = new BasicCarver(parsedTrace);
 
-		// The first method invocation is the constructor of the Main Activity
-		MethodInvocation mainActivityConstructor = parsedTrace.getUIThreadParsedTrace().getFirst()
-				.getOrderedMethodInvocations().get(0);
+        // The first method invocation is the constructor of the Main Activity
+        MethodInvocation mainActivityConstructor = parsedTrace.getUIThreadParsedTrace().getFirst()
+                .getOrderedMethodInvocations().get(0);
 
-		List<CarvedExecution> carvedExecutions = carver.carve(mainActivityConstructor);
+        List<CarvedExecution> carvedExecutions = carver.carve(mainActivityConstructor);
 
-		// Assert there's only one carved execution
-		Assert.assertEquals(1, carvedExecutions.size());
-		// Assert that this execution containt ONLY the targetMethodInvocation
-		CarvedExecution carvedExecution = carvedExecutions.iterator().next();
+        // Assert there's only one carved execution
+        Assert.assertEquals(1, carvedExecutions.size());
+        // Assert that this execution containt ONLY the targetMethodInvocation
+        CarvedExecution carvedExecution = carvedExecutions.iterator().next();
 
-	}
+    }
 
 //
 //	@Test

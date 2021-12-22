@@ -18,7 +18,21 @@ catch() {
   fi
 }
 
-export JAVA_HOME=$(/usr/libexec/java_home -v 1.8)
+# Ensure Java is set nad it's 1.8
+# https://stackoverflow.com/questions/7334754/correct-way-to-check-java-version-from-bash-script
+if [[ -z ${JAVA_HOME} ]]; then
+  export JAVA_HOME=$(/usr/libexec/java_home -v 1.8)
+fi
+JAVA_VER=$(${JAVA_HOME}/bin/java -version 2>&1 | sed -n ';s/.* version "\(.*\)\.\(.*\)\..*".*/\1\2/p;')
+( >&2 echo "** Current Java version (as per JAVA_HOME). ${JAVA_VER}" )
+
+if [[ "$JAVA_VER" -eq 18 ]]; then
+  ( >&2 echo "** Java Version OK" )
+else
+  ( >&2 echo "** WRONG Java Version. Exit with error" )
+  exit 1
+fi
+
 
 # This script location
 SCRIPT_LOCATION=$(dirname $(realpath $0))

@@ -34,6 +34,13 @@ public class Main {
 
 		@Option(longName = "filter-package", defaultValue = {})
 		public List<String> getPackageFilters();
+		
+		@Option(longName = "debug")
+		public boolean getDebug();
+		
+		@Option(longName = "multi-thread")
+        public boolean getMultiThread();
+		
 	}
 
 	public static void main(String args[]) throws IOException, XmlPullParserException {
@@ -98,7 +105,11 @@ public class Main {
 
 		// This is where the instrumentation takes place.
 		SceneInstrumenterWithMethodParameters abcInstrumentation = new SceneInstrumenterWithMethodParameters(appPackageName);
+		// Configure the class
 		abcInstrumentation.setPackageFilters(cli.getPackageFilters());
+//		abcInstrumentation.setDebug(cli.getDebug());
+//		abcInstrumentation.setMultiThreadedExecution(cli.getMultiThread());
+
 
 		PackManager.v().getPack("wjtp").add(new Transform("wjtp.mt", abcInstrumentation));
 
