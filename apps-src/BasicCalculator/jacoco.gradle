@@ -12,55 +12,6 @@ tasks.withType(Test) {
     jacoco.excludes = ['jdk.internal.*']
 }
 
-// // Is this needed at all ?! TODO Why we need this as well?
-// task jacocoTestsReport(type: JacocoReport, dependsOn: ['testDebugUnitTest']) {
-//     group = "Reporting"
-//     description = "Generate Jacoco coverage reports after running the Original Tests."
-
-//     reports {
-//         xml.enabled = true
-//         html.enabled = true
-//         // TODO Move this above 
-//         if ( carvedTests.toBoolean() ) {
-//                 html.destination file("$coverageReportPrefix/html")
-//                 xml.destination file("$coverageReportPrefix/xml")
-//         }
-//         println "\n\n\n"
-//         println " jacocoTestsReport: Reporting to -- " + html.destination
-//         println "\n\n\n"
-//     }
-
-//     def fileFilter = ['**/R.class',
-//                       '**/R$*.class',
-//                       '**/BuildConfig.class',
-//                       'androidx/**/*.*',
-//                       '**/view/*.*',
-//                       '**/data/*.*',
-//                       '**/data/model/*.*',
-//                       '**/generated/callback/*.*',
-//                       '**/lambda$*.class',
-//                       '**/lambda.class',
-//                       '**/*lambda.class',
-//                       '**/*lambda*.class']
-
-//     def debugTree = fileTree(dir:
-//             "${buildDir}/intermediates/javac/debug/classes",
-//             excludes: fileFilter
-//     )
-
-//     def mainSrc = "/src/main/java"
-    
-//     //sourceDirectories = files([mainSrc])
-//     getSourceDirectories().setFrom(files([mainSrc]))
-//     getClassDirectories().setFrom(files([debugTree]))
-//     getExecutionData().setFrom(fileTree(dir: "${buildDir}", includes:[
-//             "/jacoco/testDebugUnitTest.exec"]))
-//     //classDirectories = files([debugTree])
-//     //executionData = fileTree(dir: "${buildDir}", includes:[
-//     //        "/jacoco/testDebugUnitTest.exec"])
-// }
-
-// ALESSIO: This seems to be triggered even if we invoke jacocoGUITestCoverage... Not sure why...
 task jacocoUnitTestCoverage(type : JacocoReport, dependsOn : ['testDebugUnitTest']) {
     group       = 'Reporting'
     description = 'Generate JaCoCo coverage report for unit tests'
