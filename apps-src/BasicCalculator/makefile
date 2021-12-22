@@ -7,11 +7,28 @@ ABC_CFG=../../scripts/.abc-config
 # -Dabc.instrument.debug -Dabc.instrument.multithreaded"
 JAVA_OPTS=" -Dabc.instrument.array.operations -Dabc.instrument.fields.operations -Dabc.taint.android.intents -Dabc.instrument.include=abc.basiccalculator"
 
+# Default
+SED=/usr/bin/sed
+UNAME := $(shell uname)
+# Override if on Mac Os. Assume that you have installed Gnu SED (gsed)
+ifeq ($(UNAME),Darwin)
+SED := $(shell echo /usr/local/bin/gsed)
+endif
+
 ADB := $(shell $(ABC) show-config  ANDROID_ADB_EXE | sed -e "s|ANDROID_ADB_EXE=||")
 # Create a list of expected test executions from tests.txt Those corresponds to the traces
 ESPRESSO_TESTS := $(shell cat tests.txt | sed '/^[[:space:]]*$$/d' | sed -e 's| |__|g' -e 's|^\(.*\)$$|\1.testlog|')
 # Create the list of expected coverage targets from tests.txt
 ESPRESSO_TESTS_COVERAGE := $(shell cat tests.txt | sed '/^[[:space:]]*$$/d' | sed -e 's| |__|g' -e 's|^\(.*\)$$|espresso-test-coverage-for-\1/html/index.html|')
+# Create the list of carved tests to measure coverage. This points to the html file because make works with files
+ifeq (,$(wildcard carved-tests.log))
+$(info "carved-tests.log missing. We probably need to re-run make after computing it")
+REQUIRE_RERUN=1
+else
+REQUIRE_RERUN=0
+CARVED_TESTS_COVERAGE := $(shell cat carved-tests.log | grep ">" | grep "PASSED" | tr ">" " " | awk '{print $$1, $$2}' | tr " " "." | sed 's|\(.*\)|carved-test-coverage-for-\1/html/index.html|' | sort | uniq)
+endif
+# TODO Ensure that CARVED_TESTS_COVERAGE contains more than one test?
 
 # Global variable to check which apks are installed, if any
 TRACING_APKS_INSTALLED := 0
@@ -99,6 +116,9 @@ show :
 clean-gradle :
 	$(GW) clean
 
+list-sed:
+	@echo $(UNAME) -- $(SED)
+
 # Debug Target
 list-all-tests :
 	@echo $(ESPRESSO_TESTS) | tr " " "\n"
@@ -111,11 +131,22 @@ list-coverage-targets:
 
 # Clean up carved tests
 clean-carved-tests :
+	$(RM) -rv app/src/selectedCarvedTest
+	$(RM) -rv app/src/allCarvedTest
 	$(RM) -rv app/src/carvedTest
 	$(RM) -rv .carved-all
+	$(RM) -v carved-tests.log
+	$(RM) -v selected-carved-tests.log
+	$(RM) -v white-listed-tests.txt
+	$(RM) -v carved-coverage-for-selection.csv
+	$(RM) -v selected-carved-tests.csv
+	$(RM) -v selected-carved-tests.done
 
 clean-carved-coverage :
 	$(RM) -rv carved-tests-coverage
+	$(RM) -rv all-carved-tests-coverage
+	$(RM) -rv selected-carved-tests-coverage
+	$(RM) -rv carved-test-coverage-for-*
 
 clean-espresso-coverage : 
 	$(RM) -rv espresso-tests-coverage
@@ -185,23 +216,14 @@ $(ESPRESSO_TESTS) : app-instrumented.apk app-androidTest.apk
 
 # This will always run because it's a PHONY target
 carve-all : .carved-all
-	@echo "Carving All"
-	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	@echo "Done"
 
-# This requires to have all the tests traced
+# This requires to have all the tests traced. Note we create the app/src/allCarvedTest folder !
 .carved-all : $(ESPRESSO_TESTS)
-	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) carve-all app-original.apk traces app/src/carvedTest force-clean 2>&1 | tee carving.log
+	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) carve-all app-original.apk traces app/src/allCarvedTest force-clean 2>&1 | tee carving.log
 	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 # 	Make sure this file has the right timestamp - probably touch will work the same
 	@sleep 1; echo "" > .carved-all
-
-run-carved-tests : carvedTests.log
-	@echo "Done"
-
-carvedTests.log : .carved-all
-	@echo "Done"
-	@touch carvedTests.log
 
 ### ### ### ### ### ### ### 
 ### Coverage targets
@@ -237,7 +259,6 @@ $(ESPRESSO_TESTS_COVERAGE): app-original-for-coverage.apk app-androidTest-for-co
 	mv -v app/build/reports/jacoco/jacocoGUITestCoverage $(COVERAGE_FOLDER)
 	mv -v app/build/outputs/code_coverage/debugAndroidTest/connected/*coverage.ec $(COVERAGE_FOLDER)/$(TEST_NAME).ec
 
-# Run existing unit tests (not carved ones)
 coverage-unit-tests : unit-tests-coverage/html/index.html
 	@echo "Done"
 
@@ -246,11 +267,115 @@ unit-tests-coverage/html/index.html :
 	$(RM) -r unit-tests-coverage
 	mv -v app/build/reports/jacoco/jacocoUnitTestCoverage unit-tests-coverage 
 
-# UPDATE THIS WITH TO CHECK THE RIGHT FILES .covered or index.html.  --info
-coverage-carved-tests : carved-tests-coverage/html/index.html
+# Phony target
+coverage-carved-tests : all-carved-tests-coverage/html/index.html selected-carved-tests-coverage/html/index.html
 	@echo "Done"
 
-carved-tests-coverage/html/index.html : .carved-all
-	$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage 2>&1 | tee ${@}.log
-	$(RM) -r carved-tests-coverage
-	mv -v build/carvedTest/coverage carved-tests-coverage
+# Actual target
+all-carved-tests-coverage/html/index.html : carved-tests.log
+	@echo "Done"
+
+# This is required because we need it to run each carved test in isolation
+carved-tests.log : .carved-all
+# Ensure we are using the right carved tests by creating a link to the folder.
+	$(RM) -r app/src/carvedTest
+	cp -r app/src/allCarvedTest app/src/carvedTest
+	$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage 2>&1 | tee carved-tests.log
+	$(RM) -r all-carved-tests-coverage
+	mv -v build/carvedTest/coverage all-carved-tests-coverage
+
+# This is required because we need it to run each carved test in isolation
+selected-carved-tests-coverage/html/index.html : selected-carved-tests.done
+ifeq ($(REQUIRE_RERUN), 1)
+	$(error "$(REQUIRE_RERUN) We need to restart make to ensure the right preconditions are there");
+endif
+# Ensure we are using the right carved tests by creating a link to the folder.
+	$(RM) -r app/src/carvedTest
+	cp -r app/src/selectedCarvedTest app/src/carvedTest
+	$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage 2>&1 | tee selected-carved-tests.log
+	$(RM) -r selected-carved-tests-coverage
+	mv -v build/carvedTest/coverage selected-carved-tests-coverage
+
+$(CARVED_TESTS_COVERAGE): carved-tests.log
+# Ensure we use all the carvedTests here
+	$(RM) -r app/src/carvedTest
+	cp -r app/src/allCarvedTest app/src/carvedTest
+# Extract the test name from the target folder
+	$(eval TEST_NAME := $(shell echo "$(@)" | sed -e 's|/html/index.html||' -e 's|carved-test-coverage-for-||'))
+	$(eval COVERAGE_FOLDER := $(shell echo "$(@)" | sed -e 's|/html/index.html||'))
+# Clean up the coverage folder (this should not be necessary) 
+	$(RM) -rv $(COVERAGE_FOLDER)
+# Run the single unit test and collect coverage
+	$(GW) -PjacocoEnabled=true -PcarvedTests=true -PcarvedTestsFilter=$(TEST_NAME) clean jacocoUnitTestCoverage
+# Copy the coverage folder in the expected place 
+	mv -v ./build/carvedTest/coverage $(COVERAGE_FOLDER)
+
+coverage-for-each-carved-test : carved-tests.log $(CARVED_TESTS_COVERAGE)
+ifeq ($(REQUIRE_RERUN), 1)
+	$(error "$(REQUIRE_RERUN) We need to restart make to ensure the right preconditions are there");
+endif
+	@echo "Done"
+
+#
+# TODO Alessio: Not robust. This requires the RIGHT naming convention when generating the tests!
+# This file is the one we need to compare the coverage of selected tests and select them
+#
+carved-coverage-for-selection.csv : carved-tests.log $(CARVED_TESTS_COVERAGE)
+ifeq ($(REQUIRE_RERUN), 1)
+	$(error "$(REQUIRE_RERUN) We need to restart make to ensure the right preconditions are there");
+endif
+	@for COV in $(CARVED_TESTS_COVERAGE); do \
+		echo "Processing $$COV"; \
+		TEST_NAME=`echo "$$COV" | $(SED) -e 's|/html/index.html||' -e 's|carved-test-coverage-for-||'`; \
+		METHOD_UNDER_TEST=`echo "$$COV" | $(SED) -e 's|.*\.test_\(.*\)|\1|' | tr "_" " "| awk '{$$NF=""; print $$0}' | sed -e 's/[ \t]*$$//' | tr " " "."`; \
+		COV_HASH=`cat $$COV | tr ">" "\n" | $(SED) '1,/.*tfoot.*/d' | $(SED) '/.*<\/tfoot*/,$$d' | tr "\n" ">" | md5sum | cut -f1 -d" "`; \
+		echo "$$TEST_NAME, $$METHOD_UNDER_TEST, $$COV_HASH" >> carved-coverage-for-selection.csv; \
+	done
+
+
+####################
+#	SELECTION TARGETS
+####################
+
+# Select the first test among those what match the combination method under test + hash coverage
+selected-carved-tests.csv : SHELL := /bin/bash
+selected-carved-tests.csv : carved-tests.log carved-coverage-for-selection.csv
+ifeq ($(REQUIRE_RERUN), 1)
+	$(error "$(REQUIRE_RERUN) We need to restart make to ensure the right preconditions are there");
+endif
+	@while read -r TOKEN; do \
+		grep "$$TOKEN" carved-coverage-for-selection.csv | head -1 ; \
+	done< <(cat carved-coverage-for-selection.csv  | awk '{print $$2, $$3}' | sort | uniq) > selected-carved-tests.csv
+
+# FOR THE MOMENT WE ASSUME A SINGLE TEST METHOD FOR EACH TEST. OTHERWISE, WE NEED TO UPDATE AND RECOMPILE THE CARVED TESTS
+white-listed-tests.txt : SHELL := /bin/bash
+white-listed-tests.txt : carved-tests.log selected-carved-tests.csv
+ifeq ($(REQUIRE_RERUN), 1)
+	$(error "$(REQUIRE_RERUN) We need to restart make to ensure the right preconditions are there");
+endif
+	@while read TEST_PACKAGE TEST_CLASS METHOD_UNDER_TEST; do \
+		echo "app/src/selectedCarvedTest/$${TEST_PACKAGE//.//}/$$TEST_CLASS.java"; \
+	done< <(cat selected-carved-tests.csv | \
+		tr "," " " | \
+		awk '{print $$1}' | \
+		$(SED) 's|\(.*\)\.test_\(.*\)|\1 \2|' | \
+		$(SED) 's|\(.*\)\.\(.*\) \(.*\)|\1 \2 \3|') > white-listed-tests.txt
+
+delete-duplicated-carved-tests : selected-carved-tests.done
+	@Done
+
+selected-carved-tests.done : carved-tests.log white-listed-tests.txt
+ifeq ($(REQUIRE_RERUN), 1)
+	$(error "$(REQUIRE_RERUN) We need to restart make to ensure the right preconditions are there");
+endif
+# Ensure we clean up any other result
+	@ $(RM) -r app/src/selectedCarvedTest; \
+	cp -rv app/src/allCarvedTest app/src/selectedCarvedTest; \
+	for TEST in $$(find app/src/selectedCarvedTest -iname "Test*.java"); do \
+		if [[ $$(grep -c $$TEST white-listed-tests.txt) -eq 1 ]]; then \
+			echo "Keep $$TEST"; \
+		else \
+			$(RM) -v $$TEST $$TEST.removed ; \
+		fi; \
+	done; \
+	touch selected-carved-tests.done

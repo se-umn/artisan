@@ -5,8 +5,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -20,11 +18,11 @@ import org.slf4j.event.Level;
 
 import com.github.javaparser.ast.CompilationUnit;
 
-import de.unipassau.abc.carving.BasicCarver;
 import de.unipassau.abc.carving.utils.MethodInvocationSelector;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.MethodInvocationMatcher;
 import de.unipassau.abc.evaluation.Main;
+import de.unipassau.abc.evaluation.MethodUnderTestWithLocalCounterNamer;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.shadowwriter.ShadowWriter;
@@ -34,6 +32,7 @@ import de.unipassau.abc.generation.utils.TestCaseNamer;
 import de.unipassau.abc.generation.utils.TestCaseOrganizer;
 import de.unipassau.abc.generation.utils.TestCaseOrganizers;
 import de.unipassau.abc.generation.utils.TestClass;
+import de.unipassau.abc.generation.utils.TestMethodNamer;
 import de.unipassau.abc.parsing.ParsedTrace;
 import de.unipassau.abc.parsing.ParsingUtils;
 import de.unipassau.abc.parsing.TraceParser;
@@ -50,7 +49,7 @@ public class SmokeTest {
 
     @Rule
     public TemporaryFolder tempFolder = new TemporaryFolder();
-    
+
     private final static Logger logger = LoggerFactory.getLogger(SmokeTest.class);
 
     /*
@@ -123,14 +122,14 @@ public class SmokeTest {
 //            }
 //        }
 //    }
-    
+
     @Test
     public void testNPEWhileGenerating() throws FileNotFoundException, IOException, ABCException {
-        String folder =  "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/traces/abc.basiccalculator.ExtendedMainActivityTest#testCalculateAndReturnBackToMain";
+        String folder = "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/traces/abc.basiccalculator.ExtendedMainActivityTest#testCalculateAndReturnBackToMain";
         String file = "Trace-testCalculateAndReturnBackToMain-1639739283539.txt";
-        
+
         File traceFile = new File(folder, file);
-        
+
         TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
 
         // TODO Is is not going to work, since the IDs are regenerated every time...
@@ -180,21 +179,22 @@ public class SmokeTest {
         // Write test cases to files and try to compile them
 
         JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
-
+        TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
         for (TestClass testCase : testSuite) {
-            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
             logger.info(cu.toString());
         }
-        
+
     }
+
 //    traces/abc.basiccalculator.ExtendedMainActivityTest#testCalculateAndReturnBackToMain/Trace-testCalculateAndReturnBackToMain-1639739283539.txt
     @Test
     public void testNumberFormatException() throws FileNotFoundException, IOException, ABCException {
-        String folder =  "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/traces/abc.basiccalculator.ExtendedMainActivityTest#testCalculateAndReturnBackToMain";
+        String folder = "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/traces/abc.basiccalculator.ExtendedMainActivityTest#testCalculateAndReturnBackToMain";
         String file = "Trace-testCalculateAndReturnBackToMain-1639041266003.txt";
-        
+
         File traceFile = new File(folder, file);
-        
+
         TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
 
         // TODO Is is not going to work, since the IDs are regenerated every time...
@@ -244,16 +244,15 @@ public class SmokeTest {
         // Write test cases to files and try to compile them
 
         JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
-
+        TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
         for (TestClass testCase : testSuite) {
-            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
             logger.info(cu.toString());
         }
-        
         // TODO How does this work when we need to process multiple traces?
         logger.info("Generating shadows");
         // generate shadows needed for test cases
-        
+
         List<TestClass> sortedTestSuiteList = new ArrayList(testSuite);
 //        Collections.sort(sortedTestSuiteList, new Comparator<TestClass>() {
 //            public int compare(TestClass left, TestClass right) {
@@ -266,15 +265,14 @@ public class SmokeTest {
         shadowWriter.generateAndWriteShadows(sortedTestSuiteList, tempFolder.newFolder());
 
     }
-    
-    
+
     @Test
     public void testAnotherNumberFormatException() throws FileNotFoundException, IOException, ABCException {
-        String folder =  "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/traces/abc.basiccalculator.ExtendedMainActivityTest#testCalculateWithValidComment";
+        String folder = "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/traces/abc.basiccalculator.ExtendedMainActivityTest#testCalculateWithValidComment";
         String file = "Trace-testCalculateWithValidComment-1639041274941.txt";
-        
+
         File traceFile = new File(folder, file);
-        
+
         TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
 
         // TODO Is is not going to work, since the IDs are regenerated every time...
@@ -324,22 +322,21 @@ public class SmokeTest {
         // Write test cases to files and try to compile them
 
         JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
-
+        TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
         for (TestClass testCase : testSuite) {
-            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
             logger.info(cu.toString());
         }
-        
 
     }
 
     @Test
     public void testNPWWhileGeneratingMocks() throws FileNotFoundException, IOException, ABCException {
-        String folder =  "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/traces/abc.basiccalculator.MainActivityTest#testCalculateAnExceptionAcrossMethods";
+        String folder = "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/traces/abc.basiccalculator.MainActivityTest#testCalculateAnExceptionAcrossMethods";
         String file = "Trace-testCalculateAnExceptionAcrossMethods-1639041211999.txt";
-        
+
         File traceFile = new File(folder, file);
-        
+
         TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
 
         // TODO Is is not going to work, since the IDs are regenerated every time...
@@ -389,16 +386,15 @@ public class SmokeTest {
         // Write test cases to files and try to compile them
 
         JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
-
+        TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
         for (TestClass testCase : testSuite) {
-            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
             logger.info(cu.toString());
         }
-        
         // TODO How does this work when we need to process multiple traces?
         logger.info("Generating shadows");
         // generate shadows needed for test cases
-        
+
         List<TestClass> sortedTestSuiteList = new ArrayList(testSuite);
 //        Collections.sort(sortedTestSuiteList, new Comparator<TestClass>() {
 //            public int compare(TestClass left, TestClass right) {
@@ -411,14 +407,14 @@ public class SmokeTest {
         shadowWriter.generateAndWriteShadows(sortedTestSuiteList, tempFolder.newFolder());
 
     }
-    
+
     @Test
     public void testMissingShadows() throws FileNotFoundException, IOException, ABCException {
         String folder = "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/traces/abc.basiccalculator.ExtendedMainActivityTest#testCalculateNullPointerThrownByResultActivity";
         String file = "Trace-testCalculateNullPointerThrownByResultActivity-1638792884899.txt";
-        
+
         File traceFile = new File(folder, file);
-        
+
         TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
 
         // TODO Is is not going to work, since the IDs are regenerated every time...
@@ -468,16 +464,16 @@ public class SmokeTest {
         // Write test cases to files and try to compile them
 
         JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
-
+        TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
         for (TestClass testCase : testSuite) {
-            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
             logger.info(cu.toString());
         }
-        
+
         // TODO How does this work when we need to process multiple traces?
         logger.info("Generating shadows");
         // generate shadows needed for test cases
-        
+
         List<TestClass> sortedTestSuiteList = new ArrayList(testSuite);
 //        Collections.sort(sortedTestSuiteList, new Comparator<TestClass>() {
 //            public int compare(TestClass left, TestClass right) {
@@ -552,9 +548,9 @@ public class SmokeTest {
         // Write test cases to files and try to compile them
 
         JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
-
+        TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
         for (TestClass testCase : testSuite) {
-            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
             logger.info(cu.toString());
         }
     }
@@ -620,9 +616,9 @@ public class SmokeTest {
         // Write test cases to files and try to compile them
 
         JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
-
+        TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
         for (TestClass testCase : testSuite) {
-            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
             logger.info(cu.toString());
         }
 
@@ -702,7 +698,8 @@ public class SmokeTest {
         JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
 
         for (TestClass testCase : testSuite) {
-            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+            TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
             logger.info(cu.toString());
         }
 
@@ -754,7 +751,8 @@ public class SmokeTest {
         List<CompilationUnit> generatedTests = new ArrayList<CompilationUnit>();
         for (TestClass testCase : testSuite) {
             try {
-                CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+                TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
+                CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
                 logger.info(cu.toString());
                 generatedTests.add(cu);
             } catch (Exception e) {
@@ -807,7 +805,8 @@ public class SmokeTest {
         JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
 
         for (TestClass testCase : testSuite) {
-            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+            TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
             logger.info(cu.toString());
         }
 
@@ -860,7 +859,8 @@ public class SmokeTest {
         JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
 
         for (TestClass testCase : testSuite) {
-            CompilationUnit cu = writer.generateJUnitTestCase(testCase);
+            TestMethodNamer testMethodNamer = new MethodUnderTestWithLocalCounterNamer();
+            CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
             logger.info(cu.toString());
         }
     }

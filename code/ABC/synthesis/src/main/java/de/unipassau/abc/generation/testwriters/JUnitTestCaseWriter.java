@@ -3,6 +3,24 @@ package de.unipassau.abc.generation.testwriters;
 import static com.github.javaparser.StaticJavaParser.parseClassOrInterfaceType;
 import static com.github.javaparser.StaticJavaParser.parseType;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.apache.commons.lang.NotImplementedException;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.github.javaparser.ast.ArrayCreationLevel;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Modifier;
@@ -11,9 +29,9 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.comments.JavadocComment;
 import com.github.javaparser.ast.expr.ArrayAccessExpr;
 import com.github.javaparser.ast.expr.ArrayCreationExpr;
-import com.github.javaparser.ast.comments.JavadocComment;
 import com.github.javaparser.ast.expr.ArrayInitializerExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.AssignExpr.Operator;
@@ -37,6 +55,7 @@ import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
+
 import de.unipassau.abc.data.AndroidMethodInvocation;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.DataNode;
@@ -60,30 +79,10 @@ import de.unipassau.abc.generation.data.CarvedTest;
 import de.unipassau.abc.generation.data.CatchBlock;
 import de.unipassau.abc.generation.mocks.CarvingShadow;
 import de.unipassau.abc.generation.shadowwriter.ShadowWriter;
-import de.unipassau.abc.generation.utils.TestCaseOrganizer;
 import de.unipassau.abc.generation.utils.TestClass;
+import de.unipassau.abc.generation.utils.TestMethodNamer;
 import de.unipassau.abc.generation.utils.TypeUtils;
 import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-import org.apache.commons.lang.NotImplementedException;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.robolectric.RobolectricTestRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Generate the source code implementing the carved tests as tests were
@@ -100,34 +99,34 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
 //	public static final String ABC_CATEGORY = "de.unipassau.abc.Carved";
 
-    @Override
-    public void write(File outputFolder, TestCaseOrganizer testOrganizer, CarvedTest... carvedTests)
-            throws IOException {
-        // Group Carved Tests into Test Cases and generate the classes
-        Set<CompilationUnit> junitTestClasses = new HashSet<>();
-
-        for (TestClass testCase : testOrganizer.organize(carvedTests)) {
-            junitTestClasses.add(generateJUnitTestCase(testCase));
-        }
-
-        // TODO Some post processing? Like wrapping together @before methods or
-        // something...
-
-        for (CompilationUnit junitTestClass : junitTestClasses) {
-            File packageFolder = null;
-            if (junitTestClass.getPackageDeclaration().isPresent()) {
-                packageFolder = new File(outputFolder,
-                        junitTestClass.getPackageDeclaration().toString().replaceAll("\\.", File.separator));
-            } else {
-                packageFolder = outputFolder;
-            }
-            File outputJavaFile = new File(packageFolder, "className" + ".java");
-
-            // TODO Add Pretty print? Change Charser?
-            Files.write(outputJavaFile.toPath(), junitTestClass.toString().getBytes(StandardCharsets.UTF_16));
-        }
-
-    }
+//    @Override
+//    public void write(File outputFolder, TestCaseOrganizer testOrganizer, CarvedTest... carvedTests)
+//            throws IOException {
+//        // Group Carved Tests into Test Cases and generate the classes
+//        Set<CompilationUnit> junitTestClasses = new HashSet<>();
+//
+//        for (TestClass testCase : testOrganizer.organize(carvedTests)) {
+//            junitTestClasses.add(generateJUnitTestCase(testCase));
+//        }
+//
+//        // TODO Some post processing? Like wrapping together @before methods or
+//        // something...
+//
+//        for (CompilationUnit junitTestClass : junitTestClasses) {
+//            File packageFolder = null;
+//            if (junitTestClass.getPackageDeclaration().isPresent()) {
+//                packageFolder = new File(outputFolder,
+//                        junitTestClass.getPackageDeclaration().toString().replaceAll("\\.", File.separator));
+//            } else {
+//                packageFolder = outputFolder;
+//            }
+//            File outputJavaFile = new File(packageFolder, "className" + ".java");
+//
+//            // TODO Add Pretty print? Change Charser?
+//            Files.write(outputJavaFile.toPath(), junitTestClass.toString().getBytes(StandardCharsets.UTF_16));
+//        }
+//
+//    }
 
     // TODO I do not like to use this variable for temporary storing the method
     // under test...
@@ -152,7 +151,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         }
     }
 
-    public CompilationUnit generateJUnitTestCase(TestClass testCase) {
+    public CompilationUnit generateJUnitTestCase(TestClass testCase, TestMethodNamer testMethodNamer) {
         logger.info("Generate source code for " + testCase.getName());
 
         CompilationUnit cu = new CompilationUnit();
@@ -211,13 +210,9 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             }
         }
 
-        // TODO Create imports
-
-        AtomicInteger testId = new AtomicInteger(1);
-
         for (CarvedTest carvedTest : testCase.getCarvedTests()) {
             // TODO Name tests
-            MethodDeclaration testMethod = testClass.addMethod("test" + testId.getAndIncrement(),
+            MethodDeclaration testMethod = testClass.addMethod(testMethodNamer.generateTestMethodName(carvedTest),
                     Modifier.Keyword.PUBLIC);
             // Annotate the method with JUnit @Test, add time out
             NormalAnnotationExpr annotation = testMethod.addAndGetAnnotation(Test.class);
