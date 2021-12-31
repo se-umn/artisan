@@ -27,9 +27,9 @@ public class MethodInvocationSelector {
 
     /**
      * Return the list of method invocations that can be carved. Carvable method
-     * invocations are non-synthetic public method calls that belong to the app. Any
-     * method that contains $ will be ignored as well, as those are usually
-     * dynamically generated
+     * invocations are non-synthetic public method calls that belong to the app. The classes must not be abstract !
+     * Any method that contains $ will be ignored as well, as those are usually
+     * dynamically generated or they belong to inner or anonym classes which are not yet supported
      * 
      * For example, the static method: <abc.basiccalculator.ResultActivity:
      * android.widget.TextView
@@ -44,8 +44,9 @@ public class MethodInvocationSelector {
 
         for (Entry<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> entry : parsedTrace
                 .getParsedTrace().entrySet()) {
+            
             entry.getValue().getFirst().getOrderedMethodInvocations().parallelStream()
-                    .filter(mi -> !mi.isPrivate() && !mi.isSynthetic() && !mi.isLibraryCall())
+                    .filter(mi -> !mi.isPrivate() && !mi.isSynthetic() && !mi.isLibraryCall() && !mi.isAbstract())
                     .filter(mi -> !mi.getMethodSignature().contains("$")) // Inner Classes
                     .filter(mi -> !mi.getMethodSignature().contains("clinit")) // Static constructor
                     .forEachOrdered(carvableMethodInvocations::add);

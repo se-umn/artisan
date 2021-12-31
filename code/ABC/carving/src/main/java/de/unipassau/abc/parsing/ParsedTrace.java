@@ -29,6 +29,6 @@ public interface ParsedTrace {
 	// Mostly for testing
 	int getThreadCount();
 
-	String traceFileName();
+	public String traceFileName();
 
 }

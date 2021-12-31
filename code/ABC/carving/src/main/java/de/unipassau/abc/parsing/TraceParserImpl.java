@@ -64,7 +64,7 @@ public class TraceParserImpl extends TraceParser {
 
   @Override
 	public ParsedTrace setupParsedTrace(File traceFile) {
-		this.parsedTrace = new ParsedTraceImpl(traceFile.getName());
+		this.parsedTrace = new ParsedTraceImpl(traceFile);
 		return parsedTrace;
 	}
 
@@ -451,6 +451,7 @@ public class TraceParserImpl extends TraceParser {
 			methodInvocation.setLibraryCall(openingToken.equals(Trace.LIB_METHOD_START_TOKEN));
 			methodInvocation.setSyntheticMethod(openingToken.equals(Trace.SYNTHETIC_METHOD_START_TOKEN));
 			methodInvocation.setPrivate(openingToken.equals(Trace.PRIVATE_METHOD_START_TOKEN));
+			methodInvocation.setAbstract(openingToken.equals(Trace.ABSTRACT_METHOD_START_TOKEN));
 
 			/*
 			 * Update the parsing data

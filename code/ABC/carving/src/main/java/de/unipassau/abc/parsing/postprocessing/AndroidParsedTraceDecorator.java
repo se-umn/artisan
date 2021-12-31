@@ -176,8 +176,13 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                             .equals("<android.content.Intent: int getIntExtra(java.lang.String,int)>")
                             && ((PrimitiveValue) mi.getActualParameterInstances().get(0)).toString()
                                     .equals(intentTagAsString)) {
-                        logger.info("Intent " + obj + " is SINK of TAINT " + mi.getReturnValue());
-                        sinkIntents.put(mi.getReturnValue().toString(), obj);
+
+                        if (mi.getReturnValue().toString().equals("-1")) {
+                            logger.info("Canont find SOURCE for SINK intent " + obj);
+                        } else {
+                            logger.info("Intent " + obj + " is SINK of TAINT " + mi.getReturnValue());
+                            sinkIntents.put(mi.getReturnValue().toString(), obj);
+                        }
                     }
                 }
             }
@@ -253,11 +258,9 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                                 DataNode intent = dataDependencyGraph.getReturnValue(subsumed_mi).get();
                                 // Get the caller of this method and add the dependency to it
                                 // We need the method that is directly calling getIntent
-                                MethodInvocation methodThatRequireTheDependencyOnTheIntent = callGraph
-                                        .getCallerOf(subsumed_mi);
+                                MethodInvocation methodThatRequireTheDependencyOnTheIntent = callGraph.getCallerOf(subsumed_mi);
                                 // Create the dependency to the intent
-                                dataDependencyGraph.addImplicitDataDependency(methodThatRequireTheDependencyOnTheIntent,
-                                        intent);
+                                dataDependencyGraph.addImplicitDataDependency(methodThatRequireTheDependencyOnTheIntent, intent);
 
                                 activity.setRequiresIntent(true);
                                 activity.setIntent((ObjectInstance) intent);
@@ -265,8 +268,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                                 // TODO Patch: Make sure we automatically declares that also the constructor
                                 // requires the same intent!
 
-                                MethodInvocation activityConstructor = dataDependencyGraph
-                                        .getInitMethodInvocationFor(activity);
+                                MethodInvocation activityConstructor = dataDependencyGraph.getInitMethodInvocationFor(activity);
                                 dataDependencyGraph.addImplicitDataDependency(activityConstructor, intent);
                             } catch (ABCException e) {
                                 // TODO Auto-generated catch block

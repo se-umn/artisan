@@ -29,9 +29,11 @@ public class ParsedTraceImpl implements ParsedTrace {
 	private Map<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> content = new HashMap<>();
 
 	private String systemTestID = null;
+	private File traceFile = null;
 
-	public ParsedTraceImpl(String systemTestID) {
-		this.systemTestID = systemTestID;
+	public ParsedTraceImpl(File traceFile) {
+	    this.traceFile = traceFile;
+		this.systemTestID = this.traceFile.getName();
 	}
 
 	@Override
@@ -103,7 +105,8 @@ public class ParsedTraceImpl implements ParsedTrace {
 				// ModernAsyncTask_5.trace.log.parsed.xml -> trace
 				String systemTestID = file.getName().replaceAll(".parsed.xml", "");
 				systemTestID = systemTestID.split("\\.")[1];
-				parsedTrace = new ParsedTraceImpl(systemTestID);
+				parsedTrace = new ParsedTraceImpl(file);
+				parsedTrace.systemTestID = systemTestID;
 			}
 			logger.info("\t Loading data from " + file);
 			Entry<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> entry = (Entry<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>>) xStream
@@ -123,7 +126,7 @@ public class ParsedTraceImpl implements ParsedTrace {
 
 	@Override
 	public String traceFileName() {
-		return systemTestID;
+		return this.traceFile.getAbsolutePath();
 	}
 
 }
