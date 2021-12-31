@@ -48,14 +48,16 @@ public class ObjectInstance implements DataNode, Cloneable {
 
     private ObjectInstance intentObjectInstance;
 
+    private boolean is;
+
     public ObjectInstance clone() {
         ObjectInstance cloned = null;
         try {
             cloned = (ObjectInstance) super.clone();
         } catch (CloneNotSupportedException e) {
-           new RuntimeException(e);
+            new RuntimeException(e);
         }
-        
+
         cloned.isAndroidActivity = this.isAndroidActivity;
         cloned.isAndroidFragment = this.isAndroidFragment;
         cloned.objectId = objectId;
@@ -63,7 +65,7 @@ public class ObjectInstance implements DataNode, Cloneable {
         cloned.type = type;
         cloned.intentObjectInstance = intentObjectInstance;
         cloned.requiresIntent = requiresIntent;
-                
+
         return cloned;
     }
 

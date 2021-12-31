@@ -1290,7 +1290,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
     public Set<MethodInvocation> getMethodInvocationsWhichUse(DataNode dataNode) {
         Set<MethodInvocation> methodInvocations = new HashSet<>();
         for (String edge : getOutgoingEgdes(dataNode)) {
-            if (edge.startsWith(DATA_DEPENDENCY_PREFIX)) {
+            if (edge.startsWith(DATA_DEPENDENCY_PREFIX) || edge.startsWith(IMPLICIT_DATA_DEPENDENCY_PREFIX)) {
                 methodInvocations.add((MethodInvocation) graph.getOpposite(dataNode, edge));
             }
         }
