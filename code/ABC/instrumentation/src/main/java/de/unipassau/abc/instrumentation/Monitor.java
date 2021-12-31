@@ -16,13 +16,10 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Stack;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -31,7 +28,6 @@ import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
 import android.os.Looper;
 import android.util.Log;
-import utils.logicClock;
 
 /**
  * All the methods are static because it makes it easy to call them inside the
@@ -49,6 +45,9 @@ public class Monitor {
     public final static String METHOD_START_TOKEN = "[>]";
     public final static String SYNTHETIC_METHOD_START_TOKEN = "[>s]";
     public final static String PRIVATE_METHOD_START_TOKEN = "[>p]";
+
+    // A method that belongs to the app, but its type is abstract
+    public final static String ABSTRACT_METHOD_START_TOKEN = "[>a]";
 
     public final static String LIB_METHOD_START_TOKEN = "[>>]";
     public final static String METHOD_END_TOKEN = "[<]";
@@ -188,6 +187,10 @@ public class Monitor {
      * The following methods deal with tracing the methods invocation
      */
 
+    private static String getClassNameFromMethodSignnature(String methodSignature) {
+        return methodSignature.replaceFirst("<", "").split(" ")[0].replaceAll(":", "");
+    }
+
     /**
      * Triggered when a non-private method that belongs to the instrumented
      * application starts to execute
@@ -218,8 +221,19 @@ public class Monitor {
             // Book keeping
             registerCallInStackTrace(methodOwner, methodSignature, null, false);
 
-            // Trace
-            enter_impl(methodOwner, methodSignature, methodParameters, METHOD_START_TOKEN);
+            // Make sure we distinguish abstract classes from regular classes. We need to
+            // use reflection here otherwise we need to change the instrumentationn logic
+            // The issue is that if methodOwner is null, we cannot call getClass()
+            if (methodOwner != null) {
+                enter_impl(methodOwner, methodSignature, methodParameters,
+                        (Modifier.isAbstract(methodOwner.getClass().getModifiers())) ? ABSTRACT_METHOD_START_TOKEN
+                                : METHOD_START_TOKEN);
+            } else {
+                Class theClass = Class.forName(getClassNameFromMethodSignnature(methodSignature));
+                enter_impl(methodOwner, methodSignature, methodParameters,
+                        (Modifier.isAbstract(theClass.getModifiers())) ? ABSTRACT_METHOD_START_TOKEN
+                                : METHOD_START_TOKEN);
+            }
         } catch (Throwable t) {
             android.util.Log.e(ABC_TAG, "ERROR params: \n" //
                     + packageName + "\n" //
