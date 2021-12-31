@@ -67,8 +67,10 @@ public class BasicTestGenerator implements TestGenerator {
 
 //                    ALESSIO: CarvedExecution CONTAINS the implicit dependencies, not sure why the CARVED test does
 //                    not, maybe we cut them away to simplify synthesis?
+                    CarvedTest carvedTest = generateCarvedTestFromCarvedExecution(carvedExecution);
 
-                    carvedTests.add(generateCarvedTestFromCarvedExecution(carvedExecution));
+                    carvedTests.add(carvedTest);
+
                     logger.info("-------------------------");
                     logger.info("DONE CARVING:" + targetMethodInvocation);
                     logger.info("-------------------------");
@@ -264,6 +266,9 @@ public class BasicTestGenerator implements TestGenerator {
          * METHOD MAYBE?
          */
         for (MethodInvocation methodInvocation : directlyCallableMethodInvocations) {
+            // TODO For some reason here we do not look up the data dep graph, but directly
+            // look inside the methodInvocation object
+
             executionFlowGraph.enqueueMethodInvocations(methodInvocation);
             // Fix the data deps
             dataDependencyGraph.addMethodInvocationWithoutAnyDependency(methodInvocation);
@@ -285,10 +290,21 @@ public class BasicTestGenerator implements TestGenerator {
                 dataDependencyGraph.addDataDependencyOnActualParameter(methodInvocation, parameter, position);
             }
 
+            for (DataDependencyGraph ddg : carvedExecution.dataDependencyGraphs) {
+                for (ObjectInstance obj : ddg.getObjectInstances()) {
+                    ddg.getMethodInvocationsWhichUse(obj).forEach(System.out::println);
+                }
+            }
+
+            DataDependencyGraph ddg = carvedExecution
+                    .getDataDependencyGraphContainingTheMethodInvocation(methodInvocation);
+
+            MethodInvocation theMethodInvocation = ddg.getAllMethodInvocations().stream()
+                    .filter(mi -> mi.equals(methodInvocation)).findFirst().get();
+
             // Add the implicit dependencies here
-            ListIterator<DataNode> implicitIt = carvedExecution
-                    .getDataDependencyGraphContainingTheMethodInvocation(methodInvocation)
-                    .getImplicitDataDependenciesOf(methodInvocation).listIterator();
+            ListIterator<DataNode> implicitIt = ddg.getImplicitDataDependenciesOf(theMethodInvocation).listIterator();
+
             while (implicitIt.hasNext()) {
                 DataNode implicitDataDependency = implicitIt.next();
                 dataDependencyGraph.addImplicitDataDependency(methodInvocation, implicitDataDependency);

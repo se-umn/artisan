@@ -221,10 +221,8 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             // Add the generic Exception throwing
             testMethod.addThrownException(Exception.class);
 
-            String generatedFromComment = String.format(
-                  "%nGenerated from %s%nMethod invocation under test: %s",
-                  carvedTest.getTraceId(), carvedTest.getMethodUnderTest().getMethodSignature()
-            );
+            String generatedFromComment = String.format("%nGenerated from %s%nMethod invocation under test: %s",
+                    carvedTest.getTraceId(), carvedTest.getMethodUnderTest().getMethodSignature());
             testMethod.setComment(new JavadocComment(generatedFromComment));
 
             // Generate method body
@@ -544,7 +542,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
          * doing so it is tricky as arguments used in the constructor must be
          * initialized and set before use so we simply reassign the variable...
          */
-        System.out.println("JUnitTestCaseWriter.generateConstructorCall() " + methodInvocation);
+//        System.out.println("JUnitTestCaseWriter.generateConstructorCall() " + methodInvocation);
         ObjectInstance owner = methodInvocation.getOwner();
         String variableName = getVariableFor(owner, methodBody);
         Expression variableInitializingExpr;
@@ -552,24 +550,31 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         if (owner.isAndroidActivity()) {
             MethodCallExpr methodCallExpr = null;
             if (owner.requiresIntent()) {
+                // TODO This is still temporary, but unless this variable is found in the data
+                // graph, we can safely discard it?
+                // The question is: do we need that intent in the first place?
+
                 ObjectInstance intent = owner.getIntent();
                 // Retrieve intent's variable name - Note since there's taining we need to
                 // understand how to handle this case
                 // when we do NOT taint intents... or the entire app is startet with an Intent
                 final String intentVariableName = declaredVariables.get(intent);
 
-                assert (intentVariableName != null) : "Intent Variable for " + intent + " is NOT YET defined?!";
+//                assert (intentVariableName != null) : "Intent Variable for " + intent + " is NOT YET defined?!";
+                if (intentVariableName != null) {
+                    final NameExpr intentNameExpr = new NameExpr(intentVariableName);
 
-                final NameExpr intentNameExpr = new NameExpr(intentVariableName);
-
-                // We first build and initialize the activity controller for the corresponding
-                // activity
-                methodCallExpr = new MethodCallExpr(JimpleUtils.getFullyQualifiedMethodName(
-                        "<org.robolectric.Robolectric: ActivityController buildActivity(java.lang.Class,android.content.Intent)>"),
-                        // First parameter
-                        new TypeExpr(new ClassOrInterfaceType(null, owner.getType() + ".class")),
-                        // Second parameter
-                        intentNameExpr);
+                    // We first build and initialize the activity controller for the corresponding
+                    // activity
+                    methodCallExpr = new MethodCallExpr(JimpleUtils.getFullyQualifiedMethodName(
+                            "<org.robolectric.Robolectric: ActivityController buildActivity(java.lang.Class,android.content.Intent)>"),
+                            // First parameter
+                            new TypeExpr(new ClassOrInterfaceType(null, owner.getType() + ".class")),
+                            // Second parameter
+                            intentNameExpr);
+                } else {
+                    logger.warn("Intent Variable for " + intent + " is NOT YET defined!");
+                }
 
             } else {
                 // We first build and initialize the activity controller for the corresponding
@@ -592,8 +597,8 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             variableInitializingExpr = new MethodCallExpr(controllerNameExpr, "get");
 
         } else if (owner.isAndroidFragment()) {
-            // TODO do the stuff for fragments
-            throw new RuntimeException("Not implemented yet AndroidFragment generation");
+            // TODO At the moment we do not
+            throw new NotImplementedException("We cannot generate test cases involving AndroidFragments");
 
         } else {
             String className = JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature());
@@ -776,12 +781,13 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             } else {
                 methodCallExpr.asMethodCallExpr().addArgument(dataValueString);
             }
-        } else if (methodInvocation.getMethodSignature().equals("<org.mockito.Mockito: org.mockito.stubbing.Stubber doReturn(java.lang.Object)>")) {
-            
-            
+        } else if (methodInvocation.getMethodSignature()
+                .equals("<org.mockito.Mockito: org.mockito.stubbing.Stubber doReturn(java.lang.Object)>")) {
+
             logger.info("GENERATING CODE FOR " + methodInvocation);
-            
+
             DataNode dataValue = methodInvocation.getActualParameterInstances().get(0);
+
             if (dataValue.getType() != null && dataValue.getType().equals("int")) {
                 String dataValueString = getParameterFor(dataValue, methodBody);
                 Integer integerValue = Integer.parseInt(dataValueString);
@@ -809,6 +815,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             // Skip, we already defined the array statement
         } else {
             for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
+                System.out.println("JUnitTestCaseWriter.generateMethodCall() Handling parameter " + parameter);
                 if (parameter instanceof PlaceholderDataNode) {
                     PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
                     String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
@@ -862,7 +869,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
      */
     private String getParameterFor(DataNode dataNode, BlockStmt methodBody) {
         if (dataNode instanceof PrimitiveValue) {
-            logger.info("Get Parameter for data node " + dataNode.getType() );
+            logger.info("Get Parameter for data node " + dataNode.getType());
             try {
                 if (Class.class.getName().equals(dataNode.getType())) {
                     return ((PrimitiveValue) dataNode).getStringValue();
@@ -938,10 +945,12 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         String variableType = null;
         try {
             variableType = TypeUtils.getActualTypeFor(dataNode);
+        } catch (NotImplementedException e) {
+            throw e;
         } catch (Exception e) {
-
+            throw e;
         }
-        
+
         // TODO Move to Utils methods as this is used in many places
         String className = variableType.substring(variableType.lastIndexOf('.') + 1);
 

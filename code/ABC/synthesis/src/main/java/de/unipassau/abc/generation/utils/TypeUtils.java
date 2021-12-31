@@ -30,6 +30,9 @@ public class TypeUtils {
             if (actualType.equals("java.util.Arrays$ArrayList")) {
                 System.out.println("TypeUtils.getActualTypeFor() PATCHED java.util.Arrays$ArrayList");
                 actualType = "java.util.List";
+            } else if (actualType.equals("java.util.TreeMap$KeySet")) {
+                System.out.println("TypeUtils.getActualTypeFor() PATCHED java.util.TreeMap$KeySet");
+                actualType = "java.util.Set";
             }
 
             if (actualType.contains("$")) {
