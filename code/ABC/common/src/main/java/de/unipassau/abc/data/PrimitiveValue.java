@@ -115,7 +115,6 @@ public class PrimitiveValue implements ValueNode, Cloneable {
             if (stringValue == null) {
                 return NullConstant.v();
             } else {
-                System.out.println("PrimitiveValue.getData() Creating String using value " + stringValue );
                 return StringConstant.v(stringValue);
             }
         default:
