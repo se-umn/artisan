@@ -1565,7 +1565,8 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
     }
 
     /**
-     * This method is used to skip instrumenting methods. 
+     * This method is used to skip instrumenting methods.
+     * 
      * @param currentlyInstrumentedSootMethod
      * @return
      */
@@ -1582,10 +1583,11 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
             return true;
         }
 
-        // Not sure how to check that return is void... && currentlyInstrumentedSootMethod.getReturnType().equals("void") 
-        if( currentlyInstrumentedSootMethod.isStatic() && currentlyInstrumentedSootMethod.getName().contains("access$")) {
-            System.out.println(
-                    "\n\t SKIPPING METHOD: " + currentlyInstrumentedSootMethod.getSignature() + " S");
+        // Not sure how to check that return is void... &&
+        // currentlyInstrumentedSootMethod.getReturnType().equals("void")
+        if (currentlyInstrumentedSootMethod.isStatic()
+                && currentlyInstrumentedSootMethod.getName().contains("access$")) {
+            System.out.println("\n\t SKIPPING METHOD: " + currentlyInstrumentedSootMethod.getSignature() + " S");
             return true;
         }
 
