@@ -3,6 +3,7 @@ package de.unipassau.abc.generation.testwriters;
 import static com.github.javaparser.StaticJavaParser.parseClassOrInterfaceType;
 import static com.github.javaparser.StaticJavaParser.parseType;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -222,7 +223,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             testMethod.addThrownException(Exception.class);
 
             String generatedFromComment = String.format("%nGenerated from %s%nMethod invocation under test: %s",
-                    carvedTest.getTraceId(), carvedTest.getMethodUnderTest().getMethodSignature());
+                    carvedTest.getTraceId(), carvedTest.getMethodUnderTest());
             testMethod.setComment(new JavadocComment(generatedFromComment));
 
             // Generate method body
@@ -813,9 +814,39 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             }
         } else if (!methodInvocation.isStatic() && JimpleUtils.isArray(methodInvocation.getOwner().getType())) {
             // Skip, we already defined the array statement
+        } else if (methodInvocation.getMethodSignature().equals(
+                "<android.content.Intent: android.content.Intent putExtra(java.lang.String,android.os.Parcelable)>") ||
+                methodInvocation.getMethodSignature().equals(
+                        "<android.content.Intent: android.content.Intent putExtra(java.lang.String,java.io.Serializable)>")
+                ) {
+            
+            // Parameter 1 -- TODO Simplify
+            DataNode parameter_1 = methodInvocation.getActualParameterInstances().get(0);
+            if (parameter_1 instanceof PlaceholderDataNode) {
+                PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter_1;
+                String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
+                methodCallExpr.asMethodCallExpr().addArgument(variable);
+            } else {
+                methodCallExpr.asMethodCallExpr().addArgument(getParameterFor(parameter_1, methodBody));
+
+            }
+            
+            DataNode parameter_2 = methodInvocation.getActualParameterInstances().get(1);
+            String typeToCast = JimpleUtils.getParameterList(methodInvocation.getMethodSignature())[1];
+            
+            if (parameter_2 instanceof PlaceholderDataNode) {
+                PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter_2;
+                String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
+                CastExpr castedVariable = new CastExpr(parseType(typeToCast), new NameExpr(variable));
+                methodCallExpr.asMethodCallExpr().addArgument(castedVariable);
+            } else {
+                CastExpr castedVariable = new CastExpr(parseType(typeToCast), new NameExpr(getParameterFor(parameter_2, methodBody)));
+                methodCallExpr.asMethodCallExpr().addArgument(castedVariable);
+
+            }
+           
         } else {
             for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
-                System.out.println("JUnitTestCaseWriter.generateMethodCall() Handling parameter " + parameter);
                 if (parameter instanceof PlaceholderDataNode) {
                     PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter;
                     String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());

@@ -290,11 +290,11 @@ public class BasicTestGenerator implements TestGenerator {
                 dataDependencyGraph.addDataDependencyOnActualParameter(methodInvocation, parameter, position);
             }
 
-            for (DataDependencyGraph ddg : carvedExecution.dataDependencyGraphs) {
-                for (ObjectInstance obj : ddg.getObjectInstances()) {
-                    ddg.getMethodInvocationsWhichUse(obj).forEach(System.out::println);
-                }
-            }
+//            for (DataDependencyGraph ddg : carvedExecution.dataDependencyGraphs) {
+//                for (ObjectInstance obj : ddg.getObjectInstances()) {
+//                    ddg.getMethodInvocationsWhichUse(obj).forEach(System.out::println);
+//                }
+//            }
 
             DataDependencyGraph ddg = carvedExecution
                     .getDataDependencyGraphContainingTheMethodInvocation(methodInvocation);
