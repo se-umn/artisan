@@ -569,7 +569,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
                  * Create dummy methods about android life-cycle so they can be logged if
                  * necessary
                  */
-                System.out.println("\t MAKE ANDROID EVENT EXPLICITY:");
+                System.out.println("\t MAK ANDROID EVENT EXPLICITY:");
                 makeAndroidActivityEventsExplicit(currentlyInstrumentedSootClass);
             }
 
@@ -1564,14 +1564,12 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
         // methods....
     }
 
+    /**
+     * This method is used to skip instrumenting methods. 
+     * @param currentlyInstrumentedSootMethod
+     * @return
+     */
     private boolean skipMethod(SootMethod currentlyInstrumentedSootMethod) {
-        /*
-         * Complex Data Structure given by duafdroid. TODO Not sure this is really
-         * needed
-         */
-        // CFG cfg =
-        // ProgramFlowGraph.inst().getCFG(currentlyInstrumentedSootMethod);
-
         if (!currentlyInstrumentedSootMethod.isConcrete()) {
             System.out.println(
                     "\n\t SKIPPING METHOD: " + currentlyInstrumentedSootMethod.getSignature() + " NOT CONCRETE");
@@ -1584,23 +1582,12 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
             return true;
         }
 
-        // Cannot be checked at this point... ).
-        // if (!currentlyInstrumentedSootMethod.hasActiveBody()) {
-        // System.out.println(
-        // "\n\t SKIPPING METHOD: " +
-        // currentlyInstrumentedSootMethod.getSignature() + " NOT ACTIVE BODY");
-        // return true;
-        // }
-
-        // For some weird reason, methods like:
-        // <com.farmerbb.notepad.activity.a: void <init>()> which are invoked
-        // inside the constructor of MainActivity are not reacheable
-        // if (cfg == null || !cfg.isReachableFromEntry()) {
-        // System.out.println(
-        // "\n\t SKIPPING METHOD: " +
-        // currentlyInstrumentedSootMethod.getSignature() + " NOT REACHEABLE");
-        // return true;
-        // }
+        // Not sure how to check that return is void... && currentlyInstrumentedSootMethod.getReturnType().equals("void") 
+        if( currentlyInstrumentedSootMethod.isStatic() && currentlyInstrumentedSootMethod.getName().contains("access$")) {
+            System.out.println(
+                    "\n\t SKIPPING METHOD: " + currentlyInstrumentedSootMethod.getSignature() + " S");
+            return true;
+        }
 
         return false;
     }
