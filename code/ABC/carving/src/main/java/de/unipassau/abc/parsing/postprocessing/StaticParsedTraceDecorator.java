@@ -47,7 +47,11 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
                     "<java.lang.Double: java.lang.Double valueOf(double)>",
                     "<java.lang.Integer: int parseInt(java.lang.String)>",
                     "<java.util.Arrays: java.util.List asList(java.lang.Object[])>",
-                    "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object,java.lang.String)>" });
+                    // Synthetic Methods
+                    "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object,java.lang.String)>",
+                    // Android Logging
+                    "<android.util.Log: int i(java.lang.String,java.lang.String)>",
+                    });
 
     private ParsedTrace decorateWithStaticDataDependencies(ParsedTrace parsedTrace) {
         parsedTrace.getParsedTrace().forEach((threadName, graphs) -> {
