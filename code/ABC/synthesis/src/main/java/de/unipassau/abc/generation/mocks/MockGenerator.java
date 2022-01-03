@@ -64,130 +64,213 @@ public class MockGenerator {
 
         List<MockInfo> mockInfoList = new ArrayList<MockInfo>();
 
-        //
-
         for (ObjectInstance danglingObject : carvedTestDataDependencyGraph.getDanglingObjects()) {
 
-            logger.info("Found dangling object " + danglingObject);
-
-            ObjectInstance classToMock = ObjectInstanceFactory
-                    .get(danglingObject.getType() + "@" + id.getAndIncrement());
-            DataNode classLiteralToMock = PrimitiveNodeFactory.createClassLiteralFor(classToMock);
-
-            // A mock object is created calling the Mockito framework and then configured.
-            // At each configuration a new instance is returned
-            // so we need to get the very last one and replace all the uses of the dangling
-            // objects with that mocked one
-
-            MethodInvocation initMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
-                    id.getAndIncrement(), MOCK_SIGNATURE);
-            initMock.setHasGenericReturnType(true);
-            initMock.setStatic(true);
-            initMock.setActualParameterInstances(Arrays.asList(classLiteralToMock));
-            initMock.setReturnValue((DataNode) classToMock);
-
-            // Inject mock creation inside the graphs
-            carvedTestExecutionFlowGraph.enqueueMethodInvocations(initMock);
-
-            carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(initMock);
-            carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(initMock, classLiteralToMock, 0);
-            carvedTestDataDependencyGraph.addDataDependencyOnReturn(initMock, (DataNode) classToMock);
-
-            logger.info("Created mock initializer " + initMock);
-
-            // Configure the mock object
-            List<MethodInvocation> callSet = new ArrayList<MethodInvocation>();
-            // need to use the carved execution here because the methods we care about are
-            // not be in the test yet
-            logger.info("Configure the mock objects");
-
             // We collect all the usages of this dangling object in the carved test.
-
             List<MethodInvocation> callsThatRequireTheDanglingObject = new ArrayList<>(
                     carvedExecution.getDataDependencyGraphContainingTheMethodInvocationUnderTest()
                             .getMethodInvocationsForOwner(danglingObject));
 
             Collections.sort(callsThatRequireTheDanglingObject);
 
-            for (int i = 0; i < callsThatRequireTheDanglingObject.size(); i++) {
+            logger.info("Found dangling object " + danglingObject + " directly invoked "
+                    + callsThatRequireTheDanglingObject.size() + " times");
 
-                MethodInvocation dependentCall = callsThatRequireTheDanglingObject.get(i);
+            if (JimpleUtils.isArray(danglingObject.getType())) {
+                // Instead of mocking the array we need to create one with the expected size and
+                // filled with the content in the expected place
+                logger.info("Mock array " + danglingObject);
 
-                logger.info("Configure mock for calling " + dependentCall);
+                // Look for the length operation (TODO guess the size of the array taking the
+                // max index otherwise)
+                MethodInvocation newArrayOperation = null;
+                //
+                List<MethodInvocation> storeOperations = new ArrayList<>();
 
-                // if return value is non-primitive (ie, an ObjectInstance), we may want to use
-                // a previously defined mock here (or at least try)
-                // relatedly, handle java.lang.String objects as below (can strings appear as
-                // dangling objects???)
-                DataNode returnValue = null;
+                int arraySize = -1;
+                int maxStoreIndex = 0;
 
-                try {
-                    returnValue = carvedExecution.getDataDependencyGraphContainingTheMethodInvocationUnderTest()
-                            .getReturnValue(dependentCall).get();
-                } catch (ABCException | NoSuchElementException e) {
-                    continue;
+                for (MethodInvocation callOnArray : callsThatRequireTheDanglingObject) {
+                    if (JimpleUtils.getMethodName(callOnArray.getMethodSignature()).equals("length")) {
+                        arraySize = Integer.parseInt(((PrimitiveValue) callOnArray.getReturnValue()).toString());
+                    }
+
+                    if (JimpleUtils.getMethodName(callOnArray.getMethodSignature()).equals("get")) {
+                        int storedPosition = Integer.parseInt(
+                                ((PrimitiveValue) callOnArray.getActualParameterInstances().get(0)).toString());
+                        maxStoreIndex = (maxStoreIndex > storedPosition) ? maxStoreIndex : storedPosition;
+                    }
+                }
+                arraySize = (arraySize != -1) ? arraySize : maxStoreIndex;
+                DataNode arraySizeParameter = PrimitiveNodeFactory.get("int", "" + arraySize);
+
+                // Create the newArrayOperation and make it return the danglingObject
+                String arrayConstructorSignature = "<" + danglingObject.getType() + ": void <init>(int)>";
+                MethodInvocation initArray = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
+                        id.getAndIncrement(), arrayConstructorSignature);
+                initArray.setConstructor(true);
+                initArray.setStatic(false);
+                initArray.setActualParameterInstances(Arrays.asList(arraySizeParameter));
+                initArray.setOwner(danglingObject);
+
+                // Inject the created call inside the graphs
+                carvedTestExecutionFlowGraph.enqueueMethodInvocations(initArray);
+                // Fix the data deps
+                carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(initArray);
+                carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(initArray, arraySizeParameter, 0);
+
+                // At this point we can attempt to generate the calls that store whatever
+                // objects in the expected position
+
+                for (MethodInvocation callOnArray : callsThatRequireTheDanglingObject) {
+                    if (JimpleUtils.getMethodName(callOnArray.getMethodSignature()).equals("length")) {
+                        arraySize = Integer.parseInt(((PrimitiveValue) callOnArray.getReturnValue()).toString());
+                    }
+
+                    if (JimpleUtils.getMethodName(callOnArray.getMethodSignature()).equals("get")) {
+                        DataNode positionToFill = callOnArray.getActualParameterInstances().get(0);
+                        DataNode objectToStore = callOnArray.getReturnValue();
+
+                        // Create the newArrayOperation and make it return the danglingObject
+                        String arrayStoreSignature = "<" + danglingObject.getType() + ": void store(int,"
+                                + danglingObject.getType().toString().replaceFirst("\\[\\]", "") + ")>";
+
+                        MethodInvocation storeToArray = new MethodInvocation(
+                                MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(),
+                                arrayStoreSignature);
+                        storeToArray.setConstructor(false);
+                        storeToArray.setStatic(false);
+                        storeToArray.setActualParameterInstances(Arrays.asList(positionToFill, objectToStore));
+                        storeToArray.setOwner(danglingObject);
+
+                        // Inject the created call inside the graphs
+                        carvedTestExecutionFlowGraph.enqueueMethodInvocations(storeToArray);
+                        // Fix the data deps
+                        carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(storeToArray);
+                        carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(storeToArray, positionToFill, 0);
+                        carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(storeToArray, objectToStore, 1);
+                    }
+
                 }
 
-                DataNode doReturnArgument = null;
-                if (returnValue instanceof NullInstance) {
-                    doReturnArgument = DataNodeFactory.get(returnValue.getType(), null);
-                } else if (returnValue instanceof PrimitiveValue) {
-                    doReturnArgument = DataNodeFactory.get(returnValue.getType(),
-                            ((PrimitiveValue) returnValue).getStringValue());
+            } else {
+
+                ObjectInstance instanceToMock = null;
+
+                if (callsThatRequireTheDanglingObject.size() > 0) {
+                    instanceToMock = ObjectInstanceFactory.get(danglingObject.getType() + "@" + id.getAndIncrement());
                 } else {
-                    doReturnArgument = DataNodeFactory.get(returnValue.getType(), returnValue.toString());
+                    logger.info("Mock initializer will return the dangling object ");
+                    instanceToMock = danglingObject;
                 }
-                // If return value is a NullInstance we should retun a Null Instance
 
-                ObjectInstance doReturnReturn = ObjectInstanceFactory
-                        .get("org.mockito.stubbing.Stubber@" + id.getAndIncrement());
+                DataNode classLiteralToMock = PrimitiveNodeFactory.createClassLiteralFor(instanceToMock);
 
-                MethodInvocation doReturnMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
-                        id.getAndIncrement(), RETURN_SIGNATURE);
-                doReturnMock.setStatic(true);
-                doReturnMock.setActualParameterInstances(Arrays.asList(doReturnArgument));
-                doReturnMock.setReturnValue((DataNode) doReturnReturn);
+                // A mock object is created calling the Mockito framework and then configured.
+                // At each configuration a new instance is returned
+                // so we need to get the very last one and replace all the uses of the dangling
+                // objects with that mocked one
 
-                carvedTestExecutionFlowGraph.enqueueMethodInvocations(doReturnMock);
+                MethodInvocation initMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
+                        id.getAndIncrement(), MOCK_SIGNATURE);
+                initMock.setHasGenericReturnType(true);
+                initMock.setStatic(true);
+                initMock.setActualParameterInstances(Arrays.asList(classLiteralToMock));
+                initMock.setReturnValue((DataNode) instanceToMock);
 
-                carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(doReturnMock);
-                carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(doReturnMock, doReturnArgument, 0);
-                carvedTestDataDependencyGraph.addDataDependencyOnReturn(doReturnMock, doReturnReturn);
+                // Inject mock creation inside the graphs
+                carvedTestExecutionFlowGraph.enqueueMethodInvocations(initMock);
 
-                logger.info("Adding doReturn " + doReturnMock);
+                carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(initMock);
+                carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(initMock, classLiteralToMock, 0);
+                carvedTestDataDependencyGraph.addDataDependencyOnReturn(initMock, (DataNode) instanceToMock);
 
-                MethodInvocation whenMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
-                        id.getAndIncrement(), WHEN_SIGNATURE);
-                whenMock.setHasGenericReturnType(true);
-                whenMock.setOwner(doReturnReturn);
-                whenMock.setActualParameterInstances(Arrays.asList(classToMock));
+                logger.info("Created mock initializer " + initMock);
 
-                // If this is the last call to mock we need to make it return the dangling
-                // object, not a new instance
-                ObjectInstance whenReturn = null;
-                if (i == callsThatRequireTheDanglingObject.size() - 1) {
-                    logger.info("Link the mock to the dangling object");
-                    whenReturn = danglingObject;
-                } else {
-                    logger.info("Create a temporary mock object");
-                    whenReturn = ObjectInstanceFactory.get(danglingObject.getType() + "@" + id.getAndIncrement());
+                // Configure the mock object
+                List<MethodInvocation> callSet = new ArrayList<MethodInvocation>();
+                // need to use the carved execution here because the methods we care about are
+                // not be in the test yet
+                logger.info("Configure the mock objects");
 
-                }
-                // set the appropriate return value
-                whenMock.setReturnValue(whenReturn);
+                for (int i = 0; i < callsThatRequireTheDanglingObject.size(); i++) {
 
-                carvedTestExecutionFlowGraph.enqueueMethodInvocations(whenMock);
-                carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(whenMock);
+                    MethodInvocation dependentCall = callsThatRequireTheDanglingObject.get(i);
 
-                carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(whenMock, classToMock, 0);
-                carvedTestDataDependencyGraph.addDataDependencyOnOwner(whenMock, doReturnReturn);
-                carvedTestDataDependencyGraph.addDataDependencyOnReturn(whenMock, whenReturn);
+                    logger.info("Configure mock for calling " + dependentCall);
 
-                logger.info("Adding When " + whenMock);
+                    // if return value is non-primitive (ie, an ObjectInstance), we may want to use
+                    // a previously defined mock here (or at least try)
+                    // relatedly, handle java.lang.String objects as below (can strings appear as
+                    // dangling objects???)
+                    DataNode returnValue = null;
 
-                // Now we need to replace the original dangling object with the mocked one
+                    try {
+                        returnValue = carvedExecution.getDataDependencyGraphContainingTheMethodInvocationUnderTest()
+                                .getReturnValue(dependentCall).get();
+                    } catch (ABCException | NoSuchElementException e) {
+                        continue;
+                    }
 
-                // TODO What's this?
+                    DataNode doReturnArgument = null;
+                    if (returnValue instanceof NullInstance) {
+                        doReturnArgument = DataNodeFactory.get(returnValue.getType(), null);
+                    } else if (returnValue instanceof PrimitiveValue) {
+                        doReturnArgument = DataNodeFactory.get(returnValue.getType(),
+                                ((PrimitiveValue) returnValue).getStringValue());
+                    } else {
+                        doReturnArgument = DataNodeFactory.get(returnValue.getType(), returnValue.toString());
+                    }
+                    // If return value is a NullInstance we should retun a Null Instance
+
+                    ObjectInstance doReturnReturn = ObjectInstanceFactory
+                            .get("org.mockito.stubbing.Stubber@" + id.getAndIncrement());
+
+                    MethodInvocation doReturnMock = new MethodInvocation(
+                            MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), RETURN_SIGNATURE);
+                    doReturnMock.setStatic(true);
+                    doReturnMock.setActualParameterInstances(Arrays.asList(doReturnArgument));
+                    doReturnMock.setReturnValue((DataNode) doReturnReturn);
+
+                    carvedTestExecutionFlowGraph.enqueueMethodInvocations(doReturnMock);
+
+                    carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(doReturnMock);
+                    carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(doReturnMock, doReturnArgument, 0);
+                    carvedTestDataDependencyGraph.addDataDependencyOnReturn(doReturnMock, doReturnReturn);
+
+                    logger.info("Adding doReturn " + doReturnMock);
+
+                    MethodInvocation whenMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
+                            id.getAndIncrement(), WHEN_SIGNATURE);
+                    whenMock.setHasGenericReturnType(true);
+                    whenMock.setOwner(doReturnReturn);
+                    whenMock.setActualParameterInstances(Arrays.asList(instanceToMock));
+
+                    // If this is the last call to mock we need to make it return the dangling
+                    // object, not a new instance
+                    ObjectInstance whenReturn = null;
+                    if (i == callsThatRequireTheDanglingObject.size() - 1) {
+                        logger.info("Link the mock to the dangling object");
+                        whenReturn = danglingObject;
+                    } else {
+                        logger.info("Create a temporary mock object");
+                        whenReturn = ObjectInstanceFactory.get(danglingObject.getType() + "@" + id.getAndIncrement());
+                    }
+                    // set the appropriate return value
+                    whenMock.setReturnValue(whenReturn);
+
+                    carvedTestExecutionFlowGraph.enqueueMethodInvocations(whenMock);
+                    carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(whenMock);
+
+                    carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(whenMock, instanceToMock, 0);
+                    carvedTestDataDependencyGraph.addDataDependencyOnOwner(whenMock, doReturnReturn);
+                    carvedTestDataDependencyGraph.addDataDependencyOnReturn(whenMock, whenReturn);
+
+                    logger.info("Adding When " + whenMock);
+
+                    // Now we need to replace the original dangling object with the mocked one
+
+                    // TODO What's this?
 //                MethodInvocation dependentCallCopy = dependentCall.clone();
 //
 //                dependentCallCopy.setInvocationCount(id.getAndIncrement());
@@ -200,21 +283,21 @@ public class MockGenerator {
 
 //                logger.info("not sure why we add " + dependentCallCopy );
 
-                // handle calls to mock
-                callSet.add(doReturnMock);
-                callSet.add(whenMock);
+                    // handle calls to mock
+                    callSet.add(doReturnMock);
+                    callSet.add(whenMock);
 //                callSet.add(dependentCallCopy);
-            }
+                }
 
-            // At this point we configured the mock objects for each call and we have many
-            // object instances that in reality correspond to the same one. The last call to
-            // the mock returns our
-            // dangling object
+                // At this point we configured the mock objects for each call and we have many
+                // object instances that in reality correspond to the same one. The last call to
+                // the mock returns our
+                // dangling object
 
-            mockInfoList.add(new MockInfo(initMock, callSet));
+                mockInfoList.add(new MockInfo(initMock, callSet));
 
-            // Since we are reusing the dangling object we do not have to replace its
-            // occurrences anywhere
+                // Since we are reusing the dangling object we do not have to replace its
+                // occurrences anywhere
 
 //            // We need also to get rid of the calls to the dangling object?
 //            for (MethodInvocation dependentCall : carvedTest.getDataDependencyGraph()
@@ -265,7 +348,7 @@ public class MockGenerator {
 //            logger.info("Removing " + danglingObject + " from the data dependency graph of the test");
 //            // TODO If it works, promote to API/Interface
 //            carvedTestDataDependencyGraph.remove(danglingObject);
-
+            }
         }
 
         logger.info("-------------------------");

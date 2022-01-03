@@ -543,7 +543,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
          * doing so it is tricky as arguments used in the constructor must be
          * initialized and set before use so we simply reassign the variable...
          */
-//        System.out.println("JUnitTestCaseWriter.generateConstructorCall() " + methodInvocation);
+        logger.info("JUnitTestCaseWriter.generateConstructorCall() " + methodInvocation);
         ObjectInstance owner = methodInvocation.getOwner();
         String variableName = getVariableFor(owner, methodBody);
         Expression variableInitializingExpr;
