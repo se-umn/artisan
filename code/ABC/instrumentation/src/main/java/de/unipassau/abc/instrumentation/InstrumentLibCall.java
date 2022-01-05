@@ -249,8 +249,8 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
              */
             List<Value> invocationActualParameters = new ArrayList<>();
             for (int i = 0; i < invokeExpr.getArgCount(); i++) {
-                // We need to make sure booleans are treated as such
-                if (invokedMethodFormalParameters[i].equals("boolean")) {
+                // We need to make sure booleans are treated as such. Variables like locals cannot be converted here
+                if (invokedMethodFormalParameters[i].equals("boolean") && (invokeExpr.getArg(i) instanceof IntConstant) ) {
                     IntConstant integerValue = (IntConstant) invokeExpr.getArg(i);
                     Value booleanValue = DIntConstant.v(integerValue.value, BooleanType.v());
                     invocationActualParameters.add(booleanValue);

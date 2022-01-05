@@ -49,6 +49,7 @@ public class MainTest {
 //        System.setProperty("abc.instrument.debug", "true");
 //        System.setProperty("abc.instrument.multithreaded", "true");
         System.setProperty("abc.instrument.array.operations", "true");
+        System.setProperty("abc.output.instrumented.code" , "true");
 
         Main m = new Main();
         m.main(args);

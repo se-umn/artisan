@@ -588,6 +588,16 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
                 SootMethod currentlyInstrumentedMethod = (SootMethod) methodsIterator.next();
 
+//                // DEBUG !
+//                if( ! currentlyInstrumentedSootClass.getName().contains("NewEditActivity")) {
+//                    continue;
+//                }
+//
+//                
+//                if( ! currentlyInstrumentedMethod.getName().contains("onCreateOptionsMenu")) {
+//                    continue;
+//                }
+
                 System.out.println("\n\t METHOD: " + currentlyInstrumentedMethod.getSignature());
 
                 if (skipMethod(currentlyInstrumentedMethod)) {
@@ -1507,20 +1517,27 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
                     // Context
                     onReturnIntoArgs.add(StringConstant.v(currentlyInstrumentedMethodSignature));
                     // Return value Null if VOID
-                    
+
                     // We need to make sure we convert integers to booleans when needed
 
                     Value returnedValue = NullConstant.v();
-                    if( JimpleUtils.getReturnType(currentlyInstrumentedMethodSignature).equals("boolean")) {
+                    // Here we might need to handle the fact that stmt.getOP is a variable not a
+                    // value...
+                    // In that case what do we do? Casting it is not possible... so we need to
+                    // assign it using an if-then-else condition?
+                    // boolean test = (variable == 0) ? false : true;
+
+                    if (JimpleUtils.getReturnType(currentlyInstrumentedMethodSignature).equals("boolean")
+                            && stmt.getOp() instanceof IntConstant) {
                         IntConstant integerValue = (IntConstant) stmt.getOp();
                         DIntConstant booleanValue = DIntConstant.v(integerValue.value, BooleanType.v());
                         returnedValue = booleanValue;
                     } else {
                         returnedValue = stmt.getOp();
                     }
-                    
-                    
-                    onReturnIntoArgs.add(UtilInstrumenter.generateCorrectObject(currentlyInstrumentedMethodBody, returnedValue, instrumentationCode));
+
+                    onReturnIntoArgs.add(UtilInstrumenter.generateCorrectObject(currentlyInstrumentedMethodBody,
+                            returnedValue, instrumentationCode));
                     Stmt onReturnIntoCall = Jimple.v().newInvokeStmt(Jimple.v()
                             .newStaticInvokeExpr(monitorOnAppMethodReturnNormally.makeRef(), onReturnIntoArgs));
                     instrumentationCode.add(onReturnIntoCall);
