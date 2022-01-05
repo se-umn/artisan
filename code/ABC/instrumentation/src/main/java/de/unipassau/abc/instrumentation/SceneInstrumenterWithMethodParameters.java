@@ -23,10 +23,12 @@ import java.util.regex.Pattern;
 import org.graphstream.ui.graphicGraph.stylesheet.parser.StyleSheetParserTokenManager;
 import org.xmlpull.v1.XmlPullParserException;
 
+import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.Pair;
 import dev.navids.soottutorial.visual.Visualizer;
 import edu.emory.mathcs.backport.java.util.Collections;
 import soot.Body;
+import soot.BooleanType;
 import soot.IntType;
 import soot.Local;
 import soot.PatchingChain;
@@ -42,6 +44,7 @@ import soot.Unit;
 import soot.UnitPatchingChain;
 import soot.Value;
 import soot.VoidType;
+import soot.dava.internal.javaRep.DIntConstant;
 import soot.jimple.AbstractStmtSwitch;
 import soot.jimple.AssignStmt;
 import soot.jimple.FieldRef;
@@ -1504,8 +1507,20 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
                     // Context
                     onReturnIntoArgs.add(StringConstant.v(currentlyInstrumentedMethodSignature));
                     // Return value Null if VOID
-                    onReturnIntoArgs.add(UtilInstrumenter.generateCorrectObject(currentlyInstrumentedMethodBody,
-                            stmt.getOp(), instrumentationCode));
+                    
+                    // We need to make sure we convert integers to booleans when needed
+
+                    Value returnedValue = NullConstant.v();
+                    if( JimpleUtils.getReturnType(currentlyInstrumentedMethodSignature).equals("boolean")) {
+                        IntConstant integerValue = (IntConstant) stmt.getOp();
+                        DIntConstant booleanValue = DIntConstant.v(integerValue.value, BooleanType.v());
+                        returnedValue = booleanValue;
+                    } else {
+                        returnedValue = stmt.getOp();
+                    }
+                    
+                    
+                    onReturnIntoArgs.add(UtilInstrumenter.generateCorrectObject(currentlyInstrumentedMethodBody, returnedValue, instrumentationCode));
                     Stmt onReturnIntoCall = Jimple.v().newInvokeStmt(Jimple.v()
                             .newStaticInvokeExpr(monitorOnAppMethodReturnNormally.makeRef(), onReturnIntoArgs));
                     instrumentationCode.add(onReturnIntoCall);

@@ -197,7 +197,8 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
 
         String invokedMethodSignature = invokedMethod.getSignature();
         String[] invokedMethodFormalParameters = JimpleUtils.getParameterList(invokedMethodSignature);
-
+        String invokedMethodReturnType = JimpleUtils.getReturnType(invokedMethodSignature);
+        
         SootClass invokedClass = invokedMethod.getDeclaringClass();
 
         // Skip the methods that belong to app classes
@@ -251,10 +252,7 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
                 // We need to make sure booleans are treated as such
                 if (invokedMethodFormalParameters[i].equals("boolean")) {
                     IntConstant integerValue = (IntConstant) invokeExpr.getArg(i);
-                    System.out.println("DEBUG: Patching boolean parameter");
                     Value booleanValue = DIntConstant.v(integerValue.value, BooleanType.v());
-                    // value.getType() instanceof BooleanType ||
-                    // value.getType().toString().equals("boolean")) {
                     invocationActualParameters.add(booleanValue);
                 } else {
                     invocationActualParameters.add(invokeExpr.getArg(i));
@@ -373,8 +371,15 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
              * We need to replace the original InvokeStmt with a AssignStmt and then return
              * the Local assigned to
              */
-            returnValueFromCallSite = UtilInstrumenter.generateFreshLocal(currentlyInstrumentedMethodBody,
-                    invokedMethod.getReturnType());
+            
+            // We need to make sure that if the method returns a boolean we treat it as such
+            // We need to make sure booleans are treated as such
+            if (invokedMethodReturnType.equals("boolean")) {
+                returnValueFromCallSite = UtilInstrumenter.generateFreshLocal(currentlyInstrumentedMethodBody, BooleanType.v());
+            } else {
+                returnValueFromCallSite = UtilInstrumenter.generateFreshLocal(currentlyInstrumentedMethodBody, invokedMethod.getReturnType());
+            }
+            
             AssignStmt capturingAssignStmt = Jimple.v().newAssignStmt(returnValueFromCallSite, invokeExpr);
             // NOTE WE DO NOT TAG THIS AS TRACING CODE SINCE IT DOES
             // NOT ALTER THE SEMANTIC
@@ -386,8 +391,9 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
         } else if (csStmt instanceof AssignStmt) {
             returnValueFromCallSite = ((AssignStmt) csStmt).getLeftOp();
         }
-
+        
         // We need to wrap the return value to deal with primitives
+        
         monitorOnReturnIntoParameters.add(UtilInstrumenter.generateCorrectObject(currentlyInstrumentedMethodBody,
                 returnValueFromCallSite, instrumentationCodeAfter));
         // Prepare the actual call
