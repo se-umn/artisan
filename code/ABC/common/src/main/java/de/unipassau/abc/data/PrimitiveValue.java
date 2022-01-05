@@ -49,7 +49,12 @@ public class PrimitiveValue implements ValueNode, Cloneable {
     public PrimitiveValue(int id, String type, String stringValue) {
         this.id = id;
         this.type = type;
-        this.stringValue = stringValue;
+        // Ugly patch
+        if (this.type.equals("long") && !stringValue.endsWith("L")) {
+            this.stringValue = stringValue + "L";
+        } else {
+            this.stringValue = stringValue;
+        }
     }
 
     // FOR ESTABLISHING THE EQUALITY OF PRIMITIVE VALUES WE DO NOT USE id !
@@ -102,7 +107,8 @@ public class PrimitiveValue implements ValueNode, Cloneable {
         case "float":
             return FloatConstant.v(Float.parseFloat(stringValue));
         case "long":
-            return LongConstant.v(Long.parseLong(stringValue));
+            // Ugly patch: Ensure that there's no L in the representation of this long value
+            return LongConstant.v(Long.parseLong(stringValue.replaceAll("L", "")));
         case "boolean":
             // For whatever reason, in some cases we got true/false and in
             // others 1/0 !?
