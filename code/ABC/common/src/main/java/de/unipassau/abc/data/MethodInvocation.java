@@ -62,7 +62,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
     // why we need this if we have owner?
 
-    protected boolean staticCall;
+    protected boolean isStatic;
 
     protected boolean hasGenericReturnType;
 
@@ -131,7 +131,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
             cloned.returnValue = returnValue.clone();
         }
 
-        cloned.staticCall = staticCall;
+        cloned.isStatic = isStatic;
         cloned.xmlFileForOwner = xmlFileForOwner;
         cloned.xmlFileForReturn = xmlFileForReturn;
 
@@ -232,11 +232,11 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
     }
 
     public void setStatic(boolean staticCall) {
-        this.staticCall = staticCall;
+        this.isStatic = staticCall;
     }
 
     public boolean isStatic() {
-        return this.staticCall;
+        return this.isStatic;
     }
 
     // TODO not sure this will cause no harm...
