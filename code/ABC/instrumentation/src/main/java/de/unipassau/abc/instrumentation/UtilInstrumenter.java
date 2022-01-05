@@ -29,6 +29,7 @@ import soot.SootMethod;
 import soot.Type;
 import soot.Unit;
 import soot.Value;
+import soot.dava.internal.javaRep.DIntConstant;
 import soot.javaToJimple.LocalGenerator;
 import soot.jimple.ArrayRef;
 import soot.jimple.IdentityStmt;
@@ -262,9 +263,13 @@ public class UtilInstrumenter {
 	public static Value generateCorrectObject(Body body, Value value, List<Unit> generated) {
 
 		if (value.getType() instanceof PrimType || JimpleUtils.isPrimitive(value.getType())) {
+		    
+		    System.out.println("UtilInstrumenter.generateCorrectObject() " + (value instanceof DIntConstant));
+		    
 			// in case of a primitive type, we use boxing (I know it is not
 			// nice, but it works...) in order to use the Object type
-			if (value.getType() instanceof BooleanType || value.getType().toString().equals("boolean")) {
+			if (value.getType() instanceof BooleanType || value.getType().toString().equals("boolean") || (
+			        value instanceof DIntConstant && ((DIntConstant ) value).type.equals(BooleanType.v()))) {
 				Local booleanLocal = generateFreshLocal(body, RefType.v("java.lang.Boolean"));
 
 				SootClass sootClass = Scene.v().getSootClass("java.lang.Boolean");

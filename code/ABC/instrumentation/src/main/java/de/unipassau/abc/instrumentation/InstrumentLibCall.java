@@ -6,6 +6,7 @@ import java.util.List;
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.Pair;
 import soot.Body;
+import soot.BooleanType;
 import soot.Local;
 import soot.PatchingChain;
 import soot.RefType;
@@ -18,6 +19,7 @@ import soot.Type;
 import soot.Unit;
 import soot.Value;
 import soot.VoidType;
+import soot.dava.internal.javaRep.DIntConstant;
 import soot.jimple.AbstractStmtSwitch;
 import soot.jimple.AssignStmt;
 import soot.jimple.EnterMonitorStmt;
@@ -194,6 +196,7 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
         SootMethod invokedMethod = invokeExpr.getMethod();
 
         String invokedMethodSignature = invokedMethod.getSignature();
+        String[] invokedMethodFormalParameters = JimpleUtils.getParameterList(invokedMethodSignature);
 
         SootClass invokedClass = invokedMethod.getDeclaringClass();
 
@@ -222,7 +225,7 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
                 csOwner = StringConstant.v("");
             }
         }
-        
+
         String invokedMethodSignatureOrPatchedMethodSignature = invokedMethodSignature;
 
         if (invokedMethodSignature.equals("<android.app.Activity: android.view.View findViewById(int)>")) {
@@ -245,7 +248,17 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
              */
             List<Value> invocationActualParameters = new ArrayList<>();
             for (int i = 0; i < invokeExpr.getArgCount(); i++) {
-                invocationActualParameters.add(invokeExpr.getArg(i));
+                // We need to make sure booleans are treated as such
+                if (invokedMethodFormalParameters[i].equals("boolean")) {
+                    IntConstant integerValue = (IntConstant) invokeExpr.getArg(i);
+                    System.out.println("DEBUG: Patching boolean parameter");
+                    Value booleanValue = DIntConstant.v(integerValue.value, BooleanType.v());
+                    // value.getType() instanceof BooleanType ||
+                    // value.getType().toString().equals("boolean")) {
+                    invocationActualParameters.add(booleanValue);
+                } else {
+                    invocationActualParameters.add(invokeExpr.getArg(i));
+                }
             }
 
             Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter.generateParameterArray(
@@ -426,44 +439,46 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
                 }
 
             } catch (Exception e) {
-                System.out.println("InstrumentLibCall.patchFindViewById() CANNOT FIND " + getResourcesMethod + " METHOD ");
+                System.out.println(
+                        "InstrumentLibCall.patchFindViewById() CANNOT FIND " + getResourcesMethod + " METHOD ");
                 e.printStackTrace();
             }
         }
 
         List<Value> invocationActualParameters = new ArrayList<>();
-        
+
         String actualMethodSignature = null;
-        
+
         // TODO First check for the method and only after it apply the patch !
         if (getResourcesMethod == null) {
             System.out.println("InstrumentLibCall.patchFindViewById() CANNOT FIND THE METHOD ! GIVING UP?!");
-            
-            // We just instrument this method normally. #FIX #241 we must return the original signature of the invoked method, not its container!
-            actualMethodSignature =  invokedMethod.getSignature();
-            
+
+            // We just instrument this method normally. #FIX #241 we must return the
+            // original signature of the invoked method, not its container!
+            actualMethodSignature = invokedMethod.getSignature();
+
             monitorOnLibCallParameters.add(csOwner);
 
             // Patched methodSignature
             monitorOnLibCallParameters.add(StringConstant.v(invokedMethod.getSignature()));
 
-            // String Context FIX #241 the context of the invoked method is the currentlyInstrumentedMethod
+            // String Context FIX #241 the context of the invoked method is the
+            // currentlyInstrumentedMethod
             monitorOnLibCallParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
 
             /*
              * Object[] methodParameters - We need to wrap this into an array of objects
              */
-            
+
             for (int i = 0; i < invokeExpr.getArgCount(); i++) {
                 invocationActualParameters.add(invokeExpr.getArg(i));
             }
-            
+
             // Return the original patch
-            
 
         } else {
-            
-            actualMethodSignature = "<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>"; 
+
+            actualMethodSignature = "<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>";
             monitorOnLibCallParameters.add(csOwner);
 
             // Patched methodSignature
@@ -527,12 +542,13 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
 
             instrumentationCodeBefore.add(initializeResourceName);
 
-            // Add finally the reference to the R class for this application and the name of the resource if any
+            // Add finally the reference to the R class for this application and the name of
+            // the resource if any
             // TODO Still I am not sure how to handle the case where there's no name...
             invocationActualParameters.add(StringConstant.v(rIdClass.getName()));
             invocationActualParameters.add(resourceName);
         }
-        
+
         // Finally whatever parameters we have we use
 
         Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter.generateParameterArray(
@@ -550,7 +566,7 @@ public class InstrumentLibCall extends AbstractStmtSwitch {
                 Jimple.v().newStaticInvokeExpr(monitorOnLibMethodCall.makeRef(), monitorOnLibCallParameters));
         // Append the call to the instrumentation code
         instrumentationCodeBefore.add(callTracerMethodStart);
-        
+
         return actualMethodSignature;
 
     }
