@@ -156,10 +156,10 @@ public class Main {
                 totalTraces = totalTraces + 1;
 
                 TraceParser parser = new TraceParserImpl();
-                ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
+                ParsedTrace parsedTrace = parser.parseTrace(traceFile);
                 //
                 ParsedTraceDecorator staticDecorator = new StaticParsedTraceDecorator();
-                ParsedTrace parsedTrace = staticDecorator.decorate(_parsedTrace);
+                parsedTrace = staticDecorator.decorate(parsedTrace);
                 //
                 ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
                 parsedTrace = decorator.decorate(parsedTrace);
@@ -181,8 +181,14 @@ public class Main {
 
                 int selectedCarvableTargets = targetMethodsInvocations.size();
 
-                logger.info("Selected " + selectedCarvableTargets + " targets from trace file " + traceFile
-                        + " using strategy " + cli.getSelectionStrategy());
+                if (selectedCarvableTargets == 0) {
+                    logger.warn("There are no targets carvable from trace file. ");
+                    continue;
+                } else {
+                    logger.info("Selected " + selectedCarvableTargets + " targets from trace file " + traceFile
+                            + " using strategy " + cli.getSelectionStrategy());
+                }
+
                 totalCarvableTargets = totalCarvableTargets + selectedCarvableTargets;
 
                 List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
