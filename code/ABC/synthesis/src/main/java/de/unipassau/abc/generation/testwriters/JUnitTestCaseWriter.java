@@ -900,10 +900,11 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
      */
     private String getParameterFor(DataNode dataNode, BlockStmt methodBody) {
         if (dataNode instanceof PrimitiveValue) {
-            logger.info("Get Parameter for data node " + dataNode.getType());
+            logger.info("Get Parameter for data node " + dataNode + " of type " + dataNode.getType());
             try {
                 if (Class.class.getName().equals(dataNode.getType())) {
-                    return ((PrimitiveValue) dataNode).getStringValue();
+                    // Try to represent inner classes with dot notation
+                    return ((PrimitiveValue) dataNode).getStringValue().replaceAll("\\$", ".");
                 } else {
                     /*
                      * We use toString() instead of getStringValue() to wrap strings which have two
