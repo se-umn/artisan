@@ -147,13 +147,21 @@ public class MockGenerator {
                         carvedTestExecutionFlowGraph.enqueueMethodInvocations(storeToArray);
                         // Fix the data deps
                         carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(storeToArray);
-                        carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(storeToArray, positionToFill, 0);
-                        carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(storeToArray, objectToStore, 1);
+                        carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(storeToArray, positionToFill,
+                                0);
+                        carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(storeToArray, objectToStore,
+                                1);
                     }
 
                 }
 
             } else {
+                /*
+                 * Original code for mocking. It should produce code like this:
+                 *
+                 * Foo foo1 = Mockito.mock(Foo.class); Foo foo2 = foo1.doReturn("whatever"); Foo
+                 * foo3 = when(foo2) foo3.callBar();
+                 */
 
                 ObjectInstance instanceToMock = null;
 
@@ -221,29 +229,29 @@ public class MockGenerator {
                     } else {
                         doReturnArgument = DataNodeFactory.get(returnValue.getType(), returnValue.toString());
                     }
-                    // If return value is a NullInstance we should retun a Null Instance
+                    // If return value is a NullInstance we should return a Null Instance
 
-                    ObjectInstance doReturnReturn = ObjectInstanceFactory
+                    ObjectInstance returnStubber = ObjectInstanceFactory
                             .get("org.mockito.stubbing.Stubber@" + id.getAndIncrement());
 
                     MethodInvocation doReturnMock = new MethodInvocation(
                             MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, id.getAndIncrement(), RETURN_SIGNATURE);
                     doReturnMock.setStatic(true);
                     doReturnMock.setActualParameterInstances(Arrays.asList(doReturnArgument));
-                    doReturnMock.setReturnValue((DataNode) doReturnReturn);
+                    doReturnMock.setReturnValue((DataNode) returnStubber);
 
                     carvedTestExecutionFlowGraph.enqueueMethodInvocations(doReturnMock);
 
                     carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(doReturnMock);
                     carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(doReturnMock, doReturnArgument, 0);
-                    carvedTestDataDependencyGraph.addDataDependencyOnReturn(doReturnMock, doReturnReturn);
+                    carvedTestDataDependencyGraph.addDataDependencyOnReturn(doReturnMock, returnStubber);
 
                     logger.info("Adding doReturn " + doReturnMock);
 
                     MethodInvocation whenMock = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
                             id.getAndIncrement(), WHEN_SIGNATURE);
                     whenMock.setHasGenericReturnType(true);
-                    whenMock.setOwner(doReturnReturn);
+                    whenMock.setOwner(returnStubber);
                     whenMock.setActualParameterInstances(Arrays.asList(instanceToMock));
 
                     // If this is the last call to mock we need to make it return the dangling
@@ -263,30 +271,40 @@ public class MockGenerator {
                     carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(whenMock);
 
                     carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(whenMock, instanceToMock, 0);
-                    carvedTestDataDependencyGraph.addDataDependencyOnOwner(whenMock, doReturnReturn);
+                    carvedTestDataDependencyGraph.addDataDependencyOnOwner(whenMock, returnStubber);
                     carvedTestDataDependencyGraph.addDataDependencyOnReturn(whenMock, whenReturn);
 
                     logger.info("Adding When " + whenMock);
 
-                    // Now we need to replace the original dangling object with the mocked one
+                    // Now we need to invoke the original call on the mocked object so to configure
+                    // it
 
                     // TODO What's this?
-//                MethodInvocation dependentCallCopy = dependentCall.clone();
+                    MethodInvocation dependentCallCopy = dependentCall.clone();
 //
-//                dependentCallCopy.setInvocationCount(id.getAndIncrement());
-//                dependentCallCopy.setOwner(whenReturn);
-//                dependentCallCopy.setStatic(false);
+                    dependentCallCopy.setInvocationCount(id.getAndIncrement());
+                    dependentCallCopy.setOwner(whenReturn);
+                    // Why we need it? should this be already part of dependentCall.clone()
+                    dependentCallCopy.setStatic(false);
 
-//                carvedTestExecutionFlowGraph.enqueueMethodInvocations(dependentCallCopy);                
-//                carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(dependentCallCopy);
-//                carvedTestDataDependencyGraph.addDataDependencyOnOwner(dependentCallCopy, whenReturn);
+                    // TODO How do we handle parameters of this call? We keep the same as the
+                    // original one but shouldn't we list them here as part of the ddg?
+                    carvedTestExecutionFlowGraph.enqueueMethodInvocations(dependentCallCopy);
+                    carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(dependentCallCopy);
+                    carvedTestDataDependencyGraph.addDataDependencyOnOwner(dependentCallCopy, whenReturn);
+                    // TODO
+                    // Propagate any paramater to this call... The issue here is that we should use parameter matchers !
+                    for( int j = 0; j < dependentCallCopy.getActualParameterInstances().size(); j++) {
+                        DataNode parameter = dependentCallCopy.getActualParameterInstances().get(j);
+                        carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(dependentCallCopy, parameter, j);
+                    }
 
-//                logger.info("not sure why we add " + dependentCallCopy );
+                    logger.info("Adding Mocked Call " + dependentCallCopy);
 
                     // handle calls to mock
                     callSet.add(doReturnMock);
                     callSet.add(whenMock);
-//                callSet.add(dependentCallCopy);
+                    callSet.add(dependentCallCopy);
                 }
 
                 // At this point we configured the mock objects for each call and we have many

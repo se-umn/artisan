@@ -25,35 +25,41 @@ public class TypeUtils {
             return ((PrimitiveValue) dataNode).getType();
         } else if (dataNode instanceof ObjectInstance) {
             String actualType = ((ObjectInstance) dataNode).getType();
-
-            // TODO Patched
+            
+            String replaceType = null; 
+            
             if (actualType.equals("java.util.Arrays$ArrayList")) {
-                System.out.println("TypeUtils.getActualTypeFor() PATCHED java.util.Arrays$ArrayList");
-                actualType = "java.util.List";
+                replaceType = "java.util.List";
             } else if (actualType.equals("java.util.TreeMap$KeySet")) {
-                System.out.println("TypeUtils.getActualTypeFor() PATCHED java.util.TreeMap$KeySet");
-                actualType = "java.util.Set";
+                replaceType = "java.util.Set";
+            } else if (actualType.equals("java.util.RegularEnumSet") || actualType.equals("java.util.JumboEnumSet")) {
+                replaceType = "java.util.EnumSet";
             }
 
             if (actualType.contains("$")) {
                 throw new NotImplementedException("We cannot handle private inner classes, like " + actualType);
             }
 //			
-            //
-            // If that's an inner class we might not be able to instantiate
-            // it...
-//			if (formalType.contains("$")) {
-//				formalType = formalType.replaceAll("\\$", ".");
-//			}
-            //
-            // private static class ArrayList<E> extends AbstractList<E>
-            /*
-             * Inner classes are identified by $ replace this to but not always those are
-             * visible (here, tho, we do not have such information)
-             */
-//			return formalType;
-            // TODO I am not 100% sure this might be a good strategy...
-            return actualType;
+            if( replaceType != null ) {
+                System.out.println("TypeUtils.getActualTypeFor() PATCHED " + actualType + " with " + replaceType);
+                return replaceType;
+            } else {
+                //
+                // If that's an inner class we might not be able to instantiate
+                // it...
+    //			if (formalType.contains("$")) {
+    //				formalType = formalType.replaceAll("\\$", ".");
+    //			}
+                //
+                // private static class ArrayList<E> extends AbstractList<E>
+                /*
+                 * Inner classes are identified by $ replace this to but not always those are
+                 * visible (here, tho, we do not have such information)
+                 */
+    //			return formalType;
+                // TODO I am not 100% sure this might be a good strategy...
+                return actualType;
+            }
         } else {
             // What if there's null ?!
             throw new RuntimeException("Cannot find type for " + dataNode);
