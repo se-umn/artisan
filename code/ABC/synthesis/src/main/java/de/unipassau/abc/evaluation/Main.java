@@ -143,7 +143,7 @@ public class Main {
         int totalTraces = 0;
         int totalParsedTraces = 0;
         int totalCarvableTargets = 0;
-        int totalCarvedTests = 0;
+        int totalCarvedExecutions = 0;
         int totalGeneratedTests = 0;
 
         for (File traceFile : cli.getTraceFiles()) {
@@ -217,7 +217,7 @@ public class Main {
 
                 logger.info("Carved targets " + carvedTargets + " / " + selectedCarvableTargets);
 
-                totalCarvedTests = totalCarvedTests + carvedTargets;
+                totalCarvedExecutions = totalCarvedExecutions + carvedTargets;
 
                 // Put each test in a separate test case
                 TestCaseOrganizer organizer = TestCaseOrganizers.byEachTestAlone(testClassNameBasedOnCarvedTest);
@@ -297,7 +297,7 @@ public class Main {
         stats.append("Input traces: ").append(totalTraces).append("\n");
         stats.append("Parsed traces: ").append(totalParsedTraces).append("\n");
         stats.append("Carvable Targets: ").append(totalCarvableTargets).append("\n");
-        stats.append("Carved Tests: ").append(totalCarvedTests).append("\n");
+        stats.append("Carved Executions: ").append(totalCarvedExecutions).append("\n");
         stats.append("Generated Tests: ").append(totalGeneratedTests).append("\n");
         System.out.println(stats);
     }
