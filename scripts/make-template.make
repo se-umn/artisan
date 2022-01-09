@@ -42,17 +42,17 @@ $$(shell IS_RUNNING=$$$$(export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) list-running-e
 if [ "$$$$IS_RUNNING" == "0" ]; then \
         (>&2 echo "No need to remove anything from emulator. No emulator running!"); \
 elif [ "$$$$IS_RUNNING" == "1" ]; then \
-        APP_INSTALLED=$$$$($$(ADB) shell pm list packages | grep -c "abc.basiccalculator$$$$"); \
-        INSTRUMENTATION_TESTS_INSTALLED=$$$$($$(ADB) shell pm list packages | grep -c "abc.basiccalculator.test$$$$"); \
+        APP_INSTALLED=$$$$($$(ADB) shell pm list packages | grep -c "${make_app_debug_package}$$$$"); \
+        INSTRUMENTATION_TESTS_INSTALLED=$$$$($$(ADB) shell pm list packages | grep -c "${make_app_debug_package}.test$$$$"); \
         if [ "$$$$APP_INSTALLED" == "1" ]; then \
 				(>&2 echo "Removing app"); \
-                $$(ADB) uninstall abc.basiccalculator > /dev/null; \
+                $$(ADB) uninstall ${make_app_debug_package} > /dev/null; \
         else \
                 (>&2 echo "App not installed"); \
         fi; \
         if [ "$$$$INSTRUMENTATION_TESTS_INSTALLED" == "1" ]; then \
 				(>&2 echo "Removing test app"); \
-                $$(ADB) uninstall abc.basiccalculator.test > /dev/null; \
+                $$(ADB) uninstall ${make_app_debug_package}.test > /dev/null; \
         else \
                 (>&2 echo "Test app not installed"); \
         fi; \
@@ -81,7 +81,7 @@ $$(shell if [ "$$(TRACING_APKS_INSTALLED)" == "0" ]; then \
 	export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) install-apk app-androidTest.apk; \
 else \
 	(>&2 echo "Resetting the data of the apk"); \
-	$$(ADB) shell pm clear abc.basiccalculator > /dev/null; \
+	$$(ADB) shell pm clear ${make_app_debug_package} > /dev/null; \
 fi)
 $$(eval TRACING_APKS_INSTALLED := 1)
 endef
@@ -104,7 +104,7 @@ $$(shell if [ "$$(COVERAGE_APKS_INSTALLED)" == "0" ]; then \
 	export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) install-apk app-androidTest-for-coverage.apk; \
 else \
 	(>&2 echo "Resetting the data of the coverage apk"); \
-	$$(ADB) shell pm clear abc.basiccalculator > /dev/null; \
+	$$(ADB) shell pm clear ${make_app_debug_package} > /dev/null; \
 fi)
 $$(eval COVERAGE_APKS_INSTALLED := 1)
 endef
