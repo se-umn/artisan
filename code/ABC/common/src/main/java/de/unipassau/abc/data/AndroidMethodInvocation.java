@@ -35,7 +35,7 @@ public class AndroidMethodInvocation extends MethodInvocation {
 		setRaisedException(methodInvocation.getRaisedException());
 		setNecessary(methodInvocation.isNecessary());
 		setAbstract(methodInvocation.isAbstract());
-
+		
 		// android.util.Log is static, so it does not have any owner, but it is also a framework method
 		if (owner != null) {
 			isAndroidFragmentCallback = owner.isAndroidFragment() && JimpleUtils.isFragmentLifecycle(methodSignature);

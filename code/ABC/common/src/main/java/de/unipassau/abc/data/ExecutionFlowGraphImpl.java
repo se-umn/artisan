@@ -56,7 +56,7 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
         graph = new DirectedSparseMultigraph<>();
     }
 
-    private MethodInvocation retrieveActualVertex(MethodInvocation methodInvocation) {
+    public MethodInvocation retrieveActualVertex(MethodInvocation methodInvocation) {
         MethodInvocation actualMethodInvocation = graph.getVertices().stream().filter(mi -> mi.equals(methodInvocation))
                 .findFirst().get();
 

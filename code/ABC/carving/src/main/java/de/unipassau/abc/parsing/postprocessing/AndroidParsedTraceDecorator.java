@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.apache.commons.collections.map.HashedMap;
 import org.slf4j.Logger;
@@ -42,10 +43,10 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
 
         // Include additional metadata about Android invocations
         ParsedTrace decorated = decorateWithAndroidMetadata(parsedTrace);
+        // Include aliasing for tainted Intents - This changed the graph so we need to do it before static deps are added
+        decorated = decorateWithAliasForIntents(parsedTrace);
         // Include implicit data dependencies that are Android-specific
         decorated = decorateWithIntentDataDependencies(parsedTrace);
-        // Include aliasing for tainted Intents
-        decorated = decorateWithAliasForIntents(parsedTrace);
         // Remove known noisy dependencies
         decorated = decorateByRemovingKnownNoisyDependencies(parsedTrace);
         return decorated;
@@ -150,6 +151,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
         // For each intent look for the corresponding one...
         // TODO This applies only to activity right?
         parsedTrace.getParsedTrace().forEach((threadName, graphs) -> {
+
             ExecutionFlowGraph executionFlowGraph = graphs.getFirst();
             CallGraph callGraph = graphs.getThird();
             DataDependencyGraph dataDependencyGraph = graphs.getSecond();
@@ -200,19 +202,76 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
             // Finally match sink and sources
             for (Entry<String, ObjectInstance> source : sourceIntents.entrySet()) {
                 String taint = source.getKey();
+                ObjectInstance sourceIntent = source.getValue();
+
                 if (sinkIntents.containsKey(taint)) {
-                    logger.info("Add aliasing for taint " + taint);
+                    // Better to use alias or to replace the values? - I would replace the value of
+                    // the intents everywhere, including method invocations
+                    // Find all the method calls that take sin
+                    // dataDependencyGraph.addAliasingDataDependency(source.getValue(),
+                    // sinkIntents.get(taint));
+                    logger.info("Replacing sink taint with source taing for TAINT: " + taint);
+                    final ObjectInstance sinkIntent = sinkIntents.get(taint);
 
-                    dataDependencyGraph.addAliasingDataDependency(source.getValue(), sinkIntents.get(taint));
+                    // Parameters
+                    // Find all the method invocations that gets sink intent as parameter and
+                    // replace it. This usually is empty since the sink intent is the one returned
+                    // by the getIntent() call
+                    for (MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations()) {
+                        for (int i = 0; i < mi.getActualParameterInstances().size(); i++) {
+                            DataNode param = mi.getActualParameterInstances().get(i);
+                            if (sinkIntent.equals(param)) {
+                                logger.info("Replacing " + sinkIntent + " with " + sourceIntent + " in " + mi
+                                        + " at position " + i);
+                                dataDependencyGraph.replaceDataDependencyOnActualParameter(mi, sourceIntent, i);
+                                mi.getActualParameterInstances().set(i, sourceIntent);
 
-                    // Make sure we replace the sink intents for the activities that require them
+                            }
+                        }
+                    }
+
+                    // Ownership
+                    // Replace the invocations that have as owner sinkIntent with sourceIntent
+                    // instead
+                    for (MethodInvocation sinkIntentMi : dataDependencyGraph.getMethodInvocationsForOwner(sinkIntent)) {
+
+                        if (sinkIntentMi.isConstructor()) {
+                            logger.info("Delete the original constructor " + sinkIntentMi);
+                            dataDependencyGraph.remove(sinkIntentMi);
+                        } else {
+
+                            logger.info("Updating the ownership of " + sinkIntentMi + " to " + sourceIntent);
+                            sinkIntentMi.setOwner(sourceIntent);
+                            dataDependencyGraph.replaceDataDependencyOnOwner(sinkIntentMi, sourceIntent);
+                        }
+
+                    }
+
+                    // Returns
+                    for (MethodInvocation sinkIntentMi : dataDependencyGraph
+                            .getMethodInvocationsWhichReturn(sinkIntent)) {
+                        logger.info("Updating the return of " + sinkIntentMi + " to " + sourceIntent);
+                        sinkIntentMi.setReturnValue(sourceIntent);
+                        dataDependencyGraph.replaceDataDependencyOnReturn(sinkIntentMi, sourceIntent);
+
+                    }
+
+                    // Make sure we replace the sink intents also inside the activities that require
+                    // them
                     for (ObjectInstance activity : androidActivities) {
                         if (activity.requiresIntent() && activity.getIntent().equals(sinkIntents.get(taint))) {
-                            logger.info("Replace sink intent with source intent for taint " + taint);
+                            logger.info("Replace sink intent " + sinkIntents.get(taint) + " with source intent "
+                                    + source.getValue() + " for taint " + taint);
                             activity.setIntent(source.getValue());
                         }
                     }
 
+                    logger.info("Remove " + sinkIntent + " from the datagraph");
+                    // Finally remove the sink data node from the datagraph
+                    dataDependencyGraph.remove(sinkIntent);
+
+                    // DEBUG: List all the methods on the source
+                    dataDependencyGraph.getMethodInvocationsForOwner(sourceIntent).forEach(System.out::println);
                 }
             }
 
@@ -258,9 +317,11 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                                 DataNode intent = dataDependencyGraph.getReturnValue(subsumed_mi).get();
                                 // Get the caller of this method and add the dependency to it
                                 // We need the method that is directly calling getIntent
-                                MethodInvocation methodThatRequireTheDependencyOnTheIntent = callGraph.getCallerOf(subsumed_mi);
+                                MethodInvocation methodThatRequireTheDependencyOnTheIntent = callGraph
+                                        .getCallerOf(subsumed_mi);
                                 // Create the dependency to the intent
-                                dataDependencyGraph.addImplicitDataDependency(methodThatRequireTheDependencyOnTheIntent, intent);
+                                dataDependencyGraph.addImplicitDataDependency(methodThatRequireTheDependencyOnTheIntent,
+                                        intent);
 
                                 activity.setRequiresIntent(true);
                                 activity.setIntent((ObjectInstance) intent);
@@ -268,7 +329,8 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                                 // TODO Patch: Make sure we automatically declares that also the constructor
                                 // requires the same intent!
 
-                                MethodInvocation activityConstructor = dataDependencyGraph.getInitMethodInvocationFor(activity);
+                                MethodInvocation activityConstructor = dataDependencyGraph
+                                        .getInitMethodInvocationFor(activity);
                                 dataDependencyGraph.addImplicitDataDependency(activityConstructor, intent);
                             } catch (ABCException e) {
                                 // TODO Auto-generated catch block

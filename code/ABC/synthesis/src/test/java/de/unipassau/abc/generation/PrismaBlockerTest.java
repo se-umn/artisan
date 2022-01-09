@@ -124,6 +124,18 @@ public class PrismaBlockerTest {
 
     //
     @Test
+    public void testDoubleIntent() throws FileNotFoundException, IOException, ABCException {
+        file = "com.prismaqf.callblocker.EditFiltersTest#ChangeActionTest/Trace-1641539406706.txt";
+
+        String methodSignature = "<com.prismaqf.callblocker.NewEditFilter: void enableWidgets(boolean,boolean)>";
+        int invocationCount = 312;
+        int invocationTraceId = 621;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    //
+    @Test
     public void testNPEOnActivityCreateForMockedIntent() throws FileNotFoundException, IOException, ABCException {
         // This issue is solved by preventing the carving of Activity Constructors
         // The explanation is: it does not make sense to carve them, the real reason is
@@ -145,8 +157,27 @@ public class PrismaBlockerTest {
         }
     }
 
-    // How to test menus
+    // TODO How to test menus
     // https://stackoverflow.com/questions/21856053/how-to-test-menu-in-android-with-robolectric
+    // MainActivity activity =
+    // Robolectric.buildActivity(MainActivity.class).create().visible().get();
+    // shadowOf(activity).getOptionsMenu()
+    // shadowOf(activity).getOptionsMenu().findMenuItem(...)
+
+    // onCreateOptionsMenu
+    @Test
+    public void testNPEOnCreateOptionMenu() throws FileNotFoundException, IOException, ABCException {
+        // This issue is solved by preventing the carving of onCreateOptionMenu
+        // This will not solve the issue because some activity requires to have the menu
+        // set for testing something else...
+        file = "com.prismaqf.callblocker.EditFiltersTest#ChangeActionTest/Trace-1641539406706.txt";
+
+        String methodSignature = "<com.prismaqf.callblocker.EditFilters: boolean onCreateOptionsMenu(android.view.Menu)>";
+        int invocationCount = 135;
+        int invocationTraceId = 270;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
 
 //    
     @Test

@@ -185,6 +185,57 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 
     }
 
+    public void replaceDataDependencyOnOwner(MethodInvocation methodInvocation, ObjectInstance newOwner) {
+        // If newOwner does not exist, we add it
+        ObjectInstance originalOwner = null;
+
+        // This is the real methodInvocation to "update" (we remove and reintroduce it)
+        methodInvocation = (MethodInvocation) this.retrieveTheActualVertex(methodInvocation);
+
+        // Find the link of the owner to be replaced
+        String edgeToRemove = null;
+        for (String incomingEdge : getIncomingEdges(methodInvocation)) {
+
+            if (incomingEdge.startsWith(OWNERSHIP_DEPENDENCY_PREFIX)) {
+                edgeToRemove = incomingEdge;
+                break;
+            }
+        }
+
+        if (!graph.removeEdge(edgeToRemove)) {
+            logger.warn("Cannot remove " + edgeToRemove + " while replacing ownership of " + methodInvocation);
+            // TODO Replace with an exception
+        } else {
+            // Here we brutally add a new edge instead of reusing the original one
+            this.addDataDependencyOnOwner(methodInvocation, newOwner);
+//            graph.addEdge(edgeToRemove, node, methodInvocation, EdgeType.DIRECTED);
+        }
+    }
+
+    public void replaceDataDependencyOnReturn(MethodInvocation methodInvocation, DataNode newReturn) {
+        // This is the real methodInvocation to "update" (we remove and reintroduce it)
+        methodInvocation = (MethodInvocation) this.retrieveTheActualVertex(methodInvocation);
+
+        // Find the link of the owner to be replaced
+        String edgeToRemove = null;
+        for (String outgoingEdge : getOutgoingEgdes(methodInvocation)) {
+
+            if (outgoingEdge.startsWith(RETURN_DEPENDENCY_PREFIX)) {
+                edgeToRemove = outgoingEdge;
+                break;
+            }
+        }
+
+        if (!graph.removeEdge(edgeToRemove)) {
+            logger.warn("Cannot remove " + edgeToRemove + " while replacing return of " + methodInvocation);
+            // TODO Replace with an exception
+        } else {
+            // Here we brutally add a new edge instead of reusing the original one
+            // TODO Will this work with String returns? Anyway, we use it only for intents at the moment
+            this.addDataDependencyOnReturn(methodInvocation, newReturn);
+        }
+    }
+
     /*
      * The positional information is ENCODED in the edge label ! THIS IS UNSAFE, WE
      * DO NOT CHECK FOR TYPES AND THE LIKE!
@@ -1385,7 +1436,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 
     /**
      * Returns all the object for which we cannot establish provenance unless those
-     * are "null". This should also include aliases.
+     * are "null" or aliased by other objects. This should also include aliases.
      * 
      * @return
      */
