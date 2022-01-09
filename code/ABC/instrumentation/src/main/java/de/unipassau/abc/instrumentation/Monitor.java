@@ -224,16 +224,24 @@ public class Monitor {
             // Make sure we distinguish abstract classes from regular classes. We need to
             // use reflection here otherwise we need to change the instrumentationn logic
             // The issue is that if methodOwner is null, we cannot call getClass()
+
+            // TODO Do we need this also for libCalls?
+            String theToken = METHOD_START_TOKEN;
             if (methodOwner != null) {
-                enter_impl(methodOwner, methodSignature, methodParameters,
-                        (Modifier.isAbstract(methodOwner.getClass().getModifiers())) ? ABSTRACT_METHOD_START_TOKEN
-                                : METHOD_START_TOKEN);
+                theToken = (Modifier.isAbstract(methodOwner.getClass().getModifiers())) ? ABSTRACT_METHOD_START_TOKEN
+                        : METHOD_START_TOKEN;
             } else {
-                Class theClass = Class.forName(getClassNameFromMethodSignnature(methodSignature));
-                enter_impl(methodOwner, methodSignature, methodParameters,
-                        (Modifier.isAbstract(theClass.getModifiers())) ? ABSTRACT_METHOD_START_TOKEN
-                                : METHOD_START_TOKEN);
+                try {
+                    // Note Lambdas cannot be loaded by name, so we need to consider that case as
+                    // well... this may fail
+                    Class theClass = Class.forName(getClassNameFromMethodSignnature(methodSignature));
+                    theToken = (Modifier.isAbstract(theClass.getModifiers())) ? ABSTRACT_METHOD_START_TOKEN
+                            : METHOD_START_TOKEN;
+                } catch (Exception e) {
+
+                }
             }
+            enter_impl(methodOwner, methodSignature, methodParameters, theToken);
         } catch (Throwable t) {
             android.util.Log.e(ABC_TAG, "ERROR params: \n" //
                     + packageName + "\n" //

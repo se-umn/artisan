@@ -25,38 +25,40 @@ public class TypeUtils {
             return ((PrimitiveValue) dataNode).getType();
         } else if (dataNode instanceof ObjectInstance) {
             String actualType = ((ObjectInstance) dataNode).getType();
-            
-            String replaceType = null; 
-            
+
+            String replaceType = null;
+
             if (actualType.equals("java.util.Arrays$ArrayList")) {
                 replaceType = "java.util.List";
             } else if (actualType.equals("java.util.TreeMap$KeySet")) {
                 replaceType = "java.util.Set";
             } else if (actualType.equals("java.util.RegularEnumSet") || actualType.equals("java.util.JumboEnumSet")) {
                 replaceType = "java.util.EnumSet";
+            } else if (actualType.equals("android.app.SharedPreferencesImpl")) {
+                replaceType = "android.content.SharedPreferences";
             }
 
             if (actualType.contains("$")) {
                 throw new NotImplementedException("We cannot handle private inner classes, like " + actualType);
             }
 //			
-            if( replaceType != null ) {
+            if (replaceType != null) {
                 System.out.println("TypeUtils.getActualTypeFor() PATCHED " + actualType + " with " + replaceType);
                 return replaceType;
             } else {
                 //
                 // If that's an inner class we might not be able to instantiate
                 // it...
-    //			if (formalType.contains("$")) {
-    //				formalType = formalType.replaceAll("\\$", ".");
-    //			}
+                // if (formalType.contains("$")) {
+                // formalType = formalType.replaceAll("\\$", ".");
+                // }
                 //
                 // private static class ArrayList<E> extends AbstractList<E>
                 /*
                  * Inner classes are identified by $ replace this to but not always those are
                  * visible (here, tho, we do not have such information)
                  */
-    //			return formalType;
+                // return formalType;
                 // TODO I am not 100% sure this might be a good strategy...
                 return actualType;
             }

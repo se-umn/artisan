@@ -177,4 +177,8 @@ public interface DataDependencyGraph {
     public void remove(GraphNode graphNodeToRemove);
 //    public void remove(ObjectInstance danglingObject);
 
+    public void replaceDataDependencyOnOwner(MethodInvocation mi, ObjectInstance newOwner);
+
+    public void replaceDataDependencyOnReturn(MethodInvocation mi, DataNode newReturn);
+
 }

@@ -65,7 +65,7 @@ public class MockGenerator {
         List<MockInfo> mockInfoList = new ArrayList<MockInfo>();
 
         for (ObjectInstance danglingObject : carvedTestDataDependencyGraph.getDanglingObjects()) {
-
+            
             // We collect all the usages of this dangling object in the carved test.
             List<MethodInvocation> callsThatRequireTheDanglingObject = new ArrayList<>(
                     carvedExecution.getDataDependencyGraphContainingTheMethodInvocationUnderTest()
