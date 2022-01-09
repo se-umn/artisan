@@ -43,7 +43,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
 
         // Include additional metadata about Android invocations
         ParsedTrace decorated = decorateWithAndroidMetadata(parsedTrace);
-        // Include aliasing for tainted Intents - This changed the graph so we need to do it before static deps are added
+        // Include aliasing for tainted Intents - This changes the graph so we need to do it before static deps are added
         decorated = decorateWithAliasForIntents(parsedTrace);
         // Include implicit data dependencies that are Android-specific
         decorated = decorateWithIntentDataDependencies(parsedTrace);
@@ -210,8 +210,18 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                     // Find all the method calls that take sin
                     // dataDependencyGraph.addAliasingDataDependency(source.getValue(),
                     // sinkIntents.get(taint));
-                    logger.info("Replacing sink taint with source taing for TAINT: " + taint);
                     final ObjectInstance sinkIntent = sinkIntents.get(taint);
+                    
+                    // In some cases, like nz.org.cacophony.birdmonitor.CreateAccountTest#createAccountTest the intent is both SINK and SOURCE.
+                    // This is something involving PendingIntent and broadcasting, which Alessio never saw before...
+                    
+                    if( sinkIntent.equals(sourceIntent) ) {
+                        logger.warn("Sink intent " + sinkIntent + " and source intent " + sourceIntent + " are the same for TAINT: " + taint);
+                        continue;
+                    }
+                    
+                    logger.info("Replacing sink intent " + sinkIntent + " with source intent " + sourceIntent + " for TAINT: " + taint);
+                    
 
                     // Parameters
                     // Find all the method invocations that gets sink intent as parameter and
