@@ -28,6 +28,7 @@ else
 REQUIRE_RERUN=0
 CARVED_TESTS_COVERAGE := $(shell cat carved-tests.log | grep ">" | grep "PASSED" | tr ">" " " | awk '{print $$1, $$2}' | tr " " "." | sed 's|\(.*\)|carved-test-coverage-for-\1/html/index.html|' | sort | uniq)
 endif
+
 # TODO Ensure that CARVED_TESTS_COVERAGE contains more than one test?
 
 # Global variable to check which apks are installed, if any
@@ -148,7 +149,7 @@ clean-carved-coverage :
 	$(RM) -rv selected-carved-tests-coverage
 	$(RM) -rv carved-test-coverage-for-*
 
-clean-espresso-coverage : 
+clean-espresso-coverage :
 	$(RM) -rv espresso-tests-coverage
 	$(RM) -rv espresso-test-coverage-for-*
 	$(RM) -rv jacoco-espresso-coverage
@@ -170,7 +171,7 @@ clean-all : clean-carved-tests clean-carved-coverage clean-espresso-coverage
 app-original.apk : 
 	@export ABC_CONFIG=$(ABC_CFG) && \
 	$(GW) -PjacocoEnabled=false assembleDebug && \
-	mv ./app/build/outputs/apk/debug/app-debug.apk . && \
+	mv app/build/outputs/apk/debug/app-debug.apk app-debug.apk && \
 	$(ABC) sign-apk app-debug.apk && \
 	mv -v app-debug.apk app-original.apk
 
@@ -191,8 +192,8 @@ app-androidTest.apk :
 app-original-for-coverage.apk app-androidTest-for-coverage.apk:
 	@export ABC_CONFIG=$(ABC_CFG) && \
 	$(GW) -PjacocoEnabled=true clean assembleDebug assembleAndroidTest && \
-	mv ./app/build/outputs/apk/debug/app-debug.apk app-original-for-coverage.apk  && \
-	mv ./app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk app-androidTest-for-coverage.apk
+	mv app/build/outputs/apk/debug/app-debug.apk app-original-for-coverage.apk  && \
+	mv app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk app-androidTest-for-coverage.apk
 
 # Utility - TODO Maybe move this to function?
 stop-emulator:
@@ -203,7 +204,7 @@ trace-all : $(ESPRESSO_TESTS)
 	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 	@echo "Done"
 
-$(ESPRESSO_TESTS) : app-instrumented.apk app-androidTest.apk 
+$(ESPRESSO_TESTS) : app-instrumented.apk app-androidTest.apk
 # We need to ensure that when we trace the right apks are installed. This call is idempotent.
 	$(call ensure_tracing_apks)
 #	Evaluate the current test name. Note that test names use #
@@ -222,17 +223,17 @@ carve-all : .carved-all
 .carved-all : $(ESPRESSO_TESTS)
 	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) carve-all app-original.apk traces app/src/allCarvedTest force-clean 2>&1 | tee carving.log
 	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
-# 	Make sure this file has the right timestamp - probably touch will work the same
+# Make sure this file has the right timestamp - probably touch will work the same
 	@sleep 1; echo "" > .carved-all
 
-### ### ### ### ### ### ### 
+### ### ### ### ### ### ###
 ### Coverage targets
 ### ### ### ### ### ### ### 
 
 coverage-espresso-tests : espresso-tests-coverage/html/index.html
 	@echo "Done"
 
-# We need to ensure the coverate apks because if the emulator is already running the target does not redeploy them
+# We need to ensure the coverage apks because if the emulator is already running the target does not redeploy them
 espresso-tests-coverage/html/index.html : app-original-for-coverage.apk app-androidTest-for-coverage.apk
 # Ensure the right apk are installed and optionally start the emulator. Clean up the data if necessary.
 	$(call ensure_coverage_apks)
@@ -257,6 +258,7 @@ $(ESPRESSO_TESTS_COVERAGE): app-original-for-coverage.apk app-androidTest-for-co
 	@echo "Running Test $(TEST_NAME)"
 	$(GW) -PjacocoEnabled=true -PcarvedTests=false -Pandroid.testInstrumentationRunnerArguments.class=$(TEST_NAME) jacocoGUITestCoverage
 	mv -v app/build/reports/jacoco/jacocoGUITestCoverage $(COVERAGE_FOLDER)
+# TODO debugAndroidTest folder might probably have some other name based on gradle config
 	mv -v app/build/outputs/code_coverage/debugAndroidTest/connected/*coverage.ec $(COVERAGE_FOLDER)/$(TEST_NAME).ec
 
 coverage-unit-tests : unit-tests-coverage/html/index.html
@@ -265,7 +267,7 @@ coverage-unit-tests : unit-tests-coverage/html/index.html
 unit-tests-coverage/html/index.html :
 	$(GW) -PjacocoEnabled=true -PcarvedTests=false clean jacocoUnitTestCoverage 2>&1 | tee ${@}.log
 	$(RM) -r unit-tests-coverage
-	mv -v app/build/reports/jacoco/jacocoUnitTestCoverage unit-tests-coverage 
+	mv -v app/build/reports/jacoco/jacocoUnitTestCoverage unit-tests-coverage
 
 # Phony target
 coverage-carved-tests : all-carved-tests-coverage/html/index.html selected-carved-tests-coverage/html/index.html
@@ -277,7 +279,6 @@ all-carved-tests-coverage/html/index.html : carved-tests.log
 
 # This is required because we need it to run each carved test in isolation
 carved-tests.log : .carved-all
-# Ensure we are using the right carved tests by creating a link to the folder.
 	$(RM) -r app/src/carvedTest
 	cp -r app/src/allCarvedTest app/src/carvedTest
 	$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage 2>&1 | tee carved-tests.log
@@ -303,11 +304,11 @@ $(CARVED_TESTS_COVERAGE): carved-tests.log
 # Extract the test name from the target folder
 	$(eval TEST_NAME := $(shell echo "$(@)" | sed -e 's|/html/index.html||' -e 's|carved-test-coverage-for-||'))
 	$(eval COVERAGE_FOLDER := $(shell echo "$(@)" | sed -e 's|/html/index.html||'))
-# Clean up the coverage folder (this should not be necessary) 
+# Clean up the coverage folder (this should not be necessary)
 	$(RM) -rv $(COVERAGE_FOLDER)
 # Run the single unit test and collect coverage
 	$(GW) -PjacocoEnabled=true -PcarvedTests=true -PcarvedTestsFilter=$(TEST_NAME) clean jacocoUnitTestCoverage
-# Copy the coverage folder in the expected place 
+# Copy the coverage folder in the expected place
 	mv -v ./build/carvedTest/coverage $(COVERAGE_FOLDER)
 
 coverage-for-each-carved-test : carved-tests.log $(CARVED_TESTS_COVERAGE)
@@ -329,7 +330,7 @@ endif
 		TEST_NAME=`echo "$$COV" | $(SED) -e 's|/html/index.html||' -e 's|carved-test-coverage-for-||'`; \
 		METHOD_UNDER_TEST=`echo "$$COV" | $(SED) -e 's|.*\.test_\(.*\)|\1|' | tr "_" " "| awk '{$$NF=""; print $$0}' | sed -e 's/[ \t]*$$//' | tr " " "."`; \
 		COV_HASH=`cat $$COV | tr ">" "\n" | $(SED) '1,/.*tfoot.*/d' | $(SED) '/.*<\/tfoot*/,$$d' | tr "\n" ">" | md5sum | cut -f1 -d" "`; \
-		echo "$$TEST_NAME, $$METHOD_UNDER_TEST, $$COV_HASH" >> carved-coverage-for-selection.csv; \
+		echo "$$TEST_NAME, $METHOD_UNDER_TEST, $$COV_HASH" >> carved-coverage-for-selection.csv; \
 	done
 
 
@@ -373,7 +374,7 @@ endif
 	cp -rv app/src/allCarvedTest app/src/selectedCarvedTest; \
 	for TEST in $$(find app/src/selectedCarvedTest -iname "Test*.java"); do \
 		if [[ $$(grep -c $$TEST white-listed-tests.txt) -eq 1 ]]; then \
-			echo "Keep $$TEST"; \
+			echo "Keep $TEST"; \
 		else \
 			$(RM) -v $$TEST $$TEST.removed ; \
 		fi; \
