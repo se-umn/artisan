@@ -150,28 +150,31 @@ public class TraceParserImpl extends TraceParser {
 
 		}
 
+		
+		// An exception that is generated inside the constructor does NOT return any object
+		
 		/*
 		 * At this point we found a matching method call we update the data structures.
 		 */
-		if (JimpleUtils.isConstructor(methodSignature)) {
-			/*
-			 * Ownership info for constructors are available only by the end of the
-			 * invocation... This is not 100% accurate but we try to live with that...
-			 */
-			ObjectInstance owner = new ObjectInstance(methodOwner);
-			// TODO Move to decorator
-//			owner.setAndroidActivity(isActivity(sootClass));
-//			owner.setAndroidFragment(isFragment(sootClass));
-			methodInvocation.setOwner(owner);
-			local.getSecond().addDataDependencyOnOwner(methodInvocation, owner);
-			// Still not sure WHY we need to register the data
-			// deps
-			// if
-			// we have that into the methodInvocation and data
-			// deps...
-			// executionFlowGraph.addOwnerToMethodInvocation(methodInvocation,
-			// owner);
-		}
+//		if (JimpleUtils.isConstructor(methodSignature)) {
+//			/*
+//			 * Ownership info for constructors are available only by the end of the
+//			 * invocation... This is not 100% accurate but we try to live with that...
+//			 */
+//			ObjectInstance owner = new ObjectInstance(methodOwner);
+//			// TODO Move to decorator
+////			owner.setAndroidActivity(isActivity(sootClass));
+////			owner.setAndroidFragment(isFragment(sootClass));
+//			methodInvocation.setOwner(owner);
+//			local.getSecond().addDataDependencyOnOwner(methodInvocation, owner);
+//			// Still not sure WHY we need to register the data
+//			// deps
+//			// if
+//			// we have that into the methodInvocation and data
+//			// deps...
+//			// executionFlowGraph.addOwnerToMethodInvocation(methodInvocation,
+//			// owner);
+//		}
 		/*
 		 * Store Instance of Exception.
 		 */
