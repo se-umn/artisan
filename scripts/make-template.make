@@ -265,7 +265,7 @@ coverage-unit-tests : unit-tests-coverage/html/index.html
 	@echo "Done"
 
 unit-tests-coverage/html/index.html :
-	$$(GW) -PjacocoEnabled=true -PcarvedTests=false clean jacocoUnitTestCoverage 2>&1 | tee $${@}.log
+	$$(GW) -PjacocoEnabled=true -PcarvedTests=false clean jacocoUnitTestCoverage 2>&1 | tee unit-tests-coverage.log
 	$$(RM) -r unit-tests-coverage
 	mv -v app/build/reports/jacoco/jacocoUnitTestCoverage unit-tests-coverage
 
