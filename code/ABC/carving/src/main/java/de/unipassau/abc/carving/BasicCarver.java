@@ -107,14 +107,15 @@ public class BasicCarver implements MethodCarver {
         relevantMethodInvocations.add(methodInvocation);
 
         if (isMethodInvocationAlreadyCarved(methodInvocation)) {
-            logger.info("Method invocation already cached: " + methodInvocation.toString());
+            logger.debug("Method invocation already cached: " + methodInvocation.toString());
             // Return an empty result
             return relevantMethodInvocations;
         }
 
         /*
          * Relevant method invocations are the ones that have been called before on the
-         * SAME object, including the constructor used to instantiate it.
+         * SAME object, including the constructor or whatever method is used to
+         * instantiate the object.
          * 
          * TODO Note that System-level factory methods may be considered necessary at
          * this point
@@ -186,6 +187,27 @@ public class BasicCarver implements MethodCarver {
 
         // Put them together
         relevantMethodInvocations.addAll(relevantMethodInvocationsOnAliases);
+
+        // Do relevantMethodInvocations contains the constructor or at least on
+        // generator?
+        // This FAIL the multi activity minimization
+//        if ( ! methodInvocation.isStatic() && relevantMethodInvocations.stream()
+//                .filter(mi -> mi.isConstructor() && mi.getOwner().equals(methodInvocation.getOwner())).count() == 0) {
+//            logger.info("Not constructore found for " + methodInvocation.getOwner());
+//            // Possible constructors or generators
+//            // TODO This might not work
+//            Optional<MethodInvocation> generator = dataDependencyGraph
+//                    .getMethodInvocationsWhichReturn(methodInvocation.getOwner()).stream()
+//                    .filter(mi -> mi.getInvocationTraceId() < methodInvocation.getInvocationTraceId()).findFirst();
+//            if (generator.isPresent()) {
+//                logger.info("Take the first generator " + generator.get());
+//                relevantMethodInvocations.add(generator.get());
+//            } else {
+//                // TODO Stop execution if the CUT is Dangling !!!
+//                logger.warn("Object " + methodInvocation.getOwner() + " is dangling !!!");
+//            }
+//
+//        }
 
         /*
          * The last relevant method invocations are the one that have been called by the
@@ -263,7 +285,7 @@ public class BasicCarver implements MethodCarver {
                     // methodInvocation?
                     // TODO We can limit ourselves to KNOWN situation here.. e.g.,
                     // abc.DefaultContextGenerator...
-                    logger.info("Look for possible generators");
+                    logger.info("Look for possible generators of " + dataDep);
                     List<MethodInvocation> generators = new ArrayList(this.executionFlowGraph
                             .getMethodInvocationsBefore(methodInvocation, t -> dataDep.equals(t.getReturnValue())));
                     if (generators.size() > 0) {
@@ -382,7 +404,7 @@ public class BasicCarver implements MethodCarver {
             if (!isMethodInvocationAlreadyCarved(relevantMethodInvocation)) {
                 queue.add(relevantMethodInvocation);
             } else {
-                logger.info("Filter out relevantMethodInvocation " + relevantMethodInvocation
+                logger.debug("Filter out relevantMethodInvocation " + relevantMethodInvocation
                         + " as it was already cached");
             }
         }
@@ -537,68 +559,66 @@ public class BasicCarver implements MethodCarver {
 
         carvedExecution.callGraphs = this.callGraph.extrapolate(new HashSet(allMethodInvocations));
 
-        logger.trace(">> Execution Flow Graphs:");
-        int i = 0;
-        for (ExecutionFlowGraph executionFlowGraph : carvedExecution.executionFlowGraphs) {
-            logger.trace("SubGraph " + i);
-            executionFlowGraph.getOrderedMethodInvocations().stream().map(new Function<MethodInvocation, String>() {
-
-                @Override
-                public String apply(MethodInvocation t) {
-                    return (t.isNecessary() ? "* " : " ") + t.toString();
-                }
-            }).forEach(logger::trace);
-            i++;
-        }
-
-        logger.trace("");
-        logger.trace(">> Data Dependency Graphs:");
-        i = 0;
-
-        // TODO Somehow the extrapolated elements do not have the isNecessary attribute
-        // anymore?
-        for (DataDependencyGraph dataDependencyGraph : carvedExecution.dataDependencyGraphs) {
-
-            // List the activity here...
-
-            logger.trace("SubGraph " + i);
-            List<MethodInvocation> sorted = new ArrayList<MethodInvocation>(
-                    dataDependencyGraph.getAllMethodInvocations());
-            Collections.sort(sorted);
-            // Use dataDepGraph.contextualize instead
-            sorted.stream().map(new Function<MethodInvocation, String>() {
-
-                @Override
-                public String apply(MethodInvocation t) {
-                    return (t.isNecessary() ? "* " : " ") + t.toString() + "\n" + //
-                    "- IN (DIRECT) : " + dataDependencyGraph.getParametersOf(t) + "\n" + //
-                    "- IN (IMPLICIT): " + dataDependencyGraph.getImplicitDataDependenciesOf(t) + "\n" + //
-                    "- OUT " + dataDependencyGraph.getReturnObjectLocalFor(t);
-
-                }
-            }).forEach(logger::trace);
-            i++;
-        }
-
-        logger.trace("");
-        logger.trace(">> Call Graphs:");
-        i = 0;
-        for (CallGraph callGraph : carvedExecution.callGraphs) {
-            logger.trace("SubGraph " + i);
-
-            List<MethodInvocation> sorted = new ArrayList<MethodInvocation>(callGraph.getAllMethodInvocations());
-            Collections.sort(sorted);
-            sorted.stream().map(new Function<MethodInvocation, String>() {
-
-                @Override
-                public String apply(MethodInvocation t) {
-                    return (t.isNecessary() ? "* " : " ") + t.toString();
-                }
-            }).forEach(logger::trace);
-            i++;
-        }
-
-        carvedExecution.methodInvocationUnderTest = methodInvocation;
+//        logger.trace(">> Execution Flow Graphs:");
+//        int i = 0;
+//        for (ExecutionFlowGraph executionFlowGraph : carvedExecution.executionFlowGraphs) {
+//            logger.trace("SubGraph " + i);
+//            executionFlowGraph.getOrderedMethodInvocations().stream().map(new Function<MethodInvocation, String>() {
+//
+//                @Override
+//                public String apply(MethodInvocation t) {
+//                    return (t.isNecessary() ? "* " : " ") + t.toString();
+//                }
+//            }).forEach(logger::trace);
+//            i++;
+//        }
+//
+//        logger.trace("");
+//        logger.trace(">> Data Dependency Graphs:");
+//        i = 0;
+//
+//        // TODO Somehow the extrapolated elements do not have the isNecessary attribute
+//        // anymore?
+//        for (DataDependencyGraph dataDependencyGraph : carvedExecution.dataDependencyGraphs) {
+//
+//            // List the activity here...
+//
+//            logger.trace("SubGraph " + i);
+//            List<MethodInvocation> sorted = new ArrayList<MethodInvocation>(
+//                    dataDependencyGraph.getAllMethodInvocations());
+//            Collections.sort(sorted);
+//            // Use dataDepGraph.contextualize instead
+//            sorted.stream().map(new Function<MethodInvocation, String>() {
+//
+//                @Override
+//                public String apply(MethodInvocation t) {
+//                    return (t.isNecessary() ? "* " : " ") + t.toString() + "\n" + //
+//                    "- IN (DIRECT) : " + dataDependencyGraph.getParametersOf(t) + "\n" + //
+//                    "- IN (IMPLICIT): " + dataDependencyGraph.getImplicitDataDependenciesOf(t) + "\n" + //
+//                    "- OUT " + dataDependencyGraph.getReturnObjectLocalFor(t);
+//
+//                }
+//            }).forEach(logger::trace);
+//            i++;
+//        }
+//
+//        logger.trace("");
+//        logger.trace(">> Call Graphs:");
+//        i = 0;
+//        for (CallGraph callGraph : carvedExecution.callGraphs) {
+//            logger.trace("SubGraph " + i);
+//
+//            List<MethodInvocation> sorted = new ArrayList<MethodInvocation>(callGraph.getAllMethodInvocations());
+//            Collections.sort(sorted);
+//            sorted.stream().map(new Function<MethodInvocation, String>() {
+//
+//                @Override
+//                public String apply(MethodInvocation t) {
+//                    return (t.isNecessary() ? "* " : " ") + t.toString();
+//                }
+//            }).forEach(logger::trace);
+//            i++;
+//        }
 
         carvedExecutions.add(carvedExecution);
 
