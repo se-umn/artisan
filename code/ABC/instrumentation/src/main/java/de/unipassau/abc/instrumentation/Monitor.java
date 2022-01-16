@@ -16,9 +16,13 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
@@ -52,6 +56,8 @@ public class Monitor {
     public final static String LIB_METHOD_START_TOKEN = "[>>]";
     public final static String METHOD_END_TOKEN = "[<]";
     public final static String METHOD_END_TOKEN_FROM_EXCEPTION = "[<E]";
+
+    public final static String ENUM_CONSTANT_GETTER = "<abc.Enum: java.lang.Object syntheticEnumConstantGetter(java.lang.String)>";
 
     // This is public to enable EspressoTest changing it using reflection, see
     // MonitorRule or make Soot change these values dynamically during
@@ -88,6 +94,9 @@ public class Monitor {
      */
     protected static boolean bInitialized = false;
 
+    // Why not a simple int ?
+    protected static Integer inside_clinit = 0;
+
     // Print the trace to a file in the
     protected static BufferedWriter cg_writer = null;
 
@@ -99,6 +108,8 @@ public class Monitor {
 
     private static String testName = null;
 
+    // Book-keeping enumtypes
+    private static Set<Class> processedEnums = new HashSet<Class>();
     /*
      * Integration methods. The following methods enable to control or interact with
      * the Monitor class at runtime, e.g., from the test cases, using reflection
@@ -141,7 +152,7 @@ public class Monitor {
     public static void initialize(String packageName) throws Exception {
 
         android.util.Log.e(ABC_TAG, "---- Monitor initialized");
-        android.util.Log.e(ABC_TAG, "---- Monitor version 2.1 Simple Monitor");
+        android.util.Log.e(ABC_TAG, "---- Monitor version 2.2 Simple Monitor");
         android.util.Log.e(ABC_TAG, "---- DEBUG " + DEBUG);
         android.util.Log.e(ABC_TAG, "---- TRACE ONLY MAIN " + REPORT_ONLY_MAIN_THREAD);
 
@@ -187,7 +198,7 @@ public class Monitor {
      * The following methods deal with tracing the methods invocation
      */
 
-    private static String getClassNameFromMethodSignnature(String methodSignature) {
+    private static String getClassNameFromMethodSignature(String methodSignature) {
         return methodSignature.replaceFirst("<", "").split(" ")[0].replaceAll(":", "");
     }
 
@@ -219,28 +230,30 @@ public class Monitor {
             }
 
             // Book keeping
-            registerCallInStackTrace(methodOwner, methodSignature, null, false);
+            registerCallInStackTrace(methodOwner, methodSignature, null, false, false);
 
             // Make sure we distinguish abstract classes from regular classes. We need to
             // use reflection here otherwise we need to change the instrumentationn logic
             // The issue is that if methodOwner is null, we cannot call getClass()
+            // But we need to use the formal type as per the
 
-            // TODO Do we need this also for libCalls?
             String theToken = METHOD_START_TOKEN;
-            if (methodOwner != null) {
-                theToken = (Modifier.isAbstract(methodOwner.getClass().getModifiers())) ? ABSTRACT_METHOD_START_TOKEN
-                        : METHOD_START_TOKEN;
-            } else {
-                try {
-                    // Note Lambdas cannot be loaded by name, so we need to consider that case as
-                    // well... this may fail
-                    Class theClass = Class.forName(getClassNameFromMethodSignnature(methodSignature));
-                    theToken = (Modifier.isAbstract(theClass.getModifiers())) ? ABSTRACT_METHOD_START_TOKEN
-                            : METHOD_START_TOKEN;
-                } catch (Exception e) {
+            // Probably we should cache this
+            // Is this the same as getClassNameFromMethodSignnature ?
+//            String typeName = extractOwnerType(methodSignature);
 
-                }
+            try {
+                // Note Lambdas cannot be loaded by name, so we need to consider that case as
+                // well... this may fail
+                Class theClass = Class.forName(getClassNameFromMethodSignature(methodSignature));
+                theToken = (Modifier.isAbstract(theClass.getModifiers())) ? ABSTRACT_METHOD_START_TOKEN
+                        : METHOD_START_TOKEN;
+            } catch (Exception e) {
+
             }
+
+            processEnums(methodParameters, null);
+
             enter_impl(methodOwner, methodSignature, methodParameters, theToken);
         } catch (Throwable t) {
             android.util.Log.e(ABC_TAG, "ERROR params: \n" //
@@ -285,7 +298,9 @@ public class Monitor {
             }
 
             // Book keeping
-            registerCallInStackTrace(methodOwner, methodSignature, null, false);
+            registerCallInStackTrace(methodOwner, methodSignature, null, false, false);
+
+            processEnums(methodParameters, null);
 
             // Trace
             enter_impl(methodOwner, methodSignature, methodParameters, PRIVATE_METHOD_START_TOKEN);
@@ -334,7 +349,10 @@ public class Monitor {
             }
 
             // Book keeping
-            registerCallInStackTrace(methodOwner, methodSignature, null, false);
+            boolean isSynthetic = true;
+            registerCallInStackTrace(methodOwner, methodSignature, null, false, isSynthetic);
+
+            processEnums(methodParameters, null);
 
             // Trace
             enter_impl(methodOwner, methodSignature, methodParameters, SYNTHETIC_METHOD_START_TOKEN);
@@ -389,7 +407,9 @@ public class Monitor {
 
             // Book keeping
             boolean isLibCall = true;
-            registerCallInStackTrace(methodOwner, methodSignature, methodContext, isLibCall);
+            registerCallInStackTrace(methodOwner, methodSignature, methodContext, isLibCall, false);
+
+            processEnums(methodParameters, methodContext);
 
             // Trace
             libCall_impl(methodOwner, methodSignature, methodContext, methodParameters);
@@ -442,8 +462,9 @@ public class Monitor {
             }
 
             // Book keeping
-            popCallFromStackTrace(methodSignature);
+            StackElement returningCall = popCallFromStackTrace(methodSignature);
 
+            processEnums(new Object[] { returnValue }, methodContext);
             // Trace
             returnInto_impl(methodOwner, methodSignature, methodContext, returnValue, METHOD_END_TOKEN);
 
@@ -492,7 +513,9 @@ public class Monitor {
                 return;
             }
             // Book keeping
-            popCallFromStackTrace(methodSignature);
+            StackElement returningCall = popCallFromStackTrace(methodSignature);
+
+            processEnums(new Object[] { returnValue }, methodContext);
 
             // Trace
             returnInto_impl(methodOwner, methodSignature, methodContext, returnValue, METHOD_END_TOKEN);
@@ -574,6 +597,7 @@ public class Monitor {
                 // Book keeping
                 popCallFromStackTrace(lastMethodCall.methodSignature);
 
+                processEnums(new Object[] { exception }, methodContext);
                 // Trace
                 returnInto_impl(lastMethodCall.methodOwner, lastMethodCall.methodSignature,
                         lastMethodCall.methodContext, exception, METHOD_END_TOKEN_FROM_EXCEPTION);
@@ -621,8 +645,9 @@ public class Monitor {
                 return;
             }
             // Book keeping
-            popCallFromStackTrace(methodSignature);
+            StackElement returningCall = popCallFromStackTrace(methodSignature);
 
+            processEnums(new Object[] { exception }, methodContext);
             // Trace
             returnInto_impl(methodOwner, methodSignature, methodContext, exception, METHOD_END_TOKEN_FROM_EXCEPTION);
         } catch (Throwable t) {
@@ -706,16 +731,25 @@ public class Monitor {
     private static void registerCallInStackTrace(Object methodOwner, //
             String methodSignature, //
             String methodContext, //
-            boolean isLibCall) {
+            boolean isLibCall, boolean isSynthetic) {
 
         // Book keeping. TODO Can be improved by skipping calls to java.lang.String
         // (isStringMethod(methodSignature)
+
+        inside_clinit = (methodSignature.contains("clinit")) ? inside_clinit + 1 : inside_clinit;
+
+//        if (methodSignature.contains("clinit")) {
+//            Log.i(ABC_TAG, ">>> Moving inside clinit " + methodSignature + " level " + inside_clinit);
+//        }
 
         StackElement se = new StackElement();
         se.methodOwner = methodOwner;
         se.methodSignature = methodSignature;
         se.methodContext = methodContext;
+
         se.isLibCall = isLibCall;
+        // TODO Remove this flag
+        se.isSynthetic = isSynthetic;
 
         stackTrace.push(se);
 
@@ -757,7 +791,20 @@ public class Monitor {
         }
         // If the last active lib call matches, remove it and the other elements from
         // the stack. This is getting close to a execution stack with frames...
-        return stackTrace.pop();
+        StackElement se = stackTrace.pop();
+        // If we are inside a clinit and we pop it, then we are not inside a clinit
+        // TODO Assuming there's ONLY one clinit !
+
+        if (inside_clinit > 0) {
+
+            inside_clinit = methodSignature.contains("clinit") ? inside_clinit - 1 : inside_clinit;
+
+//            if (methodSignature.contains("clinit")) {
+//                Log.i(ABC_TAG, "<<< Moving outside clinit " + methodSignature + " level " + inside_clinit);
+//            }
+        }
+
+        return se;
 
     }
 
@@ -783,6 +830,9 @@ public class Monitor {
             if (!isStringMethod(methodSignature)) {
                 globalCounter++;
 
+                // We need to process the enums BEFORE the start of the method to ensure
+                // EnumConstants are introduced before using them, but avoid clinit
+
                 StringBuffer sb = methodStart(token, methodOwner, methodSignature, null, methodParameters);
 
                 traceFileOutputWriter.write(ABC_TAG + " ");
@@ -790,6 +840,56 @@ public class Monitor {
                 traceFileOutputWriter.write(sb.toString());
                 traceFileOutputWriter.newLine();
                 traceFileOutputWriter.flush();
+
+            }
+        }
+    }
+
+    // Make sure we output the values of any enum inside the trace !
+    // This might create problems with the <clinit> method of the Enum itself
+    // https://docs.oracle.com/javase/tutorial/reflect/special/enumMembers.html
+    private static void processEnums(Object[] objects, String methodContext) throws IOException {
+
+        if (inside_clinit > 0) {
+//            android.util.Log.e(ABC_TAG, "     ----------- Skip because inside a clinit. level " + inside_clinit);
+            return;
+        }
+
+        for (int i = 0; i < objects.length; i++) {
+            if (objects[i] != null //
+                    && objects[i].getClass().isEnum() //
+                    && !processedEnums.contains(objects[i].getClass())) {
+
+//                android.util.Log.e(ABC_TAG,
+//                        "     ----------- Found Enum for " + objects[i] + " in context " + methodContext);
+                // Avoid infinite recursion !
+                processedEnums.add(objects[i].getClass());
+
+                try {
+
+                    Object enumObject = objects[i];
+                    Class enumClass = enumObject.getClass();
+
+                    // If this is an array class we need to extract the base type?
+                    // We do not support
+
+                    // Output all the constant values... UGLY
+                    for (Object enumConstant : enumClass.getEnumConstants()) {
+                        // DEBUG
+//                        android.util.Log.e(ABC_TAG, "     ----------- Enum Constant " + enumConstant + " --> "
+//                                + enumClass + "@" + System.identityHashCode(enumConstant));
+
+                        libCall_impl(null, ENUM_CONSTANT_GETTER, methodContext,
+                                // The only parameter is the string name of the constant
+                                new Object[] { enumConstant.toString() });
+                        returnInto_impl(null, ENUM_CONSTANT_GETTER, methodContext,
+                                // The return value is the objectConstant
+                                enumConstant, METHOD_END_TOKEN);
+                    }
+
+                } catch (Exception e) {
+                    android.util.Log.e(ABC_TAG, "FAILED TO PROCESS ENUM FOR " + objects[i]);
+                }
             }
         }
     }
@@ -844,6 +944,7 @@ public class Monitor {
                 traceFileOutputWriter.write(sb.toString());
                 traceFileOutputWriter.newLine();
                 traceFileOutputWriter.flush();
+
             }
         }
     }

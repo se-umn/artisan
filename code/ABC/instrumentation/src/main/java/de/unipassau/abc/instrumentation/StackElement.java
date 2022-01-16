@@ -5,4 +5,5 @@ class StackElement {
 	public String methodSignature;
 	public String methodContext;
 	public boolean isLibCall;
+    public boolean isSynthetic;
 }

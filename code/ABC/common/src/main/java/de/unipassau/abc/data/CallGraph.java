@@ -4,6 +4,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
+import de.unipassau.abc.exceptions.ABCException;
+
 public interface CallGraph {
 
     /**
@@ -115,5 +117,22 @@ public interface CallGraph {
      * @param second
      */
     public void include(CallGraph second);
+
+    /**
+     * return 0 for root or the lenght form the path from root to t
+     */
+    public int getNestingLevelOf(MethodInvocation t);
+
+    /**
+     * Wrap the original method invocation with the given one. Fails if the
+     * wrappingMethodInvocation already exists and is after the original one
+     * 
+     * @param original
+     * @param wrappingMethodInvocation
+     * @throws ABCException 
+     */
+    public void wrapRootMethodInvocationWith(MethodInvocation original, MethodInvocation wrappingMethodInvocation) throws ABCException;
+
+    public void insertAsRoot(MethodInvocation robolectricBuildActivity);
 
 }

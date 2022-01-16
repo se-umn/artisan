@@ -99,10 +99,12 @@ public interface DataDependencyGraph {
      * objects and objects that are modeled as primitive values (e.g., Strings) are
      * not considered here.
      * 
+     * This returns objects for which we could not see a construction call or any call that returns them.
+     * 
      * @return
      */
     public Set<ObjectInstance> getDanglingObjects();
-
+    
     public void visualize();
 
     public Collection<ObjectInstance> getObjectInstances();

@@ -22,11 +22,13 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 
+import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.utils.GraphUtility;
 import edu.uci.ics.jung.algorithms.cluster.WeakComponentClusterer;
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
 import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
 import edu.uci.ics.jung.graph.Graph;
+import edu.uci.ics.jung.graph.event.GraphEvent.Edge;
 import edu.uci.ics.jung.graph.util.EdgeType;
 import edu.uci.ics.jung.visualization.VisualizationViewer;
 import edu.uci.ics.jung.visualization.decorators.ToStringLabeller;
@@ -91,7 +93,8 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
 
         // Connect the previous prev to succ if they are both non-null
         if (prev != null && succ != null) {
-            graph.addEdge("ExecutionDependency-" + id.getAndIncrement(), prev, succ, EdgeType.DIRECTED);
+            String edge = generateNewEdge();
+            graph.addEdge(edge, prev, succ, EdgeType.DIRECTED);
         }
 
         // Update Head/Tail
@@ -105,9 +108,7 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
     }
 
     public void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl) {
-        MethodInvocation originalMethodInvocation = graph.getVertices().stream()
-                .filter(methodInvocation -> methodInvocation.equals(orig)).findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No such method invocation"));
+        MethodInvocation originalMethodInvocation = retrieveActualVertex(orig);
 
         if (firstMethodInvocation == originalMethodInvocation) {
             firstMethodInvocation = repl;
@@ -130,10 +131,12 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
         graph.removeVertex(originalMethodInvocation);
         graph.addVertex(repl);
 
-        inEdgesWithSources.forEach(edgeNameMethodInvocationPair -> graph
-                .addEdge(edgeNameMethodInvocationPair.getFirst(), edgeNameMethodInvocationPair.getSecond(), repl));
-        outEdgesWithDestinations.forEach(edgeNameMethodInvocationPair -> graph
-                .addEdge(edgeNameMethodInvocationPair.getFirst(), repl, edgeNameMethodInvocationPair.getSecond()));
+        inEdgesWithSources
+                .forEach(edgeNameMethodInvocationPair -> graph.addEdge(edgeNameMethodInvocationPair.getFirst(),
+                        edgeNameMethodInvocationPair.getSecond(), repl, EdgeType.DIRECTED));
+        outEdgesWithDestinations
+                .forEach(edgeNameMethodInvocationPair -> graph.addEdge(edgeNameMethodInvocationPair.getFirst(), repl,
+                        edgeNameMethodInvocationPair.getSecond(), EdgeType.DIRECTED));
     }
 
     @Deprecated
@@ -176,25 +179,67 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
         }
     }
 
+    // For some reason, doing this breaks everything
+//    public void injectMethodInvocationAfter(MethodInvocation methodInvocationToInsert,
+//            MethodInvocation methodInvocationBefore) throws ABCException {
+//
+//        // Assume this exists
+//        MethodInvocation actualMethodInvocationBefore = retrieveActualVertex(methodInvocationBefore);
+//
+//        if (actualMethodInvocationBefore.equals(lastMethodInvocation)) {
+//            enqueueMethodInvocations(methodInvocationToInsert);
+//        } else {
+//            String outgoingFromBefore = graph.getOutEdges( actualMethodInvocationBefore).iterator().next();
+//            MethodInvocation after = graph.getOpposite(actualMethodInvocationBefore, outgoingFromBefore);
+//            
+//            System.out.println("Removing Edge " + outgoingFromBefore + " between  " + actualMethodInvocationBefore + " and " + after );
+//            graph.removeEdge(outgoingFromBefore);
+//
+//            if (!graph.containsVertex(methodInvocationToInsert)) {
+//                if (! graph.addVertex(methodInvocationToInsert) ) {
+//                    throw new ABCException("Cannot include methodInvocationToInsert!");
+//                } else {
+//                    System.out.println("Added " + methodInvocationToInsert);
+//                }
+//            } else {
+//                throw new ABCException("Cannot include the same invocation twice!");
+//            }
+//            
+//            graph.addEdge(outgoingFromBefore, actualMethodInvocationBefore, methodInvocationToInsert, EdgeType.DIRECTED);
+//            System.out.println("Readding " + outgoingFromBefore + " from " + actualMethodInvocationBefore + " and " + methodInvocationToInsert );
+//
+//            // Now we add an edge to connect the methodInvocation
+//            String edge = "ExecutionDependency-" + id.getAndIncrement();
+//            graph.addEdge( edge , methodInvocationToInsert, after, EdgeType.DIRECTED);
+//            System.out.println("Adding " + edge + " from " + methodInvocationToInsert + " and " + after );
+//            
+//            // This might create duplicates !
+//            methodInvocationToInsert.invocationCount = methodInvocationBefore.getInvocationCount();
+//
+//            System.out.println("ExecutionFlowGraphImpl.injectMethodInvocationAfter() Insert as "
+//                    + methodInvocationToInsert.invocationCount + " !");
+//        }
+//
+//    }
+
     public void prependMethodInvocation(MethodInvocation methodInvocation) {
         if (firstMethodInvocation == null) {
             // In this case, we can simply add it
             enqueueMethodInvocations(methodInvocation);
         } else {
-            int headID = firstMethodInvocation.getInvocationCount() - 1;
-            // Unsafe
-            methodInvocation.invocationCount = headID;
+//            int headID = firstMethodInvocation.getInvocationCount() - 1;
+//            // Unsafe
+//            methodInvocation.invocationId = headID;
             if (!graph.containsVertex(methodInvocation)) {
                 // Otherwise
                 graph.addVertex(methodInvocation);
                 // Add it to the graph as FIRST !
-                graph.addEdge("ExecutionDependency-" + headID, methodInvocation, firstMethodInvocation,
-                        EdgeType.DIRECTED);
+                String edge = generateNewEdge();
+                graph.addEdge(edge, methodInvocation, firstMethodInvocation, EdgeType.DIRECTED);
                 // Update the head of the queue
                 firstMethodInvocation = methodInvocation;
             }
         }
-
     }
 
     public void enqueueMethodInvocations(MethodInvocation methodInvocation) {
@@ -203,8 +248,8 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
         }
 
         if (lastMethodInvocation != null) {
-            graph.addEdge("ExecutionDependency-" + id.getAndIncrement(), lastMethodInvocation, methodInvocation,
-                    EdgeType.DIRECTED);
+            String edge = generateNewEdge();
+            graph.addEdge(edge, lastMethodInvocation, methodInvocation, EdgeType.DIRECTED);
         }
         lastMethodInvocation = methodInvocation;
 
@@ -571,9 +616,8 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
             // Really its just one
             for (MethodInvocation predecessor : predecessors) {
                 for (MethodInvocation successor : successors) {
-                    int edgeID = id.getAndIncrement();
-                    String edgeLabel = "ExecutionDependency-" + edgeID;
-                    boolean added = graph.addEdge(edgeLabel, predecessor, successor, EdgeType.DIRECTED);
+                    String edge = generateNewEdge();
+                    graph.addEdge(edge, predecessor, successor, EdgeType.DIRECTED);
                     // logger.trace("ExecutionFlowGraph.refine() Introducing
                     // replacemente edge "
                     // + graph.getEndpoints(edgeLabel) + " added " + added);
@@ -755,6 +799,7 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
         return extrapolated;
     }
 
+    @Deprecated
     public void insertTestSetupCall(MethodInvocation testSetupCall) {
         System.out.println("ExecutionFlowGraph.insertTestSetupCall() " + testSetupCall);
         graph.addVertex(testSetupCall);
@@ -875,6 +920,62 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
         } else {
             logger.warn("Cannot removeMethodInvocation " + toDrop);
         }
+    }
+
+    @Override
+    public void insertNodeRightBefore(MethodInvocation nodeToPlace, MethodInvocation _original) throws ABCException {
+        try {
+            retrieveActualVertex(nodeToPlace);
+            throw new ABCException("Cannot insert node if already in the graph!");
+        } catch (java.util.NoSuchElementException e) {
+            // Pass
+        }
+
+        MethodInvocation original = retrieveActualVertex(_original);
+
+        Collection<MethodInvocation> predecessors = getPredecessors(original);
+        // This means original is the first node, we just add nodeToPlace as head
+        if (predecessors.size() == 0) {
+            logger.info("Add " + nodeToPlace + " as first node");
+            prependMethodInvocation(nodeToPlace);
+        } else {
+            // Collect and remove the incoming = Not sure this returns a copy, so we make
+            // sure it is the actual node
+            MethodInvocation prev = retrieveActualVertex(predecessors.iterator().next());
+            // There must be only one...
+            String edgeToRemove = graph.getInEdges(original).stream().findFirst().get();
+
+            if (!graph.removeEdge(edgeToRemove)) {
+                throw new ABCException("Cannot remove edge " + edgeToRemove + " between "
+                        + graph.getSource(edgeToRemove) + " and " + graph.getDest(edgeToRemove));
+            } else {
+                // This must should null... meaning there not more link between the nodes
+                logger.info("Removed Edge " + edgeToRemove);
+            }
+
+            // Insert the new node
+            graph.addVertex(nodeToPlace);
+
+            // Link prev to the node and node to the original (using new edges?)
+            String prevToNode = generateNewEdge();
+            graph.addEdge(prevToNode, prev, nodeToPlace, EdgeType.DIRECTED);
+            logger.info("Added new edge " + prevToNode + " between " + graph.getSource(prevToNode) + " and "
+                    + graph.getDest(prevToNode));
+
+            String nodeToOriginal = generateNewEdge();
+            graph.addEdge(nodeToOriginal, nodeToPlace, original, EdgeType.DIRECTED);
+            logger.info("Added new edge " + nodeToOriginal + " between " + graph.getSource(nodeToOriginal) + " and "
+                    + graph.getDest(nodeToOriginal));
+        }
+
+    }
+
+    private String generateNewEdge() {
+        String edge = "ExecutionDependency-" + id.getAndIncrement();
+        while (graph.containsEdge(edge)) {
+            edge = "ExecutionDependency-" + id.getAndIncrement();
+        }
+        return edge;
     }
 
 }

@@ -231,7 +231,8 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
             // TODO Replace with an exception
         } else {
             // Here we brutally add a new edge instead of reusing the original one
-            // TODO Will this work with String returns? Anyway, we use it only for intents at the moment
+            // TODO Will this work with String returns? Anyway, we use it only for intents
+            // at the moment
             this.addDataDependencyOnReturn(methodInvocation, newReturn);
         }
     }
@@ -1769,12 +1770,11 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
                     .findAny().orElse(null);
 
             // TODO Consider using the primitives to copy new nodes!
+//            logger.trace("Node " + originalMethodInvocation + " has the following predecessors:");
 
             MethodInvocation cloned = originalMethodInvocation.clone();
             union.addVertex(cloned);
             cloneMap.put(cloned, originalMethodInvocation);
-
-            logger.trace("Node " + originalMethodInvocation + " has the following predecessors:");
 
             for (GraphNode neighbor : graph.getPredecessors(originalMethodInvocation)) {
                 logger.trace(" - " + neighbor);

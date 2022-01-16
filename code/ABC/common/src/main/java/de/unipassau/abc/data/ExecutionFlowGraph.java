@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import de.unipassau.abc.exceptions.ABCException;
+
 public interface ExecutionFlowGraph {
 
     /**
@@ -105,5 +107,19 @@ public interface ExecutionFlowGraph {
      * @param methodInvocationToRemove
      */
     public void remove(MethodInvocation methodInvocationToRemove);
+
+    /**
+     * Insert a new node before the given one and update the links between the
+     * involved nodes in the graph
+     * 
+     * @param wrappingMethodInvocation
+     * @param original
+     * @throws ABCException 
+     */
+    public void insertNodeRightBefore(MethodInvocation noteToPlace, MethodInvocation original) throws ABCException;
+
+    public MethodInvocation getFirstMethodInvocation();
+
+    public void prependMethodInvocation(MethodInvocation enumConstantInvocation);
 
 }

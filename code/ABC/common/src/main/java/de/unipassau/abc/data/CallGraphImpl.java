@@ -5,6 +5,7 @@ import java.awt.Dimension;
 import java.awt.Paint;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -22,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Function;
 
+import de.unipassau.abc.exceptions.ABCException;
 import edu.uci.ics.jung.algorithms.cluster.WeakComponentClusterer;
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
 import edu.uci.ics.jung.graph.DirectedSparseMultigraph;
@@ -84,12 +86,15 @@ public class CallGraphImpl implements CallGraph {
     public Set<MethodInvocation> getRoots() {
         Set<MethodInvocation> roots = new HashSet<>();
         // A root in this graph is defined as a node which does not have incoming edges
-        // TODO This is because we only model call relation and not return into
+        // XXX Important note: MI are supposed to be IMMUTABLE (e.g., their uniqueID
+        // should remain unique) otherwise the hash of when their are stored in the
+        // graph is not the same as when we look them up and everything is screwed
         for (MethodInvocation mi : graph.getVertices()) {
             if (graph.getInEdges(mi).size() == 0) {
                 roots.add(mi);
             }
         }
+
         return roots;
 
     }
@@ -463,16 +468,30 @@ public class CallGraphImpl implements CallGraph {
 
         // Add all method invocation nodes - clone them in the process
         for (MethodInvocation methodInvocation : methodInvocations) {
+
+            if (!this.graph.containsVertex(methodInvocation)) {
+                // Why is this the case?
+                logger.error("The graph does not contain " + methodInvocation);
+                // List all the calls
+                List allMi = new ArrayList(this.graph.getVertices());
+                Collections.sort(allMi);
+                allMi.forEach(System.out::println);
+            }
+
             // Add the method invocation vertex and its neighbors, unless they are there
             // already
             MethodInvocation cloned = methodInvocation.clone();
             union.addVertex(cloned);
             cloneMap.put(cloned, methodInvocation);
 
-            for (MethodInvocation neighbor : graph.getPredecessors(methodInvocation)) {
-                MethodInvocation clonedNode = neighbor.clone();
-                cloneMap.put(clonedNode, neighbor);
-                union.addVertex(cloned);
+            try {
+                for (MethodInvocation neighbor : graph.getPredecessors(methodInvocation)) {
+                    MethodInvocation clonedNode = neighbor.clone();
+                    cloneMap.put(clonedNode, neighbor);
+                    union.addVertex(cloned);
+                }
+            } catch (NullPointerException e) {
+                logger.error("HERE");
             }
 
             for (MethodInvocation neighbor : graph.getSuccessors(methodInvocation)) {
@@ -556,12 +575,6 @@ public class CallGraphImpl implements CallGraph {
         return extrapolated;
     }
 
-    public void injectCallAsRoot(MethodInvocation methodInvocation) {
-        // Basically this is some kind of isolated call, it is not called in the context
-        // of anything and it will not call any other method
-        graph.addVertex(methodInvocation);
-    }
-
     /**
      * In some cases there we observed weird behaviors if we assume that the library
      * cannot realize that two different instances represent the same vertex.
@@ -583,26 +596,113 @@ public class CallGraphImpl implements CallGraph {
         // We need to cast to access low-level graph functionality!
         CallGraphImpl second = (CallGraphImpl) _second;
 
+//        logger.info("Including " + second.getRoots());
+
         /*
-         * Add vertices. Brutally as they are
+         * TODO This might be a problem, we should probably clone them? Add vertices.
+         * Brutally as they are
          */
         for (MethodInvocation vertex : second.graph.getVertices()) {
             graph.addVertex(vertex);
         }
-        // Add the relations if they are not there already
-        // What if one of the two vertices was inside and the other was not ?!
-        for (String edge : second.graph.getEdges()) {
-            if (!graph.containsEdge(edge)) {
-                EdgeType edgeType = second.graph.getEdgeType(edge);
-                MethodInvocation v1 = this.retrieveTheActualVertex(second.graph.getSource(edge));
-                MethodInvocation v2 = this.retrieveTheActualVertex(second.graph.getDest(edge));
 
-                if (!graph.addEdge(edge, v1, v2, edgeType)) {
-                    logger.warn("Merge of datadependency failed for edge" + edge + " " + v1 + " -> " + v2);
-                }
+        // Replicate the relations, but pay attention that some edges might have the
+        // same ID !
+        for (String edge : second.graph.getEdges()) {
+
+            // Get the nodes that are linked in the incoming graph
+            MethodInvocation source = this.retrieveTheActualVertex(second.graph.getSource(edge));
+            MethodInvocation destination = this.retrieveTheActualVertex(second.graph.getDest(edge));
+
+            // Check that they are not yet linked in the first graph
+            // In this case the relation is already there, no need to do anything?
+            if (graph.getPredecessors(destination).contains(source)) {
+                logger.warn(source + " is alread a predecessor of " + destination);
+                continue;
+            }
+
+            if (graph.getSuccessors(source).contains(destination)) {
+                logger.warn(destination + " is alread a successor of " + source);
+                continue;
+            }
+
+            // Ensure we generate an edge that does not exist yet
+            String newEdge = generateNewEdge();
+
+            if (!graph.addEdge(newEdge, source, destination, EdgeType.DIRECTED)) {
+                logger.warn("Merge of call graph failed for edge" + edge + " " + source + " -> " + destination);
             }
         }
 
+//        logger.info("New Roots Are " + getRoots());
+    }
+
+    public int getNestingLevelOf(MethodInvocation methodInvocation) {
+        MethodInvocation actualMethodInvocation = retrieveTheActualVertex(methodInvocation);
+        return getOrderedSubsumingMethodInvocationsFor(actualMethodInvocation).size();
+    }
+
+    @Override
+    public void wrapRootMethodInvocationWith(MethodInvocation _original, MethodInvocation _wrappingMethodInvocation)
+            throws ABCException {
+        MethodInvocation original = retrieveTheActualVertex(_original);
+
+        if (!getRoots().contains(original)) {
+            throw new ABCException("Cannot wrapping non-root method invocation " + original);
+        }
+
+        try {
+            MethodInvocation wrappingMethodInvocation = retrieveTheActualVertex(_wrappingMethodInvocation);
+
+            if (wrappingMethodInvocation.compareTo(original) < 0) {
+                throw new ABCException("Wrapping method invocation " + wrappingMethodInvocation
+                        + " come after the method it wraps " + original);
+            }
+            // Probably we should also check whether we are not reversing the relation or
+            // something...
+
+            moveUnder(original, wrappingMethodInvocation);
+        } catch (java.util.NoSuchElementException e) {
+            insertAsRoot(_wrappingMethodInvocation);
+            moveUnder(original, _wrappingMethodInvocation);
+        }
+    };
+
+    public void insertAsRoot(MethodInvocation methodInvocation) {
+        // Basically this is some kind of isolated call, it is not called in the context
+        // of anything and it will not call any other method
+        if (!graph.addVertex(methodInvocation)) {
+            logger.warn("Not added " + methodInvocation);
+        }
+    }
+
+    private void moveUnder(MethodInvocation _toMove, MethodInvocation _targetParent) {
+        // Break any parent-child relation on toMove
+        MethodInvocation toMove = retrieveTheActualVertex(_toMove);
+        graph.getInEdges(toMove).forEach(inEdge -> {
+            logger.info("Removing Edge " + inEdge + " connecting " + graph.getSource(inEdge) + " to "
+                    + graph.getDest(inEdge));
+            graph.removeEdge(inEdge);
+        });
+
+        MethodInvocation targetParent = retrieveTheActualVertex(_targetParent);
+        // Introduce the new edge between targetParent and toMove
+        String edgeName = generateNewEdge();
+        if (!graph.addEdge(edgeName, targetParent, toMove, EdgeType.DIRECTED)) {
+            logger.info("Error Adding New Edge " + edgeName);
+        } else {
+            logger.info("Adding New Edge " + edgeName + " connecting " + graph.getSource(edgeName) + " to "
+                    + graph.getDest(edgeName));
+        }
+    }
+
+    // Return an edge that does not yet exist in the graph
+    private String generateNewEdge() {
+        String edgeName = "CallDependency-" + id.incrementAndGet();
+        while (graph.containsEdge(edgeName)) {
+            edgeName = "CallDependency-" + id.incrementAndGet();
+        }
+        return edgeName;
     }
 
 }

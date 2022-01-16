@@ -26,7 +26,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
     // invocation id from the trace for debugging
     protected int invocationTraceId;
     // Unique id of the method invocation
-    protected int invocationCount;
+    protected int invocationId;
     // Signature of the method
     protected String methodSignature;
     // Method owner (null if static)
@@ -81,7 +81,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
             throw new RuntimeException(e);
         }
         cloned.invocationTraceId = invocationTraceId;
-        cloned.invocationCount = invocationCount;
+        cloned.invocationId = invocationId;
         cloned.methodSignature = methodSignature;
         // MethodInvocation cloned = new
         // MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
@@ -106,7 +106,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
         cloned.belongToExternalInterface = belongToExternalInterface;
         cloned.distanceFromMain = distanceFromMain;
         cloned.invocationTraceId = invocationTraceId;
-        cloned.invocationCount = invocationCount;
+        cloned.invocationId = invocationId;
         cloned.invocationType = invocationType;
         cloned.isConstructor = isConstructor;
         cloned.isExceptional = isExceptional;
@@ -143,7 +143,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
     public MethodInvocation(int invocationTraceId, int invocationCount, String methodSignature) {
         this.invocationTraceId = invocationTraceId;
         this.methodSignature = methodSignature;
-        this.invocationCount = invocationCount;
+        this.invocationId = invocationCount;
         this.isConstructor = JimpleUtils.isConstructor(methodSignature);
         this.actualParameterInstances = new ArrayList<>();
         // Void ?
@@ -155,7 +155,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
     public MethodInvocation(int invocationTraceId, int invocationCount, String methodSignature,
             String[] actualParameters) {
         this.invocationTraceId = invocationTraceId;
-        this.invocationCount = invocationCount;
+        this.invocationId = invocationCount;
         this.methodSignature = methodSignature;
         this.actualParameters = actualParameters;
         this.isConstructor = JimpleUtils.isConstructor(methodSignature);
@@ -164,11 +164,15 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
     @Deprecated // Replace the occurrences of this with the other one !
     public MethodInvocation(int invocationTraceId, String jimpleMethod, int invocationCount) {
         this.methodSignature = jimpleMethod;
-        this.invocationCount = invocationCount;
+        this.invocationId = invocationCount;
+    }
+
+    public void setInvocationTraceId(int invocationTraceId) {
+        this.invocationTraceId = invocationTraceId;
     }
 
     public void setInvocationCount(int invocationCount) {
-        this.invocationCount = invocationCount;
+        this.invocationId = invocationCount;
     }
 
     public void setInvocationType(String invocationType) {
@@ -184,7 +188,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
     }
 
     public int getInvocationCount() {
-        return invocationCount;
+        return invocationId;
     }
 
     public int getInvocationTraceId() {
@@ -197,7 +201,8 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
     public int hashCode() {
         final int prime = 31;
         int result = 1;
-        result = prime * result + invocationCount;
+        result = prime * result + invocationId;
+//        result = prime * result + invocationTraceId;
         result = prime * result + ((methodSignature == null) ? 0 : methodSignature.hashCode());
         return result;
     }
@@ -211,8 +216,10 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
         if (getClass() != obj.getClass())
             return false;
         MethodInvocation other = (MethodInvocation) obj;
-        if (invocationCount != other.invocationCount)
+        if (invocationId != other.invocationId)
             return false;
+//        if (invocationTraceId != other.invocationTraceId)
+//            return false;
         if (methodSignature == null) {
             if (other.methodSignature != null)
                 return false;
@@ -223,12 +230,12 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
 
     @Override
     public String toString() {
-        if (logger.isTraceEnabled()) {
-            return methodSignature + "_" + invocationCount + "_" + invocationTraceId + "\n" + "\t Actual Parameters: "
-                    + actualParameterInstances + "\n" + "\t Return Value: " + returnValue;
-        } else {
-            return methodSignature + "_" + invocationCount + "_" + invocationTraceId;
-        }
+        return methodSignature + "_" + invocationId + "_" + invocationTraceId;
+    }
+
+    public String toFullString() {
+        return methodSignature + "_" + invocationId + "_" + invocationTraceId + "\n" + "\t Actual Parameters: "
+                + actualParameterInstances + "\n" + "\t Return Value: " + returnValue;
     }
 
     public void setStatic(boolean staticCall) {
@@ -303,7 +310,12 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
      */
     @Override
     public int compareTo(MethodInvocation o) {
-        return getInvocationCount() - o.getInvocationCount();
+        // Use the Unique ID also to understand whether one call was generated, i.e., is
+        // more recent and takes precedence?
+
+        return (getInvocationTraceId() - o.getInvocationTraceId()) == 0
+                ? (o.getInvocationCount() - getInvocationCount())
+                : (getInvocationTraceId() - o.getInvocationTraceId());
     }
 
     public void setTestSetupCall(boolean b) {
@@ -448,7 +460,7 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
     }
 
     public void incrementInvocationCountBy(int delta) {
-        this.invocationCount = this.invocationCount + delta;
+        this.invocationId = this.invocationId + delta;
     }
 
     public void setAbstract(boolean isAbstract) {

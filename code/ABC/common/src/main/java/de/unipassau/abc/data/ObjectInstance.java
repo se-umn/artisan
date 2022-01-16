@@ -48,8 +48,6 @@ public class ObjectInstance implements DataNode, Cloneable {
 
     private ObjectInstance intentObjectInstance;
 
-    private boolean is;
-
     public ObjectInstance clone() {
         ObjectInstance cloned = null;
         try {
@@ -80,7 +78,6 @@ public class ObjectInstance implements DataNode, Cloneable {
             this.objectId = objectId;
         }
         this.type = objectId.split("@")[0];
-
     }
 
     @Override
@@ -176,6 +173,10 @@ public class ObjectInstance implements DataNode, Cloneable {
 
     public void setIntent(ObjectInstance intentObjectInstance) {
         this.intentObjectInstance = intentObjectInstance;
+    }
+
+    public String getHash() {
+        return objectId.split("@")[1];
     }
 
 }

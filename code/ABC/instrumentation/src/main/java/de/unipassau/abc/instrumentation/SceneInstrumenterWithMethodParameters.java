@@ -1170,7 +1170,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
                 /*
                  * Capture field setting as fake operations
                  */
-                currentUnit.apply(new FieldTransformer(Constants.getAPKName(), currentlyInstrumentedMethod,
+                currentUnit.apply(new InstrumentFieldSet(Constants.getAPKName(), currentlyInstrumentedMethod,
                         currentlyInstrumentedMethodBody, currentlyInstrumentedMethodBodyUnitChain, userClasses));
             }
             /*

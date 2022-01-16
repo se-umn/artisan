@@ -22,7 +22,7 @@ import soot.jimple.StaticFieldRef;
 import soot.jimple.Stmt;
 import soot.jimple.StringConstant;
 
-public class FieldTransformer extends AbstractStmtSwitch {
+public class InstrumentFieldSet extends AbstractStmtSwitch {
 
     private String packageName;
 
@@ -42,7 +42,7 @@ public class FieldTransformer extends AbstractStmtSwitch {
      */
     public final static String SIGNATURE = "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object,java.lang.String)>";
 
-    public FieldTransformer(final String packageName, final SootMethod currentlyInstrumentedMethod,
+    public InstrumentFieldSet(final String packageName, final SootMethod currentlyInstrumentedMethod,
             final Body currentlyInstrumentedMethodBody,
             final PatchingChain<Unit> currentlyInstrumentedMethodBodyUnitChain, List<SootClass> userClasses) {
 
