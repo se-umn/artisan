@@ -43,7 +43,8 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
 
         // Include additional metadata about Android invocations
         ParsedTrace decorated = decorateWithAndroidMetadata(parsedTrace);
-        // Include aliasing for tainted Intents - This changes the graph so we need to do it before static deps are added
+        // Include aliasing for tainted Intents and Serialized/Parcelized Objects - This
+        // changes the graph so we need to do it before static deps are added
         decorated = decorateWithAliasForIntents(parsedTrace);
         // Include implicit data dependencies that are Android-specific
         decorated = decorateWithIntentDataDependencies(parsedTrace);
@@ -68,7 +69,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
             // int invocationTraceId, int invocationCount, String methodSignature
             int invocationTraceId = -1; // We do not really care since this is synthetic... Hope this does not break
                                         // anything
-            int invocationCount = -1; // This will be set by the execution flow graph
+            int invocationCount = -2; // This will be set by the execution flow graph
             String methodSignature = "<abc.DefaultContextGenerator: android.content.Context generateDefaultContext()>";
             MethodInvocation generateDefaultAndroidContext = new MethodInvocation(invocationTraceId, invocationCount,
                     methodSignature);
@@ -87,7 +88,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
 
             // Make sure this call is on top of the nesting, i.e., root? so it is always
             // callable.
-            ((CallGraphImpl) callGraph).injectCallAsRoot(generateDefaultAndroidContext);
+            ((CallGraphImpl) callGraph).insertAsRoot(generateDefaultAndroidContext);
 
             // Make sure we add the proper data dependencies
             dataDependencyGraph.addDataDependencyOnReturn(generateDefaultAndroidContext, defaultContext);
@@ -138,6 +139,71 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
             }
         });
         return parsedTrace;
+    }
+
+    /**
+     * To completely replace one object instance with another we need to replace: -
+     * deps of the object as parameters and static/implicit dependencies - deps of
+     * the object as returnType - deps of the object as owners (pay attention to the
+     * constructors!)
+     * 
+     * @param toReplace
+     * @param willReplace
+     * @param callGraph
+     * @param executionFlowGraph
+     */
+    private void replaceEveryWhereWith(ObjectInstance toReplace, ObjectInstance willReplace,
+            ExecutionFlowGraph executionFlowGraph, DataDependencyGraph dataDependencyGraph, CallGraph callGraph) {
+
+        logger.info("Replacing everywhere " + toReplace + " with " + willReplace);
+
+        logger.info("Replacing " + toReplace + " as parameter");
+        // Parameters - including implicit data deps
+        for (MethodInvocation mi : dataDependencyGraph.getMethodInvocationsWhichUse(toReplace)) {
+            for (int i = 0; i < mi.getActualParameterInstances().size(); i++) {
+                DataNode param = mi.getActualParameterInstances().get(i);
+                if (toReplace.equals(param)) {
+
+                    logger.info("Replacing " + toReplace + " with " + willReplace + " in " + mi + " at position " + i);
+                    mi.getActualParameterInstances().set(i, willReplace);
+                    dataDependencyGraph.replaceDataDependencyOnActualParameter(mi, willReplace, i);
+                }
+            }
+        }
+
+        // Returns
+        logger.info("Replacing " + toReplace + " as return value");
+        // Returns
+        for (MethodInvocation mi : dataDependencyGraph.getMethodInvocationsWhichReturn(toReplace)) {
+            logger.info("Updating the return of " + mi + " to " + willReplace);
+            mi.setReturnValue(willReplace);
+            dataDependencyGraph.replaceDataDependencyOnReturn(mi, willReplace);
+        }
+
+        // Ownership
+        // Replace the invocations that have as owner sinkIntent with sourceIntent
+        // instead
+        for (MethodInvocation mi : dataDependencyGraph.getMethodInvocationsForOwner(toReplace)) {
+
+            if (mi.isConstructor()) {
+                logger.info("Delete the original constructor " + mi);
+                executionFlowGraph.remove(mi);
+                dataDependencyGraph.remove(mi);
+                // This also removes all the methods subsumed by the constructor. Constructor
+                // will probably be there for deserialized objects to enable rebuilding them
+                // from parcel/bytes
+                callGraph.remove(mi);
+            } else {
+
+                logger.info("Updating the ownership of " + mi + " to " + willReplace);
+                mi.setOwner(willReplace);
+                dataDependencyGraph.replaceDataDependencyOnOwner(mi, willReplace);
+            }
+        }
+
+        logger.info("Removing " + toReplace + " from the datagraph");
+        // Finally remove the sink data node from the datagraph
+        dataDependencyGraph.remove(toReplace);
     }
 
     // TODO This introduces an Alias relation, but what if we replace every
@@ -211,62 +277,79 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                     // dataDependencyGraph.addAliasingDataDependency(source.getValue(),
                     // sinkIntents.get(taint));
                     final ObjectInstance sinkIntent = sinkIntents.get(taint);
-                    
-                    // In some cases, like nz.org.cacophony.birdmonitor.CreateAccountTest#createAccountTest the intent is both SINK and SOURCE.
-                    // This is something involving PendingIntent and broadcasting, which Alessio never saw before...
-                    
-                    if( sinkIntent.equals(sourceIntent) ) {
-                        logger.warn("Sink intent " + sinkIntent + " and source intent " + sourceIntent + " are the same for TAINT: " + taint);
+
+                    // In some cases, like
+                    // nz.org.cacophony.birdmonitor.CreateAccountTest#createAccountTest the intent
+                    // is both SINK and SOURCE.
+                    // This is something involving PendingIntent and broadcasting, which Alessio
+                    // never saw before...
+
+                    if (sinkIntent.equals(sourceIntent)) {
+                        logger.warn("Sink intent " + sinkIntent + " and source intent " + sourceIntent
+                                + " are the same for TAINT: " + taint);
                         continue;
                     }
-                    
-                    logger.info("Replacing sink intent " + sinkIntent + " with source intent " + sourceIntent + " for TAINT: " + taint);
-                    
 
-                    // Parameters
-                    // Find all the method invocations that gets sink intent as parameter and
-                    // replace it. This usually is empty since the sink intent is the one returned
-                    // by the getIntent() call
-                    for (MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations()) {
-                        for (int i = 0; i < mi.getActualParameterInstances().size(); i++) {
-                            DataNode param = mi.getActualParameterInstances().get(i);
-                            if (sinkIntent.equals(param)) {
-                                logger.info("Replacing " + sinkIntent + " with " + sourceIntent + " in " + mi
-                                        + " at position " + i);
-                                dataDependencyGraph.replaceDataDependencyOnActualParameter(mi, sourceIntent, i);
-                                mi.getActualParameterInstances().set(i, sourceIntent);
+                    logger.info("Replacing sink intent " + sinkIntent + " with source intent " + sourceIntent
+                            + " for TAINT: " + taint);
 
-                            }
-                        }
+                    // At this point the two intents are linked together. Since they represent the
+                    // same logical object, they must contain the
+                    // same "extras". Primitive types are not an issue; however, complex objects are
+                    // because they are serialized and reconstructed.
+                    // Hence we need to match them as well !
+                    // First collect objects stored in the source intent:
+                    Map<String, ObjectInstance> keyAndSourceObject = new HashMap<String, ObjectInstance>();
+                    for (MethodInvocation putExtraMethodInvocation : dataDependencyGraph
+                            .getMethodInvocationsForOwner(sourceIntent).stream()
+                            .filter(mi -> mi.getMethodSignature().equals(
+                                    "<android.content.Intent: android.content.Intent putExtra(java.lang.String,android.os.Parcelable)>")
+                                    || mi.getMethodSignature().equals(
+                                            "<android.content.Intent: android.content.Intent putExtra(java.lang.String,java.io.Serializable)>"))
+                            .collect(Collectors.toList())) {
+
+                        String key = ((PrimitiveValue) putExtraMethodInvocation.getActualParameterInstances().get(0))
+                                .toString();
+                        ObjectInstance sourceObject = (ObjectInstance) putExtraMethodInvocation
+                                .getActualParameterInstances().get(1);
+
+                        logger.info("Found Parcelable/Serializable " + key + " " + sourceObject);
+                        keyAndSourceObject.put(key, sourceObject);
                     }
 
-                    // Ownership
-                    // Replace the invocations that have as owner sinkIntent with sourceIntent
-                    // instead
-                    for (MethodInvocation sinkIntentMi : dataDependencyGraph.getMethodInvocationsForOwner(sinkIntent)) {
+                    // Now replace this object with the object of the matching intent with the same
+                    // key
+                    Map<ObjectInstance, ObjectInstance> objectToReplaceWith = new HashMap<ObjectInstance, ObjectInstance>();
+                    for (MethodInvocation getExtraMethodInvocation : dataDependencyGraph
+                            .getMethodInvocationsForOwner(sinkIntent).stream()
+                            .filter(mi -> mi.getMethodSignature().equals(
+                                    "<android.content.Intent: android.os.Parcelable getParcelableExtra(java.lang.String)>")
+                                    || mi.getMethodSignature().equals(
+                                            "<android.content.Intent: java.io.Serializable getSerializableExtra(java.lang.String)>"))
+                            .collect(Collectors.toList())) {
 
-                        if (sinkIntentMi.isConstructor()) {
-                            logger.info("Delete the original constructor " + sinkIntentMi);
-                            dataDependencyGraph.remove(sinkIntentMi);
-                        } else {
+                        String key = ((PrimitiveValue) getExtraMethodInvocation.getActualParameterInstances().get(0))
+                                .toString();
+                        ObjectInstance toReplace = (ObjectInstance) getExtraMethodInvocation.getReturnValue();
 
-                            logger.info("Updating the ownership of " + sinkIntentMi + " to " + sourceIntent);
-                            sinkIntentMi.setOwner(sourceIntent);
-                            dataDependencyGraph.replaceDataDependencyOnOwner(sinkIntentMi, sourceIntent);
-                        }
+                        logger.info("Found matching Parcelable/Serializable " + toReplace + " in sinkIntent for key "
+                                + key);
 
+                        ObjectInstance willReplace = keyAndSourceObject.get(key);
+                        objectToReplaceWith.put(toReplace, willReplace);
                     }
 
-                    // Returns
-                    for (MethodInvocation sinkIntentMi : dataDependencyGraph
-                            .getMethodInvocationsWhichReturn(sinkIntent)) {
-                        logger.info("Updating the return of " + sinkIntentMi + " to " + sourceIntent);
-                        sinkIntentMi.setReturnValue(sourceIntent);
-                        dataDependencyGraph.replaceDataDependencyOnReturn(sinkIntentMi, sourceIntent);
+                    // Here to the actual replacement
+                    objectToReplaceWith.keySet().forEach(toReplace -> {
+                        replaceEveryWhereWith(toReplace, objectToReplaceWith.get(toReplace),//
+                                executionFlowGraph, dataDependencyGraph, callGraph);
+                    });
 
-                    }
-
-                    // Make sure we replace the sink intents also inside the activities that require
+                    // Now replace also the intents:
+                    replaceEveryWhereWith(sinkIntent, sourceIntent, //
+                            executionFlowGraph, dataDependencyGraph, callGraph);
+                    // Additionally, make sure we replace the sink intents also inside the
+                    // activities that require
                     // them
                     for (ObjectInstance activity : androidActivities) {
                         if (activity.requiresIntent() && activity.getIntent().equals(sinkIntents.get(taint))) {
@@ -275,13 +358,6 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                             activity.setIntent(source.getValue());
                         }
                     }
-
-                    logger.info("Remove " + sinkIntent + " from the datagraph");
-                    // Finally remove the sink data node from the datagraph
-                    dataDependencyGraph.remove(sinkIntent);
-
-                    // DEBUG: List all the methods on the source
-                    dataDependencyGraph.getMethodInvocationsForOwner(sourceIntent).forEach(System.out::println);
                 }
             }
 
