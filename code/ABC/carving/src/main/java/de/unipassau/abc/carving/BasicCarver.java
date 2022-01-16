@@ -2,6 +2,7 @@ package de.unipassau.abc.carving;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -32,6 +33,7 @@ import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.parsing.ParsedTrace;
+import de.unipassau.abc.utils.PrintUtility;
 
 /**
  * Basic carver is a method carver, that is, it will produce a carved execution
@@ -45,9 +47,9 @@ public class BasicCarver implements MethodCarver {
 
     private static Logger logger = LoggerFactory.getLogger(BasicCarver.class);
 
-    private ExecutionFlowGraph executionFlowGraph;
-    private DataDependencyGraph dataDependencyGraph;
-    private CallGraph callGraph;
+    final private ExecutionFlowGraph executionFlowGraph;
+    final private DataDependencyGraph dataDependencyGraph;
+    final private CallGraph callGraph;
     private String traceId;
 
     // Bookkeep the carved method invocations.
@@ -428,12 +430,12 @@ public class BasicCarver implements MethodCarver {
     }
 
     @Override
-    public List<CarvedExecution> carve(MethodInvocation methodInvocation) throws CarvingException, ABCException {
-
+    public List<CarvedExecution> carve(final MethodInvocation methodInvocation) throws CarvingException, ABCException {
         logger.info("-------------------------");
         logger.info("  CARVING: " + methodInvocation);
         logger.info("-------------------------");
-        List<CarvedExecution> carvedExecutions = new ArrayList<CarvedExecution>();
+
+        Set<MethodInvocation> necessaryMethodInvocations = new HashSet<MethodInvocation>();
 
         /*
          * Collect and sort the method invocations necessary for the carving. Note that
@@ -441,21 +443,13 @@ public class BasicCarver implements MethodCarver {
          * necessary, as those will impact future carving activities. Instead, we clone
          * them and explicitly tag them as necessary.
          */
-        Set<MethodInvocation> necessaryMethodInvocations = findNecessaryMethodInvocations(methodInvocation).stream()
-                .map(t -> {
-                    // Create a clone and mark it as necessary
-                    MethodInvocation clonedMethodInvocation = t.clone();
-                    clonedMethodInvocation.setNecessary(true);
-                    return clonedMethodInvocation;
-                }).collect(Collectors.toSet());
 
-        //
-        /**
-         * Starting from the set of necessary method invocations we create a
-         * "consistent" execution up to what we can do. So there will be dangling
-         * objects, connected components in the graphs, and in general missing elements
-         * here and there.
-         */
+        necessaryMethodInvocations.addAll(findNecessaryMethodInvocations(methodInvocation).stream().map(t -> {
+            // Create a clone and mark it as necessary
+            MethodInvocation clonedMethodInvocation = t.clone();
+            clonedMethodInvocation.setNecessary(true);
+            return clonedMethodInvocation;
+        }).collect(Collectors.toSet()));
 
         // We use a set to avoid duplicates. The algorithms below can be improved a
         // lot...
@@ -475,6 +469,26 @@ public class BasicCarver implements MethodCarver {
             }
         }).forEach(logger::info);
 
+        List<CarvedExecution> carvedExecutions = carveFrom(allMethodInvocations, necessaryMethodInvocations);
+
+        // Make sure we tag those with the correct method under test
+        carvedExecutions.forEach(ce -> {
+            ce.methodInvocationUnderTest = methodInvocation;
+        });
+        return carvedExecutions;
+    }
+
+    /**
+     * Starting from the list of necessary method invocations we create a
+     * "consistent" execution up to what we can do. So there will be dangling
+     * objects, connected components in the graphs, and in general missing elements
+     * here and there.
+     */
+    public List<CarvedExecution> carveFrom(List<MethodInvocation> allMethodInvocations,
+            Set<MethodInvocation> necessaryMethodInvocations) throws CarvingException, ABCException {
+
+        List<CarvedExecution> carvedExecutions = new ArrayList<CarvedExecution>();
+
         /*
          * Make sure you consider the method invocations that we have tagged as
          * necessary method invocations here. We need them because they are tagged as
@@ -486,9 +500,11 @@ public class BasicCarver implements MethodCarver {
          * invoking the necessaryMethodInvocations. In theory, executing those method
          * invocations should not require any additional carving.
          */
+        // This is to avoid ConcurrentModificationException
         for (MethodInvocation necessaryMethodInvocation : necessaryMethodInvocations) {
             // We need to be sure NOT to override the method invocations marked as relevant
-            // here that why we do not use a set
+            // here that why we do not use a set.
+            // This one takes a little...
             for (MethodInvocation mi : callGraph.getMethodInvocationsSubsumedBy(necessaryMethodInvocation)) {
                 if (!allMethodInvocations.contains(mi)) {
                     allMethodInvocations.add(mi);
@@ -496,18 +512,22 @@ public class BasicCarver implements MethodCarver {
             }
         }
         Collections.sort(allMethodInvocations);
+
         logger.info("-------------------------");
         logger.info("NECESSARY INVOCATIONS INCLUDING SUBSUMED METHODS");
         logger.info("-------------------------");
+
         allMethodInvocations.stream().map(new Function<MethodInvocation, String>() {
 
             @Override
             public String apply(MethodInvocation t) {
-                // TODO Maybe add this attribute to method invocation
-//                t.getNestingLevel()
-                return (t.isNecessary() ? "* " : "") + t.toString();
+                return t.toString();
             }
         }).forEach(logger::info);
+
+        // NOTE: Remember to remove this one before running the experiments:
+        // This takes a lot because it needs to lookup the callGraph and such...
+//        logger.info("\n" + PrintUtility.printWithNesting(allMethodInvocations, callGraph));
 
         // ALESSIO: TODO Why the calls subsumed by necessary calls should be marked as
         // necessary as well?
@@ -533,7 +553,7 @@ public class BasicCarver implements MethodCarver {
          * 
          */
 
-        logger.debug("Extrapolating method invocations from graphs");
+        logger.info("Extrapolating method invocations from graphs");
         CarvedExecution carvedExecution = new CarvedExecution(traceId);
 
         // How do we ensure that whatever we extrapolate from the graphs belong
@@ -554,8 +574,6 @@ public class BasicCarver implements MethodCarver {
 //                    .map(obj -> (obj.isAndroidActivity()) ? "** " + obj.toString() : "" + obj.toString())
 //                    .forEach(System.out::println);
 //        }
-
-        carvedExecution.dataDependencyGraphs = this.dataDependencyGraph.extrapolate(new HashSet(allMethodInvocations));
 
         carvedExecution.callGraphs = this.callGraph.extrapolate(new HashSet(allMethodInvocations));
 
@@ -644,6 +662,101 @@ public class BasicCarver implements MethodCarver {
 
     public void clearTheCache() {
         carvedMethodInvocationsCache.clear();
+    }
+
+    /**
+     * This is similar to carving but must be used after we simplify the CarvedTrace
+     * 
+     * @throws ABCException
+     * @throws CarvingException
+     */
+    public List<CarvedExecution> recarve(MethodInvocation methodInvocation) throws CarvingException, ABCException {
+        logger.info("-------------------------");
+        logger.info("  RECARVING: " + methodInvocation);
+        logger.info("-------------------------");
+        Set<MethodInvocation> necessaryMethodInvocations = new HashSet<MethodInvocation>();
+
+        // Step 1: Collect all the necessary invocations that have been tagged during
+        // simplification
+        Set<MethodInvocation> alreadyNecessaryMethodInvocations = this.executionFlowGraph.getOrderedMethodInvocations()
+                .stream().filter(mi -> mi.isNecessary()).collect(Collectors.toSet());
+        
+        logger.info("Found " + alreadyNecessaryMethodInvocations.size() + " ALREADY necessary method invocations");
+        alreadyNecessaryMethodInvocations.forEach( mi -> logger.info("- " + mi));
+        //
+        // This is automatically done inside findNecessaryMethodInvocations
+//        necessaryMethodInvocations.addAll( alreadyNecessaryMethodInvocations);
+        //
+        alreadyNecessaryMethodInvocations.forEach(necessaryMi -> {
+            logger.info("Find necessary method invocations for " + necessaryMi);
+            necessaryMethodInvocations.addAll(findNecessaryMethodInvocations(necessaryMi).stream().map(t -> {
+                // Create a clone and mark it as necessary
+                MethodInvocation clonedMethodInvocation = t.clone();
+                clonedMethodInvocation.setNecessary(true);
+                return clonedMethodInvocation;
+            }).collect(Collectors.toSet()));
+        });
+
+        // At this point, it is OK if the method invocation under test is not present,
+        // as it might have been replaced
+        // by a different call (e.g., Robolectric). TODO We should keep it stored
+        // somewhere to avoid breaking the code later
+
+        if (this.executionFlowGraph.contains(methodInvocation)) {
+            // TODO Probably can be refactored
+            logger.info("-------------------------");
+            logger.info("  CARVING: " + methodInvocation);
+            logger.info("-------------------------");
+
+            /*
+             * Collect and sort the method invocations necessary for the carving. Note that
+             * the findNecessaryMethodInvocations DOES NOT tag the method invocations as
+             * necessary, as those will impact future carving activities. Instead, we clone
+             * them and explicitly tag them as necessary.
+             */
+
+            necessaryMethodInvocations.addAll(findNecessaryMethodInvocations(methodInvocation).stream().map(t -> {
+                // Create a clone and mark it as necessary
+                MethodInvocation clonedMethodInvocation = t.clone();
+                clonedMethodInvocation.setNecessary(true);
+                return clonedMethodInvocation;
+            }).collect(Collectors.toSet()));
+        } else {
+            logger.warn("-------------------------");
+            logger.warn("  MUT : " + methodInvocation + " not found !");
+            logger.warn("-------------------------");
+            // TODO Probably need to tag this somehow
+        }
+
+        // We use a set to avoid duplicates. The algorithms below can be improved a
+        // lot...
+        List<MethodInvocation> allMethodInvocations = new ArrayList<MethodInvocation>(necessaryMethodInvocations);
+        // SORT THEM
+        Collections.sort(allMethodInvocations);
+        //
+        logger.info("-------------------------");
+        logger.info("  NECESSARY INVOCATIONS FOR: " + methodInvocation);
+        logger.info("-------------------------");
+
+        allMethodInvocations.stream().map(new Function<MethodInvocation, String>() {
+
+            @Override
+            public String apply(MethodInvocation t) {
+                return t.toString();
+            }
+        }).forEach(logger::info);
+
+        List<CarvedExecution> carvedExecutions = carveFrom(allMethodInvocations, necessaryMethodInvocations);
+
+        // Make sure we tag those with the correct method under test
+        carvedExecutions.forEach(ce -> {
+            ce.methodInvocationUnderTest = methodInvocation;
+            ce.isMethodInvocationUnderTestWrapped = !this.executionFlowGraph.contains(methodInvocation);
+
+        });
+
+        return carvedExecutions;
+
     }
 
 }

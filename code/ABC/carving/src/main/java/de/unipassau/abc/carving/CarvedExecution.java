@@ -22,31 +22,33 @@ import de.unipassau.abc.data.ObjectInstance;
  */
 public class CarvedExecution {
     private static final Logger logger = LoggerFactory.getLogger(CarvedExecution.class);
-    
-    
-    
-	/*
-	 * This method invocation can be either the invocation carved or the context for
-	 * carving the object. If the object is not null, then it is the latter,
-	 * otherwise the former
-	 */
-	public MethodInvocation methodInvocationUnderTest;
-	// TODO Does it make sense to carve primitives?
-	public ObjectInstance carvedObject;
 
-	// Those elements do not have to be matched by position, since all of them are
-	// needed to recreate the execution
-	public Collection<ExecutionFlowGraph> executionFlowGraphs;
-	public Collection<DataDependencyGraph> dataDependencyGraphs;
-	public Collection<CallGraph> callGraphs;
-	public String traceId;
+    /*
+     * This method invocation can be either the invocation carved or the context for
+     * carving the object. If the object is not null, then it is the latter,
+     * otherwise the former
+     */
+    public MethodInvocation methodInvocationUnderTest;
+    // TODO Does it make sense to carve primitives?
+    public ObjectInstance carvedObject;
 
-	public CarvedExecution(String traceId) {
-		this.executionFlowGraphs = new ArrayList<>();
-		this.dataDependencyGraphs = new ArrayList<>();
-		this.callGraphs = new ArrayList<>();
-		this.traceId = traceId;
-	}
+    // Those elements do not have to be matched by position, since all of them are
+    // needed to recreate the execution
+    public Collection<ExecutionFlowGraph> executionFlowGraphs;
+    public Collection<DataDependencyGraph> dataDependencyGraphs;
+    public Collection<CallGraph> callGraphs;
+    public String traceId;
+
+    // It is possible that the MUT is replaced by a call to Robolectric, so it
+    // cannot be found in the test literally.
+    public boolean isMethodInvocationUnderTestWrapped;
+
+    public CarvedExecution(String traceId) {
+        this.executionFlowGraphs = new ArrayList<>();
+        this.dataDependencyGraphs = new ArrayList<>();
+        this.callGraphs = new ArrayList<>();
+        this.traceId = traceId;
+    }
 
     /**
      * Return the callGraph which contain the methodInvocationUnderTest or null
@@ -60,7 +62,6 @@ public class CarvedExecution {
             return null;
         }
     }
-
 
     public CallGraph getCallGraphContainingTheMethodInvocation(MethodInvocation mi) {
         try {
