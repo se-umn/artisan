@@ -36,13 +36,18 @@ import de.unipassau.abc.generation.data.CatchBlock;
 import de.unipassau.abc.generation.mocks.MockGenerator;
 import de.unipassau.abc.generation.simplifiers.AndroidMultiActivitySimplifier;
 import de.unipassau.abc.generation.simplifiers.CarvedExecutionSimplifier;
+import de.unipassau.abc.generation.simplifiers.RobolectricSimplifier;
 import de.unipassau.abc.parsing.ParsedTrace;
 
 public class BasicTestGenerator implements TestGenerator {
 
     private final static Logger logger = LoggerFactory.getLogger(BasicTestGenerator.class);
 
-    private CarvedExecutionSimplifier simplifier = new AndroidMultiActivitySimplifier();
+    private List<CarvedExecutionSimplifier> simplifiers = Arrays.asList(
+            // Make sure that only one activity is present in the carved test
+            new AndroidMultiActivitySimplifier(),
+            // Transform android-calls into robolectric-calls
+            new RobolectricSimplifier());
 
     @Override
     public Collection<CarvedTest> generateTests(List<MethodInvocation> targetMethodsInvocations, ParsedTrace trace)
@@ -72,13 +77,14 @@ public class BasicTestGenerator implements TestGenerator {
                     carvedTests.add(carvedTest);
 
                     logger.info("-------------------------");
-                    logger.info("DONE CARVING:" + targetMethodInvocation);
+                    logger.info("DONE CARVING:" + targetMethodInvocation + " from " + carvedExecution.traceId);
                     logger.info("-------------------------");
 
-                } catch (Exception e) {
+                } catch (CarvingException e) {
                     // TODO May be too coarse exception
                     logger.error("-------------------------");
-                    logger.error("Error Carving " + targetMethodInvocation, e);
+                    logger.error("Error Carving " + targetMethodInvocation + " from " + carvedExecution.traceId);
+                    logger.error("Reason: " + e.getMessage());
                     logger.error("-------------------------");
                 }
             }
@@ -123,23 +129,25 @@ public class BasicTestGenerator implements TestGenerator {
         logger.info("-------------------------");
         logger.info("  TRY TO SIMPLIFY TEST EXECUTION");
         logger.info("-------------------------");
+
         // TODO At this point the carver selected the methods that belong to the trace.
         // However, we may not be able to generate the test because it will nevertheless
         // violates some conditions. For example, that more than ONE activity is
         // created.
         // Therefore we need to attempt simplify the slice to get as close as possible
         // to what we want/need
-        AndroidMultiActivitySimplifier simplifier = new AndroidMultiActivitySimplifier();
-
-        CarvedExecution _carvedExecution = null;
-        try {
-            _carvedExecution = simplifier.simplify(optimisticCarvedExecution);
-        } catch (CarvingException ce) {
-            logger.error("Simplification Failed", ce);
-            throw ce;
-        } catch (ABCException e) {
-            logger.error("Simplification Failed", e);
-            throw new CarvingException("Simplification Failed", e);
+        CarvedExecution _carvedExecution = optimisticCarvedExecution;
+        //
+        for (CarvedExecutionSimplifier simplifier : this.simplifiers) {
+            try {
+                _carvedExecution = simplifier.simplify(_carvedExecution);
+            } catch (CarvingException ce) {
+                logger.error("Simplification Failed", ce);
+                throw ce;
+            } catch (ABCException e) {
+                logger.error("Simplification Failed", e);
+                throw new CarvingException("Simplification Failed", e);
+            }
         }
 
         //
@@ -160,18 +168,30 @@ public class BasicTestGenerator implements TestGenerator {
 
         /*
          * Validation: If the directlyCallableMethodInvocations do not contain the
-         * target method invocation the test needs some adjustment. For the moment,
-         * simply raise an exception.
+         * target method invocation AND this was not on purpose (e.g., simplification),
+         * this test needs some adjustment. For the moment, simply raise an exception.
          */
         boolean needsFix = false;
         if (!directlyCallableMethodInvocations.stream()
-                .anyMatch(mi -> mi.equals(carvedExecution.methodInvocationUnderTest))) {
+                .anyMatch(mi -> mi.equals(carvedExecution.methodInvocationUnderTest))
+                && !carvedExecution.isMethodInvocationUnderTestWrapped) {
 
+            // This might break the test because it might expose a method that is necessary
+            // but subsumes the MUT resulting in invoking the method under test twice!
             logger.info("Method invocation under test " + carvedExecution.methodInvocationUnderTest
                     + " is not visible. Try to recover ...");
             needsFix = true;
 
-            // Try to recover this test? Or maybe this is an actual feature of the CARVER ?
+            List<MethodInvocation> necessaryAndSubsuming = carvedExecution
+                    .getCallGraphContainingTheMethodInvocationUnderTest()
+                    .getOrderedSubsumingMethodInvocationsFor(carvedExecution.methodInvocationUnderTest).stream()
+                    .filter(mi -> mi.isNecessary()).collect(Collectors.toList());
+
+            if (necessaryAndSubsuming.size() > 0) {
+                throw new CarvingException("We cannot make visible " + carvedExecution.methodInvocationUnderTest
+                        + " because it is subsumed by necessary invocations: " + necessaryAndSubsuming);
+            }
+
             /*
              * Recovery works as follow. Recursively replace the invocation of a parent
              * method with its execution until the mehtod invocation under test becomes
@@ -233,14 +253,21 @@ public class BasicTestGenerator implements TestGenerator {
         }
 
         if (!directlyCallableMethodInvocations.stream()
-                .anyMatch(mi -> mi.equals(carvedExecution.methodInvocationUnderTest))) {
+                .anyMatch(mi -> mi.equals(carvedExecution.methodInvocationUnderTest))
+                && !carvedExecution.isMethodInvocationUnderTestWrapped) {
             throw new CarvingException("Target method invocation " + carvedExecution.methodInvocationUnderTest
                     + "is not directly visible ");
         }
 
+        logger.info("-------------------------");
+        logger.info(" VALIDATING THE CARVED EXECUTION ");
+        logger.info("-------------------------");
+
         /*
          * Validation: If the directlyCallableMethodInvocations contain private methods,
          * that's an error
+         * 
+         * TODO Unless we want to use Reflection and call private methods anyway !
          */
         for (MethodInvocation directlyCallableMethodInvocation : directlyCallableMethodInvocations) {
             if (directlyCallableMethodInvocation.isPrivate()) {
@@ -251,6 +278,7 @@ public class BasicTestGenerator implements TestGenerator {
             }
         }
 
+        //
         /*
          * Sort the method invocations by their original order of execution. This
          * represents the body of the test
@@ -319,133 +347,25 @@ public class BasicTestGenerator implements TestGenerator {
              * SPY or not SPY
              */
 
-            if (!directlyCallableMethodInvocations.contains(methodInvocationUnderTest)) {
+            if (!directlyCallableMethodInvocations.contains(methodInvocationUnderTest)
+                    && !carvedExecution.isMethodInvocationUnderTestWrapped) {
                 // SPY
                 throw new CarvingException(
                         "Method Invocation under test is not visible in the carved tests. This requires SPY-ing, which not yet implemented!");
             }
         }
 
-        // Here we may need to do some post processing? Like simplification
+        /*
+         * Create the test from the execution
+         */
 
         //
         CarvedTest carvedTest = null;
 
         if (methodInvocationUnderTest.isExceptional()) {
-            // This is basically generating assertions...
-            // TODO Move the following logic into separated methods. Probably an assertion
-            // generator of some sort
-            /*
-             * If the execution was exceptional, we need to include try-fail + catch-pass
-             * exception code + catch-fail ... This requires to MUD execution flow graph
-             * with branching... This requires us to implement a ControlFlow graph. Or maybe
-             * we can take a short cut and create "Synthetic instructions" instead? The
-             * control flow of a unit test should be linear...
-             */
+            carvedTest = generateExceptionalTestCase(methodInvocationUnderTest, executionFlowGraph, dataDependencyGraph,
+                    carvedExecution);
 
-            // Create the String message for the fail operation.
-            final String defaultFailMessage = "Expected exception was not thrown!";
-            DataNode defaultFailMessageNode = DataNodeFactory.get("java.lang.String",
-                    Arrays.toString(defaultFailMessage.getBytes()));
-
-            // Create the invocation to "fail" with message in case.
-            int nextMethod = executionFlowGraph.getLastMethodInvocation().getInvocationCount() + 1;
-            MethodInvocation defaultFailMethodInvocation = new MethodInvocation(
-                    MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, nextMethod,
-                    SyntheticMethodSignatures.FAIL_WITH_MESSAGE);
-            defaultFailMethodInvocation.setPublic(true);
-            defaultFailMethodInvocation.setStatic(true);
-            defaultFailMethodInvocation.setSyntheticMethod(true);
-
-            // Attach the parameter to the method invocation. This is a quite dangerous
-            // duplication of information. We should probably rely only and only on the
-            // graphs !
-            List<DataNode> actualParameterInstances = new ArrayList<>();
-            actualParameterInstances.add(defaultFailMessageNode);
-            defaultFailMethodInvocation.setActualParameterInstances(actualParameterInstances);
-
-            // Add the execution by the end of the test
-            executionFlowGraph.enqueueMethodInvocations(defaultFailMethodInvocation);
-
-            // Make sure we include the data dependencies on the string
-            dataDependencyGraph.addMethodInvocationWithoutAnyDependency(defaultFailMethodInvocation);
-            dataDependencyGraph.addDataDependencyOnActualParameter(defaultFailMethodInvocation, defaultFailMessageNode,
-                    0);
-
-            // How do we tell that we want to catch that specific exception?
-            ObjectInstance expectedException = methodInvocationUnderTest.getRaisedException();
-
-            ExecutionFlowGraph expectedExceptionCatchBlockExecutionFlowGraph = new ExecutionFlowGraphImpl();
-            DataDependencyGraph expectedExceptionCatchBlockDataDependencyGraph = new DataDependencyGraphImpl();
-
-            // If we reach the following block an exception was raised but this is not the
-            List<String> expectedExceptions = new ArrayList<>();
-            expectedExceptions.add(expectedException.getType());
-            CatchBlock catchExpectedException = new CatchBlock(expectedExceptions,
-                    expectedExceptionCatchBlockExecutionFlowGraph, expectedExceptionCatchBlockDataDependencyGraph);
-
-            // There's no such a thing like PASS for the test. TODO Add other assertions if
-            // needed, cause, message, etc.
-
-            // one we expected
-            ExecutionFlowGraph unexpectedExceptionCatchBlockExecutionFlowGraph = new ExecutionFlowGraphImpl();
-            DataDependencyGraph unexpectedExceptionCatchBlockDataDependencyGraph = new DataDependencyGraphImpl();
-
-            // Create the String message for the fail operation.
-            final String unexpectedExceptionFailMessage = "A unexpected exception was thrown!";
-            DataNode unexpectedExceptionFailMessageNode = DataNodeFactory.get("java.lang.String",
-                    Arrays.toString(unexpectedExceptionFailMessage.getBytes()));
-
-            // Create the invocation to "fail" with message in case. This is the first
-            // invocation inside the catch block
-            int methodCount = 0;
-            MethodInvocation failMethodInvocation = new MethodInvocation(
-                    MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, methodCount,
-                    SyntheticMethodSignatures.FAIL_WITH_MESSAGE);
-            failMethodInvocation.setPublic(true);
-            failMethodInvocation.setStatic(true);
-            failMethodInvocation.setSyntheticMethod(true);
-            //
-            List<DataNode> actualParameterInstances2 = new ArrayList<DataNode>();
-            actualParameterInstances2.add(unexpectedExceptionFailMessageNode);
-            // TODO Get rid of data duplication between nodes and graphs...
-            failMethodInvocation.setActualParameterInstances(actualParameterInstances2);
-
-            // Methods
-            unexpectedExceptionCatchBlockExecutionFlowGraph.enqueueMethodInvocations(failMethodInvocation);
-            // Data
-            unexpectedExceptionCatchBlockDataDependencyGraph
-                    .addMethodInvocationWithoutAnyDependency(failMethodInvocation);
-            unexpectedExceptionCatchBlockDataDependencyGraph.addDataDependencyOnActualParameter(failMethodInvocation,
-                    unexpectedExceptionFailMessageNode, 0);
-
-            List<String> unexpectedExceptions = new ArrayList<>();
-            // We use Throwable to fix !97. It should be ok, in 99% of the cases, since
-            // application methods do not usually throw "Throwable"
-            unexpectedExceptions.add("java.lang.Throwable");
-            CatchBlock catchUnexpectedException = new CatchBlock(unexpectedExceptions,
-                    unexpectedExceptionCatchBlockExecutionFlowGraph, unexpectedExceptionCatchBlockDataDependencyGraph);
-
-            boolean containsAndroidMethodInvocations = containsAndroidMethodInvocations(executionFlowGraph,
-                    carvedExecution.callGraphs);
-
-            // Patch to enable Android Specific extensions. Probably we need a better way to
-            // do so
-            // TODO Note that the method invocation is not the ONLY way to eastablish
-            // whether or not the test case android related...
-            if (containsAndroidMethodInvocations) {
-                /*
-                 * carvedTest = new AndroidCarvedTest(methodInvocationUnderTest,
-                 * unexpectedExceptionCatchBlockExecutionFlowGraph,
-                 * unexpectedExceptionCatchBlockDataDependencyGraph);
-                 */
-                carvedTest = new AndroidCarvedTest(methodInvocationUnderTest, executionFlowGraph, dataDependencyGraph,
-                        catchExpectedException, catchUnexpectedException, carvedExecution.traceId);
-            } else {
-                carvedTest = new CarvedTest(methodInvocationUnderTest, //
-                        executionFlowGraph, dataDependencyGraph, // Test Body + Fail
-                        catchExpectedException, catchUnexpectedException, carvedExecution.traceId);
-            }
         } else {
 
             // Include assertions here
@@ -523,6 +443,124 @@ public class BasicTestGenerator implements TestGenerator {
         return carvedTest;
     }
 
+    private CarvedTest generateExceptionalTestCase(MethodInvocation methodInvocationUnderTest, //
+            ExecutionFlowGraph executionFlowGraph, //
+            DataDependencyGraph dataDependencyGraph, //
+            CarvedExecution carvedExecution) {
+        // This is basically generating assertions...
+        // TODO Move the following logic into separated methods. Probably an assertion
+        // generator of some sort
+        /*
+         * If the execution was exceptional, we need to include try-fail + catch-pass
+         * exception code + catch-fail ... This requires to MUD execution flow graph
+         * with branching... This requires us to implement a ControlFlow graph. Or maybe
+         * we can take a short cut and create "Synthetic instructions" instead? The
+         * control flow of a unit test should be linear...
+         */
+
+        // Create the String message for the fail operation.
+        final String defaultFailMessage = "Expected exception was not thrown!";
+        DataNode defaultFailMessageNode = DataNodeFactory.get("java.lang.String",
+                Arrays.toString(defaultFailMessage.getBytes()));
+
+        // Create the invocation to "fail" with message in case.
+        int nextMethod = executionFlowGraph.getLastMethodInvocation().getInvocationCount() + 1;
+        MethodInvocation defaultFailMethodInvocation = new MethodInvocation(
+                MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, nextMethod,
+                SyntheticMethodSignatures.FAIL_WITH_MESSAGE);
+        defaultFailMethodInvocation.setPublic(true);
+        defaultFailMethodInvocation.setStatic(true);
+        defaultFailMethodInvocation.setSyntheticMethod(true);
+
+        // Attach the parameter to the method invocation. This is a quite dangerous
+        // duplication of information. We should probably rely only and only on the
+        // graphs !
+        List<DataNode> actualParameterInstances = new ArrayList<>();
+        actualParameterInstances.add(defaultFailMessageNode);
+        defaultFailMethodInvocation.setActualParameterInstances(actualParameterInstances);
+
+        // Add the execution by the end of the test
+        executionFlowGraph.enqueueMethodInvocations(defaultFailMethodInvocation);
+
+        // Make sure we include the data dependencies on the string
+        dataDependencyGraph.addMethodInvocationWithoutAnyDependency(defaultFailMethodInvocation);
+        dataDependencyGraph.addDataDependencyOnActualParameter(defaultFailMethodInvocation, defaultFailMessageNode, 0);
+
+        // How do we tell that we want to catch that specific exception?
+        ObjectInstance expectedException = methodInvocationUnderTest.getRaisedException();
+
+        ExecutionFlowGraph expectedExceptionCatchBlockExecutionFlowGraph = new ExecutionFlowGraphImpl();
+        DataDependencyGraph expectedExceptionCatchBlockDataDependencyGraph = new DataDependencyGraphImpl();
+
+        // If we reach the following block an exception was raised but this is not the
+        List<String> expectedExceptions = new ArrayList<>();
+        expectedExceptions.add(expectedException.getType());
+        CatchBlock catchExpectedException = new CatchBlock(expectedExceptions,
+                expectedExceptionCatchBlockExecutionFlowGraph, expectedExceptionCatchBlockDataDependencyGraph);
+
+        // There's no such a thing like PASS for the test. TODO Add other assertions if
+        // needed, cause, message, etc.
+
+        // one we expected
+        ExecutionFlowGraph unexpectedExceptionCatchBlockExecutionFlowGraph = new ExecutionFlowGraphImpl();
+        DataDependencyGraph unexpectedExceptionCatchBlockDataDependencyGraph = new DataDependencyGraphImpl();
+
+        // Create the String message for the fail operation.
+        final String unexpectedExceptionFailMessage = "A unexpected exception was thrown!";
+        DataNode unexpectedExceptionFailMessageNode = DataNodeFactory.get("java.lang.String",
+                Arrays.toString(unexpectedExceptionFailMessage.getBytes()));
+
+        // Create the invocation to "fail" with message in case. This is the first
+        // invocation inside the catch block
+        int methodCount = 0;
+        MethodInvocation failMethodInvocation = new MethodInvocation(MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT,
+                methodCount, SyntheticMethodSignatures.FAIL_WITH_MESSAGE);
+        failMethodInvocation.setPublic(true);
+        failMethodInvocation.setStatic(true);
+        failMethodInvocation.setSyntheticMethod(true);
+        //
+        List<DataNode> actualParameterInstances2 = new ArrayList<DataNode>();
+        actualParameterInstances2.add(unexpectedExceptionFailMessageNode);
+        // TODO Get rid of data duplication between nodes and graphs...
+        failMethodInvocation.setActualParameterInstances(actualParameterInstances2);
+
+        // Methods
+        unexpectedExceptionCatchBlockExecutionFlowGraph.enqueueMethodInvocations(failMethodInvocation);
+        // Data
+        unexpectedExceptionCatchBlockDataDependencyGraph.addMethodInvocationWithoutAnyDependency(failMethodInvocation);
+        unexpectedExceptionCatchBlockDataDependencyGraph.addDataDependencyOnActualParameter(failMethodInvocation,
+                unexpectedExceptionFailMessageNode, 0);
+
+        List<String> unexpectedExceptions = new ArrayList<>();
+        // We use Throwable to fix !97. It should be ok, in 99% of the cases, since
+        // application methods do not usually throw "Throwable"
+        unexpectedExceptions.add("java.lang.Throwable");
+        CatchBlock catchUnexpectedException = new CatchBlock(unexpectedExceptions,
+                unexpectedExceptionCatchBlockExecutionFlowGraph, unexpectedExceptionCatchBlockDataDependencyGraph);
+
+        boolean containsAndroidMethodInvocations = containsAndroidMethodInvocations(executionFlowGraph,
+                carvedExecution.callGraphs);
+
+        // Patch to enable Android Specific extensions. Probably we need a better way to
+        // do so
+        // TODO Note that the method invocation is not the ONLY way to eastablish
+        // whether or not the test case android related...
+        if (containsAndroidMethodInvocations) {
+            /*
+             * carvedTest = new AndroidCarvedTest(methodInvocationUnderTest,
+             * unexpectedExceptionCatchBlockExecutionFlowGraph,
+             * unexpectedExceptionCatchBlockDataDependencyGraph);
+             */
+            return new AndroidCarvedTest(methodInvocationUnderTest, executionFlowGraph, dataDependencyGraph,
+                    catchExpectedException, catchUnexpectedException, carvedExecution.traceId);
+        } else {
+            return new CarvedTest(methodInvocationUnderTest, //
+                    executionFlowGraph, dataDependencyGraph, // Test Body + Fail
+                    catchExpectedException, catchUnexpectedException, carvedExecution.traceId);
+        }
+
+    }
+
     /**
      * For each method invocation that we call explicitly from the execution flow
      * graph, we check if it or any of the subsumed method invocations belongs to
@@ -535,8 +573,16 @@ public class BasicTestGenerator implements TestGenerator {
     private boolean containsAndroidMethodInvocations(ExecutionFlowGraph executionFlowGraph,
             Collection<CallGraph> callGraphs) {
         for (MethodInvocation mi : executionFlowGraph.getOrderedMethodInvocations()) {
+
             // Check if any of the explicitly called mi's is an android method invocation
             if (mi instanceof AndroidMethodInvocation) {
+                return true;
+            }
+
+            // Check if any of the explicitly called mi's is an call to Robolectric - This
+            // should be enough, since we need it to make our tests work
+            if (mi.getMethodSignature().contains(
+                    "<org.robolectric.Robolectric: org.robolectric.android.controller.ActivityController buildActivity")) {
                 return true;
             }
 

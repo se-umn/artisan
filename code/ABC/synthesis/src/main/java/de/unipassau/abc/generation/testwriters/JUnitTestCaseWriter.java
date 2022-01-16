@@ -3,7 +3,6 @@ package de.unipassau.abc.generation.testwriters;
 import static com.github.javaparser.StaticJavaParser.parseClassOrInterfaceType;
 import static com.github.javaparser.StaticJavaParser.parseType;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -47,7 +46,6 @@ import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
-import com.github.javaparser.ast.expr.TypeExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
@@ -60,6 +58,7 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import de.unipassau.abc.data.AndroidMethodInvocation;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.DataNode;
+import de.unipassau.abc.data.EnumConstant;
 import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodCallLiteralValue;
@@ -71,7 +70,6 @@ import de.unipassau.abc.data.PrimitiveValue;
 import de.unipassau.abc.evaluation.Main;
 import de.unipassau.abc.generation.SyntheticMethodSignatures;
 import de.unipassau.abc.generation.TestCaseWriter;
-import de.unipassau.abc.generation.assertions.CarvingAssertion;
 import de.unipassau.abc.generation.ast.visitors.DefVisitor;
 import de.unipassau.abc.generation.ast.visitors.ModVisitor;
 import de.unipassau.abc.generation.ast.visitors.UseVisitor;
@@ -250,6 +248,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
      */
     public BlockStmt generateBlockStmtFrom(CarvedTest carvedTest) {
 
+        logger.info("Generate Method Body");
         // Alessio: At this point the execution flow graph already contains the code for
         // the mocks and the shadows
         ExecutionFlowGraph executionFlowGraph = carvedTest.getExecutionFlowGraph();
@@ -268,8 +267,14 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             if (objectInstance.isAndroidActivity() || objectInstance.isAndroidFragment()) {
                 declareControllerFor(objectInstance, blockStmt, new NullLiteralExpr());
             }
-            // creates statement for object
-            declareVariableFor(objectInstance, blockStmt, new NullLiteralExpr());
+            if (objectInstance instanceof EnumConstant) {
+                // creates statement for object
+                declareVariableFor(carvedTest.getDataDependencyGraph(), objectInstance, blockStmt,
+                        new NameExpr(((EnumConstant) objectInstance).getFullyQualifiedName()));
+            } else {
+                declareVariableFor(carvedTest.getDataDependencyGraph(), objectInstance, blockStmt,
+                        new NullLiteralExpr());
+            }
         }
 
         logger.debug("##################Body");
@@ -290,7 +295,8 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                     referenceToActualValue = generatedVariable;
                 }
             } else {
-                Optional<String> generatedVariable = generateMethodCall(methodInvocation, blockStmt);
+                Optional<String> generatedVariable = generateMethodCall(carvedTest.getDataDependencyGraph(),
+                        methodInvocation, blockStmt);
                 // Method calls might be void, so no variable is generated after invoking
                 // them...
                 if (methodInvocation.equals(carvedTest.getMethodUnderTest()) && generatedVariable.isPresent()) {
@@ -318,27 +324,29 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 //            }
 //        }
 
-        logger.debug("##################Assertions");
-        // MF: FIXME should we really have assertions?
-        // Next implement all the assertions using REFERENCE TO ACTUAL VALUE for the
-        // assertions !
-        for (CarvingAssertion carvingAssertion : carvedTest.getAssertions()) {
-            for (Pair<ExecutionFlowGraph, DataDependencyGraph> pair : zip(carvingAssertion.executionFlowGraphs,
-                    carvingAssertion.dataDependencyGraphs)) {
-                // TODO Join the variable instead of the value for primitives
-                ExecutionFlowGraph assertionExecutionGraph = pair.getFirst();
-                for (MethodInvocation methodInvocation : assertionExecutionGraph.getOrderedMethodInvocations()) {
-                    // By design assertions goes by the end of the test
-                    if (methodInvocation.isConstructor()) {
-                        generateConstructorCall(methodInvocation, blockStmt);
-                    } else {
-                        generateMethodCall(methodInvocation, blockStmt);
-
-                    }
-                }
-            }
-
-        }
+        // TODO ALESSIO: The asseritions should be recomputed after simplification !!
+        logger.warn("Synthesis of Assertion is currently DISABLED!");
+//        logger.debug("##################Assertions");
+//        // MF: FIXME should we really have assertions?
+//        // Next implement all the assertions using REFERENCE TO ACTUAL VALUE for the
+//        // assertions !
+//        for (CarvingAssertion carvingAssertion : carvedTest.getAssertions()) {
+//            for (Pair<ExecutionFlowGraph, DataDependencyGraph> pair : zip(carvingAssertion.executionFlowGraphs,
+//                    carvingAssertion.dataDependencyGraphs)) {
+//                // TODO Join the variable instead of the value for primitives
+//                ExecutionFlowGraph assertionExecutionGraph = pair.getFirst();
+//                for (MethodInvocation methodInvocation : assertionExecutionGraph.getOrderedMethodInvocations()) {
+//                    // By design assertions goes by the end of the test
+//                    if (methodInvocation.isConstructor()) {
+//                        generateConstructorCall(methodInvocation, blockStmt);
+//                    } else {
+//                        generateMethodCall(methodInvocation, blockStmt);
+//
+//                    }
+//                }
+//            }
+//
+//        }
 
         // reorder statements
         reorderStatements(blockStmt.getStatements());
@@ -366,7 +374,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         for (ObjectInstance objectInstance : objectInstances) {
             // Default initialization. Avoid variable not initialized variable
             // warning/errors
-            declareVariableFor(objectInstance, blockStmt, new NullLiteralExpr());
+            declareVariableFor(dataDependencyGraph, objectInstance, blockStmt, new NullLiteralExpr());
         }
 
         // Next implement all the methods, making sure variables and parameters match
@@ -374,7 +382,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             if (methodInvocation.isConstructor()) {
                 generateConstructorCall(methodInvocation, blockStmt);
             } else {
-                generateMethodCall(methodInvocation, blockStmt);
+                generateMethodCall(dataDependencyGraph, methodInvocation, blockStmt);
             }
         }
 
@@ -489,7 +497,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         logger.info("Method under test:");
         logger.info(carvedTest.getMethodUnderTest().toString());
         logger.info("Statements:");
-        carvedTest.getStatements().forEach(methodInvocation -> logger.info(methodInvocation.toString()));
+        carvedTest.getStatements().forEach(methodInvocation -> logger.info(methodInvocation.toFullString()));
 
         if (carvedTest.expectException()) {
             BlockStmt methodBody = generateBlockStmtFrom(carvedTest);
@@ -548,56 +556,57 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         String variableName = getVariableFor(owner, methodBody);
         Expression variableInitializingExpr;
 
-        if (owner.isAndroidActivity()) {
-            MethodCallExpr methodCallExpr = null;
-            if (owner.requiresIntent()) {
-                // TODO This is still temporary, but unless this variable is found in the data
-                // graph, we can safely discard it?
-                // The question is: do we need that intent in the first place?
-
-                ObjectInstance intent = owner.getIntent();
-                // Retrieve intent's variable name - Note since there's taining we need to
-                // understand how to handle this case
-                // when we do NOT taint intents... or the entire app is startet with an Intent
-                final String intentVariableName = declaredVariables.get(intent);
-
-//                assert (intentVariableName != null) : "Intent Variable for " + intent + " is NOT YET defined?!";
-                if (intentVariableName != null) {
-                    final NameExpr intentNameExpr = new NameExpr(intentVariableName);
-
-                    // We first build and initialize the activity controller for the corresponding
-                    // activity
-                    methodCallExpr = new MethodCallExpr(JimpleUtils.getFullyQualifiedMethodName(
-                            "<org.robolectric.Robolectric: ActivityController buildActivity(java.lang.Class,android.content.Intent)>"),
-                            // First parameter
-                            new TypeExpr(new ClassOrInterfaceType(null, owner.getType() + ".class")),
-                            // Second parameter
-                            intentNameExpr);
-                } else {
-                    logger.warn("Intent Variable for " + intent + " is NOT YET defined!");
-                }
-
-            } else {
-                // We first build and initialize the activity controller for the corresponding
-                // activity
-                methodCallExpr = new MethodCallExpr(
-                        JimpleUtils.getFullyQualifiedMethodName(
-                                "<org.robolectric.Robolectric: ActivityController buildActivity(java.lang.Class)>"),
-                        new TypeExpr(new ClassOrInterfaceType(null, owner.getType() + ".class")));
-
-            }
-
-            // Retrieve controller's variable name
-            final String controllerVariableName = declaredVariables.get(declaredControllers.get(owner.getType()));
-            final NameExpr controllerNameExpr = new NameExpr(controllerVariableName);
-
-            // Assign the controller to the variable
-            methodBody.addStatement(new AssignExpr(controllerNameExpr, methodCallExpr, Operator.ASSIGN));
-
-            // Now get the activity from the robolectric controller
-            variableInitializingExpr = new MethodCallExpr(controllerNameExpr, "get");
-
-        } else if (owner.isAndroidFragment()) {
+//        if (owner.isAndroidActivity()) {
+//            MethodCallExpr methodCallExpr = null;
+//            if (owner.requiresIntent()) {
+//                // TODO This is still temporary, but unless this variable is found in the data
+//                // graph, we can safely discard it?
+//                // The question is: do we need that intent in the first place?
+//
+//                ObjectInstance intent = owner.getIntent();
+//                // Retrieve intent's variable name - Note since there's taining we need to
+//                // understand how to handle this case
+//                // when we do NOT taint intents... or the entire app is startet with an Intent
+//                final String intentVariableName = declaredVariables.get(intent);
+//
+////                assert (intentVariableName != null) : "Intent Variable for " + intent + " is NOT YET defined?!";
+//                if (intentVariableName != null) {
+//                    final NameExpr intentNameExpr = new NameExpr(intentVariableName);
+//
+//                    // We first build and initialize the activity controller for the corresponding
+//                    // activity
+//                    methodCallExpr = new MethodCallExpr(JimpleUtils.getFullyQualifiedMethodName(
+//                            "<org.robolectric.Robolectric: ActivityController buildActivity(java.lang.Class,android.content.Intent)>"),
+//                            // First parameter
+//                            new TypeExpr(new ClassOrInterfaceType(null, owner.getType() + ".class")),
+//                            // Second parameter
+//                            intentNameExpr);
+//                } else {
+//                    logger.warn("Intent Variable for " + intent + " is NOT YET defined!");
+//                }
+//
+//            } else {
+//                // We first build and initialize the activity controller for the corresponding
+//                // activity
+//                methodCallExpr = new MethodCallExpr(
+//                        JimpleUtils.getFullyQualifiedMethodName(
+//                                "<org.robolectric.Robolectric: ActivityController buildActivity(java.lang.Class)>"),
+//                        new TypeExpr(new ClassOrInterfaceType(null, owner.getType() + ".class")));
+//
+//            }
+//
+//            // Retrieve controller's variable name
+//            final String controllerVariableName = declaredVariables.get(declaredControllers.get(owner.getType()));
+//            final NameExpr controllerNameExpr = new NameExpr(controllerVariableName);
+//
+//            // Assign the controller to the variable
+//            methodBody.addStatement(new AssignExpr(controllerNameExpr, methodCallExpr, Operator.ASSIGN));
+//
+//            // Now get the activity from the robolectric controller
+//            variableInitializingExpr = new MethodCallExpr(controllerNameExpr, "get");
+//
+//        } else 
+        if (owner.isAndroidFragment()) {
             // TODO At the moment we do not
             throw new NotImplementedException("We cannot generate test cases involving AndroidFragments");
 
@@ -646,6 +655,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         return variableName;
     }
 
+    // TODO Move this to RobolectricSimplifier
     private String generateRobolectricLifecycleCall(MethodInvocation methodInvocation, BlockStmt methodBody) {
         // Does such a method invocation always have an owner?
         final String methodName = JimpleUtils.getMethodName(methodInvocation.getMethodSignature());
@@ -686,10 +696,14 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
      * @param methodBody
      * @return
      */
-    private Optional<String> generateMethodCall(MethodInvocation methodInvocation, BlockStmt methodBody) {
+    private Optional<String> generateMethodCall(DataDependencyGraph dataDependencyGraph,
+            MethodInvocation methodInvocation, BlockStmt methodBody) {
         String methodName = JimpleUtils.getMethodName(methodInvocation.getMethodSignature());
         Expression methodCallExpr;
         String variableName = null;
+
+        logger.info("GENERATING CODE FOR " + methodInvocation);
+
         /**
          * Step 1: prepare the invocation of the method
          */
@@ -774,6 +788,8 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
             methodCallExpr.asMethodCallExpr().addArgument(referenceToViewId);
         } else if (methodInvocation.getMethodSignature().equals("<android.app.Activity: void setContentView(int)>")) {
+            // TODO Try to check every method call that accepts an integer the represent an
+            // identifier
             DataNode dataValueForInt = methodInvocation.getActualParameterInstances().get(0);
             String dataValueString = getParameterFor(dataValueForInt, methodBody);
             Integer integerValue = Integer.parseInt(dataValueString);
@@ -784,8 +800,6 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             }
         } else if (methodInvocation.getMethodSignature()
                 .equals("<org.mockito.Mockito: org.mockito.stubbing.Stubber doReturn(java.lang.Object)>")) {
-
-            logger.info("GENERATING CODE FOR " + methodInvocation);
 
             DataNode dataValue = methodInvocation.getActualParameterInstances().get(0);
 
@@ -812,14 +826,32 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                     methodCallExpr.asMethodCallExpr().addArgument(getParameterFor(dataValue, methodBody));
                 }
             }
-        } else if (!methodInvocation.isStatic() && JimpleUtils.isArray(methodInvocation.getOwner().getType())) {
+        } else if (methodInvocation.getMethodSignature()
+                .equals("<org.mockito.Mockito: java.lang.Object mock(java.lang.Class)>")) {
+
+            // Make sure we use the right type here !
+
+            DataNode dataValue = methodInvocation.getActualParameterInstances().get(0);
+
+            String classExpression = dataValue.toString();
+            // Does this require to be adjusted?
+            String replacementeType = TypeUtils.convertType(classExpression.replace(".class", ""));
+            if (replacementeType == null) {
+                // No it does not
+                methodCallExpr.asMethodCallExpr().addArgument(new NameExpr(classExpression));
+            } else {
+                methodCallExpr.asMethodCallExpr().addArgument(new NameExpr(replacementeType + ".class"));
+            }
+
+        }
+
+        else if (!methodInvocation.isStatic() && JimpleUtils.isArray(methodInvocation.getOwner().getType())) {
             // Skip, we already defined the array statement
         } else if (methodInvocation.getMethodSignature().equals(
-                "<android.content.Intent: android.content.Intent putExtra(java.lang.String,android.os.Parcelable)>") ||
-                methodInvocation.getMethodSignature().equals(
-                        "<android.content.Intent: android.content.Intent putExtra(java.lang.String,java.io.Serializable)>")
-                ) {
-            
+                "<android.content.Intent: android.content.Intent putExtra(java.lang.String,android.os.Parcelable)>")
+                || methodInvocation.getMethodSignature().equals(
+                        "<android.content.Intent: android.content.Intent putExtra(java.lang.String,java.io.Serializable)>")) {
+
             // Parameter 1 -- TODO Simplify
             DataNode parameter_1 = methodInvocation.getActualParameterInstances().get(0);
             if (parameter_1 instanceof PlaceholderDataNode) {
@@ -830,21 +862,22 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                 methodCallExpr.asMethodCallExpr().addArgument(getParameterFor(parameter_1, methodBody));
 
             }
-            
+
             DataNode parameter_2 = methodInvocation.getActualParameterInstances().get(1);
             String typeToCast = JimpleUtils.getParameterList(methodInvocation.getMethodSignature())[1];
-            
+
             if (parameter_2 instanceof PlaceholderDataNode) {
                 PlaceholderDataNode placeholderDataNode = (PlaceholderDataNode) parameter_2;
                 String variable = declaredVariables.get(placeholderDataNode.getOriginalDataNode());
                 CastExpr castedVariable = new CastExpr(parseType(typeToCast), new NameExpr(variable));
                 methodCallExpr.asMethodCallExpr().addArgument(castedVariable);
             } else {
-                CastExpr castedVariable = new CastExpr(parseType(typeToCast), new NameExpr(getParameterFor(parameter_2, methodBody)));
+                CastExpr castedVariable = new CastExpr(parseType(typeToCast),
+                        new NameExpr(getParameterFor(parameter_2, methodBody)));
                 methodCallExpr.asMethodCallExpr().addArgument(castedVariable);
 
             }
-           
+
         } else {
             for (DataNode parameter : methodInvocation.getActualParameterInstances()) {
                 if (parameter instanceof PlaceholderDataNode) {
@@ -863,8 +896,22 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
          */
         if (!JimpleUtils.hasVoidReturnType(methodInvocation.getMethodSignature())
                 && !methodInvocation.isExceptional()) {
+
+            // Resolve the type of the returned object
+
             String staticReturnType = JimpleUtils.getReturnType(methodInvocation.getMethodSignature());
-            String expectedReturnType = TypeUtils.getActualTypeFor(methodInvocation.getReturnValue());
+            // TODO Move this into some "resolve type" method?
+            String expectedReturnType = null;
+            try {
+                expectedReturnType = TypeUtils.getActualTypeFor(methodInvocation.getReturnValue());
+            } catch (NotImplementedException e) {
+                if (methodInvocation.getReturnValue() instanceof ObjectInstance) {
+                    expectedReturnType = TypeUtils.getFormalTypeFor((ObjectInstance) methodInvocation.getReturnValue(),
+                            dataDependencyGraph);
+                } else {
+                    throw e;
+                }
+            }
 
             /*
              * TODO to be really sure before casting one can check their runtime types, but
@@ -879,9 +926,11 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             // somewhere up the stream
             if (!staticReturnType.equals(expectedReturnType) && !methodInvocation.hasGenericReturnType()) {
                 final CastExpr castedMethodCallExpr = new CastExpr(parseType(expectedReturnType), methodCallExpr);
-                variableName = declareVariableFor(methodInvocation.getReturnValue(), methodBody, castedMethodCallExpr);
+                variableName = declareVariableFor(dataDependencyGraph, methodInvocation.getReturnValue(), methodBody,
+                        castedMethodCallExpr);
             } else {
-                variableName = declareVariableFor(methodInvocation.getReturnValue(), methodBody, methodCallExpr);
+                variableName = declareVariableFor(dataDependencyGraph, methodInvocation.getReturnValue(), methodBody,
+                        methodCallExpr);
             }
 
         } else {
@@ -971,14 +1020,20 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
     }
 
     // TODO Contenxtualize on MethodBody/scope !
-    private String declareVariableFor(DataNode dataNode, BlockStmt methodBody, Expression initializer) {
+    private String declareVariableFor(DataDependencyGraph dataDependencyGraph, DataNode dataNode, BlockStmt methodBody,
+            Expression initializer) {
 
         // TODO Replace this with get Best Type For?
         String variableType = null;
         try {
             variableType = TypeUtils.getActualTypeFor(dataNode);
         } catch (NotImplementedException e) {
-            throw e;
+            // If we cannot find a valid actual type
+            if (dataNode instanceof ObjectInstance) {
+                variableType = TypeUtils.getFormalTypeFor((ObjectInstance) dataNode, dataDependencyGraph);
+            } else {
+                throw e;
+            }
         } catch (Exception e) {
             throw e;
         }

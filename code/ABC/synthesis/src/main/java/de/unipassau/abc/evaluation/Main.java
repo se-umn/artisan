@@ -21,6 +21,7 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
 import javax.tools.ToolProvider;
 
+import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -183,7 +184,7 @@ public class Main {
                 int selectedCarvableTargets = targetMethodsInvocations.size();
 
                 if (selectedCarvableTargets == 0) {
-                    logger.warn("There are no targets carvable from trace file. ");
+                    logger.warn("There are no targets carvable from trace file " + traceFile);
                     continue;
                 } else {
                     logger.info("Selected " + selectedCarvableTargets + " targets from trace file " + traceFile
@@ -270,6 +271,8 @@ public class Main {
                         }
                         generatedTests.put(testCase, testFile);
 
+                    } catch (NotImplementedException e) {
+                         System.err.println("Cannot generate test " + testCase.getName() + ":" + e.getMessage() );
                     } catch (Throwable e) {
                         System.err.println("Cannot generate test " + testCase.getName());
                         e.printStackTrace();

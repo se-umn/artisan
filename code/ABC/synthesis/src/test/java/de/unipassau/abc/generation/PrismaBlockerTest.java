@@ -3,6 +3,7 @@ package de.unipassau.abc.generation;
 import static org.junit.Assert.fail;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -21,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 import com.github.javaparser.ast.CompilationUnit;
 
+import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.carving.utils.MethodInvocationSelector;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.MethodInvocationMatcher;
@@ -42,7 +44,6 @@ import de.unipassau.abc.parsing.TraceParserImpl;
 import de.unipassau.abc.parsing.postprocessing.AndroidParsedTraceDecorator;
 import de.unipassau.abc.parsing.postprocessing.ParsedTraceDecorator;
 import de.unipassau.abc.parsing.postprocessing.StaticParsedTraceDecorator;
-import soot.jimple.LongConstant;
 
 public class PrismaBlockerTest {
 
@@ -53,6 +54,19 @@ public class PrismaBlockerTest {
     public TemporaryFolder tempFolder = new TemporaryFolder();
 
     private final static Logger logger = LoggerFactory.getLogger(PrismaBlockerTest.class);
+
+    private String getTraceFileFrom(String testDirectoryName) {
+        // /Trace-1642241004125.txt
+        File testDirectory = new File(traceFolder, testDirectoryName);
+        return testDirectoryName + "/" + testDirectory.listFiles(new FileFilter() {
+
+            @Override
+            public boolean accept(File pathname) {
+                return pathname.getName().startsWith("Trace") && pathname.getName().endsWith(".txt");
+            }
+        })[0].getName();
+
+    }
 
     // This is mostly to debug
     public void runTheTest(String methodSignature, int invocationCount, int invocationTraceId)
@@ -81,9 +95,9 @@ public class PrismaBlockerTest {
 
         //
         Set<MethodInvocation> all = mis.findAllCarvableMethodInvocations(_parsedTrace);
-        logger.info("-- All possible carvable targets ");
+        logger.debug("-- All possible carvable targets ");
         for (MethodInvocation m : all) {
-            logger.info("" + m.isAbstract() + " " + m);
+            logger.debug("" + m.isAbstract() + " " + m);
         }
 
         MethodInvocationMatcher matcher = MethodInvocationMatcher
@@ -120,6 +134,271 @@ public class PrismaBlockerTest {
             CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
             logger.info(cu.toString());
         }
+    }
+
+
+    @Test
+    public void testWrongCallToEnableWidgets() throws FileNotFoundException, IOException, ABCException {
+        file = getTraceFileFrom("com.prismaqf.callblocker.EditFiltersTest#ChangeActionTest");
+
+        String methodSignature = "<com.prismaqf.callblocker.NewEditFilter: void enableWidgets(boolean,boolean)>";
+        int invocationCount = 211;
+        int invocationTraceId = 421;
+
+        // This should NOT fail
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    @Test
+    public void testWrapOnStop() throws FileNotFoundException, IOException, ABCException {
+        file = getTraceFileFrom("com.prismaqf.callblocker.EditFiltersTest#ChangeActionTest");
+
+        String methodSignature = "<com.prismaqf.callblocker.CallBlockerManager: void onStop()>";
+        int invocationCount = 141;
+        int invocationTraceId = 282;
+
+        // This should NOT fail
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    @Test
+    public void testWrapOnDestroy() throws FileNotFoundException, IOException, ABCException {
+        file = getTraceFileFrom("com.prismaqf.callblocker.EditFiltersTest#ChangeActionTest");
+
+        String methodSignature = "<com.prismaqf.callblocker.CallBlockerManager: void onDestroy()>";
+        int invocationCount = 333;
+        int invocationTraceId = 666;
+
+        // This should NOT fail
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    @Test
+    public void testValidationShoulNotTrigger() throws FileNotFoundException, IOException, ABCException {
+        file = getTraceFileFrom("com.prismaqf.callblocker.EditFiltersTest#ChangeActionTest");
+
+        String methodSignature = "<com.prismaqf.callblocker.CallBlockerManager: void onDestroy()>";
+        int invocationCount = 333;
+        int invocationTraceId = 666;
+
+        // This should NOT fail
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    // This should fail because the methodSignature belongs to a mi who's owner is
+    // NOT constructed in the trace
+    @Test
+    public void testNPEForTestingEquals() throws FileNotFoundException, IOException, ABCException {
+        try {
+            file = getTraceFileFrom("com.prismaqf.callblocker.EditFiltersTest#ChangeActionTest");
+
+            String methodSignature = "<com.prismaqf.callblocker.filters.FilterHandle: boolean equals(java.lang.Object)>";
+            int invocationCount = 324;
+            int invocationTraceId = 644;
+
+            // This should fail with a message, not sure how I can check it...
+            runTheTest(methodSignature, invocationCount, invocationTraceId);
+            fail();
+        } catch (AssertionError e) {
+            // Pass this target should not be carvable
+        }
+    }
+
+    @Test
+    public void testDoNotMockEqualsAndDoNotMockAbstract() throws FileNotFoundException, IOException, ABCException {
+        try {
+            file = getTraceFileFrom("com.prismaqf.callblocker.EditFiltersTest#ChangeActionTest");
+
+            String methodSignature = "<com.prismaqf.callblocker.NewEditActivity: boolean onOptionsItemSelected(android.view.MenuItem)>";
+            int invocationCount = 307;
+            int invocationTraceId = 613;
+
+            runTheTest(methodSignature, invocationCount, invocationTraceId);
+            fail();
+        } catch (AssertionError e) {
+//            e.printStackTrace();
+            // Pass this target should not be carvable
+        }
+    }
+
+    @Test
+    public void testDoubleDefinitionOfActivityController() throws FileNotFoundException, IOException, ABCException {
+        file = getTraceFileFrom("com.prismaqf.callblocker.EditFiltersTest#ChangeActionTest");
+
+        String methodSignature = "<com.prismaqf.callblocker.CallBlockerManager: void onRequestPermissionsResult(int,java.lang.String\\[\\],int\\[\\])>";
+        int invocationCount = 79;
+        int invocationTraceId = 158;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    @Test
+    public void testNPWWhileMocking() throws FileNotFoundException, IOException, ABCException {
+        file = "com.prismaqf.callblocker.EditFiltersTest#ChangeActionTest/Trace-1642196224533.txt";
+
+        String methodSignature = "<com.prismaqf.callblocker.NewEditFilter: com.prismaqf.callblocker.RuleNameValidator getRuleNameValidator()>";
+        int invocationCount = 223;
+        int invocationTraceId = 444;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    /*
+     * This problem was caused by having onCreateMenu method calling
+     * super.onCreateMenu, hence reporting it twice.
+     * 
+     * @throws FileNotFoundException
+     * 
+     * @throws IOException
+     * 
+     * @throws ABCException
+     */
+    @Test
+    public void testWrapNonRoot() throws FileNotFoundException, IOException, ABCException {
+        file = "com.prismaqf.callblocker.EditFiltersTest#ChangeActionTest/Trace-1642095899694.txt";
+
+        String methodSignature = "<com.prismaqf.callblocker.NewEditFilter: boolean onOptionsItemSelected(android.view.MenuItem)>";
+        int invocationCount = 305;
+        int invocationTraceId = 610;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    /*
+     * THis error was caused by changing the ID of the method invocation after
+     * adding it to the graph. In this case the hash of the object when it was added
+     * is different than the hash of the same object when it was updated and the map
+     * could not find the connection. Either one has to force the rebuild of the
+     * hashmap or avoid changing "immutable" fields of the method invocations
+     */
+    @Test
+    public void testDuplicateDependency() throws FileNotFoundException, IOException, ABCException {
+        file = "com.prismaqf.callblocker.EditFiltersTest#ChangeActionTest/Trace-1642105160429.txt";
+
+        String methodSignature = "<com.prismaqf.callblocker.CallBlockerManager: void onCreate(android.os.Bundle)>";
+        int invocationCount = 8;
+        int invocationTraceId = 16;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    // THIS IS THE CRITICAL TEST CASE - This is good up to mocking/creating the
+    // EnumSet
+    @Test
+    public void testMissingInitializationOfIntent() throws FileNotFoundException, IOException, ABCException {
+        file = "com.prismaqf.callblocker.EditFiltersTest#EditTheCalendarRule/Trace-1642188454547.txt";
+
+        String methodSignature = "<com.prismaqf.callblocker.NewEditActivity: boolean onCreateOptionsMenu(android.view.Menu)>";
+        int invocationCount = 452;
+        int invocationTraceId = 904;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    @Test
+    public void testMissingRobolectricAnnotation() throws FileNotFoundException, IOException, ABCException {
+        file = "com.prismaqf.callblocker.EditFiltersTest#EditTheCalendarRule/Trace-1642001015193.txt";
+
+        String methodSignature = "<com.prismaqf.callblocker.CallBlockerManager: boolean onCreateOptionsMenu(android.view.Menu)>";
+        int invocationCount = 76;
+        int invocationTraceId = 152;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    @Test
+    public void testClassAsPrimitiveType() throws FileNotFoundException, IOException, ABCException {
+        try {
+            file = "com.prismaqf.callblocker.EditFiltersTest#PickActionTest/Trace-1641988207212.txt";
+
+            String methodSignature = "<com.prismaqf.callblocker.PickActionFragment: void onStart()>";
+            int invocationCount = 357;
+            int invocationTraceId = 714;
+
+            runTheTest(methodSignature, invocationCount, invocationTraceId);
+            fail();
+        } catch (AssertionError e) {
+            // Pass this target should not be carvable
+        }
+    }
+
+    //
+    /**
+     * At first sight this error happens because the Object is shared between two
+     * activities: one creates it and the other uses it and the carved cannot find a
+     * way to break the dependencies on the methods that set and get the state of
+     * this shared object.
+     * 
+     * Probably, one solution might be to expose the state setting methods and see
+     * whether they can break the dep on the activity. However, if some state of the
+     * object is set using fields or something, and in general NON-primitive types
+     * this might be tricky
+     * 
+     * XXX THIS IS A CHALLENGING BUT NICE CASE TO ADDRESS
+     * 
+     * 
+     * 
+     * 
+     * @throws FileNotFoundException
+     * @throws IOException
+     * @throws ABCException
+     */
+    @Test
+    public void cannotSimplifyActivities() throws FileNotFoundException, IOException, ABCException {
+        file = "com.prismaqf.callblocker.NewCalendarRuleTest#TestAllDays/Trace-1641977005604.txt";
+
+        String methodSignature = "<com.prismaqf.callblocker.rules.CalendarRule: java.lang.String getName()>";
+        int invocationCount = 297;
+        int invocationTraceId = 592;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    @Test
+    public void cannotSimplifyActivitiesThatBelongToAnonymClasses()
+            throws FileNotFoundException, IOException, ABCException {
+        file = "com.prismaqf.callblocker.NewCalendarRuleTest#TestAllDays/Trace-1641977005604.txt";
+
+        String methodSignature = "<com.prismaqf.callblocker.RuleNameValidator: void beforeTextChanged(java.lang.CharSequence,int,int,int)>";
+        int invocationCount = 230;
+        int invocationTraceId = 457;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    // Generating boolean data results in an exception: null variable -> smells like
+    // we do not properly introduce a boolean node here? The call is replaced !
+    @Test
+    public void testFailToGenerateWithBoolean() throws FileNotFoundException, IOException, ABCException {
+        file = "com.prismaqf.callblocker.EditFiltersTest#ChangeActionTest/Trace-1641976870408.txt";
+
+        String methodSignature = "<com.prismaqf.callblocker.EditFilters: boolean onCreateOptionsMenu(android.view.Menu)>";
+        int invocationCount = 135;
+        int invocationTraceId = 270;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    @Test
+    public void testBrokenMockingGeneration() throws FileNotFoundException, IOException, ABCException {
+        file = "com.prismaqf.callblocker.EditFiltersTest#ChangeActionTest/Trace-1641976870408.txt";
+
+        String methodSignature = "<com.prismaqf.callblocker.NewEditFilter: void onCreate(android.os.Bundle)>";
+        int invocationCount = 173;
+        int invocationTraceId = 346;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    @Test
+    public void testBrokenSimplification() throws FileNotFoundException, IOException, ABCException {
+        file = "com.prismaqf.callblocker.EditFiltersTest#ChangeActionTest/Trace-1641908258889.txt";
+
+        String methodSignature = "<com.prismaqf.callblocker.CallBlockerManager: void onCreate(android.os.Bundle)>";
+        int invocationCount = 8;
+        int invocationTraceId = 16;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
     }
 
     //
@@ -175,6 +454,18 @@ public class PrismaBlockerTest {
         String methodSignature = "<com.prismaqf.callblocker.EditFilters: boolean onCreateOptionsMenu(android.view.Menu)>";
         int invocationCount = 135;
         int invocationTraceId = 270;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    @Test
+    public void testAnotherNPE() throws FileNotFoundException, IOException, ABCException {
+
+        file = "com.prismaqf.callblocker.EditFiltersTest#EditTheCalendarRule/Trace-1641908215702.txt";
+
+        String methodSignature = "<com.prismaqf.callblocker.NewEditFilter: void validateActions()>";
+        int invocationCount = 669;
+        int invocationTraceId = 1335;
 
         runTheTest(methodSignature, invocationCount, invocationTraceId);
     }

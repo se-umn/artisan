@@ -13,27 +13,106 @@ import org.slf4j.LoggerFactory;
 import de.unipassau.abc.carving.BasicCarver;
 import de.unipassau.abc.carving.CarvedExecution;
 import de.unipassau.abc.carving.exceptions.CarvingException;
+import de.unipassau.abc.data.AndroidMethodInvocation;
 import de.unipassau.abc.data.CallGraph;
+import de.unipassau.abc.data.CallGraphImpl;
 import de.unipassau.abc.data.DataDependencyGraph;
+import de.unipassau.abc.data.DataDependencyGraphImpl;
 import de.unipassau.abc.data.ExecutionFlowGraph;
+import de.unipassau.abc.data.ExecutionFlowGraphImpl;
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.exceptions.ABCException;
+import de.unipassau.abc.utils.PrintUtility;
+import edu.emory.mathcs.backport.java.util.Arrays;
+import soot.dava.internal.AST.ASTTryNode.container;
 
-public class AndroidMultiActivitySimplifier implements CarvedExecutionSimplifier {
+public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimplifier {
 
     private static Logger logger = LoggerFactory.getLogger(AndroidMultiActivitySimplifier.class);
 
+    // TODO Not that robust...
+    // Those methods should be automatically called by the Framework. Should they be
+    // simplified here or where Robolectric is introduced?
+    // No, when robolectric is introduced we might replace them with the actual call
+    // to robolectric
+    private static List<String> bannedActivityMethodCallNames = Arrays.asList(new String[] { //
+            "startActivityForResult", //
+            "onSaveInstanceState", //
+            "onRestoreInstanceState" });
+
     @Override
     public CarvedExecution simplify(CarvedExecution carvedExecution) throws CarvingException, ABCException {
+        logger.info("Simplify using " + this.getClass());
+
+        // Clean up the tag !
+        carvedExecution = resetIsNecessaryTag(carvedExecution);
 
         // Remove Lambdas and the like no matter what
-        CarvedExecution simplifiedCarvedExecution = removeLambdas(carvedExecution);
+        carvedExecution = removeLambdas(carvedExecution);
+        carvedExecution = removeBannedActivityCalls(carvedExecution);
+        carvedExecution = ensureOnlyOneActivityRemains(carvedExecution);
 
+        // Re-carve the carvedExecution
+        BasicCarver carver = new BasicCarver(carvedExecution);
+        CarvedExecution reCarvedExecution = carver.recarve(carvedExecution.methodInvocationUnderTest).stream()
+                .findFirst().get();
+
+        reCarvedExecution.traceId = carvedExecution.traceId;
+        reCarvedExecution.isMethodInvocationUnderTestWrapped = carvedExecution.isMethodInvocationUnderTestWrapped;
+        
+        return reCarvedExecution;
+    }
+
+    private CarvedExecution removeBannedActivityCalls(CarvedExecution carvedExecution) {
+        logger.info("Removing Banned Activity Calls");
+        carvedExecution.executionFlowGraphs.forEach(efg -> {
+
+            efg.getOrderedMethodInvocations().stream().filter(mi -> !mi.isStatic()
+                    && mi instanceof AndroidMethodInvocation && !mi.equals(carvedExecution.methodInvocationUnderTest))
+                    .forEach(ami -> {
+
+                        if (!bannedActivityMethodCallNames
+                                .contains(JimpleUtils.getMethodName(ami.getMethodSignature()))) {
+                            return;
+                        }
+
+                        logger.info("Removing Banned Method Invocation " + ami);
+
+                        CallGraph cg = carvedExecution.getCallGraphContainingTheMethodInvocation(ami);
+                        DataDependencyGraph ddg = carvedExecution
+                                .getDataDependencyGraphContainingTheMethodInvocation(ami);
+
+                        // It might happens that previous invocations already removed those calls
+                        if (cg == null || ddg == null) {
+                            return;
+                        }
+
+                        // Remove the method invocations subsumed by the banned one
+                        cg.getMethodInvocationsSubsumedBy(ami).forEach(subAmi -> {
+                            cg.remove(subAmi);
+                            ddg.remove(subAmi);
+                            efg.remove(subAmi);
+
+                        });
+
+                        // Remove the banned method invocation
+
+                        cg.remove(ami);
+                        ddg.remove(ami);
+                        efg.remove(ami);
+                    });
+
+        });
+        return carvedExecution;
+    }
+
+    private CarvedExecution ensureOnlyOneActivityRemains(CarvedExecution carvedExecution)
+            throws CarvingException, ABCException {
         // This simplifications applies ONLY if the test requires two or more activities
         // at once
-        while (countActivities(simplifiedCarvedExecution) >= 2) {
+        while (countActivities(carvedExecution) >= 2) {
 
             // Find the methods that ORIGINALLY resulted in bringing in all the dependencies
             // of the (prev) activity
@@ -58,18 +137,21 @@ public class AndroidMultiActivitySimplifier implements CarvedExecutionSimplifier
             // TODO This is tricky as the dep can be trigger at any point, while we should
             // consistently pick the one which have larger ID?
             //
-            Collections.sort(problematicDependencies);
-            Collections.reverse(problematicDependencies);
-            // Take the one which has higher ID, meaning that "temporally" is closer to MUT
-            MethodInvocation problematicMethodInvocation = problematicDependencies.iterator().next();
-            //
-            logger.info("Selected Problematic invocation:" + problematicMethodInvocation);
+            if (problematicDependencies.size() > 0) {
+                Collections.sort(problematicDependencies);
+                Collections.reverse(problematicDependencies);
+                // Take the one which has higher ID, meaning that "temporally" is closer to MUT
+                MethodInvocation problematicMethodInvocation = problematicDependencies.iterator().next();
+                //
+                logger.info("Getting rig of problematic invocation:" + problematicMethodInvocation);
 
-            simplifiedCarvedExecution = getRidOfProblematicMethodInvocation(carvedExecution,
-                    problematicMethodInvocation);
+                carvedExecution = getRidOfProblematicMethodInvocation(carvedExecution, problematicMethodInvocation);
+            } else {
+                throw new ABCException("Many activities but no problematic invocations?!");
+            }
 
         }
-        return simplifiedCarvedExecution;
+        return carvedExecution;
     }
 
     private CarvedExecution getRidOfProblematicMethodInvocation(CarvedExecution carvedExecution,
@@ -126,15 +208,19 @@ public class AndroidMultiActivitySimplifier implements CarvedExecutionSimplifier
         ///
         logger.info("RECARVING SIMPLIFIED CARVED EXECUTION");
         BasicCarver carver = new BasicCarver(carvedExecution);
-        List<CarvedExecution> reCarvedExecution = carver.carve(carvedExecution.methodInvocationUnderTest);
+        CarvedExecution reCarvedExecution = carver.carve(carvedExecution.methodInvocationUnderTest).stream().findFirst()
+                .get();
 
-        return reCarvedExecution.iterator().next();
+        reCarvedExecution.traceId = carvedExecution.traceId;
+
+        return reCarvedExecution;
+
     }
 
-    // TODO Very poor API here...
     private CarvedExecution removeLambdas(CarvedExecution carvedExecution) {
+        logger.debug("Removing Lambdas");
         carvedExecution.callGraphs.forEach(callGraph -> {
-            logger.info("Removing Lambdas from " + callGraph);
+
             Set<MethodInvocation> methodInvocationsToRemove = new HashSet<MethodInvocation>();
             for (MethodInvocation mi : callGraph.getAllMethodInvocations()) {
                 if (JimpleUtils.getClassNameForMethod(mi.getMethodSignature()).contains("$Lambda$")) {
@@ -361,7 +447,7 @@ public class AndroidMultiActivitySimplifier implements CarvedExecutionSimplifier
             activities.addAll(dataDependencyGraph.getObjectInstances().stream().filter(obj -> obj.isAndroidActivity())
                     .collect(Collectors.toSet()));
         }
-        logger.debug("AndroidMultiActivitySimplifier.countActivities() activies: " + activities);
+        logger.info("--- AndroidMultiActivitySimplifier.countActivities() activies: " + activities);
         return activities.size();
     }
 

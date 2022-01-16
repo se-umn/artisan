@@ -1,12 +1,40 @@
 package de.unipassau.abc.generation.utils;
 
-import org.apache.commons.lang.NotImplementedException;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import org.apache.commons.lang.NotImplementedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.DataNode;
+import de.unipassau.abc.data.EnumConstant;
+import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.ObjectInstance;
+import de.unipassau.abc.data.ObjectInstanceFactory;
 import de.unipassau.abc.data.PrimitiveValue;
+import de.unipassau.abc.generation.data.CarvedTest;
 
 public class TypeUtils {
+
+    private static Logger logger = LoggerFactory.getLogger(TypeUtils.class);
+
+    public static String convertType(String actualType) {
+        String replaceType;
+        if (actualType.equals("java.util.Arrays$ArrayList")) {
+            replaceType = "java.util.List";
+        } else if (actualType.equals("java.util.TreeMap$KeySet")) {
+            replaceType = "java.util.Set";
+        } else if (actualType.equals("java.util.RegularEnumSet") || actualType.equals("java.util.JumboEnumSet")) {
+            replaceType = "java.util.EnumSet";
+        } else if (actualType.equals("android.app.SharedPreferencesImpl")) {
+            replaceType = "android.content.SharedPreferences";
+        } else {
+            replaceType = null;
+        }
+        return replaceType;
+    }
 
     /**
      * There are some weird cases here. For example Arrays.asList() returns an
@@ -26,24 +54,19 @@ public class TypeUtils {
         } else if (dataNode instanceof ObjectInstance) {
             String actualType = ((ObjectInstance) dataNode).getType();
 
-            String replaceType = null;
+            String replaceType = convertType(actualType);
 
-            if (actualType.equals("java.util.Arrays$ArrayList")) {
-                replaceType = "java.util.List";
-            } else if (actualType.equals("java.util.TreeMap$KeySet")) {
-                replaceType = "java.util.Set";
-            } else if (actualType.equals("java.util.RegularEnumSet") || actualType.equals("java.util.JumboEnumSet")) {
-                replaceType = "java.util.EnumSet";
-            } else if (actualType.equals("android.app.SharedPreferencesImpl")) {
-                replaceType = "android.content.SharedPreferences";
-            }
-
+            // TODO Leave out for the moment this !
             if (actualType.contains("$")) {
-                throw new NotImplementedException("We cannot handle private inner classes, like " + actualType);
+                if (dataNode instanceof EnumConstant) {
+                    replaceType = actualType.replaceAll("\\$", ".");
+                } else {
+
+                    throw new NotImplementedException("We cannot handle private inner classes, like " + actualType);
+                }
             }
 //			
             if (replaceType != null) {
-                System.out.println("TypeUtils.getActualTypeFor() PATCHED " + actualType + " with " + replaceType);
                 return replaceType;
             } else {
                 //
@@ -67,4 +90,40 @@ public class TypeUtils {
             throw new RuntimeException("Cannot find type for " + dataNode);
         }
     }
+
+    /**
+     * Look up possible formal types that can be assigned to this dataNode. We
+     * usually do this for internal/anonym classes
+     * 
+     * @param dataNode
+     * @param carvedTest
+     * @return
+     */
+    public static String getFormalTypeFor(ObjectInstance objectInstance, DataDependencyGraph dataDependencyGraph) {
+        // Collects types for DataNode
+        // This requires the knowledge on how types are organized and the select the
+        // most precise type above the actual one.
+        // We approximate this by looking at the methods that return the object.
+
+        // Ideally one can also look at who uses it
+        Set<String> possibleSuperTypes = dataDependencyGraph.getMethodInvocationsWhichReturn(objectInstance).stream()
+                .map(mi -> JimpleUtils.getReturnType(mi.getMethodSignature()))
+                .filter(type -> !type.equals(objectInstance.getType())).collect(Collectors.toSet());
+
+        logger.info("Getting formal types for " + objectInstance + ": " + possibleSuperTypes);
+
+        for (String possibleSuperType : possibleSuperTypes) {
+
+            try {
+                ObjectInstance castedInstance = ObjectInstanceFactory
+                        .get(possibleSuperType + "@" + objectInstance.getHash());
+                return getActualTypeFor(castedInstance);
+            } catch (Exception e) {
+                // continue
+            }
+        }
+
+        throw new RuntimeException("Cannot find Formal type for " + objectInstance);
+    }
+
 }
