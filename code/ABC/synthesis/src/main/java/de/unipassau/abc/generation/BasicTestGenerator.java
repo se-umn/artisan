@@ -41,6 +41,21 @@ import de.unipassau.abc.parsing.ParsedTrace;
 
 public class BasicTestGenerator implements TestGenerator {
 
+    
+    /**
+     * A reference test would look like this:
+     *  
+     *  - Mock definition and programming
+     *  
+     *  - Setup of the Activity
+     *  
+     *  - Shadown configuration: findViewById + Mocking
+     *  
+     *  - Test "execution
+     *  
+     *  - Assertions
+     */
+    
     private final static Logger logger = LoggerFactory.getLogger(BasicTestGenerator.class);
 
     private List<CarvedExecutionSimplifier> simplifiers = Arrays.asList(
