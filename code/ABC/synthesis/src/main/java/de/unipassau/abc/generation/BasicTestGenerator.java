@@ -449,7 +449,7 @@ public class BasicTestGenerator implements TestGenerator {
         }
 
         /*
-         * Add mocks and shadows
+         * Add mocks and shadows. TODO Split the two in separated classes
          */
         MockGenerator mockGenerator = new MockGenerator();
         mockGenerator.generateMocks(carvedTest, carvedExecution);

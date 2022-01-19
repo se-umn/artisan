@@ -25,6 +25,7 @@ import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.NullInstance;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.ObjectInstanceFactory;
+import de.unipassau.abc.data.Pair;
 import de.unipassau.abc.data.PrimitiveNodeFactory;
 import de.unipassau.abc.data.PrimitiveValue;
 import de.unipassau.abc.exceptions.ABCException;
@@ -649,7 +650,10 @@ public class MockGenerator {
             logger.info("Inserting " + reFindTheView);
             generatedMethodInvocations.add(reFindTheView);
 
-            MethodInvocation extractShadow = generateTheExtractShadow(carvedTest, objectViewToShadow);
+            Pair<MethodInvocation, CarvingShadow> extractShadowPair = generateTheExtractShadow(carvedTest, objectViewToShadow);
+            MethodInvocation extractShadow = extractShadowPair.getFirst();
+            CarvingShadow currentlyConfiguredCarvingShadow = extractShadowPair.getSecond();
+            
             ObjectInstance shadowedView = (ObjectInstance) extractShadow.getReturnValue();
 
             logger.info("Inserting " + extractShadow);
@@ -671,21 +675,31 @@ public class MockGenerator {
                             && !mi.getMethodSignature().equals(WHEN_SIGNATURE))
                     .forEach(mocked -> {
                         logger.info("Linking " + mocked);
-                        String stringEncoded = Arrays.toString(mocked.getMethodSignature().getBytes());
+                        String stubbedMethodSignature = mocked.getMethodSignature();
+                        // Encode this to create the String node
+                        String stringEncoded = Arrays.toString(stubbedMethodSignature.getBytes());
+                        // Create the data node for the carved test
                         PrimitiveValue setShadowParameter = new PrimitiveValue(uniqueIdGenerator.getAndIncrement(),
                                 "java.lang.String", stringEncoded);
-
-                        MethodInvocation setShadow = new MethodInvocation(-1, -1, SET_SIGNATURE);
-                        setShadow.setPublic(true);
-                        setShadow.setOwner(shadowedView);
-                        setShadow.setActualParameterInstances(
+                        // Create the method call that set the shadow
+                        MethodInvocation setShadowMethodInvocation = new MethodInvocation(-1, -1, SET_SIGNATURE);
+                        setShadowMethodInvocation.setPublic(true);
+                        setShadowMethodInvocation.setOwner(shadowedView);
+                        setShadowMethodInvocation.setActualParameterInstances(
                                 Arrays.asList(new DataNode[] { setShadowParameter, mockedObject }));
-                        generatedMethodInvocations.add(setShadow);
+                        generatedMethodInvocations.add(setShadowMethodInvocation);
+                        
+                        // Configure the Carving shadow so it can generate the stub for this call
+                        // TODO Assume this is called only once, otherwise we might need to count how many times that happened !
+                        currentlyConfiguredCarvingShadow.getStubbedMethods().add(stubbedMethodSignature);
                     });
 
-            MethodInvocation strictShadow = new MethodInvocation(-1, -1, STRICT_SIGNATURE);
-            strictShadow.setOwner(shadowedView);
-            generatedMethodInvocations.add(strictShadow);
+            MethodInvocation setStrictShadowMethodInvocation = new MethodInvocation(-1, -1, STRICT_SIGNATURE);
+            setStrictShadowMethodInvocation.setOwner(shadowedView);
+            generatedMethodInvocations.add(setStrictShadowMethodInvocation);
+            
+
+
         }
 
         // Assign the right IDs to the generatedMethodInvocations
@@ -718,7 +732,7 @@ public class MockGenerator {
         return carvedTest;
     }
 
-    private MethodInvocation generateTheExtractShadow(CarvedTest carvedTest, ObjectInstance objectViewToShadow) {
+    private Pair<MethodInvocation,CarvingShadow> generateTheExtractShadow(CarvedTest carvedTest, ObjectInstance objectViewToShadow) {
         // Extract objectViewToShadow into an actual shadow
         String shadowType = "ABC"
                 + objectViewToShadow.getType().split("\\.")[objectViewToShadow.getType().split("\\.").length - 1]
@@ -726,6 +740,7 @@ public class MockGenerator {
 
         ObjectInstance shadowedView = ObjectInstanceFactory
                 .get(String.format("%s@%d", shadowType, uniqueIdGenerator.getAndIncrement()));
+        
         CarvingShadow carvingShadow = new CarvingShadow(objectViewToShadow.getType(), shadowType);
         carvedTest.addShadow(carvingShadow);
 
@@ -740,7 +755,7 @@ public class MockGenerator {
         extractShadow.setActualParameterInstances(Arrays.asList(objectViewToShadow));
 
         extractShadow.setReturnValue(shadowedView);
-        return extractShadow;
+        return new Pair(extractShadow, carvingShadow);
     }
 
     /**
@@ -938,37 +953,37 @@ public class MockGenerator {
         return theMockery;
     }
 
-    // find the minimum method invocation count of all the MethodInvocations
-    // which are owned by the same object as the findViewById calls we have
-    // found, excluding MethodInvocations which are those findViewById calls,
-    // the init method, or onCreate
-    private int deduceMaximumShadowMethodInvocationCount(List<ObjectInstance> methodOwners, CarvedTest carvedTest,
-            CarvedExecution carvedExecution) {
-
-        int invocationCount = carvedTest.getMethodUnderTest().getInvocationCount();
-
-        for (ObjectInstance objectInstance : methodOwners) {
-
-            // should we attempt to get a different callgraph here?
-            Collection<MethodInvocation> ownerMethods = carvedExecution
-                    .getDataDependencyGraphContainingTheMethodInvocationUnderTest()
-                    .getMethodInvocationsForOwner(objectInstance);
-
-            for (MethodInvocation mi : ownerMethods) {
-
-                if (mi.getInvocationCount() < invocationCount && !mi.getMethodSignature().equals(
-                        "<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>")
-                        && !mi.getMethodSignature().contains("void <init>")
-                        && !JimpleUtils.isActivityLifecycle(mi.getMethodSignature())) {
-
-                    logger.info("Identified new bound: " + mi);
-
-                    invocationCount = mi.getInvocationCount();
-
-                }
-            }
-        }
-
-        return invocationCount;
-    }
+//    // find the minimum method invocation count of all the MethodInvocations
+//    // which are owned by the same object as the findViewById calls we have
+//    // found, excluding MethodInvocations which are those findViewById calls,
+//    // the init method, or onCreate
+//    private int deduceMaximumShadowMethodInvocationCount(List<ObjectInstance> methodOwners, CarvedTest carvedTest,
+//            CarvedExecution carvedExecution) {
+//
+//        int invocationCount = carvedTest.getMethodUnderTest().getInvocationCount();
+//
+//        for (ObjectInstance objectInstance : methodOwners) {
+//
+//            // should we attempt to get a different callgraph here?
+//            Collection<MethodInvocation> ownerMethods = carvedExecution
+//                    .getDataDependencyGraphContainingTheMethodInvocationUnderTest()
+//                    .getMethodInvocationsForOwner(objectInstance);
+//
+//            for (MethodInvocation mi : ownerMethods) {
+//
+//                if (mi.getInvocationCount() < invocationCount && !mi.getMethodSignature().equals(
+//                        "<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>")
+//                        && !mi.getMethodSignature().contains("void <init>")
+//                        && !JimpleUtils.isActivityLifecycle(mi.getMethodSignature())) {
+//
+//                    logger.info("Identified new bound: " + mi);
+//
+//                    invocationCount = mi.getInvocationCount();
+//
+//                }
+//            }
+//        }
+//
+//        return invocationCount;
+//    }
 }

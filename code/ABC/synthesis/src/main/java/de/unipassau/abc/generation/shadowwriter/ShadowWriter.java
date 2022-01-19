@@ -291,6 +291,7 @@ public class ShadowWriter {
             // we will need to modify the shadow name
             File testFile = new File(shadowFileFolder, shadowName + ".java");
             try {
+                logger.info("Generated shadow code: " + cu.toString());
                 PrintStream out = new PrintStream(new FileOutputStream(testFile));
                 out.print(cu.toString());
             } catch (Exception e) {

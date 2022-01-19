@@ -30,6 +30,7 @@ import de.unipassau.abc.evaluation.Main;
 import de.unipassau.abc.evaluation.MethodUnderTestWithLocalCounterNamer;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.data.CarvedTest;
+import de.unipassau.abc.generation.shadowwriter.ShadowWriter;
 import de.unipassau.abc.generation.testwriters.JUnitTestCaseWriter;
 import de.unipassau.abc.generation.utils.NameTestCaseGlobally;
 import de.unipassau.abc.generation.utils.TestCaseNamer;
@@ -69,7 +70,7 @@ public class BasicCalculatorTest {
     }
 
     // This is mostly to debug
-    public void runTheTest(String methodSignature, int invocationCount, int invocationTraceId)
+    public Set<TestClass> runTheTest(String methodSignature, int invocationCount, int invocationTraceId)
             throws FileNotFoundException, IOException, ABCException {
         File traceFile = new File(traceFolder, file);
 
@@ -134,12 +135,25 @@ public class BasicCalculatorTest {
             CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
             logger.info(cu.toString());
         }
+        
+        return testSuite;
     }
-
-    // The AssertFail appears as second invocation !
-    // abc.basiccalculator.MainActivityTest#testNullPointerThrownBySystem
-    // <abc.basiccalculator.MainActivity: void sendResult(android.view.View)>_8_16
-// 
+    
+    @Test
+    public void testEmptyShadows() throws FileNotFoundException, IOException, ABCException {
+        file = getTraceFileFrom("abc.basiccalculator.MainActivityTest#testCalculateAndIncrementByTwo");
+        
+        String methodSignature = "<abc.basiccalculator.MainActivity: void sendResult(android.view.View)>";
+        int invocationCount = 8;
+        int invocationTraceId = 16;
+        
+        List<TestClass> testClasses = new ArrayList<TestClass>(runTheTest(methodSignature, invocationCount, invocationTraceId));
+        
+        File tmpOutputFolder = tempFolder.newFolder();
+        ShadowWriter shadowWriter = new ShadowWriter();
+        shadowWriter.generateAndWriteShadows(testClasses, tmpOutputFolder);
+    }
+    
     @Test
     public void testAssertionFailAsFirstInstruction() throws FileNotFoundException, IOException, ABCException {
         file = getTraceFileFrom("abc.basiccalculator.MainActivityTest#testNullPointerThrownBySystem");

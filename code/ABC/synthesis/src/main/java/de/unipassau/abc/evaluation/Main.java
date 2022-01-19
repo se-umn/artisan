@@ -284,6 +284,7 @@ public class Main {
                 totalGeneratedTests = totalGeneratedTests + generatedTests.size();
 
                 // TODO How does this work when we need to process multiple traces?
+                // Shouldn't this be done inside the test generation?
                 logger.info("** Generating shadows");
                 // generate shadows needed for test cases
                 ShadowWriter shadowWriter = new ShadowWriter();
