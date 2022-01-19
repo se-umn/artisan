@@ -520,11 +520,19 @@ public class MockGenerator {
         // subsumed by it
         final List<MethodInvocation> allMethodInvocationsInTheCarvedTest = new ArrayList<MethodInvocation>();
 
-        carvedTest.getExecutionFlowGraph().getOrderedMethodInvocations().stream().forEach(dmi -> {
-            allMethodInvocationsInTheCarvedTest.add(dmi);
-            allMethodInvocationsInTheCarvedTest.addAll(
-                    carvedExecution.getCallGraphContainingTheMethodInvocation(dmi).getMethodInvocationsSubsumedBy(dmi));
-        });
+        carvedTest.getExecutionFlowGraph().getOrderedMethodInvocations().stream()//
+                // TODO this should be safe...
+                .filter(mi -> !mi.isSynthetic())//
+                .forEach(dmi -> {
+                    allMethodInvocationsInTheCarvedTest.add(dmi);
+                    allMethodInvocationsInTheCarvedTest.addAll(
+                            // Some calls, like fail(), have been added to the carvedTest instead of the
+                            // carvedExecution, so there's no
+                            // getCallGraphContainingTheMethodInvocation for them in the carvedExecution
+
+                            carvedExecution.getCallGraphContainingTheMethodInvocation(dmi)
+                                    .getMethodInvocationsSubsumedBy(dmi));
+                });
 
         // Filter out duplicates
         Set<MethodInvocation> uniqueMethodInvocations = new HashSet<MethodInvocation>(
@@ -647,13 +655,14 @@ public class MockGenerator {
             logger.info("Inserting " + extractShadow);
             generatedMethodInvocations.add(extractShadow);
             logger.info("Inserting Mockery");
-            theMockery.forEach( aMockery -> {
-                generatedMethodInvocations.addAll(aMockery );
+            theMockery.forEach(aMockery -> {
+                generatedMethodInvocations.addAll(aMockery);
             });
-            
+
             logger.info("Link mockery to shadow");
-            // We care only about the last mockery here since it is the one setting the ObjectView
-            List<MethodInvocation> mockeryOfViewObject = theMockery.get( theMockery.size() - 1 );
+            // We care only about the last mockery here since it is the one setting the
+            // ObjectView
+            List<MethodInvocation> mockeryOfViewObject = theMockery.get(theMockery.size() - 1);
             ObjectInstance mockedObject = (ObjectInstance) mockeryOfViewObject.get(0).getReturnValue();
             mockeryOfViewObject.stream()
                     .filter(mi -> !mi.isStatic()

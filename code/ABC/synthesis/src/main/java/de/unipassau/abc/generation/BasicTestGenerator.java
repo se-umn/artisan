@@ -41,21 +41,20 @@ import de.unipassau.abc.parsing.ParsedTrace;
 
 public class BasicTestGenerator implements TestGenerator {
 
-    
     /**
      * A reference test would look like this:
-     *  
-     *  - Mock definition and programming
-     *  
-     *  - Setup of the Activity
-     *  
-     *  - Shadown configuration: findViewById + Mocking
-     *  
-     *  - Test "execution
-     *  
-     *  - Assertions
+     * 
+     * - Mock definition and programming
+     * 
+     * - Setup of the Activity
+     * 
+     * - Shadown configuration: findViewById + Mocking
+     * 
+     * - Test "execution
+     * 
+     * - Assertions
      */
-    
+
     private final static Logger logger = LoggerFactory.getLogger(BasicTestGenerator.class);
 
     private List<CarvedExecutionSimplifier> simplifiers = Arrays.asList(
@@ -450,10 +449,14 @@ public class BasicTestGenerator implements TestGenerator {
         }
 
         /*
-         * Finally add mocks and shadows
+         * Add mocks and shadows
          */
         MockGenerator mockGenerator = new MockGenerator();
         mockGenerator.generateMocks(carvedTest, carvedExecution);
+
+        /*
+         * TODO Add assertions here
+         */
 
         return carvedTest;
     }
@@ -462,15 +465,13 @@ public class BasicTestGenerator implements TestGenerator {
             ExecutionFlowGraph executionFlowGraph, //
             DataDependencyGraph dataDependencyGraph, //
             CarvedExecution carvedExecution) {
-        // This is basically generating assertions...
+
         // TODO Move the following logic into separated methods. Probably an assertion
         // generator of some sort
+
         /*
          * If the execution was exceptional, we need to include try-fail + catch-pass
-         * exception code + catch-fail ... This requires to MUD execution flow graph
-         * with branching... This requires us to implement a ControlFlow graph. Or maybe
-         * we can take a short cut and create "Synthetic instructions" instead? The
-         * control flow of a unit test should be linear...
+         * exception code + catch-fail ...
          */
 
         // Create the String message for the fail operation.
@@ -478,11 +479,13 @@ public class BasicTestGenerator implements TestGenerator {
         DataNode defaultFailMessageNode = DataNodeFactory.get("java.lang.String",
                 Arrays.toString(defaultFailMessage.getBytes()));
 
-        // Create the invocation to "fail" with message in case.
-        int nextMethod = executionFlowGraph.getLastMethodInvocation().getInvocationCount() + 1;
-        MethodInvocation defaultFailMethodInvocation = new MethodInvocation(
-                MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT, nextMethod,
-                SyntheticMethodSignatures.FAIL_WITH_MESSAGE);
+        // Create the invocation to "fail" with message in case. This must be the last
+        // invocation of the carved test, and it will be wrapped by the try catch
+        int nextMethodTraceId = executionFlowGraph.getLastMethodInvocation().getInvocationTraceId() + 1;
+        int nextMethodInvocationCount = executionFlowGraph.getLastMethodInvocation().getInvocationCount() - 1;
+
+        MethodInvocation defaultFailMethodInvocation = new MethodInvocation(nextMethodTraceId,
+                nextMethodInvocationCount, SyntheticMethodSignatures.FAIL_WITH_MESSAGE);
         defaultFailMethodInvocation.setPublic(true);
         defaultFailMethodInvocation.setStatic(true);
         defaultFailMethodInvocation.setSyntheticMethod(true);
@@ -501,6 +504,8 @@ public class BasicTestGenerator implements TestGenerator {
         dataDependencyGraph.addMethodInvocationWithoutAnyDependency(defaultFailMethodInvocation);
         dataDependencyGraph.addDataDependencyOnActualParameter(defaultFailMethodInvocation, defaultFailMessageNode, 0);
 
+        logger.info("Added fail() call" + defaultFailMethodInvocation );
+        
         // How do we tell that we want to catch that specific exception?
         ObjectInstance expectedException = methodInvocationUnderTest.getRaisedException();
 
