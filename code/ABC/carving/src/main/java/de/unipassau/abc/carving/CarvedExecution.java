@@ -2,6 +2,7 @@ package de.unipassau.abc.carving;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 import org.slf4j.Logger;
@@ -138,6 +139,54 @@ public class CarvedExecution {
         dataDependencyGraphs.stream().forEach(efg -> efg.getAllMethodInvocations().forEach(System.out::println));
         System.out.println("Call Graphs:");
         callGraphs.stream().forEach(efg -> efg.getAllMethodInvocations().forEach(System.out::println));
+
+    }
+
+    // Utility method to set the necessary tag for the listed methods. The others
+    // are reset
+    public void setNecessaryTagFor(final Collection<MethodInvocation> strictlyNecessaryMethods) {
+        executionFlowGraphs.forEach(efg -> {
+            efg.getOrderedMethodInvocations().stream().forEach(mi -> {
+                if (mi.isNecessary()) {
+//                    logger.info("Reset isNecessary for " + mi);
+                    mi.setNecessary(false);
+                }
+
+                if (strictlyNecessaryMethods.contains(mi)) {
+//                    logger.info("Restore isNecessary for " + mi);
+                    mi.setNecessary(true);
+                }
+            });
+
+        });
+        callGraphs.forEach(cg -> {
+            cg.getAllMethodInvocations().stream().forEach(mi -> {
+                if (mi.isNecessary()) {
+//                    logger.info("Reset isNecessary for " + mi);
+                    mi.setNecessary(false);
+                }
+
+                if (strictlyNecessaryMethods.contains(mi)) {
+//                    logger.info("Restore isNecessary for " + mi);
+                    mi.setNecessary(true);
+                }
+            });
+
+        });
+        dataDependencyGraphs.forEach(ddg -> {
+            ddg.getAllMethodInvocations().stream().forEach(mi -> {
+                if (mi.isNecessary()) {
+//                    logger.info("Reset isNecessary for " + mi);
+                    mi.setNecessary(false);
+                }
+
+                if (strictlyNecessaryMethods.contains(mi)) {
+//                    logger.info("Restore isNecessary for " + mi);
+                    mi.setNecessary(true);
+                }
+            });
+
+        });
 
     }
 

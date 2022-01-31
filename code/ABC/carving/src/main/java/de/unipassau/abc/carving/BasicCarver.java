@@ -665,7 +665,10 @@ public class BasicCarver implements MethodCarver {
     }
 
     /**
-     * This is similar to carving but must be used after we simplify the CarvedTrace
+     * This is similar to carving but must be used after we simplify the
+     * CarvedTrace. Additionally, recarving cannot change the necessary tag, so we
+     * need to ensure that only methods that were necessary before, and are still
+     * alive after, recarving are tagged as necessary
      * 
      * @throws ABCException
      * @throws CarvingException
@@ -677,16 +680,14 @@ public class BasicCarver implements MethodCarver {
         Set<MethodInvocation> necessaryMethodInvocations = new HashSet<MethodInvocation>();
 
         // Step 1: Collect all the necessary invocations that have been tagged during
-        // simplification
+        // simplification. The shall remain
         Set<MethodInvocation> alreadyNecessaryMethodInvocations = this.executionFlowGraph.getOrderedMethodInvocations()
                 .stream().filter(mi -> mi.isNecessary()).collect(Collectors.toSet());
-        
+
         logger.info("Found " + alreadyNecessaryMethodInvocations.size() + " ALREADY necessary method invocations");
-        alreadyNecessaryMethodInvocations.forEach( mi -> logger.info("- " + mi));
-        //
-        // This is automatically done inside findNecessaryMethodInvocations
-//        necessaryMethodInvocations.addAll( alreadyNecessaryMethodInvocations);
-        //
+        if (logger.isInfoEnabled()) {
+            alreadyNecessaryMethodInvocations.forEach(mi -> logger.info("- " + mi));
+        }
         alreadyNecessaryMethodInvocations.forEach(necessaryMi -> {
             logger.info("Find necessary method invocations for " + necessaryMi);
             necessaryMethodInvocations.addAll(findNecessaryMethodInvocations(necessaryMi).stream().map(t -> {
@@ -748,7 +749,11 @@ public class BasicCarver implements MethodCarver {
 
         List<CarvedExecution> carvedExecutions = carveFrom(allMethodInvocations, necessaryMethodInvocations);
 
-        // Make sure we tag those with the correct method under test
+        // Ensure isNecessary tags are correct
+        carvedExecutions.forEach(ce -> {
+            ce.setNecessaryTagFor(alreadyNecessaryMethodInvocations);
+        });
+
         carvedExecutions.forEach(ce -> {
             ce.methodInvocationUnderTest = methodInvocation;
             ce.isMethodInvocationUnderTestWrapped = !this.executionFlowGraph.contains(methodInvocation);
