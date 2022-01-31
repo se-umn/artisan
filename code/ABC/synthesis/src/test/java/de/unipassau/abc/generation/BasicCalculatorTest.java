@@ -135,25 +135,80 @@ public class BasicCalculatorTest {
             CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
             logger.info(cu.toString());
         }
-        
+
         return testSuite;
     }
     
+    
+    @Test
+    public void testCannotFindFormalType() throws FileNotFoundException, IOException, ABCException {
+        file = getTraceFileFrom("abc.basiccalculator.ExtendedMainActivityTest#testCalculateWithCommentThrowingIllegalArgumentException");
+
+        String methodSignature = "<abc.basiccalculator.ExtendedMainActivity: void sendResult(android.view.View)>";
+        int invocationCount = 34;
+        int invocationTraceId = 68;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+
+    }
+
+    @Test
+    public void testCannotMakeMethodVisible() throws FileNotFoundException, IOException, ABCException {
+        file = getTraceFileFrom("abc.basiccalculator.MainActivityTest#testCalculateAnExceptionAcrossMethods");
+
+        String methodSignature = "<abc.basiccalculator.MainActivity: java.lang.String eval(java.lang.String)>";
+        int invocationCount = 16;
+        int invocationTraceId = 31;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+
+    }
+
+    @Test
+    public void testAndroidMultiActivitySimplificationFail() throws FileNotFoundException, IOException, ABCException {
+        file = getTraceFileFrom(
+                "abc.basiccalculator.ExtendedMainActivityTest#testCalculateNullPointerThrownByResultActivity");
+
+        String methodSignature = "<abc.basiccalculator.ExtendedResultActivity: void onCreate(android.os.Bundle)>";
+        int invocationCount = 60;
+        int invocationTraceId = 120;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+
+    }
+
+    @Test
+    public void testDuplicatedActivityController() throws FileNotFoundException, IOException, ABCException {
+        file = getTraceFileFrom("abc.basiccalculator.MainActivityTest#testCalculateAndIncrementByOneWithLogging");
+
+        String methodSignature = "<abc.basiccalculator.ResultActivity: void checkResult(java.lang.String)>";
+        int invocationCount = 51;
+        int invocationTraceId = 101;
+
+        List<TestClass> testClasses = new ArrayList<TestClass>(
+                runTheTest(methodSignature, invocationCount, invocationTraceId));
+
+        // We cannot generate this test because it is impossible to carve out
+        // checkResult invoked inside onCreate
+        Assert.assertTrue(testClasses.size() == 0);
+    }
+
     @Test
     public void testEmptyShadows() throws FileNotFoundException, IOException, ABCException {
         file = getTraceFileFrom("abc.basiccalculator.MainActivityTest#testCalculateAndIncrementByTwo");
-        
+
         String methodSignature = "<abc.basiccalculator.MainActivity: void sendResult(android.view.View)>";
         int invocationCount = 8;
         int invocationTraceId = 16;
-        
-        List<TestClass> testClasses = new ArrayList<TestClass>(runTheTest(methodSignature, invocationCount, invocationTraceId));
-        
+
+        List<TestClass> testClasses = new ArrayList<TestClass>(
+                runTheTest(methodSignature, invocationCount, invocationTraceId));
+
         File tmpOutputFolder = tempFolder.newFolder();
         ShadowWriter shadowWriter = new ShadowWriter();
         shadowWriter.generateAndWriteShadows(testClasses, tmpOutputFolder);
     }
-    
+
     @Test
     public void testAssertionFailAsFirstInstruction() throws FileNotFoundException, IOException, ABCException {
         file = getTraceFileFrom("abc.basiccalculator.MainActivityTest#testNullPointerThrownBySystem");
@@ -165,12 +220,12 @@ public class BasicCalculatorTest {
         // This should NOT fail
         runTheTest(methodSignature, invocationCount, invocationTraceId);
     }
-    
-    // 
+
+    //
     // Mocks are shadows are misplaced and incomplete (no findViewByID anywhere!)
-    // Not all shadows contain the logic to program the mocks 
-    // 
-    
+    // Not all shadows contain the logic to program the mocks
+    //
+
     @Test
     public void testNpeWhileShadowing() throws FileNotFoundException, IOException, ABCException {
         file = getTraceFileFrom("abc.basiccalculator.MainActivityTest#testCalculateAndIncrementByOneWithLogging");
