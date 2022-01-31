@@ -1,5 +1,6 @@
 package de.unipassau.abc.generation.utils;
 
+import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -14,7 +15,6 @@ import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.ObjectInstanceFactory;
 import de.unipassau.abc.data.PrimitiveValue;
-import de.unipassau.abc.generation.data.CarvedTest;
 
 public class TypeUtils {
 
@@ -103,16 +103,28 @@ public class TypeUtils {
         // Collects types for DataNode
         // This requires the knowledge on how types are organized and the select the
         // most precise type above the actual one.
-        // We approximate this by looking at the methods that return the object.
+        // We approximate this by looking at the methods that return or use the object.
 
         // Ideally one can also look at who uses it
-        Set<String> possibleSuperTypes = dataDependencyGraph.getMethodInvocationsWhichReturn(objectInstance).stream()
-                .map(mi -> JimpleUtils.getReturnType(mi.getMethodSignature()))
+        Set<String> alternativeTypesFromReturn = dataDependencyGraph.getMethodInvocationsWhichReturn(objectInstance)
+                .stream().map(mi -> JimpleUtils.getReturnType(mi.getMethodSignature()))
                 .filter(type -> !type.equals(objectInstance.getType())).collect(Collectors.toSet());
 
-        logger.info("Getting formal types for " + objectInstance + ": " + possibleSuperTypes);
+        // Extract the Type of the parameter at position
+        Set<String> alternativeTypesFromUsage = dataDependencyGraph.getMethodInvocationsWhichUse(objectInstance)
+                .stream()
+                .map(mi -> JimpleUtils.getParameterList(mi.getMethodSignature())[mi.getActualParameterInstances()
+                        .indexOf(objectInstance)])
+                .filter(type -> !type.equals(objectInstance.getType())).collect(Collectors.toSet());
 
-        for (String possibleSuperType : possibleSuperTypes) {
+        logger.info("Getting formal types for " + objectInstance + ": " + alternativeTypesFromReturn);
+        logger.info("Getting formal types for " + objectInstance + ": " + alternativeTypesFromUsage);
+
+        Set<String> possibleAlternativeTypes = new HashSet<String>();
+        possibleAlternativeTypes.addAll(alternativeTypesFromReturn);
+        possibleAlternativeTypes.addAll(alternativeTypesFromUsage);
+        // Type resolution might be needed. For now, just take whatever we find
+        for (String possibleSuperType : possibleAlternativeTypes) {
 
             try {
                 ObjectInstance castedInstance = ObjectInstanceFactory

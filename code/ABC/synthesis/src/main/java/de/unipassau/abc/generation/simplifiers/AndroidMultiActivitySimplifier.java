@@ -46,14 +46,21 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
     public CarvedExecution simplify(CarvedExecution carvedExecution) throws CarvingException, ABCException {
         logger.info("Simplify using " + this.getClass());
 
-        // Clean up the tag !
-        carvedExecution = resetIsNecessaryTag(carvedExecution);
+        // Do not clean up the tag. We still need the ORIGINAL necessary activity to be
+        // stored/saved otherwise we cannot remove the noisy dependencies without
+        // removing the necessary invocations
+//        carvedExecution = resetIsNecessaryTag(carvedExecution);
 
         // Remove Lambdas and the like no matter what
         carvedExecution = removeLambdas(carvedExecution);
+        // We cannot re-carve here otherwise all the data set inside the lamdbas on the
+        // intent is lost...
+
         carvedExecution = removeBannedActivityCalls(carvedExecution);
+        //
         carvedExecution = ensureOnlyOneActivityRemains(carvedExecution);
 
+        // TODO Make sure we recarve only if necessary
         // Re-carve the carvedExecution
         BasicCarver carver = new BasicCarver(carvedExecution);
         CarvedExecution reCarvedExecution = carver.recarve(carvedExecution.methodInvocationUnderTest).stream()
@@ -61,7 +68,7 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
 
         reCarvedExecution.traceId = carvedExecution.traceId;
         reCarvedExecution.isMethodInvocationUnderTestWrapped = carvedExecution.isMethodInvocationUnderTestWrapped;
-        
+
         return reCarvedExecution;
     }
 
@@ -218,14 +225,14 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
     }
 
     private CarvedExecution removeLambdas(CarvedExecution carvedExecution) {
-        logger.debug("Removing Lambdas");
+        logger.info("Removing Lambdas");
         carvedExecution.callGraphs.forEach(callGraph -> {
 
             Set<MethodInvocation> methodInvocationsToRemove = new HashSet<MethodInvocation>();
             for (MethodInvocation mi : callGraph.getAllMethodInvocations()) {
                 if (JimpleUtils.getClassNameForMethod(mi.getMethodSignature()).contains("$Lambda$")) {
-                    logger.debug("AndroidMultiActivitySimplifier.simplify() Removing " + mi + " has type Lambda "
-                            + JimpleUtils.getClassNameForMethod(mi.getMethodSignature()));
+//                    logger.info("AndroidMultiActivitySimplifier.simplify() Removing " + mi + " has type Lambda "
+//                            + JimpleUtils.getClassNameForMethod(mi.getMethodSignature()));
                     // Note that this removes the lambda and all its content! This should be ok, as
                     // lambda will be executed only later so they do not matter now
                     // DOES NOTHING IF MI IS NOT THERE ANYMORE
@@ -235,8 +242,8 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
 
                 if ((int) mi.getActualParameterInstances().stream().filter(dn -> dn.getType().contains("$Lambda$"))
                         .count() > 0) {
-                    logger.debug("AndroidMultiActivitySimplifier.simplify() Removing " + mi
-                            + " has it depends on a Lambda as parameter " + mi.getActualParameterInstances());
+//                    logger.info("AndroidMultiActivitySimplifier.simplify() Removing " + mi
+//                            + " has it depends on a Lambda as parameter " + mi.getActualParameterInstances());
                     // Note that this removes the lambda and all its content! This should be ok, as
                     // lambda will be executed only later so they do not matter now
                     // DOES NOTHING IF MI IS NOT THERE ANYMORE
@@ -249,6 +256,47 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
             // Object to consistently act on all the datastructures at once
 
             for (MethodInvocation miToRemove : methodInvocationsToRemove) {
+                logger.info("\t - Removing " + miToRemove);
+                carvedExecution.remove(miToRemove);
+            }
+        });
+
+        return carvedExecution;
+    }
+    
+    private CarvedExecution removeListeners(CarvedExecution carvedExecution) {
+        logger.info("Removing Lambdas");
+        carvedExecution.callGraphs.forEach(callGraph -> {
+
+            Set<MethodInvocation> methodInvocationsToRemove = new HashSet<MethodInvocation>();
+            for (MethodInvocation mi : callGraph.getAllMethodInvocations()) {
+                if (JimpleUtils.getClassNameForMethod(mi.getMethodSignature()).contains("$Lambda$")) {
+//                    logger.info("AndroidMultiActivitySimplifier.simplify() Removing " + mi + " has type Lambda "
+//                            + JimpleUtils.getClassNameForMethod(mi.getMethodSignature()));
+                    // Note that this removes the lambda and all its content! This should be ok, as
+                    // lambda will be executed only later so they do not matter now
+                    // DOES NOTHING IF MI IS NOT THERE ANYMORE
+                    methodInvocationsToRemove.add(mi);
+                    methodInvocationsToRemove.addAll(callGraph.getMethodInvocationsSubsumedBy(mi));
+                }
+
+                if ((int) mi.getActualParameterInstances().stream().filter(dn -> dn.getType().contains("$Lambda$"))
+                        .count() > 0) {
+//                    logger.info("AndroidMultiActivitySimplifier.simplify() Removing " + mi
+//                            + " has it depends on a Lambda as parameter " + mi.getActualParameterInstances());
+                    // Note that this removes the lambda and all its content! This should be ok, as
+                    // lambda will be executed only later so they do not matter now
+                    // DOES NOTHING IF MI IS NOT THERE ANYMORE
+                    methodInvocationsToRemove.add(mi);
+                    methodInvocationsToRemove.addAll(callGraph.getMethodInvocationsSubsumedBy(mi));
+                }
+            }
+
+            // TODO Probably we should encapsulate this logic into the CarvedExecution
+            // Object to consistently act on all the datastructures at once
+
+            for (MethodInvocation miToRemove : methodInvocationsToRemove) {
+                logger.info("\t - Removing " + miToRemove);
                 carvedExecution.remove(miToRemove);
             }
         });

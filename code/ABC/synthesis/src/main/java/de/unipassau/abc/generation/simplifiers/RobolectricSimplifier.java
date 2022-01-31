@@ -84,8 +84,8 @@ public class RobolectricSimplifier extends AbstractCarvedExecutionSimplifier {
         CarvedExecution reCarvedExecution = carver.recarve(carvedExecution.methodInvocationUnderTest).stream()
                 .findFirst().get();
 
-//        carvedExecution.callGraphs.forEach(cg -> logger.info("OLD Roots: " + cg.getRoots()));
-//        reCarvedExecution.callGraphs.forEach(cg -> logger.info("NEW Roots: " + cg.getRoots()));
+        // What are the necessary invocations here?
+        // Make sure we tag those with the correct method under test
 
         reCarvedExecution.traceId = carvedExecution.traceId;
         reCarvedExecution.isMethodInvocationUnderTestWrapped = carvedExecution.isMethodInvocationUnderTestWrapped;
