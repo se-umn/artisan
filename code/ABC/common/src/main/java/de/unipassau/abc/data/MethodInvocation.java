@@ -234,8 +234,10 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
     }
 
     public String toFullString() {
-        return methodSignature + "_" + invocationId + "_" + invocationTraceId + "\n" + "\t Actual Parameters: "
-                + actualParameterInstances + "\n" + "\t Return Value: " + returnValue;
+        return methodSignature + "_" + invocationId + "_" + invocationTraceId + "\n" + //
+                "\t Owner: " + owner + "\n" + //
+                "\t Actual Parameters: " + actualParameterInstances + "\n" + //
+                "\t Return Value: " + returnValue;
     }
 
     public void setStatic(boolean staticCall) {
