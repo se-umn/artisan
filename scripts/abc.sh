@@ -374,7 +374,7 @@ function instrument-apk() {
   # THIS PRODUCES A LOG "HERE". TODO Shall we move the log the location of the instrumented apk ?
 
 
-  (echo >&2 "** Instrumented APK is:")
+  (echo >&2 "** Instrumented APK is: ${instrumented_apk_file}")
   echo "${instrumented_apk_file}"
 }
 

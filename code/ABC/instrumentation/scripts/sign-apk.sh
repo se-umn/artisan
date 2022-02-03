@@ -45,11 +45,11 @@ APK=$(realpath $1)
 ( >&2 echo "** Sign the apk ${APK} using ${APK_SIGNER}")
 
 # TODO This will produce some phony output - redirect everything to stderr
-${APK_SIGNER} sign --ks ${KEYSTORE} --ks-key-alias ${KEYALIAS} --ks-pass pass:123456 --key-pass pass:123456 "${APK}" > /dev/null 2>&1
+${APK_SIGNER} sign --ks ${KEYSTORE} --ks-key-alias ${KEYALIAS} --ks-pass pass:123456 --key-pass pass:123456 "${APK}" 2>&1 > /dev/null 
 
 ( >&2 echo "** Verify the signature")
 ## Note jarsigner is on the path...
-jarsigner -verify -verbose -certs ${APK} > /dev/null 2>&1
+jarsigner -verify -verbose -certs ${APK} 2>&1 > /dev/null
 
 # Enable further processing
 echo "${APK}"

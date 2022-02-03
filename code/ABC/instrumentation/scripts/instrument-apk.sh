@@ -74,6 +74,8 @@ fi
 export JAVA_OPTS=${JAVA_OPTS}" -Dabc.output.instrumented.code"
 ( >&2 echo "** Java options for instrumentation are ${JAVA_OPTS}")
 
+( >&2 echo "** Instrumentation options for instrumentation are ${INSTRUMENTATION_OPTS}")
+
 ${SCRIPT_LOCATION}/../target/appassembler/bin/instrument-apk \
             --apk ${APK} \
             --android-jar ${ANDROID_JAR} \
