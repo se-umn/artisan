@@ -18,14 +18,13 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
-import org.graphstream.ui.graphicGraph.stylesheet.parser.StyleSheetParserTokenManager;
 import org.xmlpull.v1.XmlPullParserException;
 
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.Pair;
-import dev.navids.soottutorial.visual.Visualizer;
 import edu.emory.mathcs.backport.java.util.Collections;
 import soot.Body;
 import soot.BooleanType;
@@ -36,7 +35,6 @@ import soot.RefType;
 import soot.Scene;
 import soot.SceneTransformer;
 import soot.SootClass;
-import soot.SootField;
 import soot.SootMethod;
 import soot.Trap;
 import soot.Type;
@@ -47,7 +45,6 @@ import soot.VoidType;
 import soot.dava.internal.javaRep.DIntConstant;
 import soot.jimple.AbstractStmtSwitch;
 import soot.jimple.AssignStmt;
-import soot.jimple.FieldRef;
 import soot.jimple.IdentityStmt;
 import soot.jimple.IntConstant;
 import soot.jimple.InvokeExpr;
@@ -64,7 +61,6 @@ import soot.jimple.Stmt;
 import soot.jimple.StringConstant;
 import soot.jimple.ThrowStmt;
 import soot.toolkits.graph.ExceptionalUnitGraph;
-import soot.toolkits.scalar.ConstantValueToInitializerTransformer;
 import soot.util.Chain;
 import utils.Constants;
 
@@ -141,6 +137,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
     private String appPackageName;
 
     private List<Pattern> packageFilters = new ArrayList<Pattern>();
+    private List<Pattern> classFilters = new ArrayList<Pattern>();
 
     // This class is the usual <package-name>.R class that contains many static
     // values for an android application
@@ -166,6 +163,12 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
     public void setPackageFilters(List<String> packageFilters) {
         if (packageFilters != null) {
             packageFilters.forEach(s -> this.packageFilters.add(Pattern.compile(s)));
+        }
+    }
+
+    public void setClassFilters(List<String> classFilters) {
+        if (classFilters != null) {
+            classFilters.forEach(s -> this.classFilters.add(Pattern.compile(s + ".*")));
         }
     }
 
@@ -250,8 +253,13 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
             SootClass currentlyInstrumentedSootClass = (SootClass) applicationClassesIterator.next();
 
-            if (skipClass(currentlyInstrumentedSootClass)) {
+            Optional<String> anyReasonToSkipInstrumentation = skipClass(currentlyInstrumentedSootClass);
+            if (anyReasonToSkipInstrumentation.isPresent()) {
+                System.out.println("SKIPPING CLASS " + currentlyInstrumentedSootClass.getName() + " "
+                        + anyReasonToSkipInstrumentation.get());
                 continue;
+            } else {
+                System.out.println("INSTRUMENTING CLASS " + currentlyInstrumentedSootClass.getName());
             }
 
             /*
@@ -367,6 +375,8 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
      */
     protected void initMonitorClass() {
         try {
+            System.out.println("---- SceneInstrumenterWithMethodParameters.initMonitorClass() ----");
+
             // TODO At the moment this is hardcoded to Monitor(Simple Monitor)
             clsMonitor = Scene.v().getSootClass(utils.Constants.MONITOR_CLASS);
             //
@@ -413,8 +423,6 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
             UnitPatchingChain staticInitializerMethodBodyUnitChain = staticInitializerMethodBody.getUnits();
             for (final Iterator<Unit> iter = staticInitializerMethodBodyUnitChain.snapshotIterator(); iter.hasNext();) {
                 final Unit currentUnit = iter.next();
-
-                System.out.println(currentUnit);
                 currentUnit.apply(new AbstractStmtSwitch() {
 
                     @Override
@@ -559,12 +567,13 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
             SootClass currentlyInstrumentedSootClass = (SootClass) applicationClassesIterator.next();
 
-            if (skipClass(currentlyInstrumentedSootClass)) {
-                System.out.println("\n\n SKIPPING CLASS " + currentlyInstrumentedSootClass.getName());
-                System.out.println("\n\n");
+            Optional<String> anyReasonToSkipInstrumentation = skipClass(currentlyInstrumentedSootClass);
+            if (anyReasonToSkipInstrumentation.isPresent()) {
+                System.out.println("SKIPPING CLASS " + currentlyInstrumentedSootClass.getName() + " "
+                        + anyReasonToSkipInstrumentation.get());
                 continue;
             } else {
-                System.out.println("\n\n INSTRUMENTING CLASS " + currentlyInstrumentedSootClass.getName());
+                System.out.println("INSTRUMENTING CLASS " + currentlyInstrumentedSootClass.getName());
             }
 
             if (MAKE_ANDROID_LIFE_CYCLE_EVENTS_EXPLICIT) {
@@ -572,7 +581,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
                  * Create dummy methods about android life-cycle so they can be logged if
                  * necessary
                  */
-                System.out.println("\t MAK ANDROID EVENT EXPLICITY:");
+                System.out.println("\t MAKE ANDROID EVENT EXPLICITY:");
                 makeAndroidActivityEventsExplicit(currentlyInstrumentedSootClass);
             }
 
@@ -1313,28 +1322,28 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
     }
 
     // Keep this method to have meaningful explanation why a class has been skipped
-    private boolean skipClass(SootClass currentlyInstrumentedSootClass) {
+    private Optional<String> skipClass(SootClass currentlyInstrumentedSootClass) {
         if (currentlyInstrumentedSootClass.isPhantom()) {
-            System.out.println("\n\n Phantom class: " + currentlyInstrumentedSootClass.getName());
-            return true;
+            return Optional.of("Phantom class: " + currentlyInstrumentedSootClass.getName());
         }
         if (!currentlyInstrumentedSootClass.isApplicationClass()) {
-            System.out.println("\n\n Not an application class: " + currentlyInstrumentedSootClass.getName());
-            return true;
+            return Optional.of("Not an application class: " + currentlyInstrumentedSootClass.getName());
         }
         if (currentlyInstrumentedSootClass.isInterface()) {
-            System.out.println("\n\n Interface - not a class: " + currentlyInstrumentedSootClass.getName());
-            return true;
+            return Optional.of("Interface: " + currentlyInstrumentedSootClass.getName());
         }
 
         // If any of the specified filters matches then skip this
         if (this.packageFilters.stream()
                 .anyMatch(p -> p.matcher(currentlyInstrumentedSootClass.getPackageName()).matches())) {
-            System.out.println("\n\n Matches custom package filter " + currentlyInstrumentedSootClass.getName());
-            return true;
-        } else {
-            return false;
+            return Optional.of(currentlyInstrumentedSootClass.getName() + " matches custom package filter");
         }
+
+        if (this.classFilters.stream().anyMatch(p -> p.matcher(currentlyInstrumentedSootClass.getName()).matches())) {
+            return Optional.of(currentlyInstrumentedSootClass.getName() + " matches custom class filter");
+        }
+
+        return Optional.empty();
     }
 
     /**
@@ -1604,14 +1613,14 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
      */
     private boolean skipMethod(SootMethod currentlyInstrumentedSootMethod) {
         if (!currentlyInstrumentedSootMethod.isConcrete()) {
-            System.out.println(
-                    "\n\t SKIPPING METHOD: " + currentlyInstrumentedSootMethod.getSignature() + " NOT CONCRETE");
+            System.out
+                    .println("\t SKIPPING METHOD: " + currentlyInstrumentedSootMethod.getSignature() + " NOT CONCRETE");
             return true;
         }
 
         if ((currentlyInstrumentedSootMethod.toString().indexOf(": java.lang.Class class$") != -1)) {
             System.out.println(
-                    "\n\t SKIPPING METHOD: " + currentlyInstrumentedSootMethod.getSignature() + " NOT A CLASS ?");
+                    "\t SKIPPING METHOD: " + currentlyInstrumentedSootMethod.getSignature() + " NOT A CLASS ?");
             return true;
         }
 
@@ -1619,7 +1628,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
         // currentlyInstrumentedSootMethod.getReturnType().equals("void")
         if (currentlyInstrumentedSootMethod.isStatic()
                 && currentlyInstrumentedSootMethod.getName().contains("access$")) {
-            System.out.println("\n\t SKIPPING METHOD: " + currentlyInstrumentedSootMethod.getSignature() + " S");
+            System.out.println("\t SKIPPING METHOD: " + currentlyInstrumentedSootMethod.getSignature() + " SYNTHETIC");
             return true;
         }
 
