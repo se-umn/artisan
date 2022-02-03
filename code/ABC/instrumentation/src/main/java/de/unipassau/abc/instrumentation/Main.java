@@ -32,11 +32,33 @@ public class Main {
         @Option(longName = "android-jar")
         public File getAndroidJar();
 
+        /**
+         * hide from the trace
+         * 
+         * @return
+         */
         @Option(longName = "filter-package", defaultValue = {})
         public List<String> getPackageFilters();
 
         @Option(longName = "filter-class", defaultValue = {})
         public List<String> getClassFilters();
+
+        @Option(longName = "filter-method", defaultValue = {})
+        public List<String> getMethodFilters();
+
+        /**
+         * skip instrumentation
+         * 
+         * @return
+         */
+        @Option(longName = "skip-package", defaultValue = {})
+        public List<String> getPackageSkips();
+
+        @Option(longName = "skip-class", defaultValue = {})
+        public List<String> getClassSkips();
+
+        @Option(longName = "skip-method", defaultValue = {})
+        public List<String> getMethodSkips();
 
         @Option(longName = "debug")
         public boolean getDebug();
@@ -111,17 +133,40 @@ public class Main {
         // This is where the instrumentation takes place.
         SceneInstrumenterWithMethodParameters abcInstrumentation = new SceneInstrumenterWithMethodParameters(
                 appPackageName);
-        // Configure the class
 
-        System.out.println("Main.main() DEBUG: Setting the following package " + cli.getPackageFilters().size()
-                + " package filters :");
+        // Configure the Instrumentation
+
+        // Do not instrument
+        System.out.println(
+                "Main.main() DEBUG: Do not instrument the following " + cli.getPackageSkips().size() + " packages: ");
+        cli.getPackageSkips().forEach(System.out::println);
+        abcInstrumentation.setPackageSkips(cli.getPackageSkips());
+
+        System.out.println(
+                "Main.main() DEBUG: Do not instrument the following " + cli.getClassSkips().size() + " classes:");
+        cli.getClassSkips().forEach(System.out::println);
+        abcInstrumentation.setClassSkips(cli.getClassSkips());
+
+        System.out.println(
+                "Main.main() DEBUG: Do not instrument the following " + cli.getMethodSkips().size() + " methods:");
+        cli.getMethodSkips().forEach(System.out::println);
+        abcInstrumentation.setMethodSkips(cli.getMethodSkips());
+
+        // methodSkips
+        System.out.println(
+                "Main.main() DEBUG: Do not trace the following " + cli.getPackageFilters().size() + " packages: ");
         cli.getPackageFilters().forEach(System.out::println);
         abcInstrumentation.setPackageFilters(cli.getPackageFilters());
 
         System.out.println(
-                "Main.main() DEBUG: Setting the following class " + cli.getClassFilters().size() + " classfilters :");
+                "Main.main() DEBUG: Do not trace the following " + cli.getClassFilters().size() + " classes: ");
         cli.getClassFilters().forEach(System.out::println);
         abcInstrumentation.setClassFilters(cli.getClassFilters());
+
+        System.out.println(
+                "Main.main() DEBUG: Do not trace the following " + cli.getMethodFilters().size() + " methods: ");
+        cli.getMethodFilters().forEach(System.out::println);
+        abcInstrumentation.setMethodFilters(cli.getMethodFilters());
 
 //        abcInstrumentation.setDebug(cli.getDebug());
 //        abcInstrumentation.setMultiThreadedExecution(cli.getMultiThread());

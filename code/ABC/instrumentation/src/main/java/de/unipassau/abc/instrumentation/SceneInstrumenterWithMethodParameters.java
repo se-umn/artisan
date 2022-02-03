@@ -26,6 +26,7 @@ import org.xmlpull.v1.XmlPullParserException;
 import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.Pair;
 import edu.emory.mathcs.backport.java.util.Collections;
+import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
 import soot.Body;
 import soot.BooleanType;
 import soot.IntType;
@@ -136,8 +137,15 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
     private String appPackageName;
 
+    // Do not instrument- Work at the SootClass/SootMethod level
+    private List<Pattern> packageSkips = new ArrayList<Pattern>();
+    private List<Pattern> classSkips = new ArrayList<Pattern>();
+    private List<Pattern> methodSkips = new ArrayList<Pattern>();
+
+    // Omit from the trace - Work at the UNIT level
     private List<Pattern> packageFilters = new ArrayList<Pattern>();
     private List<Pattern> classFilters = new ArrayList<Pattern>();
+    private List<Pattern> methodFilters = new ArrayList<Pattern>();
 
     // This class is the usual <package-name>.R class that contains many static
     // values for an android application
@@ -160,6 +168,24 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
         this.appPackageName = appPackageName;
     }
 
+    public void setPackageSkips(List<String> packageSkips) {
+        if (packageSkips != null) {
+            packageSkips.forEach(s -> this.packageSkips.add(Pattern.compile(s)));
+        }
+    }
+
+    public void setClassSkips(List<String> classSkips) {
+        if (classSkips != null) {
+            classSkips.forEach(s -> this.classSkips.add(Pattern.compile(s + ".*")));
+        }
+    }
+
+    public void setMethodSkips(List<String> methodSkips) {
+        if (methodSkips != null) {
+            methodSkips.forEach(s -> this.methodSkips.add(Pattern.compile(s)));
+        }
+    }
+
     public void setPackageFilters(List<String> packageFilters) {
         if (packageFilters != null) {
             packageFilters.forEach(s -> this.packageFilters.add(Pattern.compile(s)));
@@ -169,6 +195,12 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
     public void setClassFilters(List<String> classFilters) {
         if (classFilters != null) {
             classFilters.forEach(s -> this.classFilters.add(Pattern.compile(s + ".*")));
+        }
+    }
+
+    public void setMethodFilters(List<String> methodFilters) {
+        if (methodFilters != null) {
+            methodFilters.forEach(s -> this.methodFilters.add(Pattern.compile(s)));
         }
     }
 
@@ -271,7 +303,10 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
                 SootMethod currentlyInstrumentedMethod = (SootMethod) methodsIterator.next();
 
-                if (skipMethod(currentlyInstrumentedMethod)) {
+                Optional<String> anyReasonToSkipInstrumentingThisMethod = skipMethod(currentlyInstrumentedMethod);
+                if (anyReasonToSkipInstrumentingThisMethod.isPresent()) {
+                    System.out.println("SKIPPING METHOD " + currentlyInstrumentedMethod.getSignature() + " "
+                            + anyReasonToSkipInstrumentingThisMethod.get());
                     continue;
                 }
 
@@ -580,6 +615,8 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
                 /*
                  * Create dummy methods about android life-cycle so they can be logged if
                  * necessary
+                 * 
+                 * TODO Do we ever use it? Can we use it to expose methods like onButtonPressed?
                  */
                 System.out.println("\t MAKE ANDROID EVENT EXPLICITY:");
                 makeAndroidActivityEventsExplicit(currentlyInstrumentedSootClass);
@@ -597,22 +634,15 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
                 SootMethod currentlyInstrumentedMethod = (SootMethod) methodsIterator.next();
 
-//                // DEBUG !
-//                if( ! currentlyInstrumentedSootClass.getName().contains("NewEditActivity")) {
-//                    continue;
-//                }
-//
-//                
-//                if( ! currentlyInstrumentedMethod.getName().contains("onCreateOptionsMenu")) {
-//                    continue;
-//                }
-
-                System.out.println("\n\t METHOD: " + currentlyInstrumentedMethod.getSignature());
-
-                if (skipMethod(currentlyInstrumentedMethod)) {
-                    System.out.println("\t\t SKIPPED");
+                Optional<String> anyReasonToSkipThisMethod = skipMethod(currentlyInstrumentedMethod);
+                if (anyReasonToSkipInstrumentation.isPresent()) {
+                    System.out.println("\t\t SKIPPED METHOD " + currentlyInstrumentedMethod + " because "
+                            + anyReasonToSkipInstrumentation.get());
                     continue;
+                } else {
+                    System.out.println("\t\t INSTRUMENTING METHOD: " + currentlyInstrumentedMethod.getSignature());
                 }
+
                 /*
                  * Forces soot to (re)load the entire class body using retrieveActiveBody()
                  */
@@ -1142,6 +1172,9 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
      * of methodBegin and methodEnds. Note that this code ALSO instrument methods
      * calls that belong to trap handlers!
      * 
+     * Note. Any units matching the exclusion filters is skipped, therefore it will
+     * not appear in the trace
+     * 
      * @param currentlyInstrumentedMethod
      * @param currentlyInstrumentedMethodBody
      * @param currentlyInstrumentedMethodBodyUnitChain
@@ -1159,13 +1192,17 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
             final Unit currentUnit = iter.next();
 
-            // unitFileWriter.write(currentUnit.toString());
-            // unitFileWriter.newLine();
-
             /*
-             * Do not instrument our instrumentation ...
+             * Do not instrument our own instrumentation ...
              */
             if (currentUnit.getTags().contains(ABCTag.TAG)) {
+                continue;
+            }
+
+            Optional<String> anyReasonNotToWrapThisMethodCall = filterUnit(currentUnit);
+            if (anyReasonNotToWrapThisMethodCall.isPresent()) {
+                System.out.println(
+                        "Omit " + currentUnit + " from trace. Reason " + anyReasonNotToWrapThisMethodCall.get());
                 continue;
             }
 
@@ -1196,6 +1233,58 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
             }
         }
 
+    }
+
+    private boolean filterUnit(SootMethod sootMethod) {
+        // If any of the specified filters matches then skip this
+        SootClass sootClass = sootMethod.getDeclaringClass();
+
+        if (this.packageFilters.stream().anyMatch(p -> p.matcher(sootClass.getPackageName()).matches())) {
+            return true;
+        }
+
+        if (this.classFilters.stream().anyMatch(p -> p.matcher(sootClass.getName()).matches())) {
+            return true;
+        }
+
+        // Here we need to build up the signature with package.class.method
+        final String fqnMethod = JimpleUtils.getFullyQualifiedMethodName(sootMethod.getSignature());
+        if (this.methodFilters.stream().anyMatch(p -> p.matcher(fqnMethod).matches())) {
+            return true;
+        }
+
+        return false;
+
+    }
+
+    private Optional<String> filterUnit(Unit currentUnit) {
+        final AtomicInteger filter = new AtomicInteger(0);
+        // We focus only on method executions here
+        currentUnit.apply(new AbstractStmtSwitch() {
+            @Override
+            public void caseAssignStmt(AssignStmt stmt) {
+                if (stmt.getRightOp() instanceof InvokeExpr) {
+                    InvokeExpr iexpr = (InvokeExpr) stmt.getRightOp();
+                    if (filter.get() > 0 || filterUnit(iexpr.getMethod())) {
+                        filter.incrementAndGet();
+                    }
+                }
+            }
+
+            @Override
+            public void caseInvokeStmt(InvokeStmt stmt) {
+                InvokeExpr iexpr = stmt.getInvokeExpr();
+                if (filter.get() > 0 || filterUnit(iexpr.getMethod())) {
+                    filter.incrementAndGet();
+                }
+            }
+        });
+
+        if (filter.get() > 0) {
+            return Optional.of("match " + filter.get() + " filters");
+        } else {
+            return Optional.empty();
+        }
     }
 
     /**
@@ -1334,12 +1423,12 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
         }
 
         // If any of the specified filters matches then skip this
-        if (this.packageFilters.stream()
+        if (this.packageSkips.stream()
                 .anyMatch(p -> p.matcher(currentlyInstrumentedSootClass.getPackageName()).matches())) {
             return Optional.of(currentlyInstrumentedSootClass.getName() + " matches custom package filter");
         }
 
-        if (this.classFilters.stream().anyMatch(p -> p.matcher(currentlyInstrumentedSootClass.getName()).matches())) {
+        if (this.classSkips.stream().anyMatch(p -> p.matcher(currentlyInstrumentedSootClass.getName()).matches())) {
             return Optional.of(currentlyInstrumentedSootClass.getName() + " matches custom class filter");
         }
 
@@ -1606,33 +1695,32 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
     }
 
     /**
-     * This method is used to skip instrumenting methods.
+     * This method is used to skip tracing methods.
      * 
      * @param currentlyInstrumentedSootMethod
      * @return
      */
-    private boolean skipMethod(SootMethod currentlyInstrumentedSootMethod) {
+    private Optional<String> skipMethod(SootMethod currentlyInstrumentedSootMethod) {
         if (!currentlyInstrumentedSootMethod.isConcrete()) {
-            System.out
-                    .println("\t SKIPPING METHOD: " + currentlyInstrumentedSootMethod.getSignature() + " NOT CONCRETE");
-            return true;
+            return Optional.of("not concrete");
         }
 
         if ((currentlyInstrumentedSootMethod.toString().indexOf(": java.lang.Class class$") != -1)) {
-            System.out.println(
-                    "\t SKIPPING METHOD: " + currentlyInstrumentedSootMethod.getSignature() + " NOT A CLASS ?");
-            return true;
+            return Optional.of("does not belong to a class");
         }
 
-        // Not sure how to check that return is void... &&
-        // currentlyInstrumentedSootMethod.getReturnType().equals("void")
-        if (currentlyInstrumentedSootMethod.isStatic()
-                && currentlyInstrumentedSootMethod.getName().contains("access$")) {
-            System.out.println("\t SKIPPING METHOD: " + currentlyInstrumentedSootMethod.getSignature() + " SYNTHETIC");
-            return true;
+        if (currentlyInstrumentedSootMethod.getName().contains("access$")) {
+            return Optional.of("synthetic accessor");
         }
 
-        return false;
+        final String fqnMethod = JimpleUtils
+                .getFullyQualifiedMethodName(currentlyInstrumentedSootMethod.getSignature());
+        // If any of the specified filters matches then skip this
+        if (this.methodSkips.stream().anyMatch(p -> p.matcher(fqnMethod).matches())) {
+            return Optional.of("matches custom method filter");
+        }
+
+        return Optional.empty();
     }
 
     /**
