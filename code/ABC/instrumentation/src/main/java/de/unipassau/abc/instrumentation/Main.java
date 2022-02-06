@@ -60,10 +60,10 @@ public class Main {
         @Option(longName = "skip-method", defaultValue = {})
         public List<String> getMethodSkips();
 
-        @Option(longName = "debug")
+        @Option(longName = "debug", defaultValue = "false")
         public boolean getDebug();
 
-        @Option(longName = "multi-thread")
+        @Option(longName = "multi-thread", defaultValue = "false")
         public boolean getMultiThread();
 
     }
@@ -168,8 +168,8 @@ public class Main {
         cli.getMethodFilters().forEach(System.out::println);
         abcInstrumentation.setMethodFilters(cli.getMethodFilters());
 
-//        abcInstrumentation.setDebug(cli.getDebug());
-//        abcInstrumentation.setMultiThreadedExecution(cli.getMultiThread());
+        abcInstrumentation.setDebug(cli.getDebug());
+        abcInstrumentation.setMultiThreadedExecution(cli.getMultiThread());
 
         PackManager.v().getPack("wjtp").add(new Transform("wjtp.mt", abcInstrumentation));
 

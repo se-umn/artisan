@@ -104,7 +104,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
     private static final boolean INSTRUMENT_TRAPS = System.getProperties().containsKey("abc.instrument.traps");
 
     // Additional inputs that cannot be easily passed using command line
-    private static final String INCLUDE_FILTER = System.getProperty("abc.instrument.include", "");
+    private static final String INCLUDE_FILTER = System.getProperty("abc.instrument.include", null);
 
     // Class which is invoked dynamically from the inserted probes to trace the
     // execution.
@@ -587,6 +587,9 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
         System.out.println("---- SceneInstrumenterWithMethodParameters.instrument() ----");
         System.out.println("Options.");
         // TODO Reorganize how we handle options and command line argumentes
+        System.out.println("appPackageName: " + this.appPackageName);
+        System.out.println("INCLUDE_FILTER: " + this.INCLUDE_FILTER);
+        // ----
         System.out.println("OUTPUT_INSTRUMENTED_CODE: " + this.OUTPUT_INSTRUMENTED_CODE);
         System.out.println("MAKE_ANDROID_LIFE_CYCLE_EVENTS_EXPLICIT: " + this.MAKE_ANDROID_LIFE_CYCLE_EVENTS_EXPLICIT);
         System.out.println("INSTRUMENT_ARRAY_OPERATIONS: " + this.INSTRUMENT_ARRAY_OPERATIONS);
@@ -634,13 +637,13 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
 
                 SootMethod currentlyInstrumentedMethod = (SootMethod) methodsIterator.next();
 
-                Optional<String> anyReasonToSkipThisMethod = skipMethod(currentlyInstrumentedMethod);
-                if (anyReasonToSkipInstrumentation.isPresent()) {
-                    System.out.println("\t\t SKIPPED METHOD " + currentlyInstrumentedMethod + " because "
-                            + anyReasonToSkipInstrumentation.get());
+                Optional<String> anyReasonToSkipInstrumentingThisMethod = skipMethod(currentlyInstrumentedMethod);
+                if (anyReasonToSkipInstrumentingThisMethod.isPresent()) {
+                    System.out.println("\tSKIPPING METHOD " + currentlyInstrumentedMethod.getSignature() + " "
+                            + anyReasonToSkipInstrumentingThisMethod.get());
                     continue;
                 } else {
-                    System.out.println("\t\t INSTRUMENTING METHOD: " + currentlyInstrumentedMethod.getSignature());
+                    System.out.println("\tINSTRUMENTING METHOD: " + currentlyInstrumentedMethod.getSignature());
                 }
 
                 /*
@@ -648,7 +651,7 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
                  */
                 Body currentlyInstrumentedMethodBody = currentlyInstrumentedMethod.retrieveActiveBody();
 
-                System.out.println("\t INSTRUMENTING ");
+                System.out.println("\tINSTRUMENTING ");
                 for (Unit u : currentlyInstrumentedMethodBody.getUnits()) {
                     System.out.println("\t\t " + u);
                 }
@@ -919,9 +922,13 @@ public class SceneInstrumenterWithMethodParameters extends SceneTransformer {
             SootClass curcls = (SootClass) itCls.next();
 
             if (curcls.getName().contains(appPackageName)) {
+                System.out.println("SceneInstrumenterWithMethodParameters.loadUserClasses() INCLUDING " + curcls
+                        + " because of appPackageName : " + appPackageName);
                 userClasses.add(curcls);
-            } else if (curcls.getName().startsWith(INCLUDE_FILTER)) {
+            } else if (INCLUDE_FILTER != null && curcls.getName().startsWith(INCLUDE_FILTER)) {
                 userClasses.add(curcls);
+                System.out.println("SceneInstrumenterWithMethodParameters.loadUserClasses() INCLUDING " + curcls
+                        + " because of INCLUDE FILTER: " + INCLUDE_FILTER);
             }
 
         }
