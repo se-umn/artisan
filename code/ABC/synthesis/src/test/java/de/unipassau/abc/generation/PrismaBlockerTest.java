@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -24,6 +25,8 @@ import com.github.javaparser.ast.CompilationUnit;
 
 import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.carving.utils.MethodInvocationSelector;
+import de.unipassau.abc.data.CallGraph;
+import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.MethodInvocationMatcher;
 import de.unipassau.abc.evaluation.Main;
@@ -68,6 +71,25 @@ public class PrismaBlockerTest {
 
     }
 
+    private void checkAssumptions(ExecutionFlowGraph efg, CallGraph cg) {
+        Collection<MethodInvocation> efgMethodInvocations = efg.getOrderedMethodInvocations();
+        Collection<MethodInvocation> cgMethodInvocations = cg.getAllMethodInvocations();
+
+        if (!cgMethodInvocations.containsAll(efgMethodInvocations)) {
+            Collection<MethodInvocation> copy = new ArrayList<MethodInvocation>(efgMethodInvocations);
+            copy.removeAll(cgMethodInvocations);
+            logger.error("Missing elements " + copy);
+        }
+        Assume.assumeTrue(cgMethodInvocations.containsAll(efgMethodInvocations));
+
+        if (!efgMethodInvocations.containsAll(cgMethodInvocations)) {
+            Collection<MethodInvocation> copy = new ArrayList<MethodInvocation>(cgMethodInvocations);
+            copy.removeAll(efgMethodInvocations);
+            logger.error("Missing elements " + copy);
+        }
+        Assume.assumeTrue(efgMethodInvocations.containsAll(cgMethodInvocations));
+    }
+
     // This is mostly to debug
     public void runTheTest(String methodSignature, int invocationCount, int invocationTraceId)
             throws FileNotFoundException, IOException, ABCException {
@@ -85,20 +107,29 @@ public class PrismaBlockerTest {
         TraceParser parser = new TraceParserImpl();
         ParsedTrace _parsedTrace = parser.parseTrace(traceFile);
 
+        checkAssumptions(_parsedTrace.getUIThreadParsedTrace().getFirst(),
+                _parsedTrace.getUIThreadParsedTrace().getThird());
+
         // Make sure we do NOT decorate our own decorators and methods !
         ParsedTraceDecorator decorator = new StaticParsedTraceDecorator();
         ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
 
-        //
+        checkAssumptions(parsedTrace.getUIThreadParsedTrace().getFirst(),
+                parsedTrace.getUIThreadParsedTrace().getThird());
+
+        // Somehow this breaks the trace
         decorator = new AndroidParsedTraceDecorator();
         parsedTrace = decorator.decorate(parsedTrace);
 
+        checkAssumptions(parsedTrace.getUIThreadParsedTrace().getFirst(),
+                parsedTrace.getUIThreadParsedTrace().getThird());
+
         //
         Set<MethodInvocation> all = mis.findAllCarvableMethodInvocations(_parsedTrace);
-        logger.debug("-- All possible carvable targets ");
-        for (MethodInvocation m : all) {
-            logger.debug("" + m.isAbstract() + " " + m);
-        }
+//        logger.info("-- All possible carvable targets ");
+//        for (MethodInvocation m : all) {
+//            logger.info(" " + m);
+//        }
 
         MethodInvocationMatcher matcher = MethodInvocationMatcher
                 .fromMethodInvocation(new MethodInvocation(invocationTraceId, invocationCount, methodSignature));
@@ -135,7 +166,6 @@ public class PrismaBlockerTest {
             logger.info(cu.toString());
         }
     }
-
 
     @Test
     public void testWrongCallToEnableWidgets() throws FileNotFoundException, IOException, ABCException {
@@ -278,6 +308,17 @@ public class PrismaBlockerTest {
         String methodSignature = "<com.prismaqf.callblocker.CallBlockerManager: void onCreate(android.os.Bundle)>";
         int invocationCount = 8;
         int invocationTraceId = 16;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    @Test
+    public void testEnumConstantsShouldNotBeMocked() throws FileNotFoundException, IOException, ABCException {
+        file = getTraceFileFrom("com.prismaqf.callblocker.UpdateCalendarRuleTest#TestUndoAction");
+
+        String methodSignature = "<com.prismaqf.callblocker.NewEditCalendarRule: void refreshWidgets(boolean)>";
+        int invocationCount = 302;
+        int invocationTraceId = 603;
 
         runTheTest(methodSignature, invocationCount, invocationTraceId);
     }

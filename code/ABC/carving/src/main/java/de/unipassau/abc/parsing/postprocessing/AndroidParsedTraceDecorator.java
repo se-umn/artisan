@@ -166,7 +166,12 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
 
                     logger.info("Replacing " + toReplace + " with " + willReplace + " in " + mi + " at position " + i);
                     mi.getActualParameterInstances().set(i, willReplace);
+
                     dataDependencyGraph.replaceDataDependencyOnActualParameter(mi, willReplace, i);
+                    //
+                    executionFlowGraph.get(mi).getActualParameterInstances().set(i, willReplace);
+                    callGraph.get(mi).getActualParameterInstances().set(i, willReplace);
+
                 }
             }
         }
@@ -177,7 +182,12 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
         for (MethodInvocation mi : dataDependencyGraph.getMethodInvocationsWhichReturn(toReplace)) {
             logger.info("Updating the return of " + mi + " to " + willReplace);
             mi.setReturnValue(willReplace);
+            //
             dataDependencyGraph.replaceDataDependencyOnReturn(mi, willReplace);
+
+            //
+            executionFlowGraph.get(mi).setReturnValue(willReplace);
+            callGraph.get(mi).setReturnValue(willReplace);
         }
 
         // Ownership
@@ -187,17 +197,21 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
 
             if (mi.isConstructor()) {
                 logger.info("Delete the original constructor " + mi);
+                callGraph.getMethodInvocationsSubsumedBy(mi).forEach(smi -> {
+                    executionFlowGraph.remove(smi);
+                    dataDependencyGraph.remove(smi);
+                });
                 executionFlowGraph.remove(mi);
                 dataDependencyGraph.remove(mi);
-                // This also removes all the methods subsumed by the constructor. Constructor
-                // will probably be there for deserialized objects to enable rebuilding them
-                // from parcel/bytes
                 callGraph.remove(mi);
             } else {
 
                 logger.info("Updating the ownership of " + mi + " to " + willReplace);
                 mi.setOwner(willReplace);
                 dataDependencyGraph.replaceDataDependencyOnOwner(mi, willReplace);
+
+                executionFlowGraph.get(mi).setOwner(willReplace);
+                callGraph.get(mi).setOwner(willReplace);
             }
         }
 
@@ -222,7 +236,6 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
             CallGraph callGraph = graphs.getThird();
             DataDependencyGraph dataDependencyGraph = graphs.getSecond();
 
-            //
             Map<String, ObjectInstance> sourceIntents = new HashedMap();
             Map<String, ObjectInstance> sinkIntents = new HashedMap();
 
@@ -341,7 +354,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
 
                     // Here to the actual replacement
                     objectToReplaceWith.keySet().forEach(toReplace -> {
-                        replaceEveryWhereWith(toReplace, objectToReplaceWith.get(toReplace),//
+                        replaceEveryWhereWith(toReplace, objectToReplaceWith.get(toReplace), //
                                 executionFlowGraph, dataDependencyGraph, callGraph);
                     });
 
@@ -437,7 +450,8 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
 
     private ParsedTrace decorateWithAndroidMetadata(ParsedTrace parsedTrace) {
         // Go over the parsed trace and replace each method invocation with the android
-        // versions of it
+        // versions of it. This must be done for all the graphs not only one, since they
+        // cannot share the objects
         parsedTrace.getParsedTrace().forEach((threadName, graphs) -> {
             ExecutionFlowGraph executionFlowGraph = graphs.getFirst();
             CallGraph callGraph = graphs.getThird();
@@ -449,8 +463,15 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                     .forEach(methodInvocation -> {
                         if (isAndroidActivity(methodInvocation, callGraph)) {
                             dataDependencyGraph.getOwnerFor(methodInvocation).setAndroidActivity(true);
+
+                            callGraph.get(methodInvocation).getOwner().setAndroidActivity(true);
+                            executionFlowGraph.get(methodInvocation).getOwner().setAndroidActivity(true);
+
                         } else if (isAndroidFragment(methodInvocation, callGraph)) {
                             dataDependencyGraph.getOwnerFor(methodInvocation).setAndroidFragment(true);
+
+                            callGraph.get(methodInvocation).getOwner().setAndroidFragment(true);
+                            executionFlowGraph.get(methodInvocation).getOwner().setAndroidFragment(true);
                         }
                     });
 

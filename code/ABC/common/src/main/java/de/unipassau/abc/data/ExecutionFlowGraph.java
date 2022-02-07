@@ -122,4 +122,6 @@ public interface ExecutionFlowGraph {
 
     public void prependMethodInvocation(MethodInvocation enumConstantInvocation);
 
+    public MethodInvocation get(MethodInvocation methodInvocation);
+
 }

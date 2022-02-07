@@ -705,4 +705,9 @@ public class CallGraphImpl implements CallGraph {
         return edgeName;
     }
 
+    @Override
+    public MethodInvocation get(MethodInvocation methodInvocation) {
+        return retrieveTheActualVertex(methodInvocation);
+    }
+
 }

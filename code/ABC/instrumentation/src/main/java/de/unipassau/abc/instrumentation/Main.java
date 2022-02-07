@@ -60,10 +60,10 @@ public class Main {
         @Option(longName = "skip-method", defaultValue = {})
         public List<String> getMethodSkips();
 
-        @Option(longName = "debug", defaultValue = "false")
+        @Option(longName = "debug")
         public boolean getDebug();
 
-        @Option(longName = "multi-thread", defaultValue = "false")
+        @Option(longName = "multi-thread")
         public boolean getMultiThread();
 
     }

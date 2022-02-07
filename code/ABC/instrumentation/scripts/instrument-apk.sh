@@ -65,8 +65,6 @@ if [ ! -e "${SCRIPT_LOCATION}/../target/appassembler" ]; then
     popd > /dev/null 2>&1
 fi
 
-
-
 ( >&2 echo "** Instrumenting ${APK}" )
 # Invoke the assembled script to instrument the APK. Do not tee on output
 

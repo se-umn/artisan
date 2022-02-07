@@ -109,7 +109,7 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
                     mi.setOwner(enumConstant);
                     //
                     dataDependencyGraph.replaceDataDependencyOnOwner(mi, enumConstant);
-                    logger.info("Replacing " + oec + " with " + enumConstant + " in " + mi);
+                    logger.info("Casting " + oec + " as EnumConstant in " + mi);
                 });
                 dataDependencyGraph.getMethodInvocationsWhichUse(oec).forEach(mi -> {
                     // IF this fails here, there's a big issue somewhere !
@@ -122,7 +122,7 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
                             // TODO
                             mi.getActualParameterInstances().set(i, enumConstant);
                             dataDependencyGraph.replaceDataDependencyOnActualParameter(mi, enumConstant, i);
-                            logger.info("Replacing " + oec + " with " + enumConstant + " in " + mi);
+                            logger.info("Casting " + oec + " as EnumConstant in " + mi);
                         }
                     }
                 });
@@ -133,7 +133,7 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
                     //
                     dataDependencyGraph.replaceDataDependencyOnReturn(mi, enumConstant);
                     //
-                    logger.info("Replacing " + oec + " with " + enumConstant + " in " + mi);
+                    logger.info("Casting " + oec + " as EnumConstant in " + mi);
                 });
             });
 

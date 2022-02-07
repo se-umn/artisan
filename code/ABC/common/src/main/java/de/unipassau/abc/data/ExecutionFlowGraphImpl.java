@@ -978,4 +978,9 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
         return edge;
     }
 
+    @Override
+    public MethodInvocation get(MethodInvocation methodInvocation) {
+        return retrieveActualVertex(methodInvocation);
+    }
+
 }

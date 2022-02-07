@@ -97,6 +97,11 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
     }
 
     @Override
+    public MethodInvocation get(MethodInvocation methodInvocation) {
+        return (MethodInvocation) retrieveTheActualVertex(methodInvocation);
+    }
+
+    @Override
     public void replaceMethodInvocation(MethodInvocation orig, MethodInvocation repl) {
         GraphNode originalNode = this.retrieveTheActualVertex(orig);
 

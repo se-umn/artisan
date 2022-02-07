@@ -135,4 +135,6 @@ public interface CallGraph {
 
     public void insertAsRoot(MethodInvocation robolectricBuildActivity);
 
+    public MethodInvocation get(MethodInvocation methodInvocation);
+
 }
