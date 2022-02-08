@@ -405,14 +405,13 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
 
         // TODO This applies only to activity right?
         parsedTrace.getParsedTrace().forEach((threadName, graphs) -> {
-            ExecutionFlowGraph executionFlowGraph = graphs.getFirst();
             CallGraph callGraph = graphs.getThird();
             DataDependencyGraph dataDependencyGraph = graphs.getSecond();
 
             // Find all the Android Activities (TODO Right? Or do we need more classes?)
 
-            Set<ObjectInstance> androidActivities = new HashSet<ObjectInstance>();
-            Map<ObjectInstance, Collection<MethodInvocation>> methodInvocationsToCheck = new HashMap<ObjectInstance, Collection<MethodInvocation>>();
+            Set<ObjectInstance> androidActivities = new HashSet<>();
+            Map<ObjectInstance, Collection<MethodInvocation>> methodInvocationsToCheck = new HashMap<>();
             for (ObjectInstance obj : dataDependencyGraph.getObjectInstances()) {
                 if (obj.isAndroidActivity()) {
                     if (!androidActivities.contains(obj)) {
@@ -505,12 +504,16 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
 
                             callGraph.get(methodInvocation).getOwner().setAndroidActivity(true);
                             executionFlowGraph.get(methodInvocation).getOwner().setAndroidActivity(true);
-
                         } else if (isAndroidFragment(methodInvocation, callGraph)) {
                             dataDependencyGraph.getOwnerFor(methodInvocation).setAndroidFragment(true);
 
                             callGraph.get(methodInvocation).getOwner().setAndroidFragment(true);
                             executionFlowGraph.get(methodInvocation).getOwner().setAndroidFragment(true);
+                        } else if (isAndroidService(methodInvocation, callGraph)) {
+                            dataDependencyGraph.getOwnerFor(methodInvocation).setAndroidService(true);
+
+                            callGraph.get(methodInvocation).getOwner().setAndroidService(true);
+                            executionFlowGraph.get(methodInvocation).getOwner().setAndroidService(true);
                         }
                     });
 
@@ -552,6 +555,10 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
         return isAndroidElement(methodInvocation, callGraph, className -> className.endsWith("Activity"));
     }
 
+    private boolean isAndroidService(MethodInvocation methodInvocation, CallGraph callGraph) {
+        return isAndroidElement(methodInvocation, callGraph, className -> className.endsWith("Service"));
+    }
+
     private boolean isAndroidFragment(MethodInvocation methodInvocation, CallGraph callGraph) {
         return isAndroidElement(methodInvocation, callGraph, className -> className.endsWith("Fragment"));
     }
@@ -567,11 +574,8 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                 && filterPredicate.test(JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature()))) {
             return true;
         } else {
-            boolean isAndroid = false;
-            for (MethodInvocation subMethod : subMethods) {
-                isAndroid |= isAndroidActivity(subMethod, callGraph);
-            }
-            return isAndroid;
+            return subMethods.stream()
+                .anyMatch(subMethod -> isAndroidElement(subMethod, callGraph, filterPredicate));
         }
     }
 

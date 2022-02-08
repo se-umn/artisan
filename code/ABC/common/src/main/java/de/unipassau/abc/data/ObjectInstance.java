@@ -38,6 +38,8 @@ public class ObjectInstance implements DataNode, Cloneable {
     @Deprecated
     private boolean isAndroidFragment;
 
+    private boolean isAndroidService;
+
     private String objectId;
 
     private String type;
@@ -124,8 +126,20 @@ public class ObjectInstance implements DataNode, Cloneable {
         return result;
     }
 
+    public boolean isAndroidComponent() {
+        return isAndroidService || isAndroidActivity || isAndroidFragment;
+    }
+
     public boolean isAndroidActivity() {
         return isAndroidActivity;
+    }
+
+    public boolean isAndroidService() {
+        return isAndroidService;
+    }
+
+    public void setAndroidService(boolean isAndroidService) {
+        this.isAndroidService = isAndroidService;
     }
 
     public void setRequiresIntent(boolean requiresIntent) {
