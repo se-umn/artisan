@@ -236,6 +236,8 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
             CallGraph callGraph = graphs.getThird();
             DataDependencyGraph dataDependencyGraph = graphs.getSecond();
 
+            Set<MethodInvocation> tantingMethodInvocations = new HashSet<MethodInvocation>();
+
             Map<String, ObjectInstance> sourceIntents = new HashedMap();
             Map<String, ObjectInstance> sinkIntents = new HashedMap();
 
@@ -251,12 +253,16 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                                     .equals(intentTagAsString)) {
                         logger.info("Intent " + obj + " is SOURCE of TAINT " + mi.getActualParameterInstances().get(1));
                         sourceIntents.put(mi.getActualParameterInstances().get(1).toString(), obj);
+
+                        tantingMethodInvocations.add(mi);
                     }
 
                     if (mi.getMethodSignature()
                             .equals("<android.content.Intent: int getIntExtra(java.lang.String,int)>")
                             && ((PrimitiveValue) mi.getActualParameterInstances().get(0)).toString()
                                     .equals(intentTagAsString)) {
+
+                        tantingMethodInvocations.add(mi);
 
                         if (mi.getReturnValue().toString().equals("-1")) {
                             logger.info("Canont find SOURCE for SINK intent " + obj);
@@ -374,13 +380,25 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                 }
             }
 
+            tantingMethodInvocations.forEach(tmi -> {
+                logger.info("Getting rid of " + tmi.toFullString());
+                callGraph.getMethodInvocationsSubsumedBy(tmi).forEach(smi -> {
+                    dataDependencyGraph.remove(smi);
+                    executionFlowGraph.remove(smi);
+                });
+
+                callGraph.remove(tmi);
+                dataDependencyGraph.remove(tmi);
+                executionFlowGraph.remove(tmi);
+            });
+
         });
 
         return parsedTrace;
     }
 
-    // Note This does not require Intents to be tainted. However, if they are not,
-    // they will be mocked/shadowed probably.
+    // Note: This does not require Intents to be tainted. However, if they are not,
+    // they will be mocked, and mocking them breaks Robolectric
     private ParsedTrace decorateWithIntentDataDependencies(ParsedTrace parsedTrace) {
         final MethodInvocationMatcher getIntentMethodInvocationMatcher = MethodInvocationMatcher
                 .byMethodLiteral("<android.app.Activity: android.content.Intent getIntent()>");
@@ -409,11 +427,23 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                 final ObjectInstance activity = entry.getKey();
                 for (MethodInvocation mi : entry.getValue()) {
                     for (MethodInvocation subsumed_mi : callGraph.getMethodInvocationsSubsumedBy(mi)) {
+
                         // Find the call to getIntent
                         if (getIntentMethodInvocationMatcher.matches(subsumed_mi)) {
                             // Extract the intent - It must be there or this is an error!
+
+                            // Refinement. If the intent is never used besides calling getExtras() that
+                            // returns null
+                            // then try to something about it, otherwise, do not add this dependency
+
                             try {
                                 DataNode intent = dataDependencyGraph.getReturnValue(subsumed_mi).get();
+
+                                if (!isTheIntentReallyNeeded((ObjectInstance) intent, dataDependencyGraph)) {
+                                    logger.info("Do not add dependencies on empty intent " + intent);
+                                    continue;
+                                }
+
                                 // Get the caller of this method and add the dependency to it
                                 // We need the method that is directly calling getIntent
                                 MethodInvocation methodThatRequireTheDependencyOnTheIntent = callGraph
@@ -446,6 +476,15 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
 
         return parsedTrace;
 
+    }
+
+    private boolean isTheIntentReallyNeeded(ObjectInstance intent, DataDependencyGraph dataDependencyGraph) {
+        // If there's anything more than a getExtras that return null, then it is
+        // relevant
+        return dataDependencyGraph.getMethodInvocationsForOwner(intent).stream().filter(
+                mi -> !(mi.getMethodSignature().equals("<android.content.Intent: android.os.Bundle getExtras()>")
+                        && mi.getReturnValue() instanceof NullInstance))
+                .count() > 0;
     }
 
     private ParsedTrace decorateWithAndroidMetadata(ParsedTrace parsedTrace) {
