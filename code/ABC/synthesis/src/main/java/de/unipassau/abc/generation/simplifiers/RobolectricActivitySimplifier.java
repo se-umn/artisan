@@ -1,7 +1,6 @@
 package de.unipassau.abc.generation.simplifiers;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,8 +10,6 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Lists;
 
 import de.unipassau.abc.carving.BasicCarver;
 import de.unipassau.abc.carving.CarvedExecution;
@@ -28,27 +25,26 @@ import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.ObjectInstanceFactory;
 import de.unipassau.abc.data.PrimitiveNodeFactory;
 import de.unipassau.abc.exceptions.ABCException;
-import de.unipassau.abc.utils.PrintUtility;
 import edu.emory.mathcs.backport.java.util.Collections;
 
 /**
  * This class transforms know patterns related to Activity life-cycle events in
  * calls to the Robolectric framework. Note we do not remove/replace any actual
  * calls to the app, instead we WRAP them.
- * 
+ *
  * For instance: Robolectric.ActivityController.create() -> wraps (onSetup,
  * onCreate, etc.)
- * 
+ *
  * The resulting test is simpler in the sense that the directly callable methods
  * are fewer since we mask them
- * 
- * 
- * 
+ *
+ *
+ *
  * @author gambitemp
  *
  */
-public class RobolectricSimplifier extends AbstractCarvedExecutionSimplifier {
-    private static Logger logger = LoggerFactory.getLogger(RobolectricSimplifier.class);
+public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimplifier {
+    private static Logger logger = LoggerFactory.getLogger(RobolectricActivitySimplifier.class);
 
     private ObjectInstance robolectricActivityController;
 
@@ -64,6 +60,7 @@ public class RobolectricSimplifier extends AbstractCarvedExecutionSimplifier {
         // Activity
         carvedExecution = resetIsNecessaryTag(carvedExecution);
         // Those also set the necessary tag
+
         carvedExecution = introduceControllerAndGetTheActivity(carvedExecution);
         carvedExecution = wrapOnCreate(carvedExecution);
         carvedExecution = wrapOnStart(carvedExecution);
@@ -112,7 +109,7 @@ public class RobolectricSimplifier extends AbstractCarvedExecutionSimplifier {
 
                 // Replace the construction and the first subsuming call with the robolectric
                 // calls
-                List<MethodInvocation> subsumedMethodInvocations = new ArrayList(
+                List<MethodInvocation> subsumedMethodInvocations = new ArrayList<>(
                         cg.getMethodInvocationsSubsumedBy(activityConstructor));
                 Collections.sort(subsumedMethodInvocations);
 
@@ -202,13 +199,67 @@ public class RobolectricSimplifier extends AbstractCarvedExecutionSimplifier {
         eg.insertNodeRightBefore(wrappingMethodInvocation, original);
     }
 
+  private CarvedExecution wrapOnCreateService(CarvedExecution carvedExecution) {
+    carvedExecution.executionFlowGraphs.forEach(eg -> {
+      // There is only one activity so onCreate is called once
+      Optional<MethodInvocation> maybeOnCreate = eg.getOrderedMethodInvocations().stream()
+          .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidActivity()
+              && mi.getMethodSignature().contains("void onCreate(android.os.Bundle)"))
+          .findFirst();
+
+      // Introduce the controller first
+      if (maybeOnCreate.isPresent()) {
+        // Original Method invocation to WRAP
+        MethodInvocation onCreate = maybeOnCreate.get();
+
+        DataDependencyGraph ddg = carvedExecution.getDataDependencyGraphContainingTheMethodInvocation(onCreate);
+        CallGraph cg = carvedExecution.getCallGraphContainingTheMethodInvocation(onCreate);
+
+        // Create the new method wrapping invocation
+        int invocationTraceId = onCreate.getInvocationTraceId();
+        int invocationCount = onCreate.getInvocationCount();
+        String methodSignature = "<org.robolectric.android.controller.ActivityController org.robolectric.android.controller.ActivityController create()>";
+
+        MethodInvocation activityControllerCreate = new MethodInvocation(invocationTraceId,
+            uniqueID.getAndIncrement(), methodSignature);
+        // Force this to be necessary
+        activityControllerCreate.setNecessary(true);
+        //
+        activityControllerCreate.setPublic(true);
+
+        // The method invocation belongs to the controller
+        activityControllerCreate.setOwner(robolectricActivityController);
+        ddg.addDataDependencyOnOwner(activityControllerCreate, robolectricActivityController);
+        // Fluent interface
+        activityControllerCreate.setReturnValue(robolectricActivityController);
+        ddg.addDataDependencyOnReturn(activityControllerCreate, robolectricActivityController);
+
+        // Here we need to wrap the original call with the new one...
+        try {
+          wrapWith(onCreate, activityControllerCreate, eg, cg);
+        } catch (ABCException e) {
+          // TODO Probably we should use a more specific exception
+          throw new RuntimeException(e);
+        }
+
+        if (carvedExecution.methodInvocationUnderTest.equals(onCreate)) {
+          carvedExecution.isMethodInvocationUnderTestWrapped = true;
+        }
+
+      }
+    });
+
+    return carvedExecution;
+
+  }
+
     private CarvedExecution wrapOnCreate(CarvedExecution carvedExecution) {
         carvedExecution.executionFlowGraphs.forEach(eg -> {
             // There is only one activity so onCreate is called once
             Optional<MethodInvocation> maybeOnCreate = eg.getOrderedMethodInvocations().stream()
-                    .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidActivity()
-                            && mi.getMethodSignature().contains("void onCreate(android.os.Bundle)"))
-                    .findFirst();
+                .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidActivity()
+                    && mi.getMethodSignature().contains("void onCreate(android.os.Bundle)"))
+                .findFirst();
 
             // Introduce the controller first
             if (maybeOnCreate.isPresent()) {
@@ -224,7 +275,7 @@ public class RobolectricSimplifier extends AbstractCarvedExecutionSimplifier {
                 String methodSignature = "<org.robolectric.android.controller.ActivityController org.robolectric.android.controller.ActivityController create()>";
 
                 MethodInvocation activityControllerCreate = new MethodInvocation(invocationTraceId,
-                        uniqueID.getAndIncrement(), methodSignature);
+                    uniqueID.getAndIncrement(), methodSignature);
                 // Force this to be necessary
                 activityControllerCreate.setNecessary(true);
                 //
@@ -425,8 +476,8 @@ public class RobolectricSimplifier extends AbstractCarvedExecutionSimplifier {
      * to be displayed, if you return false it will not be shown. probably visible()
      * should be called ONLY when the return value of onCreateOptionsMenu() is true?
      * But how to test the opposite case?
-     * 
-     * 
+     *
+     *
      */
     private CarvedExecution wrapOnCreateOptionsMenu(CarvedExecution carvedExecution) {
         carvedExecution.executionFlowGraphs.forEach(eg -> {
@@ -478,7 +529,7 @@ public class RobolectricSimplifier extends AbstractCarvedExecutionSimplifier {
     /*
      * Replace the call to activity.onOptionsItemSelected(Menu); with
      * Shadows.shadowOf(activity).clickMenuItem(menu.R.id);
-     * 
+     *
      */
     private CarvedExecution wrapOnOptionsItemSelected(CarvedExecution carvedExecution) {
 

@@ -731,7 +731,7 @@ public class BasicCarver implements MethodCarver {
 
         // We use a set to avoid duplicates. The algorithms below can be improved a
         // lot...
-        List<MethodInvocation> allMethodInvocations = new ArrayList<MethodInvocation>(necessaryMethodInvocations);
+        List<MethodInvocation> allMethodInvocations = new ArrayList<>(necessaryMethodInvocations);
         // SORT THEM
         Collections.sort(allMethodInvocations);
         //
@@ -739,13 +739,7 @@ public class BasicCarver implements MethodCarver {
         logger.info("  NECESSARY INVOCATIONS FOR: " + methodInvocation);
         logger.info("-------------------------");
 
-        allMethodInvocations.stream().map(new Function<MethodInvocation, String>() {
-
-            @Override
-            public String apply(MethodInvocation t) {
-                return t.toString();
-            }
-        }).forEach(logger::info);
+        allMethodInvocations.stream().map(MethodInvocation::toString).forEach(logger::info);
 
         List<CarvedExecution> carvedExecutions = carveFrom(allMethodInvocations, necessaryMethodInvocations);
 

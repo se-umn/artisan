@@ -20,21 +20,20 @@ public class ModVisitor extends ModifierVisitor<String> {
     private static final Logger logger = LoggerFactory.getLogger(ModVisitor.class);
 
     @Override
-    public Node visit(VariableDeclarationExpr expr, String varName){
+    public Node visit(VariableDeclarationExpr expr, String varName) {
         boolean declaresRelevantVar = false;
         boolean nullAssignment = false;
         MethodCallExpr mce = null;
         NodeList<VariableDeclarator> vds = expr.getVariables();
-        for(VariableDeclarator vd:vds){
-            if(vd.getNameAsString().equals(varName)){
+        for (VariableDeclarator vd : vds) {
+            if (vd.getNameAsString().equals(varName)) {
                 declaresRelevantVar = true;
                 Optional<Expression> initExprOpt = vd.getInitializer();
-                if(initExprOpt.isPresent()){
+                if (initExprOpt.isPresent()) {
                     Expression initExpr = initExprOpt.get();
-                    if(initExpr.isNullLiteralExpr()){
+                    if (initExpr.isNullLiteralExpr()) {
                         nullAssignment = true;
-                    }
-                    else {
+                    } else {
                         MethodCallExprVisitor mcev = new MethodCallExprVisitor();
                         initExpr.accept(mcev, null);
                         mce = mcev.getMethodCallExpr();
@@ -42,12 +41,11 @@ public class ModVisitor extends ModifierVisitor<String> {
                 }
             }
         }
-        if(declaresRelevantVar && nullAssignment){
-            logger.debug("Removed:"+expr);
+        if (declaresRelevantVar && nullAssignment) {
+            logger.debug("Removed:" + expr);
             return null;
-        }
-        else if(declaresRelevantVar && mce!=null){
-            logger.info("Changed:"+expr+" to:"+mce);
+        } else if (declaresRelevantVar && mce != null) {
+            logger.info("Changed: " + expr + " to: " + mce);
             return mce;
         }
         return expr;

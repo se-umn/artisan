@@ -1,5 +1,6 @@
 package de.unipassau.abc.generation;
 
+import de.unipassau.abc.generation.simplifiers.RobolectricServiceSimplifier;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -37,7 +38,7 @@ import de.unipassau.abc.generation.data.CatchBlock;
 import de.unipassau.abc.generation.mocks.MockGenerator;
 import de.unipassau.abc.generation.simplifiers.AndroidMultiActivitySimplifier;
 import de.unipassau.abc.generation.simplifiers.CarvedExecutionSimplifier;
-import de.unipassau.abc.generation.simplifiers.RobolectricSimplifier;
+import de.unipassau.abc.generation.simplifiers.RobolectricActivitySimplifier;
 import de.unipassau.abc.parsing.ParsedTrace;
 
 public class BasicTestGenerator implements TestGenerator {
@@ -61,8 +62,11 @@ public class BasicTestGenerator implements TestGenerator {
     private List<CarvedExecutionSimplifier> simplifiers = Arrays.asList(
             // Make sure that only one activity is present in the carved test
             new AndroidMultiActivitySimplifier(),
-            // Transform android-calls into robolectric-calls
-            new RobolectricSimplifier());
+            // Transform android activity calls into robolectric-calls
+            new RobolectricActivitySimplifier(),
+            // Transform android service calls into robolectric-calls
+            new RobolectricServiceSimplifier()
+          );
 
     @Override
     public Collection<CarvedTest> generateTests(List<MethodInvocation> targetMethodsInvocations, ParsedTrace trace)

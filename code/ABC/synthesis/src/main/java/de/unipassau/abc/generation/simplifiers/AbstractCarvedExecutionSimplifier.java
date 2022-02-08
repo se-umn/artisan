@@ -7,12 +7,12 @@ import de.unipassau.abc.exceptions.ABCException;
 public abstract class AbstractCarvedExecutionSimplifier implements CarvedExecutionSimplifier {
 
     @Override
-    public abstract CarvedExecution simplify(CarvedExecution carvedExecution) throws CarvingException, ABCException;
+    public abstract CarvedExecution simplify(CarvedExecution carvedExecution)
+          throws CarvingException, ABCException;
 
     public CarvedExecution resetIsNecessaryTag(CarvedExecution carvedExecution) {
-        carvedExecution.executionFlowGraphs.forEach(eg -> {
-            eg.getOrderedMethodInvocations().forEach(mi -> mi.setNecessary(false));
-        });
+        carvedExecution.executionFlowGraphs.forEach(
+              eg -> eg.getOrderedMethodInvocations().forEach(mi -> mi.setNecessary(false)));
         return carvedExecution;
     }
 
