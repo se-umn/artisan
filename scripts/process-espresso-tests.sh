@@ -14,12 +14,12 @@ while read -r espresso_test; do
     make carve-all </dev/null
     # Remove broken tests if any and recompute 
     make all-carved-tests-coverage/html/index.html </dev/null
-    if [ $(${ABC_HOME}/delete-broken-tests.sh | wc -l) -gt 1 ]; then
+    if [ $(${ABC_HOME}/scripts/delete-broken-tests.sh | wc -l) -gt 1 ]; then
         rm carved-tests.log
         make all-carved-tests-coverage/html/index.html </dev/null
     fi
     # Remove failed tests if any and recompute 
-    if [ $(${ABC_HOME}/delete-failed-tests.sh | wc -l) -gt 1 ]; then
+    if [ $(${ABC_HOME}/scripts/delete-failed-tests.sh | wc -l) -gt 1 ]; then
         rm carved-tests.log
         make all-carved-tests-coverage/html/index.html </dev/null
     fi
@@ -30,6 +30,6 @@ while read -r espresso_test; do
     # Copy all the logs to the per-test folder
     mv -v carving.log carving.log-for-${SIMPLE_NAME} || echo "(Error ok if no carving.log found)"
     # mv the carvedTestFolder
-    mv -v app/src/carvedTest carvedTest-for-${SIMPLE_NAME} || echo "(Error copying carved tests)"
+    mv -v app/src/carvedTest carvedTests-for-${SIMPLE_NAME} || echo "(Error copying carved tests)"
     echo "** Done with ${espresso_test}"
 done < <(head -$end ./all-tests.txt | tail -$(($end - $start + 1)) )
