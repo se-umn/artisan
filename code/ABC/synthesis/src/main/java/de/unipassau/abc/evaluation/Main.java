@@ -73,6 +73,10 @@ public class Main {
 
         @Option(longName = "selection-strategy", defaultValue = "SELECT_ALL")
         public MethodInvocationSelector.StrategyEnum getSelectionStrategy();
+        
+        @Option(longName = "filter-method", defaultValue = "")
+        public List<String> getFilterMethods();
+        
 
     }
 
@@ -227,6 +231,8 @@ public class Main {
 
                 // Write test cases to files and try to compile them
                 JUnitTestCaseWriter writer = new JUnitTestCaseWriter();
+                //
+                writer.setFilterMethods(cli.getFilterMethods());
 
                 Map<TestClass, File> generatedTests = new HashMap<TestClass, File>();
 

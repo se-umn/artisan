@@ -64,10 +64,14 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
         carvedExecution = introduceControllerAndGetTheActivity(carvedExecution);
         carvedExecution = wrapOnCreate(carvedExecution);
         carvedExecution = wrapOnStart(carvedExecution);
+        // Visible might be used to carvedExecution = wrapOnLoadFinished(carvedExecution);
         carvedExecution = wrapOnOptionsItemSelected(carvedExecution);
+        
         carvedExecution = wrapOnCreateOptionsMenu(carvedExecution);
         carvedExecution = wrapOnStop(carvedExecution);
         carvedExecution = wrapOnDestroy(carvedExecution);
+        
+        
 
         // Up to this point we have all the right calls tagged as necessary and we can
         // re-carve the carvedExecution; however, we might have removed the MUT if that
@@ -532,6 +536,9 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
     /*
      * Replace the call to activity.onOptionsItemSelected(Menu); with
      * Shadows.shadowOf(activity).clickMenuItem(menu.R.id);
+     * 
+     * https://github.com/robolectric/robolectric/issues/1582
+     * https://stackoverflow.com/questions/17486689/testing-a-cursorloader-with-robolectric-mockito/21866892#21866892
      *
      */
     private CarvedExecution wrapOnOptionsItemSelected(CarvedExecution carvedExecution) {

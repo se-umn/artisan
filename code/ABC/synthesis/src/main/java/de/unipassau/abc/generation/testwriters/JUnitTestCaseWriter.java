@@ -219,18 +219,17 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                 testClass.addAnnotation(annotation);
             }
         }
-        
+
         // Create the test setup method
         MethodDeclaration setupMethod = testClass.addMethod("setup", Modifier.Keyword.PUBLIC);
         setupMethod.addAndGetAnnotation(Before.class);
         BlockStmt block = new BlockStmt();
         setupMethod.setBody(block);
-        // add a statement do the method body: 
+        // add a statement do the method body:
         NameExpr clazz = new NameExpr("ShadowSQLiteConnection");
         MethodCallExpr call = new MethodCallExpr(clazz, "reset");
         block.addStatement(call);
 
-        
         for (CarvedTest carvedTest : testCase.getCarvedTests()) {
             // TODO Name tests
             MethodDeclaration testMethod = testClass.addMethod(testMethodNamer.generateTestMethodName(carvedTest),
@@ -262,6 +261,8 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
     // Simple Index to name variables by their class name
     private Map<String, AtomicInteger> declaredVariablesIndex = new HashMap<>();
+
+    private List<String> filterMethods = new ArrayList<String>();
 
     /**
      * Generate a "self" contained block of code from the given carvedTest
@@ -306,6 +307,12 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         // execution flow we return all of them
         for (MethodInvocation methodInvocation : executionFlowGraph.getMethodInvocationsSortedByID()) {
             logger.debug("" + methodInvocation);
+
+            String fqn = JimpleUtils.getFullyQualifiedMethodName(methodInvocation.getMethodSignature());
+            if (filterMethods.contains(fqn)) {
+                logger.info("Force Filter method invocation" + methodInvocation);
+                continue;
+            }
             // Now we create each method calls making sure that variables and the like
             // matches
             if (methodInvocation.isConstructor() && methodInvocation.isStatic()) {
@@ -1119,6 +1126,10 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
     private String firstLetterToLowerCase(String s) {
         return s.substring(0, 1).toLowerCase() + s.substring(1);
+    }
+
+    public void setFilterMethods(List<String> filterMethods) {
+        this.filterMethods.addAll(filterMethods);
     }
 
 }
