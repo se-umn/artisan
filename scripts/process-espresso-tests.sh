@@ -4,9 +4,10 @@
 
 # Assume we have all the traces available
 start=1
-end=2
+end=3
 
 while read -r espresso_test; do
+    rm -f .carved-all
     SIMPLE_NAME=$(echo ${espresso_test} | tr " " "_")
     echo "** Processing ${espresso_test}"
     echo "Simple name ${SIMPLE_NAME}"
