@@ -173,6 +173,9 @@ public class MockGenerator {
 
             logger.info("Found that dangling object " + danglingObject + " is invoked "
                     + callsThatRequireTheDanglingObject.size() + " times");
+//            callsThatRequireTheDanglingObject.forEach(mi -> {
+//                logger.info("-- " + mi);
+//            });
 
             // TODO Do we need to add a patch for the containers like EnumSet?
             if (JimpleUtils.isArray(danglingObject.getType())) {
@@ -298,13 +301,13 @@ public class MockGenerator {
                 carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(initMock, classLiteralToMock, 0);
                 carvedTestDataDependencyGraph.addDataDependencyOnReturn(initMock, (DataNode) instanceToMock);
 
-                logger.info("Created mock initializer " + initMock);
+                logger.debug("Created mock initializer " + initMock);
 
                 // Configure the mock object
                 List<MethodInvocation> callSet = new ArrayList<MethodInvocation>();
                 // need to use the carved execution here because the methods we care about are
                 // not be in the test yet
-                logger.info("Configure the mock objects");
+                logger.debug("Configure the mock objects");
 
                 for (int i = 0; i < callsThatRequireTheDanglingObject.size(); i++) {
 
@@ -334,7 +337,7 @@ public class MockGenerator {
                         carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(doReturnNothingMock);
                         carvedTestDataDependencyGraph.addDataDependencyOnReturn(doReturnNothingMock, returnStubber);
 
-                        logger.info("\t Adding doReturn " + doReturnNothingMock);
+                        logger.debug("\t Adding doReturn " + doReturnNothingMock);
                         // handle calls to mock
                         callSet.add(doReturnNothingMock);
                     } else {
@@ -374,7 +377,7 @@ public class MockGenerator {
                                 0);
                         carvedTestDataDependencyGraph.addDataDependencyOnReturn(doReturnMock, returnStubber);
 
-                        logger.info("\t Adding doReturn " + doReturnMock);
+                        logger.debug("\t Adding doReturn " + doReturnMock);
                         // handle calls to mock
                         callSet.add(doReturnMock);
                     }
@@ -387,6 +390,7 @@ public class MockGenerator {
                     whenMock.setActualParameterInstances(Arrays.asList(instanceToMock));
                     whenMock.setNecessary(true);
 
+                    // TODO This might be wrong !
                     // If this is the last call to mock we need to make it return the dangling
                     // object, not a new instance
                     ObjectInstance whenReturn = null;
@@ -394,7 +398,7 @@ public class MockGenerator {
                         logger.info("\t Link the mock to the dangling object");
                         whenReturn = danglingObject;
                     } else {
-                        logger.info("\t Create a temporary mock object");
+//                        logger.info("\t Create a temporary mock object");
                         whenReturn = ObjectInstanceFactory
                                 .get(danglingObject.getType() + "@" + uniqueIdGenerator.getAndIncrement());
                     }
@@ -408,7 +412,7 @@ public class MockGenerator {
                     carvedTestDataDependencyGraph.addDataDependencyOnOwner(whenMock, returnStubber);
                     carvedTestDataDependencyGraph.addDataDependencyOnReturn(whenMock, whenReturn);
 
-                    logger.info("\t Adding When " + whenMock);
+//                    logger.info("\t Adding When " + whenMock);
 
                     // Now we need to invoke the original call on the mocked object so to configure
                     // it.
@@ -443,7 +447,7 @@ public class MockGenerator {
                                 j);
                     }
 
-                    logger.info("\t Adding Mocked Call " + dependentCallCopy);
+//                    logger.info("\t Adding Mocked Call " + dependentCallCopy);
 
                     // handle calls to mock
                     callSet.add(whenMock);
@@ -650,10 +654,11 @@ public class MockGenerator {
             logger.info("Inserting " + reFindTheView);
             generatedMethodInvocations.add(reFindTheView);
 
-            Pair<MethodInvocation, CarvingShadow> extractShadowPair = generateTheExtractShadow(carvedTest, objectViewToShadow);
+            Pair<MethodInvocation, CarvingShadow> extractShadowPair = generateTheExtractShadow(carvedTest,
+                    objectViewToShadow);
             MethodInvocation extractShadow = extractShadowPair.getFirst();
             CarvingShadow currentlyConfiguredCarvingShadow = extractShadowPair.getSecond();
-            
+
             ObjectInstance shadowedView = (ObjectInstance) extractShadow.getReturnValue();
 
             logger.info("Inserting " + extractShadow);
@@ -688,17 +693,16 @@ public class MockGenerator {
                         setShadowMethodInvocation.setActualParameterInstances(
                                 Arrays.asList(new DataNode[] { setShadowParameter, mockedObject }));
                         generatedMethodInvocations.add(setShadowMethodInvocation);
-                        
+
                         // Configure the Carving shadow so it can generate the stub for this call
-                        // TODO Assume this is called only once, otherwise we might need to count how many times that happened !
+                        // TODO Assume this is called only once, otherwise we might need to count how
+                        // many times that happened !
                         currentlyConfiguredCarvingShadow.getStubbedMethods().add(stubbedMethodSignature);
                     });
 
             MethodInvocation setStrictShadowMethodInvocation = new MethodInvocation(-1, -1, STRICT_SIGNATURE);
             setStrictShadowMethodInvocation.setOwner(shadowedView);
             generatedMethodInvocations.add(setStrictShadowMethodInvocation);
-            
-
 
         }
 
@@ -732,7 +736,8 @@ public class MockGenerator {
         return carvedTest;
     }
 
-    private Pair<MethodInvocation,CarvingShadow> generateTheExtractShadow(CarvedTest carvedTest, ObjectInstance objectViewToShadow) {
+    private Pair<MethodInvocation, CarvingShadow> generateTheExtractShadow(CarvedTest carvedTest,
+            ObjectInstance objectViewToShadow) {
         // Extract objectViewToShadow into an actual shadow
         String shadowType = "ABC"
                 + objectViewToShadow.getType().split("\\.")[objectViewToShadow.getType().split("\\.").length - 1]
@@ -740,7 +745,7 @@ public class MockGenerator {
 
         ObjectInstance shadowedView = ObjectInstanceFactory
                 .get(String.format("%s@%d", shadowType, uniqueIdGenerator.getAndIncrement()));
-        
+
         CarvingShadow carvingShadow = new CarvingShadow(objectViewToShadow.getType(), shadowType);
         carvedTest.addShadow(carvingShadow);
 

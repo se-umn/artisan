@@ -500,20 +500,28 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
             executionFlowGraph.getOrderedMethodInvocations().stream().filter(MethodInvocation::isConstructor)
                     .forEach(methodInvocation -> {
                         if (isAndroidActivity(methodInvocation, callGraph)) {
+                            // This probably should be propagates as information
                             dataDependencyGraph.getOwnerFor(methodInvocation).setAndroidActivity(true);
-
                             callGraph.get(methodInvocation).getOwner().setAndroidActivity(true);
                             executionFlowGraph.get(methodInvocation).getOwner().setAndroidActivity(true);
+
+                            logger.info("Activity " + methodInvocation);
+
                         } else if (isAndroidFragment(methodInvocation, callGraph)) {
                             dataDependencyGraph.getOwnerFor(methodInvocation).setAndroidFragment(true);
 
                             callGraph.get(methodInvocation).getOwner().setAndroidFragment(true);
                             executionFlowGraph.get(methodInvocation).getOwner().setAndroidFragment(true);
+
+                            logger.info("Fragment " + methodInvocation);
+
                         } else if (isAndroidService(methodInvocation, callGraph)) {
                             dataDependencyGraph.getOwnerFor(methodInvocation).setAndroidService(true);
 
                             callGraph.get(methodInvocation).getOwner().setAndroidService(true);
                             executionFlowGraph.get(methodInvocation).getOwner().setAndroidService(true);
+
+                            logger.info("Service " + methodInvocation);
                         }
                     });
 
@@ -574,8 +582,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                 && filterPredicate.test(JimpleUtils.getClassNameForMethod(methodInvocation.getMethodSignature()))) {
             return true;
         } else {
-            return subMethods.stream()
-                .anyMatch(subMethod -> isAndroidElement(subMethod, callGraph, filterPredicate));
+            return subMethods.stream().anyMatch(subMethod -> isAndroidElement(subMethod, callGraph, filterPredicate));
         }
     }
 

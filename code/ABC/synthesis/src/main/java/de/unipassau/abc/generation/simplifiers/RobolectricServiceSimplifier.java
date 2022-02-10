@@ -29,11 +29,12 @@ public class RobolectricServiceSimplifier extends AbstractCarvedExecutionSimplif
     private AtomicInteger uniqueID = new AtomicInteger(20000);
 
     @Override
-    public CarvedExecution simplify(CarvedExecution carvedExecution)
-          throws ABCException {
+    public CarvedExecution simplify(CarvedExecution carvedExecution) throws ABCException {
         logger.info("Simplify using " + this.getClass());
 
-        carvedExecution = resetIsNecessaryTag(carvedExecution);
+        // This simplified should be used exclusion with ActivitySimplifier. I suspect
+        // that only one of such elements can be handled by Robolectric...
+//        carvedExecution = resetIsNecessaryTag(carvedExecution);
 
         carvedExecution = introduceControllerAndGetTheService(carvedExecution);
         carvedExecution = wrapOnCreate(carvedExecution);
@@ -44,9 +45,8 @@ public class RobolectricServiceSimplifier extends AbstractCarvedExecutionSimplif
         carvedExecution = wrapOnDestroy(carvedExecution);
 
         BasicCarver carver = new BasicCarver(carvedExecution);
-        CarvedExecution reCarvedExecution = carver.recarve(
-                    carvedExecution.methodInvocationUnderTest).stream()
-              .findFirst().get();
+        CarvedExecution reCarvedExecution = carver.recarve(carvedExecution.methodInvocationUnderTest).stream()
+                .findFirst().get();
 
         reCarvedExecution.traceId = carvedExecution.traceId;
         reCarvedExecution.isMethodInvocationUnderTestWrapped = carvedExecution.isMethodInvocationUnderTestWrapped;
@@ -58,42 +58,36 @@ public class RobolectricServiceSimplifier extends AbstractCarvedExecutionSimplif
         logger.info("Introduce ServiceController and get the Service");
 
         carvedExecution.executionFlowGraphs.forEach(eg -> {
-            Optional<MethodInvocation> maybeServiceConstructor = eg.getOrderedMethodInvocations()
-                  .stream()
-                  .filter(mi -> mi.isConstructor() && mi.getOwner().isAndroidService()).findFirst();
+            Optional<MethodInvocation> maybeServiceConstructor = eg.getOrderedMethodInvocations().stream()
+                    .filter(mi -> mi.isConstructor() && mi.getOwner().isAndroidService()).findFirst();
             if (maybeServiceConstructor.isPresent()) {
                 MethodInvocation serviceConstructor = maybeServiceConstructor.get();
                 ObjectInstance service = serviceConstructor.getOwner();
 
                 DataDependencyGraph ddg = carvedExecution
-                      .getDataDependencyGraphContainingTheMethodInvocation(serviceConstructor);
-                CallGraph cg = carvedExecution
-                      .getCallGraphContainingTheMethodInvocation(serviceConstructor);
+                        .getDataDependencyGraphContainingTheMethodInvocation(serviceConstructor);
+                CallGraph cg = carvedExecution.getCallGraphContainingTheMethodInvocation(serviceConstructor);
                 List<MethodInvocation> subsumedMethodInvocations = new ArrayList<>(
-                      cg.getMethodInvocationsSubsumedBy(serviceConstructor)
-                );
+                        cg.getMethodInvocationsSubsumedBy(serviceConstructor));
                 Collections.sort(subsumedMethodInvocations);
 
                 // Constructor -> Replace with Robolectric.buildService()
                 robolectricServiceController = ObjectInstanceFactory
-                      .get("org.robolectric.android.controller.ServiceController@321");
+                        .get("org.robolectric.android.controller.ServiceController@321");
                 String methodSignature = service.requiresIntent()
-                      ? "<org.robolectric.Robolectric: org.robolectric.android.controller.ServiceController buildService(java.lang.Class,android.content.Intent)>"
-                      : "<org.robolectric.Robolectric: org.robolectric.android.controller.ServiceController buildService(java.lang.Class)>";
+                        ? "<org.robolectric.Robolectric: org.robolectric.android.controller.ServiceController buildService(java.lang.Class,android.content.Intent)>"
+                        : "<org.robolectric.Robolectric: org.robolectric.android.controller.ServiceController buildService(java.lang.Class)>";
 
                 int serviceControllerGetID = uniqueID.getAndIncrement();
                 int robolectricBuildServiceID = uniqueID.getAndIncrement();
 
                 MethodInvocation robolectricBuildService = new MethodInvocation(
-                      serviceConstructor.getInvocationTraceId(), robolectricBuildServiceID,
-                      methodSignature
-                );
+                        serviceConstructor.getInvocationTraceId(), robolectricBuildServiceID, methodSignature);
 
                 robolectricBuildService.setNecessary(true);
                 robolectricBuildService.setStatic(true);
                 robolectricBuildService.setReturnValue(robolectricServiceController);
-                ddg.addDataDependencyOnReturn(robolectricBuildService,
-                      robolectricServiceController);
+                ddg.addDataDependencyOnReturn(robolectricBuildService, robolectricServiceController);
                 DataNode serviceClass = PrimitiveNodeFactory.createClassLiteralFor(service);
                 robolectricBuildService.getActualParameterInstances().add(serviceClass);
                 ddg.addDataDependencyOnActualParameter(robolectricBuildService, serviceClass, 0);
@@ -105,10 +99,8 @@ public class RobolectricServiceSimplifier extends AbstractCarvedExecutionSimplif
                 }
 
                 methodSignature = "<org.robolectric.android.controller.ServiceController android.app.Service get()>";
-                MethodInvocation serviceControllerGet = new MethodInvocation(
-                      serviceConstructor.getInvocationTraceId(), serviceControllerGetID,
-                      methodSignature
-                );
+                MethodInvocation serviceControllerGet = new MethodInvocation(serviceConstructor.getInvocationTraceId(),
+                        serviceControllerGetID, methodSignature);
 
                 serviceControllerGet.setNecessary(true);
                 serviceControllerGet.setPublic(true);
@@ -146,18 +138,17 @@ public class RobolectricServiceSimplifier extends AbstractCarvedExecutionSimplif
     private CarvedExecution wrapOnCreate(CarvedExecution carvedExecution) {
         carvedExecution.executionFlowGraphs.forEach(eg -> {
             // There is only one activity so onCreate is called once
-            Optional<MethodInvocation> maybeOnCreate = eg.getOrderedMethodInvocations().stream()
-                  .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidService()
-                        && mi.getMethodSignature().contains("void onCreate()"))
-                  .findFirst();
+            Optional<MethodInvocation> maybeOnCreate = eg
+                    .getOrderedMethodInvocations().stream().filter(mi -> !mi.isStatic()
+                            && mi.getOwner().isAndroidService() && mi.getMethodSignature().contains("void onCreate()"))
+                    .findFirst();
 
             // Introduce the controller first
             if (maybeOnCreate.isPresent()) {
                 // Original Method invocation to WRAP
                 MethodInvocation onCreate = maybeOnCreate.get();
 
-                DataDependencyGraph ddg = carvedExecution.getDataDependencyGraphContainingTheMethodInvocation(
-                      onCreate);
+                DataDependencyGraph ddg = carvedExecution.getDataDependencyGraphContainingTheMethodInvocation(onCreate);
                 CallGraph cg = carvedExecution.getCallGraphContainingTheMethodInvocation(onCreate);
 
                 // Create the new method wrapping invocation
@@ -165,7 +156,7 @@ public class RobolectricServiceSimplifier extends AbstractCarvedExecutionSimplif
                 String methodSignature = "<org.robolectric.android.controller.ServiceController org.robolectric.android.controller.ServiceController create()>";
 
                 MethodInvocation serviceControllerCreate = new MethodInvocation(invocationTraceId,
-                      uniqueID.getAndIncrement(), methodSignature);
+                        uniqueID.getAndIncrement(), methodSignature);
                 // Force this to be necessary
                 serviceControllerCreate.setNecessary(true);
                 //
@@ -176,8 +167,7 @@ public class RobolectricServiceSimplifier extends AbstractCarvedExecutionSimplif
                 ddg.addDataDependencyOnOwner(serviceControllerCreate, robolectricServiceController);
                 // Fluent interface
                 serviceControllerCreate.setReturnValue(robolectricServiceController);
-                ddg.addDataDependencyOnReturn(serviceControllerCreate,
-                      robolectricServiceController);
+                ddg.addDataDependencyOnReturn(serviceControllerCreate, robolectricServiceController);
 
                 // Here we need to wrap the original call with the new one...
                 try {
@@ -200,43 +190,37 @@ public class RobolectricServiceSimplifier extends AbstractCarvedExecutionSimplif
 
     private CarvedExecution wrapOnStartCommand(CarvedExecution carvedExecution) {
         carvedExecution.executionFlowGraphs.forEach(eg -> {
-            Optional<MethodInvocation> maybeOnStartCommand = eg.getOrderedMethodInvocations()
-                  .stream()
-                  .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidService()
-                        && mi.getMethodSignature()
-                        .contains("int onStartCommand(android.content.Intent,int,int)"))
-                  .findFirst();
+            Optional<MethodInvocation> maybeOnStartCommand = eg.getOrderedMethodInvocations().stream()
+                    .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidService()
+                            && mi.getMethodSignature().contains("int onStartCommand(android.content.Intent,int,int)"))
+                    .findFirst();
 
             if (maybeOnStartCommand.isPresent()) {
                 MethodInvocation onStartCommand = maybeOnStartCommand.get();
                 DataDependencyGraph ddg = carvedExecution
-                      .getDataDependencyGraphContainingTheMethodInvocation(onStartCommand);
-                CallGraph cg = carvedExecution
-                      .getCallGraphContainingTheMethodInvocation(onStartCommand);
+                        .getDataDependencyGraphContainingTheMethodInvocation(onStartCommand);
+                CallGraph cg = carvedExecution.getCallGraphContainingTheMethodInvocation(onStartCommand);
 
                 int invocationTraceId = onStartCommand.getInvocationTraceId();
                 String methodSignature = "<org.robolectric.android.controller.ServiceController org.robolectric.android.controller.ServiceController startCommand(int,int)>";
 
-                MethodInvocation serviceControllerStartCommand = new MethodInvocation(
-                      invocationTraceId, uniqueID.getAndIncrement(), methodSignature);
+                MethodInvocation serviceControllerStartCommand = new MethodInvocation(invocationTraceId,
+                        uniqueID.getAndIncrement(), methodSignature);
                 serviceControllerStartCommand.setNecessary(true);
                 serviceControllerStartCommand.setPublic(true);
 
                 serviceControllerStartCommand.setOwner(robolectricServiceController);
-                ddg.addDataDependencyOnOwner(serviceControllerStartCommand,
-                      robolectricServiceController);
+                ddg.addDataDependencyOnOwner(serviceControllerStartCommand, robolectricServiceController);
 
                 serviceControllerStartCommand.setReturnValue(robolectricServiceController);
-                ddg.addDataDependencyOnReturn(serviceControllerStartCommand,
-                      robolectricServiceController);
+                ddg.addDataDependencyOnReturn(serviceControllerStartCommand, robolectricServiceController);
 
                 // Skip the first param
                 List<DataNode> params = onStartCommand.getActualParameterInstances().subList(1, 3);
 
                 serviceControllerStartCommand.getActualParameterInstances().addAll(params);
                 IntStream.range(0, params.size()).forEach(
-                      i -> ddg.addDataDependencyOnActualParameter(serviceControllerStartCommand,
-                            params.get(i), i));
+                        i -> ddg.addDataDependencyOnActualParameter(serviceControllerStartCommand, params.get(i), i));
 
                 try {
                     wrapWith(onStartCommand, serviceControllerStartCommand, eg, cg);
@@ -257,25 +241,20 @@ public class RobolectricServiceSimplifier extends AbstractCarvedExecutionSimplif
     private CarvedExecution wrapOnBind(CarvedExecution carvedExecution) {
         carvedExecution.executionFlowGraphs.forEach(eg -> {
             Optional<MethodInvocation> maybeOnBind = eg.getOrderedMethodInvocations().stream()
-                  .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidService()
-                        && mi.getMethodSignature()
-                        .contains("android.os.IBinder onBind(android.content.Intent)")).findFirst();
+                    .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidService()
+                            && mi.getMethodSignature().contains("android.os.IBinder onBind(android.content.Intent)"))
+                    .findFirst();
 
             if (maybeOnBind.isPresent()) {
                 MethodInvocation onBind = maybeOnBind.get();
 
-                DataDependencyGraph ddg = carvedExecution
-                      .getDataDependencyGraphContainingTheMethodInvocation(onBind);
-                CallGraph cg = carvedExecution
-                      .getCallGraphContainingTheMethodInvocation(onBind);
+                DataDependencyGraph ddg = carvedExecution.getDataDependencyGraphContainingTheMethodInvocation(onBind);
+                CallGraph cg = carvedExecution.getCallGraphContainingTheMethodInvocation(onBind);
 
                 int invocationTraceId = onBind.getInvocationTraceId();
                 String methodSignature = "<org.robolectric.android.controller.ServiceController org.robolectric.android.controller.ServiceController bind()>";
-                MethodInvocation serviceControllerBind = new MethodInvocation(
-                      invocationTraceId,
-                      uniqueID.getAndIncrement(),
-                      methodSignature
-                );
+                MethodInvocation serviceControllerBind = new MethodInvocation(invocationTraceId,
+                        uniqueID.getAndIncrement(), methodSignature);
                 serviceControllerBind.setNecessary(true);
                 serviceControllerBind.setPublic(true);
 
@@ -304,25 +283,21 @@ public class RobolectricServiceSimplifier extends AbstractCarvedExecutionSimplif
     private CarvedExecution wrapOnRebind(CarvedExecution carvedExecution) {
         carvedExecution.executionFlowGraphs.forEach(eg -> {
             Optional<MethodInvocation> maybeOnRebind = eg.getOrderedMethodInvocations().stream()
-                  .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidService()
-                        && mi.getMethodSignature().contains("void onRebind(android.content.Intent)"))
-                  .findFirst();
+                    .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidService()
+                            && mi.getMethodSignature().contains("void onRebind(android.content.Intent)"))
+                    .findFirst();
 
             if (maybeOnRebind.isPresent()) {
                 MethodInvocation onRebind = maybeOnRebind.get();
 
-                DataDependencyGraph ddg = carvedExecution
-                      .getDataDependencyGraphContainingTheMethodInvocation(onRebind);
+                DataDependencyGraph ddg = carvedExecution.getDataDependencyGraphContainingTheMethodInvocation(onRebind);
                 CallGraph cg = carvedExecution.getCallGraphContainingTheMethodInvocation(onRebind);
 
                 int invocationTraceId = onRebind.getInvocationTraceId();
                 String methodSignature = "<org.robolectric.android.controller.ServiceController org.robolectric.android.controller.ServiceController rebind()>";
 
-                MethodInvocation serviceControllerRebind = new MethodInvocation(
-                      invocationTraceId,
-                      uniqueID.getAndIncrement(),
-                      methodSignature
-                );
+                MethodInvocation serviceControllerRebind = new MethodInvocation(invocationTraceId,
+                        uniqueID.getAndIncrement(), methodSignature);
 
                 serviceControllerRebind.setNecessary(true);
                 serviceControllerRebind.setPublic(true);
@@ -352,25 +327,20 @@ public class RobolectricServiceSimplifier extends AbstractCarvedExecutionSimplif
     private CarvedExecution wrapOnUnbind(CarvedExecution carvedExecution) {
         carvedExecution.executionFlowGraphs.forEach(eg -> {
             Optional<MethodInvocation> maybeOnUnbind = eg.getOrderedMethodInvocations().stream()
-                  .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidService()
-                        && mi.getMethodSignature()
-                        .contains("boolean onUnbind(android.content.Intent)"))
-                  .findFirst();
+                    .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidService()
+                            && mi.getMethodSignature().contains("boolean onUnbind(android.content.Intent)"))
+                    .findFirst();
 
             if (maybeOnUnbind.isPresent()) {
                 MethodInvocation onUnbind = maybeOnUnbind.get();
-                DataDependencyGraph ddg = carvedExecution
-                      .getDataDependencyGraphContainingTheMethodInvocation(onUnbind);
+                DataDependencyGraph ddg = carvedExecution.getDataDependencyGraphContainingTheMethodInvocation(onUnbind);
                 CallGraph cg = carvedExecution.getCallGraphContainingTheMethodInvocation(onUnbind);
 
                 int invocationTraceId = onUnbind.getInvocationTraceId();
                 String methodSignature = "<org.robolectric.android.controller.ServiceController org.robolectric.android.controller.ServiceController unbind()>";
 
-                MethodInvocation serviceControllerUnbind = new MethodInvocation(
-                      invocationTraceId,
-                      uniqueID.getAndIncrement(),
-                      methodSignature
-                );
+                MethodInvocation serviceControllerUnbind = new MethodInvocation(invocationTraceId,
+                        uniqueID.getAndIncrement(), methodSignature);
                 serviceControllerUnbind.setNecessary(true);
                 serviceControllerUnbind.setPublic(true);
 
@@ -398,24 +368,21 @@ public class RobolectricServiceSimplifier extends AbstractCarvedExecutionSimplif
 
     private CarvedExecution wrapOnDestroy(CarvedExecution carvedExecution) {
         carvedExecution.executionFlowGraphs.forEach(eg -> {
-            Optional<MethodInvocation> maybeOnDestroy = eg.getOrderedMethodInvocations().stream()
-                  .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidService()
-                        && mi.getMethodSignature().contains("void onDestroy()"))
-                  .findFirst();
+            Optional<MethodInvocation> maybeOnDestroy = eg
+                    .getOrderedMethodInvocations().stream().filter(mi -> !mi.isStatic()
+                            && mi.getOwner().isAndroidService() && mi.getMethodSignature().contains("void onDestroy()"))
+                    .findFirst();
             if (maybeOnDestroy.isPresent()) {
                 MethodInvocation onDestroy = maybeOnDestroy.get();
 
                 DataDependencyGraph ddg = carvedExecution
-                      .getDataDependencyGraphContainingTheMethodInvocation(onDestroy);
+                        .getDataDependencyGraphContainingTheMethodInvocation(onDestroy);
                 CallGraph cg = carvedExecution.getCallGraphContainingTheMethodInvocation(onDestroy);
 
                 int invocationTraceId = onDestroy.getInvocationTraceId();
                 String methodSignature = "<org.robolectric.android.controller.ServiceController org.robolectric.android.controller.ServiceController destroy()>";
-                MethodInvocation serviceControllerDestroy = new MethodInvocation(
-                      invocationTraceId,
-                      uniqueID.getAndIncrement(),
-                      methodSignature
-                );
+                MethodInvocation serviceControllerDestroy = new MethodInvocation(invocationTraceId,
+                        uniqueID.getAndIncrement(), methodSignature);
                 serviceControllerDestroy.setNecessary(true);
                 serviceControllerDestroy.setPublic(true);
 
@@ -443,7 +410,7 @@ public class RobolectricServiceSimplifier extends AbstractCarvedExecutionSimplif
 
     // This modifies the input values
     private void wrapWith(MethodInvocation original, MethodInvocation wrappingMethodInvocation, //
-          ExecutionFlowGraph eg, CallGraph cg) throws ABCException {
+            ExecutionFlowGraph eg, CallGraph cg) throws ABCException {
         logger.info("Wrapping " + original + " with " + wrappingMethodInvocation);
 
         cg.wrapRootMethodInvocationWith(original, wrappingMethodInvocation);

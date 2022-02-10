@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang.NotImplementedException;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -38,6 +39,7 @@ import com.github.javaparser.ast.expr.AssignExpr.Operator;
 import com.github.javaparser.ast.expr.CastExpr;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.IntegerLiteralExpr;
 import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.MethodCallExpr;
@@ -46,6 +48,7 @@ import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
@@ -127,6 +130,11 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 //
 //    }
 
+    private final static String[] genericImports = new String[] { //
+            "org.junit.Before", //
+            "org.robolectric.shadows.ShadowSQLiteConnection", //
+            "androidx.test.core.app.ApplicationProvider" };
+
     // TODO I do not like to use this variable for temporary storing the method
     // under test...
     private MethodInvocation methodInvocationUnderTest;
@@ -172,7 +180,10 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         // favor to ApplicationProvider
         // Also ShadowApplication does not have a method getApplicationContext()
 //        cu.addImport("org.robolectric.shadows.ShadowApplication");
-        cu.addImport("androidx.test.core.app.ApplicationProvider");
+//        cu.addImport("androidx.test.core.app.ApplicationProvider");
+        for (String imported : genericImports) {
+            cu.addImport(imported);
+        }
 
         // adding import for shadows
         for (CarvedTest carvedTest : testCase.getCarvedTests()) {
@@ -208,7 +219,18 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                 testClass.addAnnotation(annotation);
             }
         }
+        
+        // Create the test setup method
+        MethodDeclaration setupMethod = testClass.addMethod("setup", Modifier.Keyword.PUBLIC);
+        setupMethod.addAndGetAnnotation(Before.class);
+        BlockStmt block = new BlockStmt();
+        setupMethod.setBody(block);
+        // add a statement do the method body: 
+        NameExpr clazz = new NameExpr("ShadowSQLiteConnection");
+        MethodCallExpr call = new MethodCallExpr(clazz, "reset");
+        block.addStatement(call);
 
+        
         for (CarvedTest carvedTest : testCase.getCarvedTests()) {
             // TODO Name tests
             MethodDeclaration testMethod = testClass.addMethod(testMethodNamer.generateTestMethodName(carvedTest),
