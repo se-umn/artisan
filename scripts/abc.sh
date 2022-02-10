@@ -454,10 +454,16 @@ function carve-all(){
   # Build a string with all the trace files
   trace_files=$(find traces -type f | tr "\n" " ")
   
+  if [ ! -z "${CARVING_OPTIONS}" ]; then
+    (echo >&2 "** Activating CARVING_OPTIONS: " ${CARVING_OPTIONS})
+  fi
+
   ${ABC_HOME}/synthesis/target/appassembler/bin/carve-and-generate --android-jar=${ANDROID_JAR} \
       --trace-files=${trace_files} \
       --apk=${apk_file} \
-      --output-to=${output_dir}
+      --output-to=${output_dir} \
+      ${CARVING_OPTIONS}
+
   # Carve all of them, one by one
   # carve-and-generate-from-trace ${apk_file} ${trace_files} ${output_dir}
   # for trace_file in $(find ${trace_folder} -iname "Trace*.txt"); do
