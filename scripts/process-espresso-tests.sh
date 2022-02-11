@@ -33,4 +33,4 @@ while read -r espresso_test; do
     # mv the carvedTestFolder
     mv -v app/src/carvedTest carvedTests-for-${SIMPLE_NAME} || echo "(Error copying carved tests)"
     echo "** Done with ${espresso_test}"
-done < <(head -$end ./espresso-tests.txt | tail -$(($end - $start + 1)) )
+done < <(head -$end ./espresso_tests.txt | tail -$(($end - $start + 1)) )
