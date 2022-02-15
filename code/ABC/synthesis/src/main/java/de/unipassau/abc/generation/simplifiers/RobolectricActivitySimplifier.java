@@ -26,6 +26,7 @@ import de.unipassau.abc.data.ObjectInstanceFactory;
 import de.unipassau.abc.data.PrimitiveNodeFactory;
 import de.unipassau.abc.exceptions.ABCException;
 import edu.emory.mathcs.backport.java.util.Collections;
+import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This class transforms know patterns related to Activity life-cycle events in
@@ -51,7 +52,7 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
     private AtomicInteger uniqueID = new AtomicInteger(10000);
 
     @Override
-    public CarvedExecution simplify(CarvedExecution carvedExecution) throws CarvingException, ABCException {
+    public CarvedExecution doSimplification(CarvedExecution carvedExecution) throws CarvingException, ABCException {
         logger.info("Simplify using " + this.getClass());
 
         // TODO This can be refactored as many life-cycle events shared the same pattern
@@ -64,34 +65,29 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
         carvedExecution = introduceControllerAndGetTheActivity(carvedExecution);
         carvedExecution = wrapOnCreate(carvedExecution);
         carvedExecution = wrapOnStart(carvedExecution);
-        // Visible might be used to carvedExecution = wrapOnLoadFinished(carvedExecution);
+        // TODO Visible might be used to carvedExecution =
+        // wrapOnLoadFinished(carvedExecution);
         carvedExecution = wrapOnOptionsItemSelected(carvedExecution);
-        
+
         carvedExecution = wrapOnCreateOptionsMenu(carvedExecution);
         carvedExecution = wrapOnStop(carvedExecution);
         carvedExecution = wrapOnDestroy(carvedExecution);
-        
-        
 
-        // Up to this point we have all the right calls tagged as necessary and we can
-        // re-carve the carvedExecution; however, we might have removed the MUT if that
-        // is one of the android lifecycle methods managed by Robolectric, i.e.,
-        // onCreate()
+        return carvedExecution;
+    }
 
-        // For some reason here the carvedExecution Call Graph does NOT contain the call
-        // to buildActivity ?
-        BasicCarver carver = new BasicCarver(carvedExecution);
+    @Override
+    public boolean appliesTo(CarvedExecution carvedExecution) {
+        final AtomicBoolean trigger = new AtomicBoolean(false);
 
-        CarvedExecution reCarvedExecution = carver.recarve(carvedExecution.methodInvocationUnderTest).stream()
-                .findFirst().get();
+        carvedExecution.executionFlowGraphs.forEach(eg -> {
+            if (!trigger.get()) {
+                trigger.set(eg.getOrderedMethodInvocations().stream()
+                        .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidActivity()).count() > 0);
+            }
+        });
 
-        // What are the necessary invocations here?
-        // Make sure we tag those with the correct method under test
-
-        reCarvedExecution.traceId = carvedExecution.traceId;
-        reCarvedExecution.isMethodInvocationUnderTestWrapped = carvedExecution.isMethodInvocationUnderTestWrapped;
-
-        return reCarvedExecution;
+        return trigger.get();
     }
 
     private CarvedExecution introduceControllerAndGetTheActivity(CarvedExecution carvedExecution) {
@@ -102,8 +98,8 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
                     .filter(mi -> mi.isConstructor() && mi.getOwner().isAndroidActivity()).findFirst();
 
             logger.info(" FILTERED CALLS :" + eg.getOrderedMethodInvocations().stream()
-                    .filter(mi -> mi.isConstructor() && mi.getOwner().isAndroidActivity()).collect( Collectors.toSet()));
-            
+                    .filter(mi -> mi.isConstructor() && mi.getOwner().isAndroidActivity()).collect(Collectors.toSet()));
+
             // Introduce the controller first
             if (maybeActivityConstructor.isPresent()) {
 
@@ -538,7 +534,8 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
      * Shadows.shadowOf(activity).clickMenuItem(menu.R.id);
      * 
      * https://github.com/robolectric/robolectric/issues/1582
-     * https://stackoverflow.com/questions/17486689/testing-a-cursorloader-with-robolectric-mockito/21866892#21866892
+     * https://stackoverflow.com/questions/17486689/testing-a-cursorloader-with-
+     * robolectric-mockito/21866892#21866892
      *
      */
     private CarvedExecution wrapOnOptionsItemSelected(CarvedExecution carvedExecution) {

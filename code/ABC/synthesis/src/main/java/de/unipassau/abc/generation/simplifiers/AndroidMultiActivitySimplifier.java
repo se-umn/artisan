@@ -43,7 +43,7 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
             "onRestoreInstanceState" });
 
     @Override
-    public CarvedExecution simplify(CarvedExecution carvedExecution) throws CarvingException, ABCException {
+    public CarvedExecution doSimplification(CarvedExecution carvedExecution) throws CarvingException, ABCException {
         logger.info("Simplify using " + this.getClass());
 
         // Do not clean up the tag. We still need the ORIGINAL necessary activity to be
@@ -60,16 +60,12 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
         //
         carvedExecution = ensureOnlyOneActivityRemains(carvedExecution);
 
-        // TODO Make sure we recarve only if necessary
-        // Re-carve the carvedExecution
-        BasicCarver carver = new BasicCarver(carvedExecution);
-        CarvedExecution reCarvedExecution = carver.recarve(carvedExecution.methodInvocationUnderTest).stream()
-                .findFirst().get();
+        return carvedExecution;
+    }
 
-        reCarvedExecution.traceId = carvedExecution.traceId;
-        reCarvedExecution.isMethodInvocationUnderTestWrapped = carvedExecution.isMethodInvocationUnderTestWrapped;
-
-        return reCarvedExecution;
+    @Override
+    public boolean appliesTo(CarvedExecution carvedExecution) {
+        return countActivities(carvedExecution) > 0;
     }
 
     private CarvedExecution removeBannedActivityCalls(CarvedExecution carvedExecution) {
@@ -263,7 +259,7 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
 
         return carvedExecution;
     }
-    
+
     private CarvedExecution removeListeners(CarvedExecution carvedExecution) {
         logger.info("Removing Lambdas");
         carvedExecution.callGraphs.forEach(callGraph -> {

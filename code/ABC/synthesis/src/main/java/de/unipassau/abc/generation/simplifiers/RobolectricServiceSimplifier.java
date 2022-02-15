@@ -13,6 +13,8 @@ import de.unipassau.abc.data.ObjectInstanceFactory;
 import de.unipassau.abc.data.PrimitiveNodeFactory;
 import de.unipassau.abc.exceptions.ABCException;
 import edu.emory.mathcs.backport.java.util.Collections;
+import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicBoolean;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -29,7 +31,7 @@ public class RobolectricServiceSimplifier extends AbstractCarvedExecutionSimplif
     private AtomicInteger uniqueID = new AtomicInteger(20000);
 
     @Override
-    public CarvedExecution simplify(CarvedExecution carvedExecution) throws ABCException {
+    public CarvedExecution doSimplification(CarvedExecution carvedExecution) throws ABCException {
         logger.info("Simplify using " + this.getClass());
 
         // This simplified should be used exclusion with ActivitySimplifier. I suspect
@@ -44,14 +46,7 @@ public class RobolectricServiceSimplifier extends AbstractCarvedExecutionSimplif
         carvedExecution = wrapOnRebind(carvedExecution);
         carvedExecution = wrapOnDestroy(carvedExecution);
 
-        BasicCarver carver = new BasicCarver(carvedExecution);
-        CarvedExecution reCarvedExecution = carver.recarve(carvedExecution.methodInvocationUnderTest).stream()
-                .findFirst().get();
-
-        reCarvedExecution.traceId = carvedExecution.traceId;
-        reCarvedExecution.isMethodInvocationUnderTestWrapped = carvedExecution.isMethodInvocationUnderTestWrapped;
-
-        return reCarvedExecution;
+        return carvedExecution;
     }
 
     private CarvedExecution introduceControllerAndGetTheService(CarvedExecution carvedExecution) {
@@ -417,6 +412,20 @@ public class RobolectricServiceSimplifier extends AbstractCarvedExecutionSimplif
         // Pay attention to the order, here we need to follow the meaning of the method
         // name ...
         eg.insertNodeRightBefore(wrappingMethodInvocation, original);
+    }
+
+    @Override
+    public boolean appliesTo(CarvedExecution carvedExecution) {
+        final AtomicBoolean trigger = new AtomicBoolean(false);
+
+        carvedExecution.executionFlowGraphs.forEach(eg -> {
+            if (!trigger.get()) {
+                trigger.set(eg.getOrderedMethodInvocations().stream()
+                        .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidService()).count() > 0);
+            }
+        });
+
+        return trigger.get();
     }
 
 }

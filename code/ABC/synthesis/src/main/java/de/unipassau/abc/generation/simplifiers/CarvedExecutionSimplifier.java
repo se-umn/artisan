@@ -18,8 +18,9 @@ public interface CarvedExecutionSimplifier {
      * 
      * @param carvedExecution
      * @return
-     * @throws ABCException 
-     * @throws CarvingException 
+     * @throws ABCException
+     * @throws CarvingException
      */
     public CarvedExecution simplify(CarvedExecution carvedExecution) throws CarvingException, ABCException;
+
 }
