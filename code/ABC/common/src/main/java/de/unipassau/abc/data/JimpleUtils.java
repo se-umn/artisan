@@ -250,7 +250,7 @@ public class JimpleUtils {
 		// replace '\n'/(10) with '\'(92) followed by a 'n'(110)
 		stringContent = stringContent.replaceAll("\\b10\\b", "92, 110");
 		if (stringContent.isEmpty()) {
-			return "";
+			return "\"\"";
 		} else {
 			String[] bytesAsString = stringContent.split(",");
 			//
