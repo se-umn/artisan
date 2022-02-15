@@ -167,6 +167,61 @@ public class PrismaBlockerTest {
         }
     }
 
+    /**
+     * Generated from
+     * /Users/gambi/action-based-test-carving/apps-src/PrismaCallBlocker/traces/com.prismaqf.callblocker.ManageFilterPatternsTest#TestUpdate/Trace-1644245708853.txt
+     * Method invocation under test: <com.prismaqf.callblocker.rules.FilterRule:
+     * void addPattern(java.lang.String)>_412_818
+     */
+    /**
+     * Generated from
+     * /Users/gambi/action-based-test-carving/apps-src/PrismaCallBlocker/traces/com.prismaqf.callblocker.UpdateFilterRuleTest#TestAutoSaveAfterPatternsUpdate/Trace-1644245853085.txt
+     * Method invocation under test: <com.prismaqf.callblocker.rules.FilterRule:
+     * void addPattern(java.lang.String)>_631_1256
+     */
+    /*
+     * Private constructor... the ideal solution would be to realize that there's
+     * another constructor that enables setting the same parameters set here
+     * (name/description) and then call the public method addPattern Definitively
+     * out of the scope here....
+     */
+
+    // Classes that extends subtypes of activities, like AppCompactActivity are not
+    // correctly handled.
+    @Test
+    public void testActivitiesMissed() throws FileNotFoundException, IOException, ABCException {
+        file = getTraceFileFrom("com.prismaqf.callblocker.CallBlockerManagerTest#checkDisplay");
+
+        String methodSignature = "<com.prismaqf.callblocker.CallBlockerManager: void onCreate(android.os.Bundle)>";
+        int invocationCount = 8;
+        int invocationTraceId = 16;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    //
+    @Test
+    public void testMissingMocks() throws FileNotFoundException, IOException, ABCException {
+        file = getTraceFileFrom("com.prismaqf.callblocker.UpdateCalendarRuleTest#TestUndoAction");
+
+        String methodSignature = "<com.prismaqf.callblocker.NewEditCalendarRule: void refreshWidgets(boolean)>";
+        int invocationCount = 403;
+        int invocationTraceId = 805;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
+    @Test
+    public void testNPEonOnCreate() throws FileNotFoundException, IOException, ABCException {
+        file = getTraceFileFrom("com.prismaqf.callblocker.UpdateCalendarRuleTest#TestUndoAction");
+
+        String methodSignature = "<com.prismaqf.callblocker.EditCalendarRules: void onCreate(android.os.Bundle)>";
+        int invocationCount = 85;
+        int invocationTraceId = 170;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
     @Test
     public void testWrongCallToEnableWidgets() throws FileNotFoundException, IOException, ABCException {
         file = getTraceFileFrom("com.prismaqf.callblocker.EditFiltersTest#ChangeActionTest");
