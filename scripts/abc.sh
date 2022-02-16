@@ -458,6 +458,14 @@ function carve-all(){
     (echo >&2 "** Activating CARVING_OPTIONS: " ${CARVING_OPTIONS})
   fi
 
+  if [ ! -z "${CARVING_JAVA_OPTIONS}" ]; then
+    (echo >&2 "** Activating CARVING_JAVA_OPTIONS: " ${CARVING_JAVA_OPTIONS})
+    # TODO Not sure I need to use the "
+    export JAVA_OPTS="${JAVA_OPTS} ${CARVING_JAVA_OPTIONS}"
+  fi
+  
+  (echo >&2 "** JAVA_OPTS: " ${JAVA_OPTS})
+
   ${ABC_HOME}/synthesis/target/appassembler/bin/carve-and-generate --android-jar=${ANDROID_JAR} \
       --trace-files=${trace_files} \
       --apk=${apk_file} \
