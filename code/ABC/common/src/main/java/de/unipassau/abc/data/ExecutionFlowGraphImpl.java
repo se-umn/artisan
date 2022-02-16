@@ -406,7 +406,7 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
         return orderedMethodInvocationsBefore;
 
         // if (!graph.containsVertex(methodInvocation)) {
-        // logger.info("Method invocation " + methodInvocation + " not in the
+        // logger.debug("Method invocation " + methodInvocation + " not in the
         // execution graph");
         // return Collections.<MethodInvocation>emptyList();
         // }
@@ -746,13 +746,13 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
                 MethodInvocation originalTarget = cloneMap.get(target);
 
                 if (!graph.containsVertex(originalSource)) {
-                    logger.info("Graph does not contain " + source);
-                    logger.info("ALL VERTICES " + graph.getVertices());
+                    logger.debug("Graph does not contain " + source);
+                    logger.debug("ALL VERTICES " + graph.getVertices());
                 }
 
                 if (!graph.containsVertex(originalTarget)) {
-                    logger.info("Graph does not contain " + target);
-                    logger.info("ALL VERTICES " + graph.getVertices());
+                    logger.debug("Graph does not contain " + target);
+                    logger.debug("ALL VERTICES " + graph.getVertices());
 
                 }
 
@@ -936,7 +936,7 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
         Collection<MethodInvocation> predecessors = getPredecessors(original);
         // This means original is the first node, we just add nodeToPlace as head
         if (predecessors.size() == 0) {
-            logger.info("Add " + nodeToPlace + " as first node");
+            logger.debug("Add " + nodeToPlace + " as first node");
             prependMethodInvocation(nodeToPlace);
         } else {
             // Collect and remove the incoming = Not sure this returns a copy, so we make
@@ -950,7 +950,7 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
                         + graph.getSource(edgeToRemove) + " and " + graph.getDest(edgeToRemove));
             } else {
                 // This must should null... meaning there not more link between the nodes
-                logger.info("Removed Edge " + edgeToRemove);
+                logger.debug("Removed Edge " + edgeToRemove);
             }
 
             // Insert the new node
@@ -959,12 +959,12 @@ public class ExecutionFlowGraphImpl implements ExecutionFlowGraph {
             // Link prev to the node and node to the original (using new edges?)
             String prevToNode = generateNewEdge();
             graph.addEdge(prevToNode, prev, nodeToPlace, EdgeType.DIRECTED);
-            logger.info("Added new edge " + prevToNode + " between " + graph.getSource(prevToNode) + " and "
+            logger.debug("Added new edge " + prevToNode + " between " + graph.getSource(prevToNode) + " and "
                     + graph.getDest(prevToNode));
 
             String nodeToOriginal = generateNewEdge();
             graph.addEdge(nodeToOriginal, nodeToPlace, original, EdgeType.DIRECTED);
-            logger.info("Added new edge " + nodeToOriginal + " between " + graph.getSource(nodeToOriginal) + " and "
+            logger.debug("Added new edge " + nodeToOriginal + " between " + graph.getSource(nodeToOriginal) + " and "
                     + graph.getDest(nodeToOriginal));
         }
 

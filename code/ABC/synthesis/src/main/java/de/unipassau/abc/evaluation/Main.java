@@ -52,6 +52,17 @@ import de.unipassau.abc.parsing.postprocessing.StaticParsedTraceDecorator;
 
 public class Main {
 
+    // https://www.slf4j.org/api/org/slf4j/impl/SimpleLogger.html
+    // simple log 4j does not enable programmatic changes?
+    // - Set to true if you want the current
+    // date and time to be included in output messages. Default is false
+//    org.slf4j.simpleLogger.dateTimeFormat - The date and time format to be used in the output messages. The pattern describing the date and time format is defined by SimpleDateFormat. If the format is not specified or is invalid, the number of milliseconds since start up will be output.
+
+    // Must be invoke before any other call to Logger
+    static {
+        System.setProperty("org.slf4j.simpleLogger.showDateTime", "true");
+    }
+
     public static final Logger logger = LoggerFactory.getLogger(Main.class);
 
     // ALESSIO: THIS IS PROBABLY MISPLACED? Why this should be a property of the
@@ -73,10 +84,9 @@ public class Main {
 
         @Option(longName = "selection-strategy", defaultValue = "SELECT_ALL")
         public MethodInvocationSelector.StrategyEnum getSelectionStrategy();
-        
+
         @Option(longName = "filter-method", defaultValue = "")
         public List<String> getFilterMethods();
-        
 
     }
 
@@ -233,7 +243,7 @@ public class Main {
                         generatedTests.put(testCase, testFile);
 
                     } catch (NotImplementedException e) {
-                         System.err.println("Cannot generate test " + testCase.getName() + ":" + e.getMessage() );
+                        System.err.println("Cannot generate test " + testCase.getName() + ":" + e.getMessage());
                     } catch (Throwable e) {
                         System.err.println("Cannot generate test " + testCase.getName());
                         e.printStackTrace();

@@ -552,7 +552,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
                 // Recording the aliasing relation - This is bidirectional
                 graph.addEdge(ALIAS_DEPENDENCY_PREFIX + "_" + id.getAndIncrement(), node, alias, EdgeType.DIRECTED);
                 graph.addEdge(ALIAS_DEPENDENCY_PREFIX + "_" + id.getAndIncrement(), alias, node, EdgeType.DIRECTED);
-                logger.info("DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with " + alias);
+                logger.debug("DataDependencyGraph.addMethodInvocation() Aliasing " + node + " with " + alias);
                 // TODO MAYBE we shall encode directly here the type for the alias relation, and
                 // only have it one-directional?
 //                Maybe we can directly "retype" ? But to what? there might be more options ....
@@ -1790,7 +1790,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 //                if (neighbor instanceof ObjectInstance) {
 //                    ObjectInstance obj = (ObjectInstance) neighbor;
 //                    if (obj.isAndroidActivity()) {
-//                        logger.info("** Source Node" + obj + " is ACTIVITY. Cloned? "
+//                        logger.debug("** Source Node" + obj + " is ACTIVITY. Cloned? "
 //                                + ((ObjectInstance) clonedNode).isAndroidActivity());
 //                    }
 //                }
@@ -1807,7 +1807,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 //                if (neighbor instanceof ObjectInstance) {
 //                    ObjectInstance obj = (ObjectInstance) neighbor;
 //                    if (obj.isAndroidActivity()) {
-//                        logger.info("** Source Node" + obj + " is ACTIVITY. Cloned? "
+//                        logger.debug("** Source Node" + obj + " is ACTIVITY. Cloned? "
 //                                + ((ObjectInstance) clonedNode).isAndroidActivity());
 //                    }
 //                }
@@ -1818,7 +1818,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 //            if (vv instanceof ObjectInstance) {
 //                ObjectInstance obj = (ObjectInstance) vv;
 //                if (obj.isAndroidActivity()) {
-//                    logger.info("* Activity " + obj + " cloned  ");
+//                    logger.debug("* Activity " + obj + " cloned  ");
 //                }
 //            }
 //        }

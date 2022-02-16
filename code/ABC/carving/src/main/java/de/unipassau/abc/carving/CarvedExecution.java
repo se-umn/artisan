@@ -114,8 +114,26 @@ public class CarvedExecution {
         }
     }
 
+    /**
+     * Remove the method invocation and all the ones it subsumes
+     * 
+     * @param methodInvocationToRemove
+     */
+    public void removeTransitively(MethodInvocation methodInvocationToRemove) {
+        logger.info("Removing transitively " + methodInvocationToRemove);
+        getCallGraphContainingTheMethodInvocation(methodInvocationToRemove)
+                .getMethodInvocationsSubsumedBy(methodInvocationToRemove).forEach(mtr -> {
+                    remove(mtr);
+                });
+    }
+
+    /**
+     * This does not REMOVE transitively
+     * 
+     * @param methodInvocationToRemove
+     */
     public void remove(MethodInvocation methodInvocationToRemove) {
-        logger.debug("CarvedExecution.remove() Remove " + methodInvocationToRemove);
+        logger.debug("- Remove " + methodInvocationToRemove);
 
         // Null may happen because of transitive removal of subsumed nodes
         if (getCallGraphContainingTheMethodInvocation(methodInvocationToRemove) != null) {

@@ -596,7 +596,7 @@ public class CallGraphImpl implements CallGraph {
         // We need to cast to access low-level graph functionality!
         CallGraphImpl second = (CallGraphImpl) _second;
 
-//        logger.info("Including " + second.getRoots());
+//        logger.debug("Including " + second.getRoots());
 
         /*
          * TODO This might be a problem, we should probably clone them? Add vertices.
@@ -634,7 +634,7 @@ public class CallGraphImpl implements CallGraph {
             }
         }
 
-//        logger.info("New Roots Are " + getRoots());
+//        logger.debug("New Roots Are " + getRoots());
     }
 
     public int getNestingLevelOf(MethodInvocation methodInvocation) {
@@ -680,7 +680,7 @@ public class CallGraphImpl implements CallGraph {
         // Break any parent-child relation on toMove
         MethodInvocation toMove = retrieveTheActualVertex(_toMove);
         graph.getInEdges(toMove).forEach(inEdge -> {
-            logger.info("Removing Edge " + inEdge + " connecting " + graph.getSource(inEdge) + " to "
+            logger.debug("Removing Edge " + inEdge + " connecting " + graph.getSource(inEdge) + " to "
                     + graph.getDest(inEdge));
             graph.removeEdge(inEdge);
         });
@@ -689,9 +689,9 @@ public class CallGraphImpl implements CallGraph {
         // Introduce the new edge between targetParent and toMove
         String edgeName = generateNewEdge();
         if (!graph.addEdge(edgeName, targetParent, toMove, EdgeType.DIRECTED)) {
-            logger.info("Error Adding New Edge " + edgeName);
+            logger.debug("Error Adding New Edge " + edgeName);
         } else {
-            logger.info("Adding New Edge " + edgeName + " connecting " + graph.getSource(edgeName) + " to "
+            logger.debug("Adding New Edge " + edgeName + " connecting " + graph.getSource(edgeName) + " to "
                     + graph.getDest(edgeName));
         }
     }

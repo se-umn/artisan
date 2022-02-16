@@ -164,24 +164,24 @@ public class MockGenerator {
                         .collect(Collectors.toList());
 
                 if (callsToSuper.size() > 0) {
-                    logger.info("Found usage of super " + callsToSuper + " : " + mi);
+                    logger.debug("Found usage of super " + callsToSuper + " : " + mi);
                 } else {
                     callsThatRequireTheDanglingObject.add(mi);
                 }
 
             }
 
-            logger.info("Found that dangling object " + danglingObject + " is invoked "
+            logger.debug("Found that dangling object " + danglingObject + " is invoked "
                     + callsThatRequireTheDanglingObject.size() + " times");
 //            callsThatRequireTheDanglingObject.forEach(mi -> {
-//                logger.info("-- " + mi);
+//                logger.debug("-- " + mi);
 //            });
 
             // TODO Do we need to add a patch for the containers like EnumSet?
             if (JimpleUtils.isArray(danglingObject.getType())) {
                 // Instead of mocking the array we need to create one with the expected size and
                 // filled with the content in the expected place
-                logger.info("Mock array " + danglingObject);
+                logger.debug("Mock array " + danglingObject);
 
                 // Look for the length operation (TODO guess the size of the array taking the
                 // max index otherwise)
@@ -274,7 +274,7 @@ public class MockGenerator {
                     instanceToMock = ObjectInstanceFactory
                             .get(danglingObject.getType() + "@" + uniqueIdGenerator.getAndIncrement());
                 } else {
-                    logger.info("Mock initializer will return the dangling object ");
+                    logger.debug("Mock initializer will return the dangling object ");
                     instanceToMock = danglingObject;
                 }
 
@@ -313,7 +313,7 @@ public class MockGenerator {
 
                     MethodInvocation dependentCall = callsThatRequireTheDanglingObject.get(i);
 
-                    logger.info("* Configure mock for calling " + dependentCall);
+                    logger.debug("* Configure mock for calling " + dependentCall);
 
                     // if return value is non-primitive (ie, an ObjectInstance), we may want to use
                     // a previously defined mock here (or at least try)
@@ -395,10 +395,10 @@ public class MockGenerator {
                     // object, not a new instance
                     ObjectInstance whenReturn = null;
                     if (i == callsThatRequireTheDanglingObject.size() - 1) {
-                        logger.info("\t Link the mock to the dangling object");
+                        logger.debug("\t Link the mock to the dangling object");
                         whenReturn = danglingObject;
                     } else {
-//                        logger.info("\t Create a temporary mock object");
+//                        logger.debug("\t Create a temporary mock object");
                         whenReturn = ObjectInstanceFactory
                                 .get(danglingObject.getType() + "@" + uniqueIdGenerator.getAndIncrement());
                     }
@@ -412,7 +412,7 @@ public class MockGenerator {
                     carvedTestDataDependencyGraph.addDataDependencyOnOwner(whenMock, returnStubber);
                     carvedTestDataDependencyGraph.addDataDependencyOnReturn(whenMock, whenReturn);
 
-//                    logger.info("\t Adding When " + whenMock);
+//                    logger.debug("\t Adding When " + whenMock);
 
                     // Now we need to invoke the original call on the mocked object so to configure
                     // it.
@@ -447,7 +447,7 @@ public class MockGenerator {
                                 j);
                     }
 
-//                    logger.info("\t Adding Mocked Call " + dependentCallCopy);
+//                    logger.debug("\t Adding Mocked Call " + dependentCallCopy);
 
                     // handle calls to mock
                     callSet.add(whenMock);
@@ -593,7 +593,7 @@ public class MockGenerator {
 //      for (MethodInvocation subsumedCandidate : allMethodInvocationsInTheCarvedTest) {
 //      if (subsumedCandidate.getMethodSignature().equals(
 //              "<android.app.Activity: android.view.View findViewById(int,java.lang.String,java.lang.String)>")) {
-//          logger.info(" Found " + subsumedCandidate + " called on " + subsumedCandidate.getOwner());
+//          logger.debug(" Found " + subsumedCandidate + " called on " + subsumedCandidate.getOwner());
 //          carvedTestExecutionFlowGraph.enqueueMethodInvocations(subsumedCandidate);
 //          carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(subsumedCandidate);
 //      }
@@ -612,7 +612,7 @@ public class MockGenerator {
                 .collect(Collectors.toMap(mi -> (ObjectInstance) mi.getReturnValue(), mi -> mi));
 
         if (viewsToShadowAndCorrespondingFindViewById.keySet().size() == 0) {
-            logger.info("There are no object Views to Shadow!");
+            logger.debug("There are no object Views to Shadow!");
             return carvedTest;
         }
 
@@ -631,7 +631,7 @@ public class MockGenerator {
             ObjectInstance objectViewToShadow = entry.getKey();
             MethodInvocation findViewById = entry.getValue();
 
-            logger.info("Found " + objectViewToShadow + "provided by" + findViewById + " that must be shadowed");
+            logger.debug("Found " + objectViewToShadow + "provided by" + findViewById + " that must be shadowed");
 
             // Collect the uses of this view to configure the mocked object
             List<MethodInvocation> methodInvocationsOnTheObjectViewToShadow = allMethodInvocationsInTheCarvedTest
@@ -651,7 +651,7 @@ public class MockGenerator {
             // Invoke the activity findViewByID to return the objectViewToShadow. Clone the
             // original method !
             MethodInvocation reFindTheView = findViewById.clone();
-            logger.info("Inserting " + reFindTheView);
+            logger.debug("Inserting " + reFindTheView);
             generatedMethodInvocations.add(reFindTheView);
 
             Pair<MethodInvocation, CarvingShadow> extractShadowPair = generateTheExtractShadow(carvedTest,
@@ -661,14 +661,14 @@ public class MockGenerator {
 
             ObjectInstance shadowedView = (ObjectInstance) extractShadow.getReturnValue();
 
-            logger.info("Inserting " + extractShadow);
+            logger.debug("Inserting " + extractShadow);
             generatedMethodInvocations.add(extractShadow);
-            logger.info("Inserting Mockery");
+            logger.debug("Inserting Mockery");
             theMockery.forEach(aMockery -> {
                 generatedMethodInvocations.addAll(aMockery);
             });
 
-            logger.info("Link mockery to shadow");
+            logger.debug("Link mockery to shadow");
             // We care only about the last mockery here since it is the one setting the
             // ObjectView
             List<MethodInvocation> mockeryOfViewObject = theMockery.get(theMockery.size() - 1);
@@ -679,7 +679,7 @@ public class MockGenerator {
                                     || mi.getMethodSignature().equals(RETURN_SIGNATURE))
                             && !mi.getMethodSignature().equals(WHEN_SIGNATURE))
                     .forEach(mocked -> {
-                        logger.info("Linking " + mocked);
+                        logger.debug("Linking " + mocked);
                         String stubbedMethodSignature = mocked.getMethodSignature();
                         // Encode this to create the String node
                         String stringEncoded = Arrays.toString(stubbedMethodSignature.getBytes());
@@ -792,7 +792,7 @@ public class MockGenerator {
         // test already
         potentiallyDanglingObjects.forEach(danglingObject -> {
             if (!carvedTest.getDataDependencyGraph().getObjectInstances().contains(danglingObject)) {
-                logger.info("Found dangling object " + danglingObject);
+                logger.debug("Found dangling object " + danglingObject);
                 // Here find the uses of the dangling object and configure the mock
                 carvedExecution.dataDependencyGraphs.forEach(ddg -> {
                     if (ddg.getObjectInstances().contains(danglingObject)) {
@@ -814,7 +814,7 @@ public class MockGenerator {
                 });
 
             } else {
-                logger.info("Mock will return the existing object " + danglingObject);
+                logger.debug("Mock will return the existing object " + danglingObject);
             }
         });
 
@@ -836,13 +836,13 @@ public class MockGenerator {
     private List<MethodInvocation> generateMockery(CarvedExecution carvedExecution, ObjectInstance instanceToMock,
             List<MethodInvocation> methodInvocationsToMock) {
 
-        logger.info("Generate mockery for " + instanceToMock + " and " + methodInvocationsToMock.size()
+        logger.debug("Generate mockery for " + instanceToMock + " and " + methodInvocationsToMock.size()
                 + " method invocations");
 
         List<MethodInvocation> theMockery = new ArrayList<MethodInvocation>();
 
         // create mock for owner
-        logger.info("\t Create the Mock object of " + instanceToMock);
+        logger.debug("\t Create the Mock object of " + instanceToMock);
         ObjectInstance classToMock = ObjectInstanceFactory
                 .get(instanceToMock.getType() + "@" + uniqueIdGenerator.getAndIncrement());
 
@@ -863,14 +863,14 @@ public class MockGenerator {
 
         theMockery.add(initMock);
 
-        logger.info("\t Created mock initializer " + initMock);
+        logger.debug("\t Created mock initializer " + initMock);
 
         // Configure the mock object
         for (int i = 0; i < methodInvocationsToMock.size(); i++) {
 
             MethodInvocation methodInvocationToMock = methodInvocationsToMock.get(i);
 
-            logger.info("\t Configure mock for calling " + methodInvocationToMock);
+            logger.debug("\t Configure mock for calling " + methodInvocationToMock);
 
             ObjectInstance returnStubber = returnStubber = ObjectInstanceFactory
                     .get("org.mockito.stubbing.Stubber@" + uniqueIdGenerator.getAndIncrement());
@@ -883,7 +883,7 @@ public class MockGenerator {
                 doReturnNothingMock.setNecessary(true);
                 doReturnNothingMock.setReturnValue((DataNode) returnStubber);
 
-                logger.info("\t Adding doReturnNothing " + doReturnNothingMock);
+                logger.debug("\t Adding doReturnNothing " + doReturnNothingMock);
                 theMockery.add(doReturnNothingMock);
             } else {
                 DataNode returnValue;
@@ -913,7 +913,7 @@ public class MockGenerator {
                 doReturnMock.setReturnValue((DataNode) returnStubber);
                 doReturnMock.setNecessary(true);
 
-                logger.info("\t Adding doReturn " + doReturnMock);
+                logger.debug("\t Adding doReturn " + doReturnMock);
 
                 theMockery.add(doReturnMock);
             }
@@ -928,7 +928,7 @@ public class MockGenerator {
             whenMock.setNecessary(true);
             whenMock.setReturnValue(whenReturn);
 
-            logger.info("\t Adding when " + whenMock);
+            logger.debug("\t Adding when " + whenMock);
 
             theMockery.add(whenMock);
 
@@ -952,7 +952,7 @@ public class MockGenerator {
                         .get(dependentCallCopy.getReturnValue().getType() + "@" + uniqueIdGenerator.getAndIncrement()));
             }
 
-            logger.info("\t Adding Actual Mocked Call " + dependentCallCopy);
+            logger.debug("\t Adding Actual Mocked Call " + dependentCallCopy);
             theMockery.add(dependentCallCopy);
         }
         return theMockery;
@@ -981,7 +981,7 @@ public class MockGenerator {
 //                        && !mi.getMethodSignature().contains("void <init>")
 //                        && !JimpleUtils.isActivityLifecycle(mi.getMethodSignature())) {
 //
-//                    logger.info("Identified new bound: " + mi);
+//                    logger.debug("Identified new bound: " + mi);
 //
 //                    invocationCount = mi.getInvocationCount();
 //

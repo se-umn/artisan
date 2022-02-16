@@ -132,7 +132,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
     private final static String[] genericImports = new String[] { //
             "org.junit.Before", //
-            "org.robolectric.shadows.ShadowSQLiteConnection", //
+            // This is not always used
             "androidx.test.core.app.ApplicationProvider" };
 
     // TODO I do not like to use this variable for temporary storing the method
@@ -218,17 +218,22 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                                 new ArrayInitializerExpr(NodeList.nodeList(shadowClasses)))));
                 testClass.addAnnotation(annotation);
             }
-        }
 
-        // Create the test setup method
-        MethodDeclaration setupMethod = testClass.addMethod("setup", Modifier.Keyword.PUBLIC);
-        setupMethod.addAndGetAnnotation(Before.class);
-        BlockStmt block = new BlockStmt();
-        setupMethod.setBody(block);
-        // add a statement do the method body:
-        NameExpr clazz = new NameExpr("ShadowSQLiteConnection");
-        MethodCallExpr call = new MethodCallExpr(clazz, "reset");
-        block.addStatement(call);
+            // https://stackoverflow.com/questions/13513568/testing-listview-with-robolectric
+            // Create the test setup method only if the test requires robolectric
+            MethodDeclaration setupMethod = testClass.addMethod("setup", Modifier.Keyword.PUBLIC);
+            setupMethod.addAndGetAnnotation(Before.class);
+            BlockStmt block = new BlockStmt();
+            setupMethod.setBody(block);
+            // add a statement do the method body:
+            NameExpr clazz = new NameExpr("org.robolectric.shadows.ShadowSQLiteConnection");
+            MethodCallExpr call = new MethodCallExpr(clazz, "reset");
+            block.addStatement(call);
+            // add the redirection between ShadowLog and System.out
+            // This is for printing log messages in console
+            block.addStatement("org.robolectric.shadows.ShadowLog.stream = System.out");
+
+        }
 
         for (CarvedTest carvedTest : testCase.getCarvedTests()) {
             // TODO Name tests

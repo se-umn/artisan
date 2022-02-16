@@ -53,7 +53,8 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
 
     @Override
     public CarvedExecution doSimplification(CarvedExecution carvedExecution) throws CarvingException, ABCException {
-        logger.info("Simplify using " + this.getClass());
+        
+        logger.info("> Simplify using " + this.getClass());
 
         // TODO This can be refactored as many life-cycle events shared the same pattern
 
@@ -91,13 +92,13 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
     }
 
     private CarvedExecution introduceControllerAndGetTheActivity(CarvedExecution carvedExecution) {
-        logger.info("Introduce ActivityController and get the Activity");
+        logger.debug("Introduce ActivityController and get the Activity");
         // We assume there are no more static constructors here !
         carvedExecution.executionFlowGraphs.forEach(eg -> {
             Optional<MethodInvocation> maybeActivityConstructor = eg.getOrderedMethodInvocations().stream()
                     .filter(mi -> mi.isConstructor() && mi.getOwner().isAndroidActivity()).findFirst();
 
-            logger.info(" FILTERED CALLS :" + eg.getOrderedMethodInvocations().stream()
+            logger.debug(" FILTERED CALLS :" + eg.getOrderedMethodInvocations().stream()
                     .filter(mi -> mi.isConstructor() && mi.getOwner().isAndroidActivity()).collect(Collectors.toSet()));
 
             // Introduce the controller first
@@ -194,7 +195,7 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
     // This modifies the input values
     private void wrapWith(MethodInvocation original, MethodInvocation wrappingMethodInvocation, //
             ExecutionFlowGraph eg, CallGraph cg) throws ABCException {
-        logger.info("Wrapping " + original + " with " + wrappingMethodInvocation);
+        logger.debug("Wrapping " + original + " with " + wrappingMethodInvocation);
 
         cg.wrapRootMethodInvocationWith(original, wrappingMethodInvocation);
         // Pay attention to the order, here we need to follow the meaning of the method
@@ -563,7 +564,7 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
                             .getClassNameForMethod(
                                     ownerAndClass.get(onOptionsItemSelected.getOwner()).getMethodSignature())
                             .equals(JimpleUtils.getClassNameForMethod(onOptionsItemSelected.getMethodSignature()))) {
-                        logger.info("Found a call to super type " + onOptionsItemSelected
+                        logger.debug("Found a call to super type " + onOptionsItemSelected
                                 + ". We skip it as we already processed "
                                 + ownerAndClass.get(onOptionsItemSelected.getOwner()));
                         continue;
