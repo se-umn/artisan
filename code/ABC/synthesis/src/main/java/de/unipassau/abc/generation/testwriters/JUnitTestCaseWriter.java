@@ -231,7 +231,9 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             block.addStatement(call);
             // add the redirection between ShadowLog and System.out
             // This is for printing log messages in console
-            block.addStatement("org.robolectric.shadows.ShadowLog.stream = System.out");
+            // TODO This breaks the synthesis. Probably it misses some additional part or
+            // simply is not a "Statement"
+//            block.addStatement("org.robolectric.shadows.ShadowLog.stream = System.out");
 
         }
 
