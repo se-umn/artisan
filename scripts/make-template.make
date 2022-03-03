@@ -5,7 +5,7 @@ ABC_CFG=../../scripts/.abc-config
 # -Dabc.make.android.lifecycle.events.explicit
 # -Dabc.instrument.array.operations
 # -Dabc.instrument.debug -Dabc.instrument.multithreaded"
-JAVA_OPTS=" -Dabc.instrument.array.operations -Dabc.instrument.fields.operations -Dabc.taint.android.intents -Dabc.instrument.include=${make_app_package}"
+JAVA_OPTS=" -Dabc.instrument.array.operations -Dabc.instrument.fields.operations -Dabc.taint.android.intents -Dabc.instrument.include=${make_app_package} ${make_trace_multiple_threads}"
 
 INSTRUMENTATION_OPTS=" \
 ${make_instr_skip_classes}
@@ -13,8 +13,22 @@ ${make_instr_filter_packages}
 ${make_instr_filter_classes}
 "
 
+CARVING_JAVA_OPTIONS=" \
+-Dorg.slf4j.simpleLogger.defaultLogLevel=info \
+"
+
 CARVING_OPTIONS=" \
 ${make_carving_filter_methods}
+"
+
+SELECT_ONE_CARVING_OPTIONS=" \
+$$(CARVING_OPTIONS) \
+--selection-strategy=SELECT_ONE \
+"
+
+SELECT_ALL_CARVING_OPTIONS=" \
+$$(CARVING_OPTIONS) \
+--selection-strategy=SELECT_ALL \
 "
 
 # Default
@@ -125,7 +139,8 @@ show :
 	$$(info $$(ADB))
 
 clean-gradle :
-	$$(GW) clean
+	$$(info "skip gradle clean")
+	$$(GW) clean </dev/null
 
 list-sed:
 	@echo $$(UNAME) -- $$(SED)
@@ -145,7 +160,8 @@ clean-carved-tests :
 	$$(RM) -rv app/src/selectedCarvedTest
 	$$(RM) -rv app/src/allCarvedTest
 	$$(RM) -rv app/src/carvedTest
-	$$(RM) -rv .carved-all
+	$$(RM) -rv .carved-all-*
+	$$(RM) -rv carving.log
 	$$(RM) -v carved-tests.log
 	$$(RM) -v selected-carved-tests.log
 	$$(RM) -v white-listed-tests.txt
@@ -166,7 +182,7 @@ clean-espresso-coverage :
 
 clean-all : clean-carved-tests clean-carved-coverage clean-espresso-coverage
 # Clean build files
-	$$(GW) clean
+	$$(GW) clean </dev/null
 # Clean up apk-related targets
 	$$(RM) -v *.apk
 # Clean up all the logs
@@ -180,7 +196,7 @@ clean-all : clean-carved-tests clean-carved-coverage clean-espresso-coverage
 # Build the various apks
 app-original.apk : 
 	@export ABC_CONFIG=$$(ABC_CFG) && \
-	$$(GW) -PjacocoEnabled=false ${make_assemble_apk_command} && \
+	$$(GW) -PjacocoEnabled=false ${make_assemble_apk_command} </dev/null && \
 	mv ${make_original_apk_path} app-debug.apk && \
 	$$(ABC) sign-apk app-debug.apk && \
 	mv -v app-debug.apk app-original.apk
@@ -188,12 +204,14 @@ app-original.apk :
 app-instrumented.apk : app-original.apk
 	@export ABC_CONFIG=$$(ABC_CFG) && \
 	export JAVA_OPTS=$$(JAVA_OPTS) && \
+	export INSTRUMENTATION_OPTS=$$(INSTRUMENTATION_OPTS) && \
+	INSTRUMENTED_APK=`$$(ABC) instrument-apk app-original.apk` && \
 	$$(ABC) instrument-apk app-original.apk && \
-	mv -v ../../code/ABC/instrumentation/instrumented-apks/app-original.apk app-instrumented.apk
+	mv -v $$$${INSTRUMENTED_APK} app-instrumented.apk
 
 app-androidTest.apk :
 	@export ABC_CONFIG=$$(ABC_CFG) && \
-	$$(GW) ${make_assemble_android_test_command} && \
+	$$(GW) ${make_assemble_android_test_command} </dev/null && \
 	mv ${make_android_test_apk_path} app-androidTest-unsigned.apk && \
 	$$(ABC) sign-apk app-androidTest-unsigned.apk && \
 	mv -v app-androidTest-unsigned.apk app-androidTest.apk
@@ -201,7 +219,7 @@ app-androidTest.apk :
 ## the assembleAndroidTest task also builds the app if it starts from a clean build
 app-original-for-coverage.apk app-androidTest-for-coverage.apk:
 	@export ABC_CONFIG=$$(ABC_CFG) && \
-	$$(GW) -PjacocoEnabled=true clean ${make_assemble_apk_command} ${make_assemble_android_test_command} && \
+	$$(GW) -PjacocoEnabled=true clean ${make_assemble_apk_command} ${make_assemble_android_test_command} </dev/null && \
 	mv ${make_original_apk_path} app-original-for-coverage.apk  && \
 	mv ${make_android_test_apk_path} app-androidTest-for-coverage.apk
 
@@ -226,15 +244,28 @@ $$(ESPRESSO_TESTS) : app-instrumented.apk app-androidTest.apk
 	@export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) copy-traces ${make_app_debug_package} ./traces/$$(TEST_NAME) force-clean
 
 # This will always run because it's a PHONY target
-carve-all : .carved-all
+carve-all-selected-all : .carved-all-selected-all
+	@echo "Done"
+
+carve-all-select-one : .carved-all-selected-one
 	@echo "Done"
 
 # This requires to have all the tests traced. Note we create the app/src/allCarvedTest folder !
-.carved-all : $$(ESPRESSO_TESTS)
-	@export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) carve-all app-original.apk traces app/src/allCarvedTest force-clean 2>&1 | tee carving.log
+.carved-all-selected-all : $$(ESPRESSO_TESTS)
+	@export ABC_CONFIG=$$(ABC_CFG) && \
+	export CARVING_OPTIONS=$$(SELECT_ALL_CARVING_OPTIONS) && \
+	$$(ABC) carve-all app-original.apk traces app/src/allCarvedTest force-clean 2>&1 | tee carving.log
 	@export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) stop-all-emulators
 # Make sure this file has the right timestamp - probably touch will work the same
-	@sleep 1; echo "" > .carved-all
+	@sleep 1; echo "" > .carved-all-selected-all
+
+.carved-all-selected-one : $$(ESPRESSO_TESTS)
+	@export ABC_CONFIG=$$(ABC_CFG) && \
+	export CARVING_OPTIONS=$$(SELECT_ONE_CARVING_OPTIONS) && \
+	$$(ABC) carve-all app-original.apk traces app/src/allCarvedTest force-clean 2>&1 | tee carving.log
+	@export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) stop-all-emulators
+# Make sure this file has the right timestamp - probably touch will work the same
+	@sleep 1; echo "" > .carved-all-selected-one
 
 ### ### ### ### ### ### ###
 ### Coverage targets
@@ -247,9 +278,9 @@ coverage-espresso-tests : espresso-tests-coverage/html/index.html
 espresso-tests-coverage/html/index.html : app-original-for-coverage.apk app-androidTest-for-coverage.apk
 # Ensure the right apk are installed and optionally start the emulator. Clean up the data if necessary.
 	$$(call ensure_coverage_apks)
-	$$(GW) -PjacocoEnabled=true -PcarvedTests=false clean jacocoGUITestCoverage 2>&1 | tee espresso-tests-coverage.log
+	$$(GW) -PjacocoEnabled=true -PcarvedTests=false clean jacocoGUITestCoverage 2>&1 </dev/null | tee espresso-tests-coverage.log
 	$$(RM) -r espresso-tests-coverage
-	mv -v app/build/reports/jacoco/jacocoGUITestCoverage espresso-tests-coverage
+	mv -v app/build/reports/jacoco/jacocoGUITestCoverage espresso-tests-coverage || echo "(Error: espresso-tests-coverage not found)"
 # This might not even be necessary
 	@export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) stop-all-emulators
 
@@ -266,7 +297,7 @@ $$(ESPRESSO_TESTS_COVERAGE): app-original-for-coverage.apk app-androidTest-for-c
 	$$(eval COVERAGE_FOLDER := $$(shell echo "$$(@)" | sed -e 's|/html/index.html||'))
 # Execute the gradle target
 	@echo "Running Test $$(TEST_NAME)"
-	$$(GW) -PjacocoEnabled=true -PcarvedTests=false -Pandroid.testInstrumentationRunnerArguments.class=$$(TEST_NAME) jacocoGUITestCoverage
+	$$(GW) -PjacocoEnabled=true -PcarvedTests=false -Pandroid.testInstrumentationRunnerArguments.class=$$(TEST_NAME) jacocoGUITestCoverage </dev/null
 	mv -v app/build/reports/jacoco/jacocoGUITestCoverage $$(COVERAGE_FOLDER)
 # TODO debugAndroidTest folder might probably have some other name based on gradle config
 	mv -v app/build/outputs/code_coverage/debugAndroidTest/connected/*coverage.ec $$(COVERAGE_FOLDER)/$$(TEST_NAME).ec
@@ -275,7 +306,7 @@ coverage-unit-tests : unit-tests-coverage/html/index.html
 	@echo "Done"
 
 unit-tests-coverage/html/index.html :
-	$$(GW) -PjacocoEnabled=true -PcarvedTests=false clean jacocoUnitTestCoverage 2>&1 | tee unit-tests-coverage.log
+	$$(GW) -PjacocoEnabled=true -PcarvedTests=false clean jacocoUnitTestCoverage 2>&1 </dev/null | tee unit-tests-coverage.log
 	$$(RM) -r unit-tests-coverage
 	mv -v app/build/reports/jacoco/jacocoUnitTestCoverage unit-tests-coverage
 
@@ -291,9 +322,9 @@ all-carved-tests-coverage/html/index.html : carved-tests.log
 carved-tests.log : .carved-all
 	$$(RM) -r app/src/carvedTest
 	cp -r app/src/allCarvedTest app/src/carvedTest
-	$$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage 2>&1 | tee carved-tests.log
+	$$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage 2>&1 </dev/null | tee carved-tests.log
 	$$(RM) -r all-carved-tests-coverage
-	mv -v build/carvedTest/coverage all-carved-tests-coverage
+	mv -v build/carvedTest/coverage all-carved-tests-coverage || echo "(Error: all-carved-tests-coverage not found)"
 
 # This is required because we need it to run each carved test in isolation
 selected-carved-tests-coverage/html/index.html : selected-carved-tests.done
@@ -303,9 +334,9 @@ endif
 # Ensure we are using the right carved tests by creating a link to the folder.
 	$$(RM) -r app/src/carvedTest
 	cp -r app/src/selectedCarvedTest app/src/carvedTest
-	$$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage 2>&1 | tee selected-carved-tests.log
+	$$(GW) -PjacocoEnabled=true -PcarvedTests=true clean jacocoUnitTestCoverage 2>&1 </dev/null | tee selected-carved-tests.log
 	$$(RM) -r selected-carved-tests-coverage
-	mv -v build/carvedTest/coverage selected-carved-tests-coverage
+	mv -v build/carvedTest/coverage selected-carved-tests-coverage || echo "(Error: selected-carved-tests-coverage not found)"
 
 $$(CARVED_TESTS_COVERAGE): carved-tests.log
 # Ensure we use all the carvedTests here
@@ -317,9 +348,9 @@ $$(CARVED_TESTS_COVERAGE): carved-tests.log
 # Clean up the coverage folder (this should not be necessary)
 	$$(RM) -rv $$(COVERAGE_FOLDER)
 # Run the single unit test and collect coverage
-	$$(GW) -PjacocoEnabled=true -PcarvedTests=true -PcarvedTestsFilter=$$(TEST_NAME) clean jacocoUnitTestCoverage
+	$$(GW) -PjacocoEnabled=true -PcarvedTests=true -PcarvedTestsFilter=$$(TEST_NAME) clean jacocoUnitTestCoverage </dev/null
 # Copy the coverage folder in the expected place
-	mv -v ./build/carvedTest/coverage $$(COVERAGE_FOLDER)
+	mv -v ./build/carvedTest/coverage $$(COVERAGE_FOLDER) || echo "(Error: ./build/carvedTest/coverage not found)"
 
 coverage-for-each-carved-test : carved-tests.log $$(CARVED_TESTS_COVERAGE)
 ifeq ($$(REQUIRE_RERUN), 1)

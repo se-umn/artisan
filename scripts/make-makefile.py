@@ -8,6 +8,13 @@ script_path = os.path.realpath(__file__)
 scripts_dir = os.path.dirname(script_path)
 template_path = os.path.join(scripts_dir, "make-template.make")
 
+def parse_java_opts(config_values):
+    trace_multiple_threads = config_values["make_trace_multiple_threads"]
+    if "true" in trace_multiple_threads:
+        config_values["make_trace_multiple_threads"] = " -Dabc.instrument.multithreaded "
+    else:
+        config_values["make_trace_multiple_threads"] = ""
+
 def parse_permissions(config_values):
   permissions = config_values["make_permissions"]
   if permissions:
@@ -56,6 +63,7 @@ else:
         config = configparser.ConfigParser()
         config.read(config_path)
         config_values = config["MakeConfiguration"]
+        parse_java_opts(config_values)
         parse_permissions(config_values)
         parse_carving_options(config_values)
         parse_instrumentation_options(config_values)
