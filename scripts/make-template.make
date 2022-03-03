@@ -1,11 +1,21 @@
 ### MAIN VARIABLES
-GW=./gradlew
+GW=./gradlew --console plain
 ABC=../../scripts/abc.sh
 ABC_CFG=../../scripts/.abc-config
 # -Dabc.make.android.lifecycle.events.explicit
 # -Dabc.instrument.array.operations
 # -Dabc.instrument.debug -Dabc.instrument.multithreaded"
 JAVA_OPTS=" -Dabc.instrument.array.operations -Dabc.instrument.fields.operations -Dabc.taint.android.intents -Dabc.instrument.include=${make_app_package}"
+
+INSTRUMENTATION_OPTS=" \
+${make_instr_skip_classes}
+${make_instr_filter_packages}
+${make_instr_filter_classes}
+"
+
+CARVING_OPTIONS=" \
+${make_carving_filter_methods}
+"
 
 # Default
 SED=/usr/bin/sed
@@ -77,7 +87,7 @@ $$(if $$(filter $$(IS_RUNNING),1),$$(if $$(filter $$(TRACING_APKS_INSTALLED),0),
 $$(shell if [ "$$(TRACING_APKS_INSTALLED)" == "0" ]; then \
 	(>&2 echo "Installing instrumented apk"); \
 	export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) install-apk app-instrumented.apk; \
-	(>&2 echo "Installing test apk") ;\
+	${permissions}(>&2 echo "Installing test apk") ;\
 	export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) install-apk app-androidTest.apk; \
 else \
 	(>&2 echo "Resetting the data of the apk"); \
@@ -100,7 +110,7 @@ $$(if $$(filter $$(IS_RUNNING),1),$$(if $$(filter $$(COVERAGE_APKS_INSTALLED),0)
 $$(shell if [ "$$(COVERAGE_APKS_INSTALLED)" == "0" ]; then \
 	(>&2 echo "Installing coverage apk"); \
 	export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) install-apk app-original-for-coverage.apk; \
-	(>&2 echo "Installing test coverage apk") ;\
+	${permissions}(>&2 echo "Installing test coverage apk") ;\
 	export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) install-apk app-androidTest-for-coverage.apk; \
 else \
 	(>&2 echo "Resetting the data of the coverage apk"); \
