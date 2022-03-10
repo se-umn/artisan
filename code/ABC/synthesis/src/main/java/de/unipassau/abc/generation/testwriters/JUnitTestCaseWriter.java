@@ -834,6 +834,16 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             } else {
                 methodCallExpr.asMethodCallExpr().addArgument(dataValueString);
             }
+        } else if (methodInvocation.getMethodSignature().equals("<android.widget.TextView: void setText(int)>")) {
+
+            DataNode dataValueForInt = methodInvocation.getActualParameterInstances().get(0);
+            String dataValueString = getParameterFor(dataValueForInt, methodBody);
+            Integer integerValue = Integer.parseInt(dataValueString);
+            if (Main.idsInApk.containsKey(integerValue)) {
+                methodCallExpr.asMethodCallExpr().addArgument(Main.idsInApk.get(integerValue));
+            } else {
+                methodCallExpr.asMethodCallExpr().addArgument(dataValueString);
+            }
         } else if (methodInvocation.getMethodSignature()
                 .equals("<org.mockito.Mockito: org.mockito.stubbing.Stubber doReturn(java.lang.Object)>")) {
 
