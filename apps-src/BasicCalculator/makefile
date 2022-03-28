@@ -2,10 +2,43 @@
 GW=./gradlew
 ABC=../../scripts/abc.sh
 ABC_CFG=../../scripts/.abc-config
+
+# Does this even work?
 # -Dabc.make.android.lifecycle.events.explicit
-# -Dabc.instrument.array.operations
-# -Dabc.instrument.debug -Dabc.instrument.multithreaded"
-JAVA_OPTS=" -Dabc.instrument.array.operations -Dabc.instrument.fields.operations -Dabc.taint.android.intents -Dabc.instrument.include=abc.basiccalculator"
+JAVA_OPTS=" -Dabc.instrument.array.operations \
+-Dabc.instrument.fields.operations \
+-Dabc.taint.android.intents \
+-Dabc.instrument.include=abc.basiccalculator"
+
+# Skip: Do not instrument the class. Works only on application classes
+# Filter: Do not trace the class. Works on all the classes, the calls will not appear in the trace
+INSTRUMENTATION_OPTS=" \
+--skip-class=abc.basiccalculator.R \
+--filter-package=java.io \
+--filter-package=java.sql"
+
+# --filter-class=java.lang.StringBuilder 
+# --filter-class=java.lang.Object 
+
+
+CARVING_JAVA_OPTIONS=" \
+-Dorg.slf4j.simpleLogger.defaultLogLevel=info \
+"
+
+# Common carving options
+# --filter-method to skipping methods in the generated tests
+CARVING_OPTIONS=""
+
+# Remove the following methods from the carved tests
+SELECT_ONE_CARVING_OPTIONS=" \
+$(CARVING_OPTIONS) \
+--selection-strategy=SELECT_ONE \
+"
+
+SELECT_ALL_CARVING_OPTIONS=" \
+$(CARVING_OPTIONS) \
+--selection-strategy=SELECT_ALL \
+"
 
 # Default
 SED=/usr/bin/sed
@@ -109,7 +142,7 @@ fi)
 $(eval COVERAGE_APKS_INSTALLED := 1)
 endef
 
-.PHONY: clean-gradle clean-all carve-all run-espresso-tests trace-espresso-tests
+.PHONY: clean-gradle clean-all run-espresso-tests trace-espresso-tests
 
 show :
 	$(info $(ADB))
@@ -135,7 +168,7 @@ clean-carved-tests :
 	$(RM) -rv app/src/selectedCarvedTest
 	$(RM) -rv app/src/allCarvedTest
 	$(RM) -rv app/src/carvedTest
-	$(RM) -rv .carved-all
+	$(RM) -rv .carved-all .carved-all-*
 	$(RM) -v carved-tests.log
 	$(RM) -v selected-carved-tests.log
 	$(RM) -v white-listed-tests.txt
@@ -178,8 +211,9 @@ app-original.apk :
 app-instrumented.apk : app-original.apk
 	@export ABC_CONFIG=$(ABC_CFG) && \
 	export JAVA_OPTS=$(JAVA_OPTS) && \
-	$(ABC) instrument-apk app-original.apk && \
-	mv -v ../../code/ABC/instrumentation/instrumented-apks/app-original.apk app-instrumented.apk
+	export INSTRUMENTATION_OPTS=$(INSTRUMENTATION_OPTS) && \
+	INSTRUMENTED_APK=`$(ABC) instrument-apk app-original.apk` && \
+	mv -v $${INSTRUMENTED_APK} app-instrumented.apk
 
 app-androidTest.apk :
 	@export ABC_CONFIG=$(ABC_CFG) && \
@@ -216,14 +250,30 @@ $(ESPRESSO_TESTS) : app-instrumented.apk app-androidTest.apk
 	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) copy-traces abc.basiccalculator ./traces/$(TEST_NAME) force-clean
 
 # This will always run because it's a PHONY target
-carve-all : .carved-all
+carve-all-select-all : .carved-all-selected-all
+	@echo "Done"
+
+carve-all-select-one : .carved-all-selected-one
 	@echo "Done"
 
 # This requires to have all the tests traced. Note we create the app/src/allCarvedTest folder !
-.carved-all : $(ESPRESSO_TESTS)
-	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) carve-all app-original.apk traces app/src/allCarvedTest force-clean 2>&1 | tee carving.log
+.carved-all-selected-all : $(ESPRESSO_TESTS)
+	@export ABC_CONFIG=$(ABC_CFG) && \
+	export CARVING_OPTIONS=$(SELECT_ALL_CARVING_OPTIONS) && \
+	export CARVING_JAVA_OPTIONS=$(CARVING_JAVA_OPTIONS) && \
+	$(ABC) carve-all app-original.apk traces app/src/allCarvedTest force-clean 2>&1 | tee carving.log
 	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
-# Make sure this file has the right timestamp - probably touch will work the same
+	@sleep 1; echo "" > .carved-all-selected-all
+	@sleep 1; echo "" > .carved-all
+
+# This requires to have all the tests traced. Note we create the app/src/allCarvedTest folder !
+.carved-all-selected-one : $(ESPRESSO_TESTS)
+	@export ABC_CONFIG=$(ABC_CFG) && \
+	export CARVING_OPTIONS=$(SELECT_ONE_CARVING_OPTIONS) && \
+	export CARVING_JAVA_OPTIONS=$(CARVING_JAVA_OPTIONS) && \
+	$(ABC) carve-all app-original.apk traces app/src/allCarvedTest force-clean 2>&1 | tee carving.log
+	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
+	@sleep 1; echo "" > .carved-all-selected-one
 	@sleep 1; echo "" > .carved-all
 
 ### ### ### ### ### ### ###
