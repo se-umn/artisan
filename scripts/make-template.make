@@ -17,9 +17,7 @@ CARVING_JAVA_OPTIONS=" \
 -Dorg.slf4j.simpleLogger.defaultLogLevel=info \
 "
 
-CARVING_OPTIONS=" \
-${make_carving_filter_methods}
-"
+CARVING_OPTIONS="${make_carving_filter_methods}"
 
 SELECT_ONE_CARVING_OPTIONS=" \
 $$(CARVING_OPTIONS) \
@@ -133,7 +131,7 @@ fi)
 $$(eval COVERAGE_APKS_INSTALLED := 1)
 endef
 
-.PHONY: clean-gradle clean-all carve-all run-espresso-tests trace-espresso-tests
+.PHONY: clean-gradle clean-all carve-all-select-one carve-all-selected-all run-espresso-tests trace-espresso-tests
 
 show :
 	$$(info $$(ADB))
@@ -254,18 +252,22 @@ carve-all-select-one : .carved-all-selected-one
 .carved-all-selected-all : $$(ESPRESSO_TESTS)
 	@export ABC_CONFIG=$$(ABC_CFG) && \
 	export CARVING_OPTIONS=$$(SELECT_ALL_CARVING_OPTIONS) && \
+	export CARVING_JAVA_OPTIONS=$$(CARVING_JAVA_OPTIONS) && \
 	$$(ABC) carve-all app-original.apk traces app/src/allCarvedTest force-clean 2>&1 | tee carving.log
 	@export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) stop-all-emulators
 # Make sure this file has the right timestamp - probably touch will work the same
 	@sleep 1; echo "" > .carved-all-selected-all
+	@sleep 1; echo "" > .carved-all
 
 .carved-all-selected-one : $$(ESPRESSO_TESTS)
 	@export ABC_CONFIG=$$(ABC_CFG) && \
 	export CARVING_OPTIONS=$$(SELECT_ONE_CARVING_OPTIONS) && \
+	export CARVING_JAVA_OPTIONS=$$(CARVING_JAVA_OPTIONS) && \
 	$$(ABC) carve-all app-original.apk traces app/src/allCarvedTest force-clean 2>&1 | tee carving.log
 	@export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) stop-all-emulators
 # Make sure this file has the right timestamp - probably touch will work the same
 	@sleep 1; echo "" > .carved-all-selected-one
+	@sleep 1; echo "" > .carved-all
 
 ### ### ### ### ### ### ###
 ### Coverage targets

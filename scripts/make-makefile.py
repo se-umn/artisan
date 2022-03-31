@@ -26,10 +26,10 @@ def parse_permissions(config_values):
 def parse_carving_options(config_values):
     filter_methods = config_values["make_carving_filter_methods"]
     if filter_methods:
-        filter_method_list = [f"--filter-method {method} \\" for method in re.split("\s*,\s*", filter_methods)]
+        filter_method_list = [" \\"] + [f"--filter-method {method} \\" for method in re.split("\s*,\s*", filter_methods)] + [""]
         config_values["make_carving_filter_methods"] = "\n".join(filter_method_list)
     else:
-        config_values["make_carving_filter_methods"] = "\\"
+        config_values["make_carving_filter_methods"] = ""
 
 def parse_instrumentation_options(config_values):
     skip_classes = config_values["make_instr_skip_classes"]
