@@ -44,7 +44,7 @@ public class BirdMonitoringParsingTest {
     @Test
     public void testFailedParsing() throws FileNotFoundException, IOException, ABCException {
         traceFolder = "src/test/resources/nz.org.cacophony.birdmonitor";
-        traceFileName = "Trace-1641746947884.txt";
+        traceFileName = "trace.txt";
         ParsedTrace parsedTrace = runParser();
         Assert.assertNotNull(parsedTrace);
     }
