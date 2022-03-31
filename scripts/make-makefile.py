@@ -8,6 +8,7 @@ script_path = os.path.realpath(__file__)
 scripts_dir = os.path.dirname(script_path)
 template_path = os.path.join(scripts_dir, "make-template.make")
 
+
 def parse_java_opts(config_values):
     trace_multiple_threads = config_values["make_trace_multiple_threads"]
     if "true" in trace_multiple_threads:
@@ -15,21 +16,26 @@ def parse_java_opts(config_values):
     else:
         config_values["make_trace_multiple_threads"] = ""
 
+
 def parse_permissions(config_values):
-  permissions = config_values["make_permissions"]
-  if permissions:
-    permissions_list = [f"$(ADB) shell pm grant {config_values['make_app_debug_package']} {p};\\\n" for p in permissions.split(",")]
-    config_values["permissions"] = "".join(permissions_list)
-  else:
-    config_values["permissions"] = ""
+    permissions = config_values["make_permissions"]
+    if permissions:
+        permissions_list = [f"$(ADB) shell pm grant {config_values['make_app_debug_package']} {p};\\\n" for p in
+                            permissions.split(",")]
+        config_values["permissions"] = "".join(permissions_list)
+    else:
+        config_values["permissions"] = ""
+
 
 def parse_carving_options(config_values):
     filter_methods = config_values["make_carving_filter_methods"]
     if filter_methods:
-        filter_method_list = [f"--filter-method {method} \\" for method in re.split("\s*,\s*", filter_methods)]
+        filter_method_list = [" \\"] + [f"--filter-method {method} \\" for method in
+                                        re.split("\s*,\s*", filter_methods)] + [""]
         config_values["make_carving_filter_methods"] = "\n".join(filter_method_list)
     else:
-        config_values["make_carving_filter_methods"] = "\\"
+        config_values["make_carving_filter_methods"] = ""
+
 
 def parse_instrumentation_options(config_values):
     skip_classes = config_values["make_instr_skip_classes"]
@@ -52,6 +58,7 @@ def parse_instrumentation_options(config_values):
         config_values["make_instr_filter_classes"] = "\n".join(classes_list)
     else:
         config_values["make_instr_filter_classes"] = "\\"
+
 
 if len(sys.argv) == 1:
     print("Missing application root directory")
