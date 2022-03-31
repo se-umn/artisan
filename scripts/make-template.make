@@ -44,10 +44,10 @@ SED := $$(shell echo /usr/local/bin/gsed)
 endif
 
 ADB := $$(shell $$(ABC) show-config  ANDROID_ADB_EXE | sed -e "s|ANDROID_ADB_EXE=||")
-# Create a list of expected test executions from tests.txt Those corresponds to the traces
-ESPRESSO_TESTS := $$(shell cat tests.txt | sed '/^[[:space:]]*$$$$/d' | sed -e 's| |__|g' -e 's|^\(.*\)$$$$|\1.testlog|')
-# Create the list of expected coverage targets from tests.txt
-ESPRESSO_TESTS_COVERAGE := $$(shell cat tests.txt | sed '/^[[:space:]]*$$$$/d' | sed -e 's| |__|g' -e 's|^\(.*\)$$$$|espresso-test-coverage-for-\1/html/index.html|')
+# Create a list of expected test executions from espresso_tests.txt Those corresponds to the traces
+ESPRESSO_TESTS := $$(shell cat espresso_tests.txt | sed '/^[[:space:]]*$$$$/d' | sed -e 's| |__|g' -e 's|^\(.*\)$$$$|\1.testlog|')
+# Create the list of expected coverage targets from espresso_tests.txt
+ESPRESSO_TESTS_COVERAGE := $$(shell cat espresso_tests.txt | sed '/^[[:space:]]*$$$$/d' | sed -e 's| |__|g' -e 's|^\(.*\)$$$$|espresso-test-coverage-for-\1/html/index.html|')
 # Create the list of carved tests to measure coverage. This points to the html file because make works with files
 ifeq (,$$(wildcard carved-tests.log))
 $$(info "carved-tests.log missing. We probably need to re-run make after computing it")
@@ -110,7 +110,7 @@ $$(shell if [ "$$(TRACING_APKS_INSTALLED)" == "0" ]; then \
 else \
 	(>&2 echo "Resetting the data of the apk"); \
 	$$(ADB) shell pm clear ${make_app_debug_package} > /dev/null; \
-fi)
+	${permissions}fi)
 $$(eval TRACING_APKS_INSTALLED := 1)
 endef
 
