@@ -83,7 +83,7 @@ public class ParserSmokeTest {
         MethodInvocationSelector mis = new MethodInvocationSelector();
         
         ParsedTrace parsedTrace = parseWithDecorators();
-        mis.findAllCarvableMethodInvocations(parsedTrace);
+        mis.findCarvableMethodInvocations(parsedTrace);
     }
 
     @Test

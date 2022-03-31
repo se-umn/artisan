@@ -43,7 +43,7 @@ public class MethodInvocationSearcherTest {
 		ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
 		
 		MethodInvocationSelector mis = new MethodInvocationSelector();
-		Collection<MethodInvocation> carvableMethodInvocation = mis.findAllCarvableMethodInvocations( parsedTrace );
+		Collection<MethodInvocation> carvableMethodInvocation = mis.findCarvableMethodInvocations( parsedTrace );
 		
 		carvableMethodInvocation.forEach( System.out::println);
 		

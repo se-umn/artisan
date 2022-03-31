@@ -5,7 +5,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -13,13 +12,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import javax.tools.DiagnosticCollector;
-import javax.tools.JavaCompiler;
-import javax.tools.JavaFileObject;
-import javax.tools.StandardJavaFileManager;
-import javax.tools.StandardLocation;
-import javax.tools.ToolProvider;
 
 import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
@@ -139,16 +131,8 @@ public class Main {
 
                 MethodInvocationSelector mis = new MethodInvocationSelector();
 
-                Set<MethodInvocation> targetMethodsInvocations = null;
-                switch (cli.getSelectionStrategy()) {
-                case SELECT_ONE:
-                    targetMethodsInvocations = mis.findUniqueCarvableMethodInvocations(parsedTrace);
-                    break;
-                case SELECT_ALL:
-                default:
-                    targetMethodsInvocations = mis.findAllCarvableMethodInvocations(parsedTrace);
-                    break;
-                }
+                Set<MethodInvocation> targetMethodsInvocations = mis
+                    .findCarvableMethodInvocations(parsedTrace, cli.getSelectionStrategy());
 
                 int selectedCarvableTargets = targetMethodsInvocations.size();
 
@@ -162,20 +146,8 @@ public class Main {
 
                 totalCarvableTargets = totalCarvableTargets + selectedCarvableTargets;
 
-                List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<MethodInvocation>();
-                targetMethodsInvocationsList.addAll(targetMethodsInvocations);
-                Collections.sort(targetMethodsInvocationsList, new Comparator<MethodInvocation>() {
-                    @Override
-                    public int compare(MethodInvocation o1, MethodInvocation o2) {
-                        if (o1.getInvocationTraceId() < o2.getInvocationTraceId()) {
-                            return -1;
-                        } else if (o1.getInvocationTraceId() == o2.getInvocationTraceId()) {
-                            return 0;
-                        } else {
-                            return 1;
-                        }
-                    }
-                });
+                List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<>(targetMethodsInvocations);
+                targetMethodsInvocationsList.sort(Comparator.comparingInt(MethodInvocation::getInvocationTraceId));
                 for (MethodInvocation mi : targetMethodsInvocationsList) {
                     logger.info("** " + mi.toString());
                 }
