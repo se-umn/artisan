@@ -137,7 +137,7 @@ fi)
 $$(eval COVERAGE_APKS_INSTALLED := 1)
 endef
 
-.PHONY: clean-gradle clean-all carve-all run-espresso-tests trace-espresso-tests
+.PHONY: clean-gradle clean-all carve-all-select-one carve-all-selected-all run-espresso-tests trace-espresso-tests
 
 show :
 	$$(info $$(ADB))
@@ -264,19 +264,23 @@ carve-all-select-activities-all : .carved-all-select-activities-all
 .carved-all-select-all : $$(ESPRESSO_TESTS)
 	@export ABC_CONFIG=$$(ABC_CFG) && \
 	export CARVING_OPTIONS=$$(SELECT_ALL_CARVING_OPTIONS) && \
+	export CARVING_JAVA_OPTIONS=$$(CARVING_JAVA_OPTIONS) && \
 	$$(ABC) carve-all app-original.apk traces app/src/allCarvedTest force-clean 2>&1 | tee carving.log
 	@export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) stop-all-emulators
 # Make sure this file has the right timestamp - probably touch will work the same
 	@sleep 1; echo "" > .carved-all-select-all
+	@sleep 1; echo "" > .carved-all
 
 .carved-all-select-one : $$(ESPRESSO_TESTS)
 	@export ABC_CONFIG=$$(ABC_CFG) && \
 	export CARVING_OPTIONS=$$(SELECT_ONE_CARVING_OPTIONS) && \
+	export CARVING_JAVA_OPTIONS=$$(CARVING_JAVA_OPTIONS) && \
 	$$(ABC) carve-all app-original.apk traces app/src/allCarvedTest force-clean 2>&1 | tee carving.log
 	@export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) stop-all-emulators
 # Make sure this file has the right timestamp - probably touch will work the same
 	@sleep 1; echo "" > .carved-all-select-one
-
+	@sleep 1; echo "" > .carved-all
+	
 .carved-all-select-activities-all : $$(ESPRESSO_TESTS)
 	@export ABC_CONFIG=$$(ABC_CFG) && \
 	export CARVING_OPTIONS=$$(SELECT_ACTIVITIES_ALL_CARVING_OPTIONS) && \
@@ -284,6 +288,7 @@ carve-all-select-activities-all : .carved-all-select-activities-all
 	@export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) stop-all-emulators
 # Make sure this file has the right timestamp - probably touch will work the same
 	@sleep 1; echo "" > .carved-all-select-activities-all
+	@sleep 1; echo "" > .carved-all
 
 .carved-all-select-activities-one : $$(ESPRESSO_TESTS)
 	@export ABC_CONFIG=$$(ABC_CFG) && \
@@ -292,6 +297,7 @@ carve-all-select-activities-all : .carved-all-select-activities-all
 	@export ABC_CONFIG=$$(ABC_CFG) && $$(ABC) stop-all-emulators
 # Make sure this file has the right timestamp - probably touch will work the same
 	@sleep 1; echo "" > .carved-all-select-activities-one
+	@sleep 1; echo "" > .carved-all
 
 ### ### ### ### ### ### ###
 ### Coverage targets

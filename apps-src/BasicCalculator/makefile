@@ -138,7 +138,7 @@ fi)
 $(eval COVERAGE_APKS_INSTALLED := 1)
 endef
 
-.PHONY: clean-gradle clean-all carve-all run-espresso-tests trace-espresso-tests
+.PHONY: clean-gradle clean-all carve-all-select-one carve-all-select-all run-espresso-tests trace-espresso-tests
 
 show :
 	$(info $(ADB))
