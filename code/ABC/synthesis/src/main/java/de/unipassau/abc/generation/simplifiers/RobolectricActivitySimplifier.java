@@ -53,7 +53,11 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
 
     @Override
     public CarvedExecution doSimplification(CarvedExecution carvedExecution) throws CarvingException, ABCException {
-        
+
+        /**
+         * This code assumes that there is ONLY one activity per test, so it handles
+         * only the FIRST activity!
+         */
         logger.info("> Simplify using " + this.getClass());
 
         // TODO This can be refactored as many life-cycle events shared the same pattern
@@ -69,9 +73,9 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
         // TODO Visible might be used to carvedExecution =
         // wrapOnLoadFinished(carvedExecution);
         carvedExecution = wrapOnOptionsItemSelected(carvedExecution);
-
         carvedExecution = wrapOnCreateOptionsMenu(carvedExecution);
         carvedExecution = wrapOnStop(carvedExecution);
+        carvedExecution = wrapOnResume(carvedExecution);    
         carvedExecution = wrapOnDestroy(carvedExecution);
 
         return carvedExecution;
@@ -408,6 +412,63 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
                 }
 
                 if (carvedExecution.methodInvocationUnderTest.equals(onStop)) {
+                    carvedExecution.isMethodInvocationUnderTestWrapped = true;
+                }
+
+            }
+        });
+
+        return carvedExecution;
+
+    }
+
+    private CarvedExecution wrapOnResume(final CarvedExecution carvedExecution) {
+        carvedExecution.executionFlowGraphs.forEach(eg -> {
+
+            // OnResume Might be called multiple times, but shall avoid calls that are subsumed here.
+            final List<MethodInvocation> possiblyMoreThanOneOnResume = eg
+                    .getOrderedMethodInvocations().stream().filter(mi -> !mi.isStatic()
+                            && mi.getOwner().isAndroidActivity() && mi.getMethodSignature().contains("void onResume()")
+                            // We allow only root level android events, i.e., events directly triggered by the framework
+                            && carvedExecution.getCallGraphContainingTheMethodInvocation(mi).getRoots().contains(mi))
+                    .collect(Collectors.toList());
+
+            
+            
+            
+            
+            for (MethodInvocation onResume : possiblyMoreThanOneOnResume) {
+                //
+                DataDependencyGraph ddg = carvedExecution.getDataDependencyGraphContainingTheMethodInvocation(onResume);
+                CallGraph cg = carvedExecution.getCallGraphContainingTheMethodInvocation(onResume);
+
+                // Create the new method wrapping invocation
+                int invocationTraceId = onResume.getInvocationTraceId();
+                String methodSignature = "<org.robolectric.android.controller.ActivityController org.robolectric.android.controller.ActivityController resume()>";
+
+                MethodInvocation activityControllerResume = new MethodInvocation(invocationTraceId, uniqueID.getAndIncrement(), methodSignature);
+                // Force this to be necessary
+                activityControllerResume.setNecessary(true);
+                activityControllerResume.setPublic(true);
+
+                // The method invocation belongs to the controller
+                activityControllerResume.setOwner(robolectricActivityController);
+                ddg.addDataDependencyOnOwner(activityControllerResume, robolectricActivityController);
+                // Fluent interface
+                activityControllerResume.setReturnValue(robolectricActivityController);
+                ddg.addDataDependencyOnReturn(activityControllerResume, robolectricActivityController);
+
+                // Here we need to wrap the original call with the new one...
+                try {
+                    wrapWith(onResume, activityControllerResume, eg, cg);
+                } catch (ABCException e) {
+                    // TODO Probably we should use a more specific exception
+                    throw new RuntimeException(e);
+                }
+
+                // In case this is indeed the method under test we need to mark it is wrapped inside robolectric.
+                //  OR We need to be able to call the methods on it directly...
+                if (carvedExecution.methodInvocationUnderTest.equals(onResume)) {
                     carvedExecution.isMethodInvocationUnderTestWrapped = true;
                 }
 
