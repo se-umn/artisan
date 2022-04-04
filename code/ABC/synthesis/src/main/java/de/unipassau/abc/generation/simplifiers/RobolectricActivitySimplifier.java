@@ -75,6 +75,7 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
         carvedExecution = wrapOnOptionsItemSelected(carvedExecution);
         carvedExecution = wrapOnCreateOptionsMenu(carvedExecution);
         carvedExecution = wrapOnStop(carvedExecution);
+        carvedExecution = wrapOnPause(carvedExecution);
         carvedExecution = wrapOnResume(carvedExecution);    
         carvedExecution = wrapOnDestroy(carvedExecution);
 
@@ -469,6 +470,60 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
                 // In case this is indeed the method under test we need to mark it is wrapped inside robolectric.
                 //  OR We need to be able to call the methods on it directly...
                 if (carvedExecution.methodInvocationUnderTest.equals(onResume)) {
+                    carvedExecution.isMethodInvocationUnderTestWrapped = true;
+                }
+
+            }
+        });
+
+        return carvedExecution;
+
+    }
+    
+    private CarvedExecution wrapOnPause(final CarvedExecution carvedExecution) {
+        carvedExecution.executionFlowGraphs.forEach(eg -> {
+
+            // OnPause Might be called multiple times, but shall avoid calls that are subsumed here.
+            final List<MethodInvocation> possiblyMoreThanOneOnPause = eg
+                    .getOrderedMethodInvocations().stream().filter(mi -> !mi.isStatic()
+                            && mi.getOwner().isAndroidActivity() && mi.getMethodSignature().contains("void onPause()")
+                            // We allow only root level android events, i.e., events directly triggered by the framework
+                            && carvedExecution.getCallGraphContainingTheMethodInvocation(mi).getRoots().contains(mi))
+                    .collect(Collectors.toList());
+            
+            
+            for (MethodInvocation onPause : possiblyMoreThanOneOnPause) {
+                //
+                DataDependencyGraph ddg = carvedExecution.getDataDependencyGraphContainingTheMethodInvocation(onPause);
+                CallGraph cg = carvedExecution.getCallGraphContainingTheMethodInvocation(onPause);
+
+                // Create the new method wrapping invocation
+                int invocationTraceId = onPause.getInvocationTraceId();
+                String methodSignature = "<org.robolectric.android.controller.ActivityController org.robolectric.android.controller.ActivityController pause()>";
+
+                MethodInvocation activityControllerPause = new MethodInvocation(invocationTraceId, uniqueID.getAndIncrement(), methodSignature);
+                // Force this to be necessary
+                activityControllerPause.setNecessary(true);
+                activityControllerPause.setPublic(true);
+
+                // The method invocation belongs to the controller
+                activityControllerPause.setOwner(robolectricActivityController);
+                ddg.addDataDependencyOnOwner(activityControllerPause, robolectricActivityController);
+                // Fluent interface
+                activityControllerPause.setReturnValue(robolectricActivityController);
+                ddg.addDataDependencyOnReturn(activityControllerPause, robolectricActivityController);
+
+                // Here we need to wrap the original call with the new one...
+                try {
+                    wrapWith(onPause, activityControllerPause, eg, cg);
+                } catch (ABCException e) {
+                    // TODO Probably we should use a more specific exception
+                    throw new RuntimeException(e);
+                }
+
+                // In case this is indeed the method under test we need to mark it is wrapped inside robolectric.
+                //  OR We need to be able to call the methods on it directly...
+                if (carvedExecution.methodInvocationUnderTest.equals(onPause)) {
                     carvedExecution.isMethodInvocationUnderTestWrapped = true;
                 }
 
