@@ -751,6 +751,27 @@ function show-config() {
   fi
 }
 
+# Aligns the given apk to a 4 byte bound
+function align-apk() {
+  local original_apk="${1:?Missing apk path}"
+
+  if ! command -v zipalign &> /dev/null
+  then
+      echo "'zipalign' is not available. Please add Android/sdk/build-tools/<version> to path." 
+      exit
+  fi
+
+  if [[ -f "${original_apk}" ]]; then
+    local tmp_path="${original_apk}.tmp"
+    mv "${original_apk}" "${tmp_path}" && \
+    zipalign -f -p 4 $tmp_path $original_apk && \
+    sign-apk $original_apk
+  else
+    (echo >&2 "${original_apk} does not exist")
+    return 1
+  fi
+}
+
 # shellcheck disable=SC2120
 function make() {
   MAKE_GENERATOR="${MAKE_GENERATOR:-$(dirname "$0")/make-makefile.py}"
