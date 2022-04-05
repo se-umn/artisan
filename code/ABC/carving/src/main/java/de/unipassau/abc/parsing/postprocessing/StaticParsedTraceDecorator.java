@@ -52,36 +52,38 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
      * @return
      */
 
-    final static List<String> blackList = Arrays
-            .asList(new String[] { //
-                    "<java.lang.System: int identityHashCode(java.lang.Object)>",
-                    // Boxed Type
-                    "<java.lang.Double: java.lang.Double valueOf(double)>",
-                    //
-                    "<java.lang.Integer: int parseInt(java.lang.String)>",
-                    "<java.lang.Integer: java.lang.Integer valueOf(int)>",
-                    //
-                    "<java.lang.Boolean: java.lang.Boolean valueOf(boolean)>",
-                    // Util Method
-                    "<java.util.Arrays: java.util.List asList(java.lang.Object[])>",
-                    // Synthetic Methods
-                    "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object,java.lang.String)>",
-                    // Android Logging
-                    "<android.util.Log: int i(java.lang.String,java.lang.String)>",
-                    "<android.util.Log: int d(java.lang.String,java.lang.String)>",
-                    // Not sure about this one...
-                    "<android.view.LayoutInflater: android.view.LayoutInflater 'from'(android.content.Context)>",
-                    //
-                    "<android.net.Uri: android.net.Uri parse(java.lang.String)>",
-                    // org.apache.commons.lang3.Validate Validate methods
-                    "<org.apache.commons.lang3.Validate: java.lang.Object notNull(java.lang.Object,java.lang.String,java.lang.Object[])>",
-                    "<org.apache.commons.lang3.Validate: java.lang.Object notNull(java.lang.Object)>"
-                    //
-                    });
+    final static List<String> blackList = Arrays.asList(new String[] { //
+            "<java.lang.System: int identityHashCode(java.lang.Object)>",
+            // Boxed Type
+            "<java.lang.Double: java.lang.Double valueOf(double)>",
+            //
+            "<java.lang.Integer: int parseInt(java.lang.String)>",
+            "<java.lang.Integer: java.lang.Integer valueOf(int)>",
+            //
+            "<java.lang.Boolean: java.lang.Boolean valueOf(boolean)>",
+            // Util Method
+            "<java.util.Arrays: java.util.List asList(java.lang.Object[])>",
+            // Synthetic Methods
+            "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object,java.lang.String)>",
+            // Android Logging
+            "<android.util.Log: int i(java.lang.String,java.lang.String)>",
+            "<android.util.Log: int d(java.lang.String,java.lang.String)>",
+            // Not sure about this one...
+            "<android.view.LayoutInflater: android.view.LayoutInflater 'from'(android.content.Context)>",
+            //
+            "<android.net.Uri: android.net.Uri parse(java.lang.String)>",
+            // org.apache.commons.lang3.Validate Validate methods
+            "<org.apache.commons.lang3.Validate: java.lang.Object notNull(java.lang.Object,java.lang.String,java.lang.Object[])>",
+            "<org.apache.commons.lang3.Validate: java.lang.Object notNull(java.lang.Object)>"
+            //
+    });
 
     // Look for code that clint + show the EnumConstant and promote it at the
-    // beginning of the trace
+    // beginning of the trace. Then remove all the calls to <abc.Enum: void
+    // processingEnum()>
+    //
     private ParsedTrace convertEnumConstantsAndCleanUpTrace(ParsedTrace parsedTrace) {
+
         parsedTrace.getParsedTrace().forEach((threadName, graphs) -> {
             final ExecutionFlowGraph executionFlowGraph = graphs.getFirst();
             final CallGraph callGraph = graphs.getThird();
@@ -154,7 +156,28 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
                 });
             });
 
+            List<MethodInvocation> callsToProcessingEnum = executionFlowGraph.getOrderedMethodInvocations().stream()
+                    .filter(mi -> mi.isStatic() && mi.getMethodSignature().equals("<abc.Enum: void processingEnum()>"))
+                    .collect(Collectors.toList());
+
+            // Cleanup the trace by removing the calls to <abc.Enum: void processingEnum()>
+            // and all the methods they subsume
+            callsToProcessingEnum.forEach(mi -> {
+                // Get all the subsumed methods and remove them
+                callGraph.getMethodInvocationsSubsumedBy(mi).forEach(smi -> {
+                    logger.info("Getting rid of " + smi + " as subsumed by " + smi);
+                    executionFlowGraph.remove(smi);
+                    dataDependencyGraph.remove(smi);
+                });
+                // Finally remove the calls themselves
+                logger.info("Getting rid of " + mi);
+                callGraph.remove(mi);
+                executionFlowGraph.remove(mi);
+                dataDependencyGraph.remove(mi);
+            });
+
         });
+
         return parsedTrace;
     }
 
@@ -200,9 +223,11 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
 
             HashMap<String, ObjectInstance> classNameToStaticDependency = new HashMap();
             for (MethodInvocation staticMethodInvocation : staticMethodInvocations) {
+
                 // TODO Simple of FQN?
                 String classNameProvidingStaticMethod = JimpleUtils
                         .getClassNameForMethod(staticMethodInvocation.getMethodSignature());
+
                 if (!classNameToStaticDependency.containsKey(classNameProvidingStaticMethod)) {
                     // Generate the Default Dependency for this method invocation
                     // Add this implicit dependency to all the method that directly or indirectly

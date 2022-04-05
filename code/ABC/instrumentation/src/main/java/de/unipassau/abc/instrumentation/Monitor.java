@@ -59,6 +59,8 @@ public class Monitor {
 
     public final static String ENUM_CONSTANT_GETTER = "<abc.Enum: java.lang.Object syntheticEnumConstantGetter(java.lang.String)>";
 
+    public final static String ENUM_PROCESSING = "<abc.Enum: void processingEnum()>";
+
     // This is public to enable EspressoTest changing it using reflection, see
     // MonitorRule or make Soot change these values dynamically during
     // instrumentation
@@ -96,9 +98,6 @@ public class Monitor {
 
     // Why not a simple int ?
     protected static Integer inside_clinit = 0;
-
-    // Print the trace to a file in the
-    protected static BufferedWriter cg_writer = null;
 
     private final static List<String> boxedPrimitiveTypes = Arrays
             .asList(new String[] { Byte.class.getName(), Short.class.getName(), Integer.class.getName(),
@@ -176,6 +175,7 @@ public class Monitor {
             }
 
             File traceFile = new File(homeFolder, filename);
+
             // Open the writer to this file
             traceFileOutputWriter = new BufferedWriter(new FileWriter(traceFile));
 
@@ -873,12 +873,20 @@ public class Monitor {
                     // If this is an array class we need to extract the base type?
                     // We do not support
 
-                    // Output all the constant values... UGLY
+                    /*
+                     *  Calling enumClass.getEnumConstants() on an ENUM defined by the app results in logging calls to
+                     *  to values[] and clone() on the Enums which then might create wrong static dependencies.
+                     *  
+                     *  To avoid this, we wrap the entire processing of enums inside a "fake call" that we can remove from the trace entirely
+                     */
+                    libCall_impl(null, ENUM_PROCESSING, methodContext, new Object[] { });
+                    
+                    
                     for (Object enumConstant : enumClass.getEnumConstants()) {
                         // DEBUG
 //                        android.util.Log.e(ABC_TAG, "     ----------- Enum Constant " + enumConstant + " --> "
 //                                + enumClass + "@" + System.identityHashCode(enumConstant));
-
+                        // TODO Why not a syntetic call instead?
                         libCall_impl(null, ENUM_CONSTANT_GETTER, methodContext,
                                 // The only parameter is the string name of the constant
                                 new Object[] { enumConstant.toString() });
@@ -887,6 +895,11 @@ public class Monitor {
                                 enumConstant, METHOD_END_TOKEN);
                     }
 
+                    returnInto_impl(null, ENUM_PROCESSING, methodContext, null, METHOD_END_TOKEN);
+                    
+                    
+                    
+                    
                 } catch (Exception e) {
                     android.util.Log.e(ABC_TAG, "FAILED TO PROCESS ENUM FOR " + objects[i]);
                 }
