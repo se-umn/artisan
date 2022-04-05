@@ -12,9 +12,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.junit.Assert;
 import org.junit.Assume;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -23,7 +21,6 @@ import org.slf4j.LoggerFactory;
 
 import com.github.javaparser.ast.CompilationUnit;
 
-import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.carving.utils.MethodInvocationSelector;
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.ExecutionFlowGraph;
@@ -127,7 +124,7 @@ public class TheFifthElementTest {
                 parsedTrace.getUIThreadParsedTrace().getThird());
 
         //
-        Set<MethodInvocation> all = mis.findAllCarvableMethodInvocations(_parsedTrace);
+        Set<MethodInvocation> all = mis.findCarvableMethodInvocations(_parsedTrace);
 //        logger.info("-- All possible carvable targets ");
 //        for (MethodInvocation m : all) {
 //            logger.info(" " + m);

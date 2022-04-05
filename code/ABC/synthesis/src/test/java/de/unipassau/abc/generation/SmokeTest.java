@@ -717,7 +717,7 @@ public class SmokeTest {
 
         MethodInvocationSelector mis = new MethodInvocationSelector();
         List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
-                mis.findAllCarvableMethodInvocations(parsedTrace));
+                mis.findCarvableMethodInvocations(parsedTrace));
 
         System.out.println("Found " + listOfTargetMethodsInvocations.size() + " carvable targets ");
         for (MethodInvocation m : listOfTargetMethodsInvocations) {
@@ -778,7 +778,7 @@ public class SmokeTest {
 
         MethodInvocationSelector mis = new MethodInvocationSelector();
         List<MethodInvocation> listOfTargetMethodsInvocations = new ArrayList(
-                mis.findAllCarvableMethodInvocations(parsedTrace));
+                mis.findCarvableMethodInvocations(parsedTrace));
 
         Set<MethodInvocation> targetMethodsInvocations = new HashSet<MethodInvocation>();
 //      for(MethodInvocation targetMethod:listOfTargetMethodsInvocations){

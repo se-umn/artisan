@@ -41,7 +41,7 @@ public class ParserTest {
 		ParsedTrace parsedTrace = decorator.decorate(_parsedTrace);
 
 		MethodInvocationSelector mis = new MethodInvocationSelector();
-		Set<MethodInvocation> targetMethodsInvocations = mis.findAllCarvableMethodInvocations(parsedTrace);
+		Set<MethodInvocation> targetMethodsInvocations = mis.findCarvableMethodInvocations(parsedTrace);
 
 	}
 }

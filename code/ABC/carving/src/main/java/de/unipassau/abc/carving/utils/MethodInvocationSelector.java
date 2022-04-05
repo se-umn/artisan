@@ -2,10 +2,10 @@ package de.unipassau.abc.carving.utils;
 
 import java.util.HashSet;
 import java.util.Map.Entry;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.Set;
 
-import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
 import de.unipassau.abc.data.ExecutionFlowGraph;
@@ -24,7 +24,57 @@ import de.unipassau.abc.parsing.ParsedTrace;
 public class MethodInvocationSelector {
 
     public enum StrategyEnum {
-        SELECT_ALL, SELECT_ONE;
+        SELECT_ALL, SELECT_ONE, SELECT_ACTIVITIES_ALL, SELECT_ACTIVITIES_ONE;
+
+        /**
+         * Creates a new (possibly) stateful predicate based on the given strategy.
+         *
+         * @return predicate to comply with this strategy
+         */
+        Predicate<MethodInvocation> predicate() {
+            switch (this) {
+                case SELECT_ALL:
+                    return e -> true;
+                case SELECT_ONE:
+                    return selectOne();
+                case SELECT_ACTIVITIES_ALL:
+                    return selectActivitiesAll();
+                case SELECT_ACTIVITIES_ONE:
+                    return selectActivitiesOne();
+                default:
+                    throw new RuntimeException("Not implemented");
+            }
+        }
+    }
+
+    /**
+     * Selects only those method invocations with previously unseen method signature.
+     * This is mostly to smoke test the implementation.
+     *
+     * @return predicate to select unique method invocations
+     */
+    private static Predicate<MethodInvocation> selectOne() {
+        Set<String> uniqueMethodInvocationSignatures = new HashSet<>();
+        return m -> uniqueMethodInvocationSignatures.add(m.getMethodSignature());
+    }
+
+    /**
+     * Selects all method invocations that belong to android activities.
+     *
+     * @return predicate to select all android activity method invocations
+     */
+    private static Predicate<MethodInvocation> selectActivitiesAll() {
+        return m -> m.getOwner().isAndroidActivity();
+    }
+
+    /**
+     * Selects only those method invocations that belong to android activities and
+     * have previously unseen method signature.
+     *
+     * @return predicate to select unique android activity method invocations
+     */
+    private static Predicate<MethodInvocation> selectActivitiesOne() {
+        return selectActivitiesAll().and(selectOne());
     }
 
     /**
@@ -49,19 +99,23 @@ public class MethodInvocationSelector {
      * @param parsedTrace
      * @return
      */
-    public Set<MethodInvocation> findAllCarvableMethodInvocations(ParsedTrace parsedTrace) {
-        Set<MethodInvocation> carvableMethodInvocations = new HashSet<MethodInvocation>();
+    public Set<MethodInvocation> findCarvableMethodInvocations(ParsedTrace parsedTrace) {
+        return findCarvableMethodInvocations(parsedTrace, StrategyEnum.SELECT_ALL);
+    }
+
+    public Set<MethodInvocation> findCarvableMethodInvocations(ParsedTrace parsedTrace,
+        StrategyEnum strategy) {
+        Set<MethodInvocation> carvableMethodInvocations = new HashSet<>();
 
         for (Entry<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> entry : parsedTrace
-                .getParsedTrace().entrySet()) {
+            .getParsedTrace().entrySet()) {
 
             carvableMethodInvocations.addAll(entry.getValue().getFirst().getOrderedMethodInvocations());
         }
 
         // Additional filters
 
-        return filterCarvableMethodInvocations(parsedTrace, carvableMethodInvocations);
-
+        return filterCarvableMethodInvocations(parsedTrace, carvableMethodInvocations, strategy.predicate());
     }
 
     /**
@@ -71,7 +125,8 @@ public class MethodInvocationSelector {
      * @return
      */
     public Set<MethodInvocation> filterCarvableMethodInvocations(ParsedTrace parsedTrace,
-            Set<MethodInvocation> selectedCarvableMethodInvocation) {
+            Set<MethodInvocation> selectedCarvableMethodInvocation,
+        Predicate<MethodInvocation> filterStrategy) {
 
         // Apply Basic Filters
         Set<MethodInvocation> filteredSelectedCarvableMethodInvocations = selectedCarvableMethodInvocation.stream()
@@ -85,6 +140,7 @@ public class MethodInvocationSelector {
                                                                                         // classe
                 .filter(mi -> !mi.isStatic() && !mi.getOwner().isAndroidFragment()) // Anything that belongs to a
                                                                                     // Fragment cannot be tested
+                .filter(filterStrategy)  // Strategy filtering
                 .collect(Collectors.toSet());
 
         // Apply Complex Filters
@@ -111,19 +167,11 @@ public class MethodInvocationSelector {
      * @return
      */
     public Set<MethodInvocation> findUniqueCarvableMethodInvocations(ParsedTrace parsedTrace) {
-        Set<MethodInvocation> carvableMethodInvocations = new HashSet<MethodInvocation>();
-        // Select all the valid ones
-        Set<MethodInvocation> allCarvableMethodInvocations = findAllCarvableMethodInvocations(parsedTrace);
-        // Filter by method invocation signature
-        Set<String> uniqueMethodInvocationSignatures = new HashSet<String>();
-        for (MethodInvocation methodInvocation : allCarvableMethodInvocations) {
-            if (!uniqueMethodInvocationSignatures.contains(methodInvocation.getMethodSignature())) {
-                carvableMethodInvocations.add(methodInvocation);
-                uniqueMethodInvocationSignatures.add(methodInvocation.getMethodSignature());
-            }
-        }
-        return carvableMethodInvocations;
+        //Set<MethodInvocation> carvableMethodInvocations = new HashSet<MethodInvocation>();
 
+        // Select all the valid ones
+        Set<MethodInvocation> allCarvableMethodInvocations = findCarvableMethodInvocations(parsedTrace);
+        return allCarvableMethodInvocations.stream().filter(selectOne()).collect(Collectors.toSet());
     }
 
     /**
@@ -135,7 +183,7 @@ public class MethodInvocationSelector {
             MethodInvocationMatcher matcInvocationMatcher) {
         Set<MethodInvocation> carvableMethodInvocations = new HashSet<MethodInvocation>();
         // Select all the valid ones
-        Set<MethodInvocation> allCarvableMethodInvocations = findAllCarvableMethodInvocations(parsedTrace);
+        Set<MethodInvocation> allCarvableMethodInvocations = findCarvableMethodInvocations(parsedTrace);
         for (MethodInvocation methodInvocation : allCarvableMethodInvocations) {
             if (matcInvocationMatcher.matches(methodInvocation)) {
                 carvableMethodInvocations.add(methodInvocation);

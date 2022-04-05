@@ -13,7 +13,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -22,7 +21,6 @@ import org.slf4j.LoggerFactory;
 
 import com.github.javaparser.ast.CompilationUnit;
 
-import de.unipassau.abc.carving.exceptions.CarvingException;
 import de.unipassau.abc.carving.utils.MethodInvocationSelector;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.MethodInvocationMatcher;
@@ -95,7 +93,7 @@ public class BasicCalculatorTest {
         parsedTrace = decorator.decorate(parsedTrace);
 
         //
-        Set<MethodInvocation> all = mis.findAllCarvableMethodInvocations(_parsedTrace);
+        Set<MethodInvocation> all = mis.findCarvableMethodInvocations(_parsedTrace);
         logger.debug("-- All possible carvable targets ");
         for (MethodInvocation m : all) {
             logger.debug("" + m.isAbstract() + " " + m);
