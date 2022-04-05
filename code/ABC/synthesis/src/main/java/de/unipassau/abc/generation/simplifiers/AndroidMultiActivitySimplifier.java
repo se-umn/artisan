@@ -47,7 +47,7 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
 
     @Override
     public CarvedExecution doSimplification(CarvedExecution carvedExecution) throws CarvingException, ABCException {
-        logger.debug("Simplify using " + this.getClass());
+        logger.info("Simplify using " + this.getClass());
 
         // Do not clean up the tag. We still need the ORIGINAL necessary activity to be
         // stored/saved otherwise we cannot remove the noisy dependencies without
@@ -56,9 +56,9 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
 
         // Remove Lambdas and the like no matter what
         carvedExecution = removeLambdas(carvedExecution);
-        // We cannot re-carve here otherwise all the data set inside the lamdbas on the
-        // intent is lost...
-
+        //
+        // TODO: This seems to be broken !!!
+        //
         carvedExecution = removeBannedActivityCalls(carvedExecution);
         //
         carvedExecution = ensureOnlyOneActivityRemains(carvedExecution);
@@ -144,23 +144,26 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
             // consistently pick the one which have larger ID?
             //
             if (problematicDependencies.size() > 0) {
+                // Why can't I simply remove all of them at once?
+
                 Collections.sort(problematicDependencies);
                 Collections.reverse(problematicDependencies);
                 // Why we do it one at the time ?!
                 // Take the one which has higher ID, meaning that "temporally" is closer to MUT
-                MethodInvocation problematicMethodInvocation = problematicDependencies.iterator().next();
-                //
-                logger.debug("Getting rig of problematic invocation:" + problematicMethodInvocation);
+//                MethodInvocation problematicMethodInvocation = problematicDependencies.iterator().next();
 
-                // Why this requires recarving? to remove all the calls that might depend on the
-                // problematic
-                carvedExecution.removeTransitively(problematicMethodInvocation);
+                final CarvedExecution _carvedExecution = carvedExecution;
+                problematicDependencies.forEach(pd -> {
+                    logger.debug("Getting rig of problematic invocation:" + pd);
+                    _carvedExecution.removeTransitively(pd);
+                });
 
-                // TODO Check the correctness of this operation !
+                // If we do not reset is necessary flag, the removed methods will automatically
+                // be there again
                 resetIsNecessaryTag(carvedExecution);
-                // TODO This might end up carving more than necessary, since we recarve after
-                // removing each problematic dep, while probably we could remove all of them at
-                // once? Also, we reCARVE after applying this simplifier.
+
+                // We recarve only in the scope of the carved execution... that does not have
+                // the problem
                 BasicCarver carver = new BasicCarver(carvedExecution);
                 CarvedExecution reCarvedExecution = carver.recarve(carvedExecution.methodInvocationUnderTest).stream()
                         .findFirst().get();
@@ -168,7 +171,8 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
                 reCarvedExecution.traceId = carvedExecution.traceId;
                 reCarvedExecution.isMethodInvocationUnderTestWrapped = carvedExecution.isMethodInvocationUnderTestWrapped;
 
-                return reCarvedExecution;
+//                return reCarvedExecution;
+                carvedExecution = reCarvedExecution;
 
             } else {
                 throw new ABCException("Many activities but no problematic invocations?!");

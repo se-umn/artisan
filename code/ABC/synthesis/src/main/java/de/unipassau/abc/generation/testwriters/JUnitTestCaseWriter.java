@@ -159,8 +159,10 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
     }
 
     public CompilationUnit generateJUnitTestCase(TestClass testCase, TestMethodNamer testMethodNamer) {
-        logger.info("Generate source code for " + testCase.getName());
-
+        logger.info("-------------------------");
+        logger.info("Generate JUnit Test Case " + testCase.getName() + " for testing " + testCase.getCarvedTests());
+        logger.info("-------------------------");
+        
         CompilationUnit cu = new CompilationUnit();
 
         cu.setPackageDeclaration(testCase.getPackageName());
@@ -278,7 +280,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
      */
     public BlockStmt generateBlockStmtFrom(CarvedTest carvedTest) {
 
-        logger.info("Generate Method Body");
+        logger.debug("Generate Method Body");
         // Alessio: At this point the execution flow graph already contains the code for
         // the mocks and the shadows
         ExecutionFlowGraph executionFlowGraph = carvedTest.getExecutionFlowGraph();
@@ -317,7 +319,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
             String fqn = JimpleUtils.getFullyQualifiedMethodName(methodInvocation.getMethodSignature());
             if (filterMethods.contains(fqn)) {
-                logger.info("Force Filter method invocation" + methodInvocation);
+                logger.debug("Force Filter method invocation" + methodInvocation);
                 continue;
             }
             // Now we create each method calls making sure that variables and the like
@@ -530,10 +532,10 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
 
     private void generateMethodBody(MethodDeclaration testMethod, CarvedTest carvedTest) {
         // logging
-        logger.info("Method under test:");
-        logger.info(carvedTest.getMethodUnderTest().toString());
-        logger.info("Statements:");
-        carvedTest.getStatements().forEach(methodInvocation -> logger.info(methodInvocation.toFullString()));
+        logger.debug("Method under test:");
+        logger.debug(carvedTest.getMethodUnderTest().toString());
+        logger.debug("Statements:");
+        carvedTest.getStatements().forEach(methodInvocation -> logger.debug(methodInvocation.toFullString()));
 
         if (carvedTest.expectException()) {
             BlockStmt methodBody = generateBlockStmtFrom(carvedTest);
@@ -587,7 +589,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
          * doing so it is tricky as arguments used in the constructor must be
          * initialized and set before use so we simply reassign the variable...
          */
-        logger.info("JUnitTestCaseWriter.generateConstructorCall() " + methodInvocation);
+        logger.debug("JUnitTestCaseWriter.generateConstructorCall() " + methodInvocation);
         ObjectInstance owner = methodInvocation.getOwner();
         String variableName = getVariableFor(owner, methodBody);
         Expression variableInitializingExpr;
@@ -738,7 +740,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         Expression methodCallExpr;
         String variableName = null;
 
-        logger.info("GENERATING CODE FOR " + methodInvocation);
+        logger.debug("GENERATING CODE FOR " + methodInvocation);
 
         /**
          * Step 1: prepare the invocation of the method
@@ -995,7 +997,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
      */
     private String getParameterFor(DataNode dataNode, BlockStmt methodBody) {
         if (dataNode instanceof PrimitiveValue) {
-            logger.info("Get Parameter for data node " + dataNode + " of type " + dataNode.getType());
+            logger.debug("Get Parameter for data node " + dataNode + " of type " + dataNode.getType());
             try {
                 if (Class.class.getName().equals(dataNode.getType())) {
                     // Try to represent inner classes with dot notation

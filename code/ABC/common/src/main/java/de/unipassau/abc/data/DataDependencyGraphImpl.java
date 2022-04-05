@@ -1462,6 +1462,10 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
                 theObjectAndItsAliases.addAll(getAliasesOf(objectInstance));
                 boolean isDangling = true;
                 for (ObjectInstance oi : theObjectAndItsAliases) {
+                    if (! getConstructorOf(oi).isPresent()) {
+                        logger.info(">> Cannot find constructor of " + oi);
+                    }
+                    
                     if (getConstructorOf(oi).isPresent() || !getMethodInvocationsWhichReturn(oi).isEmpty()) {
                         isDangling = false;
                         break;

@@ -1,3 +1,4 @@
+
 package de.unipassau.abc.generation;
 
 import static org.junit.Assert.fail;
@@ -177,6 +178,10 @@ public class PrismaBlockerTest {
      * /Users/gambi/action-based-test-carving/apps-src/PrismaCallBlocker/traces/com.prismaqf.callblocker.UpdateFilterRuleTest#TestAutoSaveAfterPatternsUpdate/Trace-1644245853085.txt
      * Method invocation under test: <com.prismaqf.callblocker.rules.FilterRule:
      * void addPattern(java.lang.String)>_631_1256
+     * 
+     * @throws ABCException
+     * @throws IOException
+     * @throws FileNotFoundException
      */
     /*
      * Private constructor... the ideal solution would be to realize that there's
@@ -184,6 +189,18 @@ public class PrismaBlockerTest {
      * (name/description) and then call the public method addPattern Definitively
      * out of the scope here....
      */
+
+    @Test
+    public void failedTestSynthesis() throws FileNotFoundException, IOException, ABCException {
+        file = getTraceFileFrom("com.prismaqf.callblocker.EditFiltersTest#ChangeActionTest");
+
+        String methodSignature = "<com.prismaqf.callblocker.CallBlockerManager: void onCreate(android.os.Bundle)>";
+        int invocationCount = 8;
+        int invocationTraceId = 16;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+
+    }
 
     // Classes that extends subtypes of activities, like AppCompactActivity are not
     // correctly handled.

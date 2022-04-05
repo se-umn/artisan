@@ -34,6 +34,8 @@ import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
 
 public class MockGenerator {
 
+    private final static Logger logger = LoggerFactory.getLogger(MockGenerator.class);
+    
     private static final String MOCK_SIGNATURE = "<org.mockito.Mockito: java.lang.Object mock(java.lang.Class)>";
     private static final String RETURN_SIGNATURE = "<org.mockito.Mockito: org.mockito.stubbing.Stubber doReturn(java.lang.Object)>";
     private static final String RETURN_VOID_SIGNATURE = "<org.mockito.Mockito: org.mockito.stubbing.Stubber doNothing()>";
@@ -53,10 +55,10 @@ public class MockGenerator {
 
 //            MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT);
 
-    private final static Logger logger = LoggerFactory.getLogger(MockGenerator.class);
+    
 
     /**
-     * Generate mocks is an interative process. We start from the carvedTest and
+     * Generate mocks is an iterative process. We start from the carvedTest and
      * mock visible (but dangling objects). While doing so we might expose
      * additional dependencies that before were buries in the carved execution,
      * therefore we need to re-carve and mock them again...

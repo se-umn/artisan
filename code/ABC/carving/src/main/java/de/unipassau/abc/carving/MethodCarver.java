@@ -16,23 +16,24 @@ import de.unipassau.abc.exceptions.ABCException;
  */
 public interface MethodCarver {
 
-	/**
-	 * Return all the carved tests for the given method invocation
-	 * 
-	 * @param methodInvocation
-	 * @return
-	 * @throws CarvingException
-	 * @throws ABCException
-	 */
-	public List<CarvedExecution> carve(MethodInvocation methodInvocation) throws CarvingException, ABCException;
+    /**
+     * Return all the carved tests for the given method invocation
+     * 
+     * @param methodInvocation
+     * @return
+     * @throws CarvingException
+     * @throws ABCException
+     */
+    public List<CarvedExecution> carve(MethodInvocation methodInvocation) throws CarvingException, ABCException;
 
-	/**
-	 * Return all the carved tests for all the given method invocations
-	 * 
-	 * @param methodInvocations
-	 * @return
-	 * @throws CarvingException
-	 */
-	public Map<MethodInvocation, List<CarvedExecution>> carve(List<MethodInvocation> methodInvocations)
-			throws CarvingException, ABCException;
+    /**
+     * Return all the carved tests for all the given method invocations
+     * 
+     * @param methodInvocations
+     * @return
+     * @throws CarvingException
+     */
+    public Map<MethodInvocation, List<CarvedExecution>> carve(List<MethodInvocation> methodInvocations)
+            throws CarvingException, ABCException;
+
 }

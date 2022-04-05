@@ -2,7 +2,6 @@ package de.unipassau.abc.carving;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,7 +32,6 @@ import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.Triplette;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.parsing.ParsedTrace;
-import de.unipassau.abc.utils.PrintUtility;
 
 /**
  * Basic carver is a method carver, that is, it will produce a carved execution
@@ -45,14 +43,27 @@ import de.unipassau.abc.utils.PrintUtility;
  */
 public class BasicCarver implements MethodCarver {
 
+    // TODO Has this to be global/static?
+    // For each MethodInvocation it links the necessary method invocations found for
+    // it/
+    // TODO For the moment we can carve the necessary method invocations of the
+    // carved methods instead of storing everything
+    private static Map<MethodInvocation, Set<MethodInvocation>> globalCache = new HashMap<MethodInvocation, Set<MethodInvocation>>();
+
+    public static void resetGlobalCache() {
+        globalCache.clear();
+    }
+
     private static Logger logger = LoggerFactory.getLogger(BasicCarver.class);
+
+    private static boolean globalCachedEnabled = false;
 
     final private ExecutionFlowGraph executionFlowGraph;
     final private DataDependencyGraph dataDependencyGraph;
     final private CallGraph callGraph;
     private String traceId;
 
-    // Bookkeep the carved method invocations.
+    // Bookkeep the carved method invocations. - Why this is reset every time?
     private Set<MethodInvocation> carvedMethodInvocationsCache = new HashSet<MethodInvocation>();
 
     // This enables carving from a carvedExecution
@@ -77,7 +88,9 @@ public class BasicCarver implements MethodCarver {
         this.executionFlowGraph = executionTraceForMainThread.getFirst();
         this.dataDependencyGraph = executionTraceForMainThread.getSecond();
         this.callGraph = executionTraceForMainThread.getThird();
+        
         this.traceId = parsedTrace.traceFileName();
+
     }
 
     /**
@@ -102,6 +115,20 @@ public class BasicCarver implements MethodCarver {
     private Set<MethodInvocation> findNecessaryMethodInvocations(MethodInvocation methodInvocation) {
 
         logger.debug("* Find necessary method invocations for" + methodInvocation.toString());
+
+        // For the moment this is limited to return carvable targets that have been
+        // already carved out
+        if (globalCachedEnabled && globalCache.containsKey(methodInvocation)) {
+            logger.debug(
+                    "- " + methodInvocation + " already carved. Return necessary invocations from the global cache.");
+            // Set the method invocations to be necessary
+            Set<MethodInvocation> cached = globalCache.get(methodInvocation);
+            cached.forEach(mi -> {
+                mi.setNecessary(true);
+            });
+
+            return cached;
+        }
 
         Set<MethodInvocation> relevantMethodInvocations = new HashSet<>();
 
@@ -449,6 +476,7 @@ public class BasicCarver implements MethodCarver {
             // Create a clone and mark it as necessary
             MethodInvocation clonedMethodInvocation = t.clone();
             clonedMethodInvocation.setNecessary(true);
+            
             return clonedMethodInvocation;
         }).collect(Collectors.toSet()));
 
@@ -470,6 +498,11 @@ public class BasicCarver implements MethodCarver {
                     return t.toString();
                 }
             }).forEach(logger::debug);
+        }
+
+        if (globalCachedEnabled) {
+            logger.debug("Storing necessary method invocations for " + methodInvocation + " in the global cache");
+            globalCache.put(methodInvocation, necessaryMethodInvocations);
         }
 
         List<CarvedExecution> carvedExecutions = carveFrom(allMethodInvocations, necessaryMethodInvocations);
@@ -685,7 +718,7 @@ public class BasicCarver implements MethodCarver {
         Set<MethodInvocation> necessaryMethodInvocations = new HashSet<MethodInvocation>();
 
         // Step 1: Collect all the necessary invocations that have been tagged during
-        // simplification. The shall remain
+        // simplification. They shall remain
         Set<MethodInvocation> alreadyNecessaryMethodInvocations = this.executionFlowGraph.getOrderedMethodInvocations()
                 .stream().filter(mi -> mi.isNecessary()).collect(Collectors.toSet());
 
@@ -720,7 +753,8 @@ public class BasicCarver implements MethodCarver {
              * necessary, as those will impact future carving activities. Instead, we clone
              * them and explicitly tag them as necessary.
              */
-
+            // Make sure we do NOT use the global cache otherwise we'll bring back methods
+            // that we just removed during simplification
             necessaryMethodInvocations.addAll(findNecessaryMethodInvocations(methodInvocation).stream().map(t -> {
                 // Create a clone and mark it as necessary
                 MethodInvocation clonedMethodInvocation = t.clone();
@@ -762,6 +796,18 @@ public class BasicCarver implements MethodCarver {
         });
 
         return carvedExecutions;
+
+    }
+
+    public static void enableGlobalCache() {
+        logger.warn("Enable Global Cache");
+        globalCachedEnabled = true;
+
+    }
+
+    public static void disableGlobalCache() {
+        logger.warn("Disable Global Cache");
+        globalCachedEnabled = false;
 
     }
 

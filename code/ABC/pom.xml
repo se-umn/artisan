@@ -13,6 +13,10 @@
 
 	<name>Action-Based Test Carving for Android </name>
 
+	<properties>
+		<maven.multiModuleProjectDirectory>/Users/gambi/action-based-test-carving/code/ABC</maven.multiModuleProjectDirectory>
+	</properties>
+
 	<developers>
 		<developer>
 			<id>gambi</id>

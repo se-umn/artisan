@@ -45,7 +45,7 @@ public class ModVisitor extends ModifierVisitor<String> {
             logger.debug("Removed:" + expr);
             return null;
         } else if (declaresRelevantVar && mce != null) {
-            logger.info("Changed: " + expr + " to: " + mce);
+            logger.debug("Changed: " + expr + " to: " + mce);
             return mce;
         }
         return expr;

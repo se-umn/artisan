@@ -14,6 +14,7 @@ public abstract class AbstractCarvedExecutionSimplifier implements CarvedExecuti
             carvedExecution = doSimplification(carvedExecution);
 
             BasicCarver carver = new BasicCarver(carvedExecution);
+            // Recarving the original method is not always necessary !
             CarvedExecution reCarvedExecution = carver.recarve(carvedExecution.methodInvocationUnderTest).stream()
                     .findFirst().get();
 
@@ -23,7 +24,6 @@ public abstract class AbstractCarvedExecutionSimplifier implements CarvedExecuti
             return reCarvedExecution;
 
         } else {
-            System.out.println("AbstractCarvedExecutionSimplifier.simplify() SKIPPED");
             return carvedExecution;
         }
 

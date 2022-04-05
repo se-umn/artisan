@@ -137,10 +137,10 @@ public class Main {
                 int selectedCarvableTargets = targetMethodsInvocations.size();
 
                 if (selectedCarvableTargets == 0) {
-                    logger.warn("There are no targets carvable from trace file " + traceFile);
+                    logger.warn("** There are no targets carvable from trace file " + traceFile);
                     continue;
                 } else {
-                    logger.info("Selected " + selectedCarvableTargets + " targets from trace file " + traceFile
+                    logger.info("** Selected " + selectedCarvableTargets + " targets from trace file " + traceFile
                             + " using strategy " + cli.getSelectionStrategy());
                 }
 
@@ -158,7 +158,7 @@ public class Main {
 
                 int carvedTargets = carvedTests.size();
 
-                logger.info("Carved targets " + carvedTargets + " / " + selectedCarvableTargets);
+                logger.info("** Carved targets " + carvedTargets + " / " + selectedCarvableTargets);
 
                 totalCarvedExecutions = totalCarvedExecutions + carvedTargets;
 
@@ -215,9 +215,9 @@ public class Main {
                         generatedTests.put(testCase, testFile);
 
                     } catch (NotImplementedException e) {
-                        System.err.println("Cannot generate test " + testCase.getName() + ":" + e.getMessage());
+                        logger.error("** Cannot generate test " + testCase.getName() + ":" + e.getMessage());
                     } catch (Throwable e) {
-                        System.err.println("Cannot generate test " + testCase.getName());
+                        logger.error("** Cannot generate test " + testCase.getName());
                         e.printStackTrace();
                     }
                 }
@@ -234,7 +234,7 @@ public class Main {
                 shadowWriter.generateAndWriteShadows(sortedTestSuiteList, sourceFolder);
 
             } catch (Exception e) {
-                System.err.println("Error while processing trace " + traceFile);
+                logger.error("** Error while processing trace " + traceFile);
                 e.printStackTrace();
             }
 
@@ -247,6 +247,7 @@ public class Main {
         stats.append("Carvable Targets: ").append(totalCarvableTargets).append("\n");
         stats.append("Carved Executions: ").append(totalCarvedExecutions).append("\n");
         stats.append("Generated Tests: ").append(totalGeneratedTests).append("\n");
-        System.out.println(stats);
+        ///
+        logger.info(stats.toString());
     }
 }

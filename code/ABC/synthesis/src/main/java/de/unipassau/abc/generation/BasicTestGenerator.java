@@ -65,8 +65,7 @@ public class BasicTestGenerator implements TestGenerator {
             // Transform android activity calls into robolectric-calls
             new RobolectricActivitySimplifier(),
             // Transform android service calls into robolectric-calls
-            new RobolectricServiceSimplifier()
-          );
+            new RobolectricServiceSimplifier());
 
     @Override
     public Collection<CarvedTest> generateTests(List<MethodInvocation> targetMethodsInvocations, ParsedTrace trace)
@@ -79,8 +78,25 @@ public class BasicTestGenerator implements TestGenerator {
          * data-dependencies
          */
         BasicCarver carver = new BasicCarver(trace);
+        // Enable using the global cache
+        BasicCarver.enableGlobalCache();
+        // Reset the global cache to avoid pollution from previous executions
+        BasicCarver.resetGlobalCache();
+
+        int carved = 0;
+        int total = targetMethodsInvocations.size();
 
         for (MethodInvocation targetMethodInvocation : targetMethodsInvocations) {
+
+            carved = carved + 1;
+
+            // Track some progress
+            logger.info("-------------------------");
+            logger.info("  CARVING: " + carved + " of " + total //
+                    + " (" + ((double) carved / (double) total) * 100.0 + ")");
+            logger.info("-------------------------");
+
+            // TODO What cache is this cache?!
             // TODO When carving multiple targes we can use
             // carver.carve(List<methodInvocations>), this invalidate automatically
             // the cache
@@ -89,10 +105,12 @@ public class BasicTestGenerator implements TestGenerator {
             for (CarvedExecution carvedExecution : carver.carve(targetMethodInvocation)) {
                 try {
 
-//                    ALESSIO: CarvedExecution CONTAINS the implicit dependencies, not sure why the CARVED test does
-//                    not, maybe we cut them away to simplify synthesis?
+                    // At this point, we should disable caching
+                    BasicCarver.disableGlobalCache();
+
                     CarvedTest carvedTest = generateCarvedTestFromCarvedExecution(carvedExecution);
 
+                    BasicCarver.enableGlobalCache();
                     carvedTests.add(carvedTest);
 
                     logger.info("-------------------------");
@@ -169,14 +187,7 @@ public class BasicTestGenerator implements TestGenerator {
             }
         }
 
-        //
-//        final 
         CarvedExecution carvedExecution = _carvedExecution;
-
-        // Make sure we tag those with the correct method under test
-//      carvedExecutions.forEach(ce -> {
-
-//      });
         /*
          * The carved execution contains a collection of (complete) call graphs, but in
          * the test we can only directly invoke the root(s) of those graphs, as all the
@@ -189,7 +200,7 @@ public class BasicTestGenerator implements TestGenerator {
         Collections.sort(directlyCallableMethodInvocations);
         // logging
         logger.info("Directly callable method invocations:");
-        directlyCallableMethodInvocations.stream().map(m -> m.toString()).forEach(logger::info);
+        directlyCallableMethodInvocations.stream().map(m -> m.toFullString()).forEach(logger::info);
 
         /*
          * Validation: If the directlyCallableMethodInvocations do not contain the
@@ -200,8 +211,7 @@ public class BasicTestGenerator implements TestGenerator {
         // TODO This should be placed in yet another simplifier or post-processor
         boolean needsFix = false;
         final MethodInvocation mut = carvedExecution.methodInvocationUnderTest;
-        if (!directlyCallableMethodInvocations.stream()
-                .anyMatch(mi -> mi.equals(mut))
+        if (!directlyCallableMethodInvocations.stream().anyMatch(mi -> mi.equals(mut))
                 && !carvedExecution.isMethodInvocationUnderTestWrapped) {
 
             // This might break the test because it might expose a method that is necessary
@@ -291,9 +301,11 @@ public class BasicTestGenerator implements TestGenerator {
 
             reCarvedExecution.traceId = carvedExecution.traceId;
             reCarvedExecution.isMethodInvocationUnderTestWrapped = carvedExecution.isMethodInvocationUnderTestWrapped;
-            
-            // NOTE We need to replace the carvedExecution with the recarved one at this point !
+
+            // NOTE We need to replace the carvedExecution with the recarved one at this
+            // point !
             carvedExecution = reCarvedExecution;
+
         }
 
         // Check if, after the recovery, the method under test is still not visible...
@@ -305,8 +317,7 @@ public class BasicTestGenerator implements TestGenerator {
             directlyCallableMethodInvocations.stream().map(m -> m.toString()).forEach(logger::info);
         }
 
-        if (!directlyCallableMethodInvocations.stream()
-                .anyMatch(mi -> mi.equals(mut))
+        if (!directlyCallableMethodInvocations.stream().anyMatch(mi -> mi.equals(mut))
                 && !carvedExecution.isMethodInvocationUnderTestWrapped) {
             throw new CarvingException("Target method invocation " + carvedExecution.methodInvocationUnderTest
                     + "is not directly visible ");
@@ -346,10 +357,12 @@ public class BasicTestGenerator implements TestGenerator {
          * Generate the structures required for test synthesis. MOVE THIS TO AN EXTERNAL
          * METHOD MAYBE?
          */
+
         for (MethodInvocation methodInvocation : directlyCallableMethodInvocations) {
             // TODO For some reason here we do not look up the data dep graph, but directly
             // look inside the methodInvocation object
 
+            System.out.println(" Adding " + methodInvocation);
             executionFlowGraph.enqueueMethodInvocations(methodInvocation);
             // Fix the data deps
             dataDependencyGraph.addMethodInvocationWithoutAnyDependency(methodInvocation);
@@ -390,6 +403,12 @@ public class BasicTestGenerator implements TestGenerator {
                 DataNode implicitDataDependency = implicitIt.next();
                 dataDependencyGraph.addImplicitDataDependency(methodInvocation, implicitDataDependency);
             }
+
+//            System.out.println(" Object Instances ");
+//
+//            dataDependencyGraph.getObjectInstances().forEach(oi -> {
+//                System.out.println(" - " + oi);
+//            });
 
         }
 

@@ -33,10 +33,10 @@ public class ShadowWriter {
         // each test case is a set of carved tests
         // no, this is actually a whole carved test?
         for (TestClass testCase : testClasses) {
-            logger.info("Generate Shadows for TEST CLASS NAME: " + testCase.getName());
+            logger.debug("Generate Shadows for TEST CLASS NAME: " + testCase.getName());
             // iterate over the carved tests in each test case
             for (CarvedTest carvedTest : testCase.getCarvedTests()) {
-                logger.info("CARVED TEST FOR TEST CLASS: " + carvedTest.getUniqueIdentifier());
+                logger.debug("CARVED TEST FOR TEST CLASS: " + carvedTest.getUniqueIdentifier());
                 // iterate over the shadows in each carved test
                 for (CarvingShadow carvingShadow : carvedTest.getShadows()) {
                     if (shadowToType.containsKey(carvingShadow.getShadowName())) {
@@ -57,7 +57,7 @@ public class ShadowWriter {
                     shadowToMethods.put(carvingShadow.getShadowName(), new HashSet<String>());
 
                     for (String stubbedMethod : carvingShadow.getStubbedMethods()) {
-                        logger.info("Shadow " + carvingShadow.getShadowName() + " has stubbed methods!");
+                        logger.debug("Shadow " + carvingShadow.getShadowName() + " has stubbed methods!");
                         Set<String> methods = shadowToMethods.get(carvingShadow.getShadowName());
                         methods.add(stubbedMethod);
                     }
@@ -68,7 +68,7 @@ public class ShadowWriter {
         for (String shadowName : shadowToType.keySet()) {
         
             String shadowID = shadowName.split("Shadow")[1];
-            logger.info("Shadow:" + shadowName + " with ID " + shadowID );
+            logger.debug("Shadow:" + shadowName + " with ID " + shadowID );
             
             CompilationUnit cu = new CompilationUnit();
             cu.setPackageDeclaration(ShadowWriter.SHADOWS_PACKAGE);
@@ -79,17 +79,17 @@ public class ShadowWriter {
             // we can convert a shadow name to a real class name via the
             // shadowToType map
             shadowedType.setName(shadowToType.get(shadowName));
-            logger.info("Target super class:" + getSuperClass(shadowToType.get(shadowName)));
-            logger.info("Target super class attempt two:" + getSuperClass(shadowedType.getNameAsString()));
+            logger.debug("Target super class:" + getSuperClass(shadowToType.get(shadowName)));
+            logger.debug("Target super class attempt two:" + getSuperClass(shadowedType.getNameAsString()));
             String superType = getSuperClass(shadowedType.getNameAsString());
 
             String possiblyOffensiveSuperType = superType.replaceAll("^org\\.robolectric\\.shadows\\.Shadow", "");
 
-            logger.info("possiblyOffensiveSuperType: " + possiblyOffensiveSuperType);
+            logger.debug("possiblyOffensiveSuperType: " + possiblyOffensiveSuperType);
 
             Set<Map.Entry<String, String>> traversableShadowMappings = shadowToType.entrySet();
 
-            logger.info("traversableShadowMappings: " + traversableShadowMappings);
+            logger.debug("traversableShadowMappings: " + traversableShadowMappings);
 
             for (Map.Entry<String, String> shadowAndClass : traversableShadowMappings) {
                 if (shadowAndClass.getValue().contains(possiblyOffensiveSuperType) && !shadowedType.getNameAsString().contains(possiblyOffensiveSuperType)) {
@@ -102,7 +102,7 @@ public class ShadowWriter {
                 }
             }
 
-            logger.info("superType: " + superType);
+            logger.debug("superType: " + superType);
             
             // set super type if any
             if (!superType.equals("")) {
@@ -168,10 +168,10 @@ public class ShadowWriter {
             Set<String> methodsForShadow = shadowToMethods.get(shadowName);
 
             if (methodsForShadow == null) {
-                logger.info("Shadow name: " + shadowName);
-                logger.info("" + shadowToMethods.entrySet());
-                logger.info("" + shadowToType.entrySet());
-                logger.info("this list is null! something is likely wrong");
+                logger.debug("Shadow name: " + shadowName);
+                logger.debug("" + shadowToMethods.entrySet());
+                logger.debug("" + shadowToType.entrySet());
+                logger.debug("this list is null! something is likely wrong");
             }
 
             for (String methodSignature : methodsForShadow) {
@@ -291,7 +291,7 @@ public class ShadowWriter {
             // we will need to modify the shadow name
             File testFile = new File(shadowFileFolder, shadowName + ".java");
             try {
-                logger.info("Generated shadow code: " + cu.toString());
+                logger.debug("Generated shadow code: " + cu.toString());
                 PrintStream out = new PrintStream(new FileOutputStream(testFile));
                 out.print(cu.toString());
             } catch (Exception e) {

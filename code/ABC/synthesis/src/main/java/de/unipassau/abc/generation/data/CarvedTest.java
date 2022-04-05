@@ -70,7 +70,15 @@ public class CarvedTest {
 		this.assertions = new ArrayList<>();
         this.mocks = new ArrayList<>();
         this.shadows = new ArrayList<>();
+		
+		// DEBUG
+		this.dataDependencyGraph.getObjectInstances().forEach( oi -> {
+		    System.out.println(">> Constructor of " + oi + " == " + this.dataDependencyGraph.getConstructorOf( oi ));
+		    System.out.println(">> Generators of " + oi + " == " + this.dataDependencyGraph.getMethodInvocationsWhichReturn(oi));
+		});
+		
 		this.traceId = traceId;
+		
 	}
 
 	public String getTraceId() {
