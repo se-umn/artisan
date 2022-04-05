@@ -118,12 +118,19 @@ public class BasicTestGenerator implements TestGenerator {
                     logger.info("-------------------------");
 
                 } catch (CarvingException e) {
+                    logger.error("-------------------------");
+                    logger.error("Error Carving " + targetMethodInvocation + " from " + carvedExecution.traceId);
+                    logger.error("Reason: " + e.getMessage());
+                    logger.error("-------------------------");
+                } catch (Throwable e) {
                     // TODO May be too coarse exception
                     logger.error("-------------------------");
                     logger.error("Error Carving " + targetMethodInvocation + " from " + carvedExecution.traceId);
                     logger.error("Reason: " + e.getMessage());
                     logger.error("-------------------------");
-                }
+                    logger.error("Uncaught exception ", e);
+                    logger.error("-------------------------");
+                } 
             }
         }
 
@@ -181,7 +188,7 @@ public class BasicTestGenerator implements TestGenerator {
             } catch (CarvingException ce) {
                 logger.error("Simplification Failed", ce);
                 throw ce;
-            } catch (ABCException e) {
+            } catch (Throwable e) {
                 logger.error("Simplification Failed", e);
                 throw new CarvingException("Simplification Failed", e);
             }

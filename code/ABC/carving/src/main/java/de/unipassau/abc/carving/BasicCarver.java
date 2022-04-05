@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -162,7 +163,8 @@ public class BasicCarver implements MethodCarver {
                      * fails silenty and return an empyt set
                      */
                     t -> methodInvocationOwner.equals(t.getOwner())));
-            logger.debug("Adding method invocations on owner: " + Arrays.toString(relevantMethodInvocations.toArray()));
+            logger.debug("Adding " + relevantMethodInvocations.size() + " method invocations on owner: " + methodInvocationOwner);
+            logger.debug("  " + Arrays.toString(relevantMethodInvocations.toArray()));
         } else {
             // TODO In theory those are NOT mutually exclusive since a class may have static
             // methods and instances...
@@ -178,7 +180,7 @@ public class BasicCarver implements MethodCarver {
 
             relevantMethodInvocations.addAll(staticMethodsOnSameClass);
 
-            logger.debug("Adding method invocations on STATIC of same class: "
+            logger.debug("Adding " + relevantMethodInvocations.size() +" method invocations on STATIC of same class: "
                     + Arrays.toString(relevantMethodInvocations.toArray()));
 
         }
@@ -247,7 +249,7 @@ public class BasicCarver implements MethodCarver {
         /*
          * Relevant Uses (not sure what are they).
          */
-        logger.debug("Collecting data dependencies for relevant method invocations");
+        logger.debug("Collecting data dependencies for relevant " + relevantMethodInvocations.size() + " method invocations");
 
         // TODO Maybe we can avoid this because we have them cached? So we do not add
         // them
@@ -255,7 +257,12 @@ public class BasicCarver implements MethodCarver {
         // Use a map for debugging?
         Set<MethodInvocation> relevantMethodInvocationsOnDataDeps = new HashSet<>();
 
-        for (MethodInvocation relevantMethodInvocation : relevantMethodInvocations) {
+        int i = 1;
+        int all = relevantMethodInvocations.size();
+        
+        for (Iterator<MethodInvocation> it = relevantMethodInvocations.iterator(); it.hasNext(); i++) {
+            
+            MethodInvocation relevantMethodInvocation = it.next();
 
             Set<DataNode> dataDendencies = new HashSet<DataNode>();
 
@@ -275,7 +282,7 @@ public class BasicCarver implements MethodCarver {
                 }
             }
 
-            logger.debug("DataDendencies for " + relevantMethodInvocation + ": "
+            logger.debug( i + "/" + all + ") Found " +dataDendencies.size() + " DataDendencies for " + relevantMethodInvocation + ": "
                     + Arrays.toString(dataDendencies.toArray()));
 
             // TODO Really we should also look at system calls that take this data as
