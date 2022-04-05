@@ -1,10 +1,12 @@
 package de.unipassau.abc.carving.utils;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.Set;
 
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
@@ -105,27 +107,30 @@ public class MethodInvocationSelector {
 
     public Set<MethodInvocation> findCarvableMethodInvocations(ParsedTrace parsedTrace,
         StrategyEnum strategy) {
-        Set<MethodInvocation> carvableMethodInvocations = new HashSet<>();
+        
+        // Here we use a list to promote targets that come first in the trace in case of tie
+        List<MethodInvocation> carvableMethodInvocations = new ArrayList();
 
         for (Entry<String, Triplette<ExecutionFlowGraph, DataDependencyGraph, CallGraph>> entry : parsedTrace
             .getParsedTrace().entrySet()) {
-
+            // Here we use the ordered method invocations
             carvableMethodInvocations.addAll(entry.getValue().getFirst().getOrderedMethodInvocations());
         }
 
-        // Additional filters
-
+        // Apply filters but return a Set
         return filterCarvableMethodInvocations(parsedTrace, carvableMethodInvocations, strategy.predicate());
     }
 
     /**
      * Apply the filters to remove method invocations that are not carvable
      * 
+     * We use the list to keep the order, this might speed up carving a lot!
+     * 
      * @param selectedCarvableMethodInvocation
      * @return
      */
     public Set<MethodInvocation> filterCarvableMethodInvocations(ParsedTrace parsedTrace,
-            Set<MethodInvocation> selectedCarvableMethodInvocation,
+            List<MethodInvocation> selectedCarvableMethodInvocation,
         Predicate<MethodInvocation> filterStrategy) {
 
         // Apply Basic Filters

@@ -131,10 +131,11 @@ public class Main {
 
                 MethodInvocationSelector mis = new MethodInvocationSelector();
 
-                Set<MethodInvocation> targetMethodsInvocations = mis
-                    .findCarvableMethodInvocations(parsedTrace, cli.getSelectionStrategy());
+                List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<>(
+                        mis.findCarvableMethodInvocations(parsedTrace, cli.getSelectionStrategy()));
+                targetMethodsInvocationsList.sort(Comparator.comparingInt(MethodInvocation::getInvocationTraceId));
 
-                int selectedCarvableTargets = targetMethodsInvocations.size();
+                int selectedCarvableTargets = targetMethodsInvocationsList.size();
 
                 if (selectedCarvableTargets == 0) {
                     logger.warn("** There are no targets carvable from trace file " + traceFile);
@@ -146,10 +147,8 @@ public class Main {
 
                 totalCarvableTargets = totalCarvableTargets + selectedCarvableTargets;
 
-                List<MethodInvocation> targetMethodsInvocationsList = new ArrayList<>(targetMethodsInvocations);
-                targetMethodsInvocationsList.sort(Comparator.comparingInt(MethodInvocation::getInvocationTraceId));
-                for (MethodInvocation mi : targetMethodsInvocationsList) {
-                    logger.info("** " + mi.toString());
+                if (logger.isInfoEnabled()) {
+                    targetMethodsInvocationsList.forEach(mi -> logger.info("** " + mi.toString()));
                 }
 
                 BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
