@@ -764,8 +764,9 @@ function align-apk() {
   if [[ -f "${original_apk}" ]]; then
     local tmp_path="${original_apk}.tmp"
     mv "${original_apk}" "${tmp_path}" && \
-    zipalign -f -p 4 $tmp_path $original_apk && \
-    sign-apk $original_apk
+    zipalign -f -p 4 "${tmp_path}" "${original_apk}" && \
+    sign-apk "${original_apk}" && \
+    rm "${tmp_path}"
   else
     (echo >&2 "${original_apk} does not exist")
     return 1
