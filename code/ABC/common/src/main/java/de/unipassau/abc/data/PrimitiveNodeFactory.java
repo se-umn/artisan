@@ -14,7 +14,14 @@ public class PrimitiveNodeFactory {
 	// THIS IS UNSAFE... use with caution ! Ideally we should creat a
 	// ClassLiteralValueNode...
 	public static DataNode createPrimitiveClassNode(String value) {
-		return new PrimitiveValue(uniqueId.incrementAndGet(), Class.class.getName(), value.split(":")[1] + ".class");
+	    if( value.endsWith(".class")) {
+	        return new PrimitiveValue(uniqueId.incrementAndGet(), Class.class.getName(), value);    
+	    } else {
+	        return new PrimitiveValue(uniqueId.incrementAndGet(), Class.class.getName(), value.split(":")[1] + ".class");
+	    }
+	    
+	    
+		
 	}
 
 	public static DataNode createClassLiteralFor(ObjectInstance objectInstanceToMock) {
