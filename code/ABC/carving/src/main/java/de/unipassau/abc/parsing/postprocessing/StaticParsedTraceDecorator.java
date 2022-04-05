@@ -60,7 +60,8 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
                     // Synthetic Methods
                     "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object,java.lang.String)>",
                     // Android Logging
-                    "<android.util.Log: int i(java.lang.String,java.lang.String)>", });
+                    "<android.util.Log: int i(java.lang.String,java.lang.String)>",
+                    "<android.util.Log: int d(java.lang.String,java.lang.String)>"});
 
     // Look for code that clint + show the EnumConstant and promote it at the
     // beginning of the trace
