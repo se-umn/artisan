@@ -105,6 +105,7 @@ public class TypeUtils {
         // most precise type above the actual one.
         // We approximate this by looking at the methods that return or use the object.
 
+        logger.info("Getting formal types for " + objectInstance);
         // Ideally one can also look at who uses it
         Set<String> alternativeTypesFromReturn = dataDependencyGraph.getMethodInvocationsWhichReturn(objectInstance)
                 .stream().map(mi -> JimpleUtils.getReturnType(mi.getMethodSignature()))

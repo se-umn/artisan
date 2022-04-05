@@ -159,16 +159,17 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
     }
 
     public CompilationUnit generateJUnitTestCase(TestClass testCase, TestMethodNamer testMethodNamer) {
-        logger.info("-------------------------");
-        logger.info("Generate JUnit Test Case " + testCase.getName() + " for testing " + testCase.getCarvedTests());
-        logger.info("-------------------------");
         
         CompilationUnit cu = new CompilationUnit();
 
         cu.setPackageDeclaration(testCase.getPackageName());
 
         ClassOrInterfaceDeclaration testClass = cu.addClass(testCase.getName());
-
+        
+        logger.info("-------------------------");
+        logger.info("Generating JUnit Test Case " + testCase.getName());
+        logger.info("-------------------------");
+                
         testClass.setModifiers(Modifier.Keyword.PUBLIC);
 
         // TODO For the moment this creates problems because we need to put a jar on the
@@ -243,6 +244,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             // TODO Name tests
             MethodDeclaration testMethod = testClass.addMethod(testMethodNamer.generateTestMethodName(carvedTest),
                     Modifier.Keyword.PUBLIC);
+                        
             // Annotate the method with JUnit @Test, add time out
             NormalAnnotationExpr annotation = testMethod.addAndGetAnnotation(Test.class);
             MemberValuePair timeout = new MemberValuePair("timeout", new NameExpr("4000"));
@@ -254,6 +256,10 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                     carvedTest.getTraceId(), carvedTest.getMethodUnderTest());
             testMethod.setComment(new JavadocComment(generatedFromComment));
 
+            // 
+            logger.info(" - Test Method " + carvedTest.getMethodUnderTest()  + " " + generatedFromComment );
+
+            
             // Generate method body
             generateMethodBody(testMethod, carvedTest);
             handleUnusedVariables(testMethod);
