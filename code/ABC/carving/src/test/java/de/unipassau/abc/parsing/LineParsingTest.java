@@ -1,11 +1,24 @@
 package de.unipassau.abc.parsing;
 
+import org.junit.Assert;
 import org.junit.Ignore;
+import org.junit.Test;
 
-@Ignore
+//@Ignore
 // TESTS ARE BROKEN AFTER REFACTORING
 public class LineParsingTest {
 
+    
+    @Test
+    public void testAnonymClassNames() {
+        final String pattern = ".*\\$[0-9]+@[0-9]+";
+        String name = "de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_browser.SignBrowserAdapter$2@20054769";
+        Assert.assertTrue(name.matches(pattern));
+        String notName = "de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_browser.SignBrowserAdapter$2";
+        Assert.assertFalse(notName.matches(pattern));
+        String notNameAgain = "de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_video_view.AbstractSignVideoFragment$SOUND[]@258964124";
+        Assert.assertFalse(notNameAgain.matches(pattern));
+    }
 //	// [>];com.farmerbb.notepad.activity.MainActivity@106000899;<com.farmerbb.notepad.activity.MainActivity:
 //	// void <init>()>;();
 //	TraceParserImpl parser;

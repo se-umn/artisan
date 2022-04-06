@@ -1,7 +1,9 @@
 package de.unipassau.abc.parsing.postprocessing;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -11,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
+import de.unipassau.abc.data.DataNode;
 import de.unipassau.abc.data.DataNodeFactory;
 import de.unipassau.abc.data.EnumConstant;
 import de.unipassau.abc.data.ExecutionFlowGraph;
@@ -31,6 +34,8 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
         parsedTrace = convertEnumConstantsAndCleanUpTrace(parsedTrace);
         // Include implicit dependencies on Static Methods/Classes?
         parsedTrace = decorateWithStaticDataDependencies(parsedTrace);
+        // Assign types to Anonym Classes
+        parsedTrace = resolveFormalTypesOfAnonymClasses(parsedTrace);
         // Remove all the static constructors !
         parsedTrace = removeStaticConstructors(parsedTrace);
 
@@ -51,7 +56,7 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
      * @param parsedTrace
      * @return
      */
-
+// abc.Field@0 
     final static List<String> blackList = Arrays.asList(new String[] { //
             "<java.lang.System: int identityHashCode(java.lang.Object)>",
             // Boxed Type
@@ -64,7 +69,7 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
             // Util Method
             "<java.util.Arrays: java.util.List asList(java.lang.Object[])>",
             // Synthetic Methods
-            "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object,java.lang.String)>",
+            "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object,java.lang.String,java.lang.String)>",
             // Android Logging
             "<android.util.Log: int i(java.lang.String,java.lang.String)>",
             "<android.util.Log: int d(java.lang.String,java.lang.String)>",
@@ -206,6 +211,81 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
             });
 
         });
+        return parsedTrace;
+    }
+
+    /**
+     * Use various heuristic to identify anony and inner types and update them
+     * accordingly
+     * 
+     * @param parsedTrace
+     * @return
+     */
+    final static String ANONYM_CLASS_TYPE_PATTERN = ".*\\$[0-9]";
+
+    private ParsedTrace resolveFormalTypesOfAnonymClasses(ParsedTrace parsedTrace) {
+        parsedTrace.getParsedTrace().forEach((threadName, graphs) -> {
+            ExecutionFlowGraph executionFlowGraph = graphs.getFirst();
+            CallGraph callGraph = graphs.getThird();
+            DataDependencyGraph dataDependencyGraph = graphs.getSecond();
+
+            final Map<String, Set<String>> resolvedTypes = new HashMap<String, Set<String>>();
+            
+            dataDependencyGraph.getObjectInstances().forEach(oi -> {
+                
+                String typeToResolve = oi.getType(); 
+                if ( typeToResolve.matches(ANONYM_CLASS_TYPE_PATTERN) && !resolvedTypes.containsKey(typeToResolve)) {
+
+                    logger.info(typeToResolve + " requires type resolution ");
+
+                    // Check whether this anonym type corresponds to a (Static) Field?
+                    Set<String> resolvedTypesFromFieldSetters = executionFlowGraph.getOrderedMethodInvocations()
+                            .stream().filter(
+                                    //
+                                    mi -> mi.isStatic() //
+                                            // The last parameter is a Type
+                                            && mi.getMethodSignature().equals(
+                                                    "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object,java.lang.String,java.lang.String)>")
+                                            // This is how we "set" fields
+                                            && mi.getReturnValue().getType().equals(typeToResolve)
+                    // Extract the type information
+                    ).map(mi -> mi.getActualParameterInstances().get(2).toString().replace("$", "."))
+                            .collect(Collectors.toSet());
+                    // and replace everywhere the reference to whatever type is the anonym with the
+                    // one assigned in the field
+                    // we assume ONLY one type is present (the same object is not assigned multiple
+                    // times with different types!)
+
+                    logger.info("Resolved types as Field: " + resolvedTypesFromFieldSetters);
+
+                    Set<String> resolvedTypesAsParameter = executionFlowGraph.getOrderedMethodInvocations().stream()
+                            .filter(
+                                    // Has this object instance ever been used as a parameter
+                                    mi -> mi.getActualParameterInstances().contains(oi))
+                            .map(
+                                    //
+                                    mi -> {
+                                        int positionAsParameter = mi.getActualParameterInstances().indexOf(oi);
+                                        String formalType = JimpleUtils
+                                                .getParameterList(mi.getMethodSignature())[positionAsParameter]
+                                                        .replace("$", ".");
+                                        return formalType;
+                                    }
+
+                            ).collect(Collectors.toSet());
+                    logger.info("Resolved types as Parameter: " + resolvedTypesAsParameter);
+
+                    Set<String> resolvedTypesForInstace = new HashSet<>();
+                    resolvedTypesForInstace.addAll(resolvedTypesFromFieldSetters);
+                    resolvedTypesForInstace.addAll(resolvedTypesAsParameter);
+
+                    resolvedTypes.put(oi.getType(), resolvedTypesForInstace);
+                }
+            });
+        });
+        
+        // Update the trace by replacing resolved types
+
         return parsedTrace;
     }
 

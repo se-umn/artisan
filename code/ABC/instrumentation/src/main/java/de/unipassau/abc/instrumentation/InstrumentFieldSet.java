@@ -36,11 +36,11 @@ public class InstrumentFieldSet extends AbstractStmtSwitch {
     private SootMethod monitorOnLibMethodReturnNormally;
 
     /**
-     * This generic method invocation captures that a field, identified by its name
-     * (string) of an object instance, identified by a reference, is set to a given
-     * value (identified by the return value)
+     * This generic method invocation captures that a field identified by its name
+     * (string) and its formal type (string) and possibly the instance it is
+     * attached to (object) is set to a given value (identified by the return value)
      */
-    public final static String SIGNATURE = "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object,java.lang.String)>";
+    public final static String SETTING_INSTANCE_FIELD_SIGNATURE = "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object,java.lang.String,java.lang.String)>";
 
     public InstrumentFieldSet(final String packageName, final SootMethod currentlyInstrumentedMethod,
             final Body currentlyInstrumentedMethodBody,
@@ -62,29 +62,36 @@ public class InstrumentFieldSet extends AbstractStmtSwitch {
     @Override
     public void caseAssignStmt(AssignStmt stmt) {
 
-        // If we try to log a set reference inside a constructor, then it is impossible to access "this" at least before calling super()
+        // If we try to log a set reference inside a constructor, then it is impossible
+        // to access "this" at least before calling super()
         if (currentlyInstrumentedMethod.isConstructor()) {
             System.out.println("DEBUG: Skip constructor instrumentation");
             return;
         }
 
         // Cannot currently deal with field on right side of assignment
+        // Meaning a variable assigned to a Field...
         if (stmt.getRightOp() instanceof FieldRef) {
             System.out.println("DEBUG: Skip field on right side of assignment");
             return;
-        } 
+        }
 
-        // Begin instrumentation
+        // Begin instrumentation - This applies for both Instance Field and Static Field
         if (stmt.getLeftOp() instanceof FieldRef) {
-        	System.out.println("\t\t\t WRAP FieldRef assignemnt " + stmt + " inside " + currentlyInstrumentedMethod.getSignature());
+            System.out.println("\t\t\t WRAP FieldRef assignment " + stmt + " inside "
+                    + currentlyInstrumentedMethod.getSignature());
+            // What data might I need here?
             instrumentFieldRef(stmt, stmt.getRightOp());
         }
 
-        
     }
 
     public void instrumentFieldRef(AssignStmt stmt, Value value) {
 
+        // We need three parameters.
+        
+        // 1 - The instance or null if this is a static field
+        
         // Identify static fields, set these to a null Value
         Value leftSideOfFieldAssignment = null;
         if (stmt.getLeftOp() instanceof InstanceFieldRef) {
@@ -96,15 +103,20 @@ public class InstrumentFieldSet extends AbstractStmtSwitch {
 
         // This will be the return value
         Value rightSide = stmt.getRightOp();
-
+        
+        // 2 - The instance or null if this is a static field
         // Extract field name
         Value fieldName = StringConstant.v(((FieldRef) stmt.getLeftOp()).getField().getName());
 
+        // 3 - The type of the Field / TODO What's inside the signature?
+        Value typeOfFieldRef = StringConstant.v(((FieldRef) stmt.getLeftOp()).getField().getType().toString());
+        
         // Holds synthetic method parameters, to be passed to monitor class
         List<Value> parameterList = new ArrayList<Value>();
 
         parameterList.add(leftSideOfFieldAssignment);
         parameterList.add(fieldName);
+        parameterList.add(typeOfFieldRef);
 
         List<Unit> generatedMethodCall = new ArrayList<Unit>();
         List<Unit> generatedMethodReturn = new ArrayList<Unit>();
@@ -114,8 +126,10 @@ public class InstrumentFieldSet extends AbstractStmtSwitch {
         generatedMethodReturn.addAll(wrapTraceEnd(rightSide));
 
         // Instrument generated units
-        UtilInstrumenter.instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt, generatedMethodCall);
-        UtilInstrumenter.instrumentAfterWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt, generatedMethodReturn);
+        UtilInstrumenter.instrumentBeforeWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt,
+                generatedMethodCall);
+        UtilInstrumenter.instrumentAfterWithAndTag(currentlyInstrumentedMethodBodyUnitChain, stmt,
+                generatedMethodReturn);
     }
 
     // Generate Units for method call
@@ -127,10 +141,11 @@ public class InstrumentFieldSet extends AbstractStmtSwitch {
         // Add actual parameters for monitor class method
         methodCallParameters.add(StringConstant.v(packageName));
         methodCallParameters.add(NullConstant.v());
-        methodCallParameters.add(StringConstant.v(SIGNATURE));
+        methodCallParameters.add(StringConstant.v(SETTING_INSTANCE_FIELD_SIGNATURE));
 
         // Correctly wrap primitive types, generate appropriate Units
-        Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter.generateParameterArray(RefType.v("java.lang.Object"), parameterList, currentlyInstrumentedMethodBody);
+        Pair<Value, List<Unit>> tmpArgsListAndInstructions = UtilInstrumenter
+                .generateParameterArray(RefType.v("java.lang.Object"), parameterList, currentlyInstrumentedMethodBody);
 
         // Include synthetic method parameters
         methodCallParameters.add(tmpArgsListAndInstructions.getFirst());
@@ -138,30 +153,34 @@ public class InstrumentFieldSet extends AbstractStmtSwitch {
         instrumentationCodeBefore.addAll(tmpArgsListAndInstructions.getSecond());
 
         // Create invocation monitor class function
-        final Stmt callMethodStart = Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(monitorOnSyntheticMethodCall.makeRef(), methodCallParameters));
+        final Stmt callMethodStart = Jimple.v().newInvokeStmt(
+                Jimple.v().newStaticInvokeExpr(monitorOnSyntheticMethodCall.makeRef(), methodCallParameters));
 
         instrumentationCodeBefore.add(callMethodStart);
 
         return instrumentationCodeBefore;
     }
 
-    // This is nearly identical to the above function; generates return method invocation instead
+    // This is nearly identical to the above function; generates return method
+    // invocation instead
     public List<Unit> wrapTraceEnd(Value rightSide) {
 
         List<Unit> instrumentationCodeAfter = new ArrayList<>();
         List<Value> methodReturnParameters = new ArrayList<Value>();
 
         methodReturnParameters.add(NullConstant.v());
-        methodReturnParameters.add(StringConstant.v(SIGNATURE));
+        methodReturnParameters.add(StringConstant.v(SETTING_INSTANCE_FIELD_SIGNATURE));
         methodReturnParameters.add(StringConstant.v(currentlyInstrumentedMethod.getSignature()));
 
-        Pair<Value, List<Unit>> tmpReturnValueAndInstructions = UtilInstrumenter.generateReturnValue(rightSide, currentlyInstrumentedMethodBody);
+        Pair<Value, List<Unit>> tmpReturnValueAndInstructions = UtilInstrumenter.generateReturnValue(rightSide,
+                currentlyInstrumentedMethodBody);
 
         methodReturnParameters.add(tmpReturnValueAndInstructions.getFirst());
 
         instrumentationCodeAfter.addAll(tmpReturnValueAndInstructions.getSecond());
 
-        final Stmt callMethodReturn = Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(monitorOnLibMethodReturnNormally.makeRef(), methodReturnParameters));
+        final Stmt callMethodReturn = Jimple.v().newInvokeStmt(
+                Jimple.v().newStaticInvokeExpr(monitorOnLibMethodReturnNormally.makeRef(), methodReturnParameters));
 
         instrumentationCodeAfter.add(callMethodReturn);
 
