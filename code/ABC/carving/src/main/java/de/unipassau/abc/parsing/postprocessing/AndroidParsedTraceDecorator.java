@@ -180,7 +180,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
         logger.info("Replacing " + toReplace + " as return value");
         // Returns
         for (MethodInvocation mi : dataDependencyGraph.getMethodInvocationsWhichReturn(toReplace)) {
-            logger.info("Updating the return of " + mi + " to " + willReplace);
+            logger.info("Updating the return of " + mi + "from" + mi.getReturnValue() + " to " + willReplace);
             mi.setReturnValue(willReplace);
             //
             dataDependencyGraph.replaceDataDependencyOnReturn(mi, willReplace);
@@ -206,7 +206,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                 callGraph.remove(mi);
             } else {
 
-                logger.info("Updating the ownership of " + mi + " to " + willReplace);
+                logger.info("Updating the ownership of " + mi + " from " + mi.getOwner() + " to " + willReplace);
                 mi.setOwner(willReplace);
                 dataDependencyGraph.replaceDataDependencyOnOwner(mi, willReplace);
 
@@ -241,6 +241,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
             Map<String, ObjectInstance> sourceIntents = new HashedMap();
             Map<String, ObjectInstance> sinkIntents = new HashedMap();
 
+            // Collect Intents and identify sources and sinks
             for (ObjectInstance obj : dataDependencyGraph.getObjectInstances()) {
                 if (!obj.getType().equals("android.content.Intent")) {
                     continue;
@@ -273,6 +274,22 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                     }
                 }
             }
+            
+            // Clean up tainting before we start changing mi!
+            tantingMethodInvocations.forEach(tmi -> {
+                logger.info("Getting rid of " + tmi.toFullString());
+                callGraph.getMethodInvocationsSubsumedBy(tmi).forEach(smi -> {
+                    dataDependencyGraph.remove(smi);
+                    executionFlowGraph.remove(smi);
+                });
+
+                callGraph.remove(tmi);
+                dataDependencyGraph.remove(tmi);
+                executionFlowGraph.remove(tmi);
+            });
+            
+            
+            
             // Get the activities
             Set<ObjectInstance> androidActivities = new HashSet<ObjectInstance>();
             for (ObjectInstance obj : dataDependencyGraph.getObjectInstances()) {
@@ -284,24 +301,14 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                 }
             }
 
-            // Finally match sink and sources
+            // Match sink and sources, and replace everywhere sink intent with source intent
+            // to create a direct data dependency between the activities
             for (Entry<String, ObjectInstance> source : sourceIntents.entrySet()) {
                 String taint = source.getKey();
                 ObjectInstance sourceIntent = source.getValue();
 
                 if (sinkIntents.containsKey(taint)) {
-                    // Better to use alias or to replace the values? - I would replace the value of
-                    // the intents everywhere, including method invocations
-                    // Find all the method calls that take sin
-                    // dataDependencyGraph.addAliasingDataDependency(source.getValue(),
-                    // sinkIntents.get(taint));
                     final ObjectInstance sinkIntent = sinkIntents.get(taint);
-
-                    // In some cases, like
-                    // nz.org.cacophony.birdmonitor.CreateAccountTest#createAccountTest the intent
-                    // is both SINK and SOURCE.
-                    // This is something involving PendingIntent and broadcasting, which Alessio
-                    // never saw before...
 
                     if (sinkIntent.equals(sourceIntent)) {
                         logger.warn("Sink intent " + sinkIntent + " and source intent " + sourceIntent
@@ -313,10 +320,10 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                             + " for TAINT: " + taint);
 
                     // At this point the two intents are linked together. Since they represent the
-                    // same logical object, they must contain the
-                    // same "extras". Primitive types are not an issue; however, complex objects are
-                    // because they are serialized and reconstructed.
-                    // Hence we need to match them as well !
+                    // same logical object, they must contain the same "extras".
+                    // Primitive types are not an issue; however, complex objects are
+                    // serialized and reconstructed so they do not match ... and we need to logically bind them 
+
                     // First collect objects stored in the source intent:
                     Map<String, ObjectInstance> keyAndSourceObject = new HashMap<String, ObjectInstance>();
                     for (MethodInvocation putExtraMethodInvocation : dataDependencyGraph
@@ -332,13 +339,12 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                         ObjectInstance sourceObject = (ObjectInstance) putExtraMethodInvocation
                                 .getActualParameterInstances().get(1);
 
-                        logger.info("Found Parcelable/Serializable " + key + " " + sourceObject);
+                        logger.info("\t - Found Parcelable/Serializable " + key + " " + sourceObject); 
                         keyAndSourceObject.put(key, sourceObject);
                     }
 
-                    // Now replace this object with the object of the matching intent with the same
-                    // key
-                    Map<ObjectInstance, ObjectInstance> objectToReplaceWith = new HashMap<ObjectInstance, ObjectInstance>();
+                    // Second collect objects read from the sink intent:
+                    Map<String, ObjectInstance> keyAndSinkObjects = new HashMap<String, ObjectInstance>();
                     for (MethodInvocation getExtraMethodInvocation : dataDependencyGraph
                             .getMethodInvocationsForOwner(sinkIntent).stream()
                             .filter(mi -> mi.getMethodSignature().equals(
@@ -349,18 +355,28 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
 
                         String key = ((PrimitiveValue) getExtraMethodInvocation.getActualParameterInstances().get(0))
                                 .toString();
-                        ObjectInstance toReplace = (ObjectInstance) getExtraMethodInvocation.getReturnValue();
+                        ObjectInstance sinkObject = (ObjectInstance) getExtraMethodInvocation.getReturnValue();
 
-                        logger.info("Found matching Parcelable/Serializable " + toReplace + " in sinkIntent for key "
-                                + key);
+                        logger.info("\t - Found Parcelable/Serializable " + key + " " + sinkObject); 
 
-                        ObjectInstance willReplace = keyAndSourceObject.get(key);
-                        objectToReplaceWith.put(toReplace, willReplace);
+                        keyAndSinkObjects.put(key, sinkObject);
                     }
-
-                    // Here to the actual replacement
-                    objectToReplaceWith.keySet().forEach(toReplace -> {
-                        replaceEveryWhereWith(toReplace, objectToReplaceWith.get(toReplace), //
+                    
+                    // Replace the objects for each key...
+                    // TODO Is it possible that some object instance appears more than once?
+                    keyAndSourceObject.keySet().forEach( key -> {
+                        
+                        logger.info("\t - Replacing Object Instances for Key" + key);
+                        ObjectInstance sourceExtra = keyAndSourceObject.get(key);
+                                            
+                        if( ! keyAndSinkObjects.containsKey(key)) {
+                            logger.warn("\t - Sink Object never read");
+                            return;
+                        }
+                        
+                        ObjectInstance sinkExtra = keyAndSinkObjects.get(key);
+                        // source replaces sinl
+                        replaceEveryWhereWith(sinkExtra, sourceExtra, //
                                 executionFlowGraph, dataDependencyGraph, callGraph);
                     });
 
@@ -380,17 +396,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                 }
             }
 
-            tantingMethodInvocations.forEach(tmi -> {
-                logger.info("Getting rid of " + tmi.toFullString());
-                callGraph.getMethodInvocationsSubsumedBy(tmi).forEach(smi -> {
-                    dataDependencyGraph.remove(smi);
-                    executionFlowGraph.remove(smi);
-                });
-
-                callGraph.remove(tmi);
-                dataDependencyGraph.remove(tmi);
-                executionFlowGraph.remove(tmi);
-            });
+           
 
         });
 
@@ -505,7 +511,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                             callGraph.get(methodInvocation).getOwner().setAndroidActivity(true);
                             executionFlowGraph.get(methodInvocation).getOwner().setAndroidActivity(true);
 
-                            logger.info("Activity " + methodInvocation);
+                            logger.debug("Activity " + methodInvocation);
 
                         } else if (isAndroidFragment(methodInvocation, callGraph)) {
                             dataDependencyGraph.getOwnerFor(methodInvocation).setAndroidFragment(true);
@@ -513,7 +519,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                             callGraph.get(methodInvocation).getOwner().setAndroidFragment(true);
                             executionFlowGraph.get(methodInvocation).getOwner().setAndroidFragment(true);
 
-                            logger.info("Fragment " + methodInvocation);
+                            logger.debug("Fragment " + methodInvocation);
 
                         } else if (isAndroidService(methodInvocation, callGraph)) {
                             dataDependencyGraph.getOwnerFor(methodInvocation).setAndroidService(true);
@@ -521,7 +527,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                             callGraph.get(methodInvocation).getOwner().setAndroidService(true);
                             executionFlowGraph.get(methodInvocation).getOwner().setAndroidService(true);
 
-                            logger.info("Service " + methodInvocation);
+                            logger.debug("Service " + methodInvocation);
                         }
                     });
 
