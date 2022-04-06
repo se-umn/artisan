@@ -1,5 +1,8 @@
 package de.unipassau.abc.data;
 
+import java.util.HashSet;
+import java.util.Set;
+
 public class ObjectInstance implements DataNode, Cloneable {
 
     // TODO At some point we need to figure out of to handle static
@@ -49,6 +52,8 @@ public class ObjectInstance implements DataNode, Cloneable {
     private boolean requiresIntent;
 
     private ObjectInstance intentObjectInstance;
+
+    private Set<String> resolvedTypes = new HashSet<String>();
 
     public ObjectInstance clone() {
         ObjectInstance cloned = null;
@@ -193,4 +198,13 @@ public class ObjectInstance implements DataNode, Cloneable {
         return objectId.split("@")[1];
     }
 
+    public void setResolvedTypes(Set<String> resolvedTypes) {
+        if (resolvedTypes != null) {
+            this.resolvedTypes = new HashSet<String>(resolvedTypes);
+        }
+    }
+
+    public Set<String> getResolvedTypes() {
+        return resolvedTypes;
+    }
 }

@@ -100,12 +100,22 @@ public class TypeUtils {
      * @return
      */
     public static String getFormalTypeFor(ObjectInstance objectInstance, DataDependencyGraph dataDependencyGraph) {
+
+        logger.info("Getting formal types for " + objectInstance);
+        
+        // If the object is annotated with resolved type, choose one
+        if( ! objectInstance.getResolvedTypes().isEmpty() ) {
+            String resolvedType = objectInstance.getResolvedTypes().iterator().next();
+            logger.info("Returning one of the Resolved Types" + resolvedType);
+            return resolvedType;
+        }
+        
         // Collects types for DataNode
         // This requires the knowledge on how types are organized and the select the
         // most precise type above the actual one.
         // We approximate this by looking at the methods that return or use the object.
 
-        logger.info("Getting formal types for " + objectInstance);
+        
         // Ideally one can also look at who uses it
         Set<String> alternativeTypesFromReturn = dataDependencyGraph.getMethodInvocationsWhichReturn(objectInstance)
                 .stream().map(mi -> JimpleUtils.getReturnType(mi.getMethodSignature()))

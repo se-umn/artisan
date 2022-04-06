@@ -223,18 +223,30 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
      */
     final static String ANONYM_CLASS_TYPE_PATTERN = ".*\\$[0-9]";
 
+    final static Map<String, Set<String>> KNOWN_TYPES = new HashMap<String, Set<String>>();
+    {
+        // In theory this information can be provided as input or discovered statically
+        // while instrumenting the code
+
+        Set<String> types = new HashSet<String>(Arrays.asList(new String[] { "android.os.Parcelable.Creator" }));
+        KNOWN_TYPES.put("de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.Sign$1", types);
+    }
+
     private ParsedTrace resolveFormalTypesOfAnonymClasses(ParsedTrace parsedTrace) {
+
         parsedTrace.getParsedTrace().forEach((threadName, graphs) -> {
+
             ExecutionFlowGraph executionFlowGraph = graphs.getFirst();
             CallGraph callGraph = graphs.getThird();
             DataDependencyGraph dataDependencyGraph = graphs.getSecond();
 
             final Map<String, Set<String>> resolvedTypes = new HashMap<String, Set<String>>();
-            
+            resolvedTypes.putAll(KNOWN_TYPES);
+
             dataDependencyGraph.getObjectInstances().forEach(oi -> {
-                
-                String typeToResolve = oi.getType(); 
-                if ( typeToResolve.matches(ANONYM_CLASS_TYPE_PATTERN) && !resolvedTypes.containsKey(typeToResolve)) {
+
+                String typeToResolve = oi.getType();
+                if (typeToResolve.matches(ANONYM_CLASS_TYPE_PATTERN) && !resolvedTypes.containsKey(typeToResolve)) {
 
                     logger.info(typeToResolve + " requires type resolution ");
 
@@ -246,7 +258,7 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
                                             // The last parameter is a Type
                                             && mi.getMethodSignature().equals(
                                                     "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object,java.lang.String,java.lang.String)>")
-                                            // This is how we "set" fields
+                    // This is how we "set" fields
                                             && mi.getReturnValue().getType().equals(typeToResolve)
                     // Extract the type information
                     ).map(mi -> mi.getActualParameterInstances().get(2).toString().replace("$", "."))
@@ -278,13 +290,47 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
                     Set<String> resolvedTypesForInstace = new HashSet<>();
                     resolvedTypesForInstace.addAll(resolvedTypesFromFieldSetters);
                     resolvedTypesForInstace.addAll(resolvedTypesAsParameter);
-
                     resolvedTypes.put(oi.getType(), resolvedTypesForInstace);
                 }
             });
+
+            // What shall I do with this information?
+            executionFlowGraph.getOrderedMethodInvocations().forEach(mi -> {
+
+                if (mi.getOwner() != null) {
+                    mi.getOwner().setResolvedTypes(resolvedTypes.get(mi.getOwner().getType()));
+                }
+                if (mi.getReturnValue() != null && mi.getReturnValue() instanceof ObjectInstance) {
+                    ((ObjectInstance) mi.getReturnValue())
+                            .setResolvedTypes(resolvedTypes.get(mi.getReturnValue().getType()));
+                }
+                for (ObjectInstance param : mi.getActualParameterInstances().stream()
+                        .filter(dn -> dn instanceof ObjectInstance).map(dn -> (ObjectInstance) dn)
+                        .collect(Collectors.toList())) {
+
+                    param.setResolvedTypes(resolvedTypes.get(param.getType()));
+                }
+
+            });
+            callGraph.getAllMethodInvocations().forEach(mi -> {
+                if (mi.getOwner() != null) {
+                    mi.getOwner().setResolvedTypes(resolvedTypes.get(mi.getOwner().getType()));
+                }
+                if (mi.getReturnValue() != null && mi.getReturnValue() instanceof ObjectInstance) {
+                    ((ObjectInstance) mi.getReturnValue())
+                            .setResolvedTypes(resolvedTypes.get(mi.getReturnValue().getType()));
+                }
+                for (ObjectInstance param : mi.getActualParameterInstances().stream()
+                        .filter(dn -> dn instanceof ObjectInstance).map(dn -> (ObjectInstance) dn)
+                        .collect(Collectors.toList())) {
+
+                    param.setResolvedTypes(resolvedTypes.get(param.getType()));
+                }
+            });
+            dataDependencyGraph.getObjectInstances()
+                    .forEach(oi -> oi.setResolvedTypes(resolvedTypes.get(oi.getType())));
+
         });
-        
-        // Update the trace by replacing resolved types
 
         return parsedTrace;
     }
