@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
@@ -22,6 +23,7 @@ import com.lexicalscope.jewel.cli.CliFactory;
 import com.lexicalscope.jewel.cli.Option;
 
 import de.unipassau.abc.carving.utils.MethodInvocationSelector;
+import de.unipassau.abc.data.ExecutionFlowGraph;
 import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.exceptions.ABCException;
 import de.unipassau.abc.generation.BasicTestGenerator;
@@ -119,13 +121,35 @@ public class Main {
 
                 TraceParser parser = new TraceParserImpl();
                 ParsedTrace parsedTrace = parser.parseTrace(traceFile);
+
                 // Decorate first android and then static
                 ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
                 parsedTrace = decorator.decorate(parsedTrace);
                 //
                 ParsedTraceDecorator staticDecorator = new StaticParsedTraceDecorator();
                 parsedTrace = staticDecorator.decorate(parsedTrace);
-                //
+
+                // Collect Stats - TODO Move to a separate class
+                final Map<String, AtomicInteger> stats = new HashMap();
+                final AtomicInteger total = new AtomicInteger(0);
+                parsedTrace.getParsedTrace().forEach((threadName, graphs) -> {
+                    ExecutionFlowGraph executionFlowGraph = graphs.getFirst();
+                    total.set(executionFlowGraph.getOrderedMethodInvocations().size());
+                    executionFlowGraph.getOrderedMethodInvocations().forEach(mi -> {
+
+                        if (!stats.containsKey(mi.getMethodSignature())) {
+                            stats.put(mi.getMethodSignature(), new AtomicInteger(0));
+                        }
+
+                        stats.get(mi.getMethodSignature()).incrementAndGet();
+
+                    });
+                });
+
+                // Print Stats
+                logger.info("Summary of the trace " + traceFile);
+                logger.info("   contains the following " + total.get() + " invocations:");
+                stats.keySet().forEach(s -> logger.info(stats.get(s).get() + " " + s));
 
                 totalParsedTraces = totalParsedTraces + 1;
 
