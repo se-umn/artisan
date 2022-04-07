@@ -1,11 +1,12 @@
 package de.unipassau.abc.parsing.postprocessing;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -13,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 import de.unipassau.abc.data.CallGraph;
 import de.unipassau.abc.data.DataDependencyGraph;
-import de.unipassau.abc.data.DataNode;
 import de.unipassau.abc.data.DataNodeFactory;
 import de.unipassau.abc.data.EnumConstant;
 import de.unipassau.abc.data.ExecutionFlowGraph;
@@ -22,7 +22,6 @@ import de.unipassau.abc.data.MethodInvocation;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.parsing.ParsedTrace;
 import edu.emory.mathcs.backport.java.util.Arrays;
-import edu.emory.mathcs.backport.java.util.Collections;
 
 public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
 
@@ -56,7 +55,7 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
      * @param parsedTrace
      * @return
      */
-// abc.Field@0 
+
     final static List<String> blackList = Arrays.asList(new String[] { //
             "<java.lang.System: int identityHashCode(java.lang.Object)>",
             // Boxed Type
@@ -70,6 +69,9 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
             "<java.util.Arrays: java.util.List asList(java.lang.Object[])>",
             // Synthetic Methods
             "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object,java.lang.String,java.lang.String)>",
+            "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object,java.lang.String)>", // Backward
+                                                                                                     // compatibility
+                                                                                                     // with old traces
             // Android Logging
             "<android.util.Log: int i(java.lang.String,java.lang.String)>",
             "<android.util.Log: int d(java.lang.String,java.lang.String)>",
@@ -78,10 +80,35 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
             //
             "<android.net.Uri: android.net.Uri parse(java.lang.String)>",
             // org.apache.commons.lang3.Validate Validate methods
-            "<org.apache.commons.lang3.Validate: java.lang.Object notNull(java.lang.Object,java.lang.String,java.lang.Object[])>",
-            "<org.apache.commons.lang3.Validate: java.lang.Object notNull(java.lang.Object)>"
+//            "<org.apache.commons.lang3.Validate: java.lang.Object notNull(java.lang.Object,java.lang.String,java.lang.Object[])>",
+//            "<org.apache.commons.lang3.Validate: java.lang.Object notNull(java.lang.Object)>"
             //
+            // <com.chikeandroid.debtmanager.features.home.MainActivity$$Lambda$1:
+            // android.view.View$OnClickListener
+            // lambdaFactory$(com.chikeandroid.debtmanager.features.home.MainActivity)>_81_161
     });
+
+    // Some generated method calls must be filtered using a different strategy
+    final static Predicate<MethodInvocation> filterLamdaGenerators = mi -> !mi.getMethodSignature()
+            .contains("lambdaFactory$");
+    
+    final static Predicate<MethodInvocation> filterDaggerPreconditions = mi -> !mi.getMethodSignature().contains("<dagger.internal.Preconditions");
+    final static Predicate<MethodInvocation> filterLang3Validate = mi -> !mi.getMethodSignature().contains("<org.apache.commons.lang3.Validate");
+    final static Predicate<MethodInvocation> filterAndroidLog = mi -> !mi.getMethodSignature().contains("<android.util.Log");
+// 
+    // Build the actual predicate to filter static dependencies
+    final static List<Predicate<MethodInvocation>> allPredicates = new ArrayList<Predicate<MethodInvocation>>();
+    {
+        // https://www.baeldung.com/java-predicate-chain
+        allPredicates.add(filterLamdaGenerators);
+        allPredicates.add(filterDaggerPreconditions);
+        allPredicates.add(filterLang3Validate);
+        //
+        allPredicates.add(mi -> mi.isStatic());
+        allPredicates.add(mi -> !mi.isConstructor());
+        allPredicates.add(mi -> !blackList.contains(mi.getMethodSignature()));
+
+    }
 
     // Look for code that clint + show the EnumConstant and promote it at the
     // beginning of the trace. Then remove all the calls to <abc.Enum: void
@@ -230,6 +257,7 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
 
         Set<String> types = new HashSet<String>(Arrays.asList(new String[] { "android.os.Parcelable.Creator" }));
         KNOWN_TYPES.put("de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.Sign$1", types);
+        
     }
 
     private ParsedTrace resolveFormalTypesOfAnonymClasses(ParsedTrace parsedTrace) {
@@ -336,35 +364,39 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
     }
 
     private ParsedTrace decorateWithStaticDataDependencies(ParsedTrace parsedTrace) {
+
         parsedTrace.getParsedTrace().forEach((threadName, graphs) -> {
             ExecutionFlowGraph executionFlowGraph = graphs.getFirst();
             CallGraph callGraph = graphs.getThird();
             DataDependencyGraph dataDependencyGraph = graphs.getSecond();
 
-            // Get an handle to all the static methods.
-            // We do not have to track clinit()
+            // Get an handle to all the static methods that are NOT black listed (e.g.,
+            // clinit())
             List<MethodInvocation> staticMethodInvocations = executionFlowGraph.getOrderedMethodInvocations().stream()
-                    .filter(mi -> mi.isStatic() && !mi.isConstructor() && !blackList.contains(mi.getMethodSignature()))
+                    // Make sure we evaluate all the configured predicates
+                    .filter(allPredicates.stream().reduce(x -> true, Predicate::and))//
                     .collect(Collectors.toList());
 
             HashMap<String, ObjectInstance> classNameToStaticDependency = new HashMap();
             for (MethodInvocation staticMethodInvocation : staticMethodInvocations) {
 
-                // TODO Simple of FQN?
+                logger.info("- Processing static method invocation: " + staticMethodInvocation);
+
                 String classNameProvidingStaticMethod = JimpleUtils
                         .getClassNameForMethod(staticMethodInvocation.getMethodSignature());
+
+                logger.info("- provided by : " + classNameProvidingStaticMethod);
 
                 if (!classNameToStaticDependency.containsKey(classNameProvidingStaticMethod)) {
                     // Generate the Default Dependency for this method invocation
                     // Add this implicit dependency to all the method that directly or indirectly
-                    // contains the
-                    // staticMethodInvocation
+                    // contains the staticMethodInvocation
 
                     classNameToStaticDependency.put(classNameProvidingStaticMethod,
                             DataNodeFactory.getImplicitDependencyOnStaticClass(classNameProvidingStaticMethod));
                 }
 
-                ObjectInstance theDependency = classNameToStaticDependency.get(classNameProvidingStaticMethod);
+                ObjectInstance theStaticDependency = classNameToStaticDependency.get(classNameProvidingStaticMethod);
 
                 for (MethodInvocation methodThatRequireTheDependency : callGraph
                         .getOrderedSubsumingMethodInvocationsFor(staticMethodInvocation)) {
@@ -372,10 +404,11 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
 
                     //
                     if (methodThatRequireTheDependency != null) {
-                        logger.info("Adding static dependency: " + theDependency + " to "
+                        logger.info("Adding static dependency: " + theStaticDependency + " to "
                                 + methodThatRequireTheDependency + " via the call " + staticMethodInvocation);
 
-                        dataDependencyGraph.addImplicitDataDependency(methodThatRequireTheDependency, theDependency);
+                        dataDependencyGraph.addImplicitDataDependency(methodThatRequireTheDependency,
+                                theStaticDependency);
                     } else {
                         logger.info("Static method " + staticMethodInvocation + "is a root method invocation");
                     }
