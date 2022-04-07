@@ -183,14 +183,14 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
     }
 
     private CarvedExecution removeLambdas(CarvedExecution carvedExecution) {
-        logger.debug("Removing Lambdas");
+        logger.info("Removing Lambdas");
         carvedExecution.callGraphs.forEach(callGraph -> {
 
             Set<MethodInvocation> methodInvocationsToRemove = new HashSet<MethodInvocation>();
             for (MethodInvocation mi : callGraph.getAllMethodInvocations()) {
                 if (JimpleUtils.getClassNameForMethod(mi.getMethodSignature()).contains("$Lambda$")) {
-//                    logger.debug("AndroidMultiActivitySimplifier.simplify() Removing " + mi + " has type Lambda "
-//                            + JimpleUtils.getClassNameForMethod(mi.getMethodSignature()));
+                    logger.info("AndroidMultiActivitySimplifier.simplify() Removing " + mi + " has type Lambda "
+                            + JimpleUtils.getClassNameForMethod(mi.getMethodSignature()));
                     // Note that this removes the lambda and all its content! This should be ok, as
                     // lambda will be executed only later so they do not matter now
                     // DOES NOTHING IF MI IS NOT THERE ANYMORE
@@ -200,8 +200,8 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
 
                 if ((int) mi.getActualParameterInstances().stream().filter(dn -> dn.getType().contains("$Lambda$"))
                         .count() > 0) {
-//                    logger.debug("AndroidMultiActivitySimplifier.simplify() Removing " + mi
-//                            + " has it depends on a Lambda as parameter " + mi.getActualParameterInstances());
+                    logger.info("AndroidMultiActivitySimplifier.simplify() Removing " + mi
+                            + " has it depends on a Lambda as parameter " + mi.getActualParameterInstances());
                     // Note that this removes the lambda and all its content! This should be ok, as
                     // lambda will be executed only later so they do not matter now
                     // DOES NOTHING IF MI IS NOT THERE ANYMORE
@@ -214,7 +214,7 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
             // Object to consistently act on all the datastructures at once
 
             for (MethodInvocation miToRemove : methodInvocationsToRemove) {
-                logger.debug("\t - Removing " + miToRemove);
+                logger.info("\t - Removing " + miToRemove);
                 carvedExecution.remove(miToRemove);
             }
         });

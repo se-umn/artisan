@@ -339,7 +339,7 @@ public class MockGenerator {
                         carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(doReturnNothingMock);
                         carvedTestDataDependencyGraph.addDataDependencyOnReturn(doReturnNothingMock, returnStubber);
 
-                        logger.debug("\t Adding doReturn " + doReturnNothingMock);
+                        logger.debug("\t Adding doReturn " + doReturnNothingMock.toFullString() );
                         // handle calls to mock
                         callSet.add(doReturnNothingMock);
                     } else {
@@ -375,11 +375,10 @@ public class MockGenerator {
                         carvedTestExecutionFlowGraph.enqueueMethodInvocations(doReturnMock);
 
                         carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(doReturnMock);
-                        carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(doReturnMock, doReturnArgument,
-                                0);
+                        carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(doReturnMock, doReturnArgument, 0);
                         carvedTestDataDependencyGraph.addDataDependencyOnReturn(doReturnMock, returnStubber);
 
-                        logger.debug("\t Adding doReturn " + doReturnMock);
+                        logger.debug("\t Adding doReturn " + doReturnMock.toFullString());
                         // handle calls to mock
                         callSet.add(doReturnMock);
                     }
@@ -915,7 +914,7 @@ public class MockGenerator {
                 doReturnMock.setReturnValue((DataNode) returnStubber);
                 doReturnMock.setNecessary(true);
 
-                logger.debug("\t Adding doReturn " + doReturnMock);
+                logger.debug("\t Adding doReturn " + doReturnMock.toFullString());
 
                 theMockery.add(doReturnMock);
             }

@@ -746,7 +746,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         Expression methodCallExpr;
         String variableName = null;
 
-        logger.debug("GENERATING CODE FOR " + methodInvocation);
+        logger.debug("GENERATING CODE FOR " + methodInvocation.toFullString() );
 
         /**
          * Step 1: prepare the invocation of the method

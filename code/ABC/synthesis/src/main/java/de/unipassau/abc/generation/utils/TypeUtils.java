@@ -15,6 +15,7 @@ import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.ObjectInstanceFactory;
 import de.unipassau.abc.data.PrimitiveValue;
+import edu.emory.mathcs.backport.java.util.Arrays;
 
 public class TypeUtils {
 
@@ -30,6 +31,8 @@ public class TypeUtils {
             replaceType = "java.util.EnumSet";
         } else if (actualType.equals("android.app.SharedPreferencesImpl")) {
             replaceType = "android.content.SharedPreferences";
+        } else if (actualType.equals("java.util.ArrayList$Itr")) {
+            replaceType = "java.util.Iterator";
         } else {
             replaceType = null;
         }
@@ -146,6 +149,12 @@ public class TypeUtils {
             }
         }
 
+        // As a Last Resort
+        if( objectInstance.getType().contains("$")) {
+            return objectInstance.getType().replace("$", ".");
+        }
+        
+        
         throw new RuntimeException("Cannot find Formal type for " + objectInstance);
     }
 
