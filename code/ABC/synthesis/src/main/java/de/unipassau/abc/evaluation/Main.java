@@ -4,15 +4,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 import org.apache.commons.lang.NotImplementedException;
 import org.slf4j.Logger;
@@ -147,9 +141,28 @@ public class Main {
                 });
 
                 // Print Stats
+                logger.info("***********************************************************************");
                 logger.info("Summary of the trace " + traceFile);
                 logger.info("   contains the following " + total.get() + " invocations:");
-                stats.keySet().forEach(s -> logger.info(stats.get(s).get() + " " + s));
+                Object[] a = stats.entrySet().toArray();
+                Arrays.sort(a, new Comparator() {
+                    public int compare(Object o1, Object o2) {
+                        int o1Value = ((Map.Entry<String, AtomicInteger>) o1).getValue().intValue();
+                        int o2Value = ((Map.Entry<String, AtomicInteger>) o2).getValue().intValue();
+                        if(o1Value<o2Value){
+                            return -1;
+                        }
+                        else if(o1Value==o2Value){
+                            return 0;
+                        }
+                        else{
+                            return 1;
+                        }
+                    }
+                });
+                for (int i=(a.length-1); i>=0; --i) {
+                    logger.info("\t" + ((Map.Entry<String, AtomicInteger>) a[i]).getValue().intValue() + "\t" + ((Map.Entry<String, Integer>) a[i]).getKey());
+                }
 
                 totalParsedTraces = totalParsedTraces + 1;
 
