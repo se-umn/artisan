@@ -288,8 +288,8 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
                                                     "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object,java.lang.String,java.lang.String)>")
                     // This is how we "set" fields
                                             && mi.getReturnValue().getType().equals(typeToResolve)
-                    // Extract the type information
-                    ).map(mi -> mi.getActualParameterInstances().get(2).toString().replace("$", "."))
+                    // Extract the type information - be sure to remove the " indicating this is a String
+                    ).map(mi -> mi.getActualParameterInstances().get(2).toString().replace("$", ".").replaceAll("\"", ""))
                             .collect(Collectors.toSet());
                     // and replace everywhere the reference to whatever type is the anonym with the
                     // one assigned in the field

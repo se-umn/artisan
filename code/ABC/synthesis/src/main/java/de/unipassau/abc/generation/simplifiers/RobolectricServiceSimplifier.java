@@ -420,8 +420,9 @@ public class RobolectricServiceSimplifier extends AbstractCarvedExecutionSimplif
 
         carvedExecution.executionFlowGraphs.forEach(eg -> {
             if (!trigger.get()) {
-                trigger.set(eg.getOrderedMethodInvocations().stream()
-                        .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidService()).count() > 0);
+                trigger.set(eg.getOrderedMethodInvocations().stream().filter(mi -> !mi.isStatic() //
+                        && !mi.isExceptional() //
+                        && mi.getOwner().isAndroidService()).count() > 0);
             }
         });
 

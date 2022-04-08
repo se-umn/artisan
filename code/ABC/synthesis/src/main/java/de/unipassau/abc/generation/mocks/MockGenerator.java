@@ -636,7 +636,9 @@ public class MockGenerator {
 
             // Collect the uses of this view to configure the mocked object
             List<MethodInvocation> methodInvocationsOnTheObjectViewToShadow = allMethodInvocationsInTheCarvedTest
-                    .stream().filter(mi -> !mi.isStatic() && mi.getOwner().equals(objectViewToShadow)
+                    .stream().filter(mi -> !mi.isStatic() //
+                            && ! mi.isExceptional() //
+                            && mi.getOwner().equals(objectViewToShadow)
                             && mi.getInvocationTraceId() >= onCreateTraceID)
                     .collect(Collectors.toList());
 

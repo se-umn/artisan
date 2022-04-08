@@ -76,7 +76,7 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
         carvedExecution = wrapOnCreateOptionsMenu(carvedExecution);
         carvedExecution = wrapOnStop(carvedExecution);
         carvedExecution = wrapOnPause(carvedExecution);
-        carvedExecution = wrapOnResume(carvedExecution);    
+        carvedExecution = wrapOnResume(carvedExecution);
         carvedExecution = wrapOnDestroy(carvedExecution);
 
         return carvedExecution;
@@ -88,8 +88,9 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
 
         carvedExecution.executionFlowGraphs.forEach(eg -> {
             if (!trigger.get()) {
-                trigger.set(eg.getOrderedMethodInvocations().stream()
-                        .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidActivity()).count() > 0);
+                trigger.set(eg.getOrderedMethodInvocations().stream().filter(mi -> !mi.isStatic() //
+                        && !mi.isExceptional() //
+                        && mi.getOwner().isAndroidActivity()).count() > 0);
             }
         });
 
@@ -103,8 +104,9 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
             Optional<MethodInvocation> maybeActivityConstructor = eg.getOrderedMethodInvocations().stream()
                     .filter(mi -> mi.isConstructor() && mi.getOwner().isAndroidActivity()).findFirst();
 
-            logger.debug(" FILTERED CALLS :" + eg.getOrderedMethodInvocations().stream()
-                    .filter(mi -> mi.isConstructor() && mi.getOwner().isAndroidActivity()).collect(Collectors.toSet()));
+            logger.debug(" FILTERED CALLS :" + eg.getOrderedMethodInvocations().stream().filter(mi -> mi.isConstructor() //
+                    && !mi.isExceptional() //
+                    && mi.getOwner().isAndroidActivity()).collect(Collectors.toSet()));
 
             // Introduce the controller first
             if (maybeActivityConstructor.isPresent()) {
@@ -320,8 +322,8 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
     private CarvedExecution wrapOnStart(CarvedExecution carvedExecution) {
         carvedExecution.executionFlowGraphs.forEach(eg -> {
             // There is only one activity so onCreate is called once
-            Optional<MethodInvocation> maybeOnStart = eg
-                    .getOrderedMethodInvocations().stream().filter(mi -> !mi.isStatic()
+            Optional<MethodInvocation> maybeOnStart = eg.getOrderedMethodInvocations().stream()
+                    .filter(mi -> !mi.isStatic() && !mi.isExceptional() //
                             && mi.getOwner().isAndroidActivity() && mi.getMethodSignature().contains("void onStart()"))
                     .findFirst();
 
@@ -373,9 +375,11 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
     private CarvedExecution wrapOnStop(CarvedExecution carvedExecution) {
         carvedExecution.executionFlowGraphs.forEach(eg -> {
             // There is only one activity so onCreate is called once
-            Optional<MethodInvocation> maybeOnStop = eg
-                    .getOrderedMethodInvocations().stream().filter(mi -> !mi.isStatic()
-                            && mi.getOwner().isAndroidActivity() && mi.getMethodSignature().contains("void onStop()"))
+            Optional<MethodInvocation> maybeOnStop = eg.getOrderedMethodInvocations().stream()
+                    .filter(mi -> !mi.isStatic() //
+                            && !mi.isExceptional() //
+                            && mi.getOwner().isAndroidActivity() //
+                            && mi.getMethodSignature().contains("void onStop()"))
                     .findFirst();
 
             // Introduce the controller first
@@ -426,18 +430,18 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
     private CarvedExecution wrapOnResume(final CarvedExecution carvedExecution) {
         carvedExecution.executionFlowGraphs.forEach(eg -> {
 
-            // OnResume Might be called multiple times, but shall avoid calls that are subsumed here.
-            final List<MethodInvocation> possiblyMoreThanOneOnResume = eg
-                    .getOrderedMethodInvocations().stream().filter(mi -> !mi.isStatic()
-                            && mi.getOwner().isAndroidActivity() && mi.getMethodSignature().contains("void onResume()")
-                            // We allow only root level android events, i.e., events directly triggered by the framework
+            // OnResume Might be called multiple times, but shall avoid calls that are
+            // subsumed here.
+            final List<MethodInvocation> possiblyMoreThanOneOnResume = eg.getOrderedMethodInvocations().stream()
+                    .filter(mi -> !mi.isStatic() //
+                            && ! mi.isExceptional() //
+                            && mi.getOwner().isAndroidActivity() //
+                            && mi.getMethodSignature().contains("void onResume()")
+            // We allow only root level android events, i.e., events directly triggered by
+            // the framework
                             && carvedExecution.getCallGraphContainingTheMethodInvocation(mi).getRoots().contains(mi))
                     .collect(Collectors.toList());
 
-            
-            
-            
-            
             for (MethodInvocation onResume : possiblyMoreThanOneOnResume) {
                 //
                 DataDependencyGraph ddg = carvedExecution.getDataDependencyGraphContainingTheMethodInvocation(onResume);
@@ -447,7 +451,8 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
                 int invocationTraceId = onResume.getInvocationTraceId();
                 String methodSignature = "<org.robolectric.android.controller.ActivityController org.robolectric.android.controller.ActivityController resume()>";
 
-                MethodInvocation activityControllerResume = new MethodInvocation(invocationTraceId, uniqueID.getAndIncrement(), methodSignature);
+                MethodInvocation activityControllerResume = new MethodInvocation(invocationTraceId,
+                        uniqueID.getAndIncrement(), methodSignature);
                 // Force this to be necessary
                 activityControllerResume.setNecessary(true);
                 activityControllerResume.setPublic(true);
@@ -467,8 +472,9 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
                     throw new RuntimeException(e);
                 }
 
-                // In case this is indeed the method under test we need to mark it is wrapped inside robolectric.
-                //  OR We need to be able to call the methods on it directly...
+                // In case this is indeed the method under test we need to mark it is wrapped
+                // inside robolectric.
+                // OR We need to be able to call the methods on it directly...
                 if (carvedExecution.methodInvocationUnderTest.equals(onResume)) {
                     carvedExecution.isMethodInvocationUnderTestWrapped = true;
                 }
@@ -479,19 +485,22 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
         return carvedExecution;
 
     }
-    
+
     private CarvedExecution wrapOnPause(final CarvedExecution carvedExecution) {
         carvedExecution.executionFlowGraphs.forEach(eg -> {
 
-            // OnPause Might be called multiple times, but shall avoid calls that are subsumed here.
-            final List<MethodInvocation> possiblyMoreThanOneOnPause = eg
-                    .getOrderedMethodInvocations().stream().filter(mi -> !mi.isStatic()
-                            && mi.getOwner().isAndroidActivity() && mi.getMethodSignature().contains("void onPause()")
-                            // We allow only root level android events, i.e., events directly triggered by the framework
+            // OnPause Might be called multiple times, but shall avoid calls that are
+            // subsumed here.
+            final List<MethodInvocation> possiblyMoreThanOneOnPause = eg.getOrderedMethodInvocations().stream()
+                    .filter(mi -> !mi.isStatic() //
+                            && ! mi.isExceptional() //
+                            && mi.getOwner().isAndroidActivity() //
+                            && mi.getMethodSignature().contains("void onPause()")
+            // We allow only root level android events, i.e., events directly triggered by
+            // the framework
                             && carvedExecution.getCallGraphContainingTheMethodInvocation(mi).getRoots().contains(mi))
                     .collect(Collectors.toList());
-            
-            
+
             for (MethodInvocation onPause : possiblyMoreThanOneOnPause) {
                 //
                 DataDependencyGraph ddg = carvedExecution.getDataDependencyGraphContainingTheMethodInvocation(onPause);
@@ -501,7 +510,8 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
                 int invocationTraceId = onPause.getInvocationTraceId();
                 String methodSignature = "<org.robolectric.android.controller.ActivityController org.robolectric.android.controller.ActivityController pause()>";
 
-                MethodInvocation activityControllerPause = new MethodInvocation(invocationTraceId, uniqueID.getAndIncrement(), methodSignature);
+                MethodInvocation activityControllerPause = new MethodInvocation(invocationTraceId,
+                        uniqueID.getAndIncrement(), methodSignature);
                 // Force this to be necessary
                 activityControllerPause.setNecessary(true);
                 activityControllerPause.setPublic(true);
@@ -521,8 +531,9 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
                     throw new RuntimeException(e);
                 }
 
-                // In case this is indeed the method under test we need to mark it is wrapped inside robolectric.
-                //  OR We need to be able to call the methods on it directly...
+                // In case this is indeed the method under test we need to mark it is wrapped
+                // inside robolectric.
+                // OR We need to be able to call the methods on it directly...
                 if (carvedExecution.methodInvocationUnderTest.equals(onPause)) {
                     carvedExecution.isMethodInvocationUnderTestWrapped = true;
                 }
@@ -539,7 +550,9 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
         carvedExecution.executionFlowGraphs.forEach(eg -> {
             // There is only one activity so onCreate is called once
             Optional<MethodInvocation> maybeOnDestroy = eg.getOrderedMethodInvocations().stream()
-                    .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidActivity()
+                    .filter(mi -> !mi.isStatic() //
+                            && ! mi.isExceptional() //
+                            && mi.getOwner().isAndroidActivity() //
                             && mi.getMethodSignature().contains("void onDestroy()"))
                     .findFirst();
 
@@ -603,7 +616,9 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
         carvedExecution.executionFlowGraphs.forEach(eg -> {
             // TODO Shall we check that the activity is indeed the same?
             Optional<MethodInvocation> maybeOnCreateOptionsMenu = eg.getOrderedMethodInvocations().stream()
-                    .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidActivity()
+                    .filter(mi -> !mi.isStatic() //
+                            && !mi.isExceptional() //
+                            && mi.getOwner().isAndroidActivity() //
                             && mi.getMethodSignature().contains("onCreateOptionsMenu(android.view.Menu)"))
                     .findFirst();
 
@@ -660,7 +675,8 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
         carvedExecution.executionFlowGraphs.forEach(eg -> {
             // TODO Shall we check that the activity is indeed the same?
             List<MethodInvocation> maybeOnOptionsItemSelected = eg.getOrderedMethodInvocations().stream()
-                    .filter(mi -> !mi.isStatic() && mi.getOwner().isAndroidActivity()
+                    .filter(mi -> !mi.isStatic() && !mi.isExceptional() //
+                            && mi.getOwner().isAndroidActivity() //
                             && mi.getMethodSignature().contains("onOptionsItemSelected(android.view.MenuItem)"))
                     .collect(Collectors.toList());
 

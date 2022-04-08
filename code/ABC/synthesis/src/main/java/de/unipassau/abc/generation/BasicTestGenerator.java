@@ -369,7 +369,7 @@ public class BasicTestGenerator implements TestGenerator {
             // TODO For some reason here we do not look up the data dep graph, but directly
             // look inside the methodInvocation object
 
-            System.out.println(" Adding " + methodInvocation);
+            logger.info(" Adding " + methodInvocation);
             executionFlowGraph.enqueueMethodInvocations(methodInvocation);
             // Fix the data deps
             dataDependencyGraph.addMethodInvocationWithoutAnyDependency(methodInvocation);

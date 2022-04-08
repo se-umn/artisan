@@ -144,6 +144,12 @@ public interface DataDependencyGraph {
 
     public Optional<MethodInvocation> getConstructorOf(ObjectInstance objectInstance);
 
+    /**
+     * Note this returns also static dependencies
+     * 
+     * @param dataNode
+     * @return
+     */
     public Collection<MethodInvocation> getMethodInvocationsWhichUse(DataNode dataNode);
 
     public ObjectInstance getOwnerFor(MethodInvocation methodInvocationToCarve);

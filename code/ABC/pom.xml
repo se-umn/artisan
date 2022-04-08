@@ -14,7 +14,7 @@
 	<name>Action-Based Test Carving for Android </name>
 
 	<properties>
-		<maven.multiModuleProjectDirectory>/Users/mattia/Faculty/Research/2020_android_test_carving/repositories/action-based-test-carving/code/ABC</maven.multiModuleProjectDirectory>
+		<maven.multiModuleProjectDirectory>/Users/gambi/action-based-test-carving/code/ABC</maven.multiModuleProjectDirectory>
 	</properties>
 
 	<developers>

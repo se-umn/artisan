@@ -1339,7 +1339,8 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
     }
 
     /**
-     * Return all the method calls which have the given object as parameter
+     * Return all the method calls which have the given object as parameter BUT not
+     * as a static dependency
      * 
      * @param dataNode
      * @return
@@ -1465,7 +1466,7 @@ public class DataDependencyGraphImpl implements DataDependencyGraph {
 //                    if (! getConstructorOf(oi).isPresent()) {
 //                        logger.info(">> Cannot find constructor of " + oi);
 //                    }
-                    
+
                     if (getConstructorOf(oi).isPresent() || !getMethodInvocationsWhichReturn(oi).isEmpty()) {
                         isDangling = false;
                         break;
