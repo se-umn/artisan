@@ -91,7 +91,7 @@ public abstract class BaseDebuggingTest {
         TestCaseNamer testClassNameUsingGlobalId = new NameTestCaseGlobally();
 
         // TODO Is is not going to work, since the IDs are regenerated every time...
-        File theAPK = new File(traceFolder, "app-original.apk");
+        File theAPK = new File(new File(traceFolder).getParent(), "app-original.apk");
         Main.idsInApk = ParsingUtils.getIdsMap(theAPK);
 
         // Ensure we use the actual method invocation, not a shallow copy of it!
@@ -105,7 +105,12 @@ public abstract class BaseDebuggingTest {
 
         List<ParsedTraceDecorator> decorators = new ArrayList<ParsedTraceDecorator>();
         decorators.add( new AndroidParsedTraceDecorator());
-        decorators.add( new StaticParsedTraceDecorator());
+        
+        
+        String packageName = ParsingUtils.findApkPackageName(theAPK);
+        boolean useOnlyOwnDependencies = (packageName != "");
+        
+        decorators.add( new StaticParsedTraceDecorator(useOnlyOwnDependencies, packageName));
         
         // Decorate the trace
         for( ParsedTraceDecorator decorator : decorators ) {

@@ -91,6 +91,10 @@ public class Main {
 
         assert idsInApk != null;
 
+        //
+        String packageName = ParsingUtils.findApkPackageName(cli.getApk());
+        boolean useOnlyOwnDependencies = (packageName != "");
+
         /*
          * This class is in charge of give a proper name to the test classes, not test
          * methods !
@@ -119,8 +123,8 @@ public class Main {
                 // Decorate first android and then static
                 ParsedTraceDecorator decorator = new AndroidParsedTraceDecorator();
                 parsedTrace = decorator.decorate(parsedTrace);
-                //
-                ParsedTraceDecorator staticDecorator = new StaticParsedTraceDecorator();
+
+                ParsedTraceDecorator staticDecorator = new StaticParsedTraceDecorator(useOnlyOwnDependencies, packageName);
                 parsedTrace = staticDecorator.decorate(parsedTrace);
 
                 // Collect Stats - TODO Move to a separate class
@@ -149,19 +153,18 @@ public class Main {
                     public int compare(Object o1, Object o2) {
                         int o1Value = ((Map.Entry<String, AtomicInteger>) o1).getValue().intValue();
                         int o2Value = ((Map.Entry<String, AtomicInteger>) o2).getValue().intValue();
-                        if(o1Value<o2Value){
+                        if (o1Value < o2Value) {
                             return -1;
-                        }
-                        else if(o1Value==o2Value){
+                        } else if (o1Value == o2Value) {
                             return 0;
-                        }
-                        else{
+                        } else {
                             return 1;
                         }
                     }
                 });
-                for (int i=(a.length-1); i>=0; --i) {
-                    logger.info("\t" + ((Map.Entry<String, AtomicInteger>) a[i]).getValue().intValue() + "\t" + ((Map.Entry<String, Integer>) a[i]).getKey());
+                for (int i = (a.length - 1); i >= 0; --i) {
+                    logger.info("\t" + ((Map.Entry<String, AtomicInteger>) a[i]).getValue().intValue() + "\t"
+                            + ((Map.Entry<String, Integer>) a[i]).getKey());
                 }
 
                 totalParsedTraces = totalParsedTraces + 1;

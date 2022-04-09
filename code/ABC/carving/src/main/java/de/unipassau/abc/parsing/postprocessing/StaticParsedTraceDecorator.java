@@ -27,11 +27,24 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
 
     private static Logger logger = LoggerFactory.getLogger(StaticParsedTraceDecorator.class);
 
+    private boolean useOnlyOwnDependencies = false;
+    private String packageName = null;
+
+    public StaticParsedTraceDecorator() {
+        this(false, null);
+    }
+
+    public StaticParsedTraceDecorator(boolean useOnlyOwnDependencies, String packageName) {
+        this.useOnlyOwnDependencies = useOnlyOwnDependencies;
+        this.packageName = packageName;
+    }
+
     @Override
     public ParsedTrace decorate(ParsedTrace parsedTrace) {
         // Promote EnumConstants - We do this BEFORE computing the static deps
         parsedTrace = convertEnumConstantsAndCleanUpTrace(parsedTrace);
-        // Include implicit dependencies on Static Methods/Classes?
+        // Include implicit dependencies on Static Methods/Classes.
+        // TODO Under study: Limit to one applications's static dependencies
         parsedTrace = decorateWithStaticDataDependencies(parsedTrace);
         // Assign types to Anonym Classes
         parsedTrace = resolveFormalTypesOfAnonymClasses(parsedTrace);
@@ -91,10 +104,13 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
     // Some generated method calls must be filtered using a different strategy
     final static Predicate<MethodInvocation> filterLamdaGenerators = mi -> !mi.getMethodSignature()
             .contains("lambdaFactory$");
-    
-    final static Predicate<MethodInvocation> filterDaggerPreconditions = mi -> !mi.getMethodSignature().contains("<dagger.internal.Preconditions");
-    final static Predicate<MethodInvocation> filterLang3Validate = mi -> !mi.getMethodSignature().contains("<org.apache.commons.lang3.Validate");
-    final static Predicate<MethodInvocation> filterAndroidLog = mi -> !mi.getMethodSignature().contains("<android.util.Log");
+
+    final static Predicate<MethodInvocation> filterDaggerPreconditions = mi -> !mi.getMethodSignature()
+            .contains("<dagger.internal.Preconditions");
+    final static Predicate<MethodInvocation> filterLang3Validate = mi -> !mi.getMethodSignature()
+            .contains("<org.apache.commons.lang3.Validate");
+    final static Predicate<MethodInvocation> filterAndroidLog = mi -> !mi.getMethodSignature()
+            .contains("<android.util.Log");
 // 
     // Build the actual predicate to filter static dependencies
     final static List<Predicate<MethodInvocation>> allPredicates = new ArrayList<Predicate<MethodInvocation>>();
@@ -115,7 +131,7 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
     // processingEnum()>
     //
     private ParsedTrace convertEnumConstantsAndCleanUpTrace(ParsedTrace parsedTrace) {
-
+        logger.info("* Pre-process Enumeration Constants ");
         parsedTrace.getParsedTrace().forEach((threadName, graphs) -> {
             final ExecutionFlowGraph executionFlowGraph = graphs.getFirst();
             final CallGraph callGraph = graphs.getThird();
@@ -215,6 +231,7 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
 
     // removeStaticConstructors
     private ParsedTrace removeStaticConstructors(ParsedTrace parsedTrace) {
+        logger.info("* Remove Static Constructors (clinit) ");
         parsedTrace.getParsedTrace().forEach((threadName, graphs) -> {
             final ExecutionFlowGraph executionFlowGraph = graphs.getFirst();
             final CallGraph callGraph = graphs.getThird();
@@ -257,11 +274,11 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
 
         Set<String> types = new HashSet<String>(Arrays.asList(new String[] { "android.os.Parcelable.Creator" }));
         KNOWN_TYPES.put("de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.Sign$1", types);
-        
+
     }
 
     private ParsedTrace resolveFormalTypesOfAnonymClasses(ParsedTrace parsedTrace) {
-
+        logger.info("* Resolve types of Anonym Classes");
         parsedTrace.getParsedTrace().forEach((threadName, graphs) -> {
 
             ExecutionFlowGraph executionFlowGraph = graphs.getFirst();
@@ -288,9 +305,10 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
                                                     "<abc.Field: java.lang.Object syntheticFieldSetter(java.lang.Object,java.lang.String,java.lang.String)>")
                     // This is how we "set" fields
                                             && mi.getReturnValue().getType().equals(typeToResolve)
-                    // Extract the type information - be sure to remove the " indicating this is a String
-                    ).map(mi -> mi.getActualParameterInstances().get(2).toString().replace("$", ".").replaceAll("\"", ""))
-                            .collect(Collectors.toSet());
+                    // Extract the type information - be sure to remove the " indicating this is a
+                    // String
+                    ).map(mi -> mi.getActualParameterInstances().get(2).toString().replace("$", ".").replaceAll("\"",
+                            "")).collect(Collectors.toSet());
                     // and replace everywhere the reference to whatever type is the anonym with the
                     // one assigned in the field
                     // we assume ONLY one type is present (the same object is not assigned multiple
@@ -364,6 +382,12 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
     }
 
     private ParsedTrace decorateWithStaticDataDependencies(ParsedTrace parsedTrace) {
+        logger.info("* Decorate with static dependencies");
+        if (this.useOnlyOwnDependencies) {
+            // Make sure we ALSO filter by this predicate
+            logger.info("Considers ONLY static dependencies defined in " + this.packageName);
+            allPredicates.add(mi -> JimpleUtils.getPackage(mi.getMethodSignature()).equals(this.packageName));
+        }
 
         parsedTrace.getParsedTrace().forEach((threadName, graphs) -> {
             ExecutionFlowGraph executionFlowGraph = graphs.getFirst();
