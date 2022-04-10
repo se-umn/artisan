@@ -41,6 +41,7 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
     // carver should look. Except for static dependendencies, everything about an
     // activity should be available troughout its bundle !
     private static List<String> bannedActivityMethodCallNames = Arrays.asList(new String[] { //
+            "startActivity", //
             "startActivityForResult", //
             "onSaveInstanceState", //
             "onRestoreInstanceState" });
@@ -116,8 +117,9 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
 
     private CarvedExecution ensureOnlyOneActivityRemains(CarvedExecution carvedExecution)
             throws CarvingException, ABCException {
-        // This simplifications applies ONLY if the test requires two or more activities
-        // at once
+
+        // This seems to be broken? How is it possible that we do not have
+        // problematicDep but two activities?
         while (countActivities(carvedExecution) >= 2) {
 
             // Find the methods that ORIGINALLY resulted in bringing in all the dependencies
@@ -137,36 +139,39 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
             // to find the method invocations that link
             // the second (and the other activities) as those are the deps we need to CUT
 
-            List<MethodInvocation> problematicDependencies = findProblematicDependencyChain(necessaryMethodInvocations,
+            List<MethodInvocation> methodInvocationsCreatingProblematicDependencies = findProblematicDependencyChain(necessaryMethodInvocations,
                     carvedExecution);
 
             // TODO This is tricky as the dep can be trigger at any point, while we should
             // consistently pick the one which have larger ID?
             //
-            if (problematicDependencies.size() > 0) {
+            if (methodInvocationsCreatingProblematicDependencies.size() > 0) {
                 // Why can't I simply remove all of them at once?
 
-                Collections.sort(problematicDependencies);
-                Collections.reverse(problematicDependencies);
-                // Why we do it one at the time ?!
-                // Take the one which has higher ID, meaning that "temporally" is closer to MUT
-//                MethodInvocation problematicMethodInvocation = problematicDependencies.iterator().next();
-
+                Collections.sort(methodInvocationsCreatingProblematicDependencies);
+                Collections.reverse(methodInvocationsCreatingProblematicDependencies);
+                
+                // At this point we have
+                
                 final CarvedExecution _carvedExecution = carvedExecution;
-                problematicDependencies.forEach(pd -> {
+                methodInvocationsCreatingProblematicDependencies.forEach(pd -> {
                     logger.debug("Getting rig of problematic invocation:" + pd);
-                    _carvedExecution.removeTransitively(pd);
+//                    _carvedExecution.removeTransitively(pd);
+                    // At this point, the carved execution does not contain anymore the problematic call
+                    // but we need to ensure the data we need can be created anyway
+                    _carvedExecution.remove(pd);
+                    
                 });
 
+                
                 // If we do not reset is necessary flag, the removed methods will automatically
                 // be there again
-                resetIsNecessaryTag(carvedExecution);
+                resetIsNecessaryTag(_carvedExecution);
 
-                // We recarve only in the scope of the carved execution... that does not have
+                // We re-carve only in the scope of the carved execution... that does not have
                 // the problem
-                BasicCarver carver = new BasicCarver(carvedExecution);
-                CarvedExecution reCarvedExecution = carver.recarve(carvedExecution.methodInvocationUnderTest).stream()
-                        .findFirst().get();
+                BasicCarver carver = new BasicCarver(_carvedExecution);
+                CarvedExecution reCarvedExecution = carver.recarve(_carvedExecution.methodInvocationUnderTest).stream().findFirst().get();
 
                 reCarvedExecution.traceId = carvedExecution.traceId;
                 reCarvedExecution.isMethodInvocationUnderTestWrapped = carvedExecution.isMethodInvocationUnderTestWrapped;
@@ -423,10 +428,11 @@ public class AndroidMultiActivitySimplifier extends AbstractCarvedExecutionSimpl
             Collections.sort(workList);
             Collections.reverse(workList);
 
-            logger.debug("AndroidMultiActivitySimplifier.onWhichActivityDepends() dataDependecy " + dataDependecy
-                    + " introduces the following NEW dependencies");
-
-            workList.forEach(System.out::println);
+            if (logger.isDebugEnabled()) {
+                logger.debug("AndroidMultiActivitySimplifier.onWhichActivityDepends() dataDependecy " + dataDependecy
+                        + " introduces the following NEW " + workList.size() + " dependencies");
+                workList.forEach(mi -> logger.debug(" - " + mi.getMethodSignature()));
+            }
 
             for (MethodInvocation dependencyMethodInvocation : workList) {
                 // Propagate till base case

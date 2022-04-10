@@ -75,6 +75,9 @@ public class Main {
 
         @Option(longName = "filter-method", defaultValue = "")
         public List<String> getFilterMethods();
+        
+        @Option(longName = "relaxed")
+        public boolean getRelaxed();
 
     }
 
@@ -191,7 +194,11 @@ public class Main {
                     targetMethodsInvocationsList.forEach(mi -> logger.info("** " + mi.toString()));
                 }
 
-                BasicTestGenerator basicTestGenerator = new BasicTestGenerator();
+                
+                boolean relaxMode = cli.getRelaxed();
+                logger.info("Use RELAXED mode");
+                        
+                BasicTestGenerator basicTestGenerator = new BasicTestGenerator(relaxMode);
                 Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,
                         parsedTrace);
 
@@ -280,7 +287,7 @@ public class Main {
         }
 
         // Output some statistics
-        StringBuffer stats = new StringBuffer();
+        StringBuffer stats = new StringBuffer("\n");
         stats.append("Input traces: ").append(totalTraces).append("\n");
         stats.append("Parsed traces: ").append(totalParsedTraces).append("\n");
         stats.append("Carvable Targets: ").append(totalCarvableTargets).append("\n");

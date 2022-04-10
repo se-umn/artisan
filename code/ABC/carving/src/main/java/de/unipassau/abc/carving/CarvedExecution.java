@@ -136,8 +136,10 @@ public class CarvedExecution {
         logger.debug("- Remove " + methodInvocationToRemove);
 
         // Null may happen because of transitive removal of subsumed nodes
+        // We cannot simply remove the call from the call graph !
         if (getCallGraphContainingTheMethodInvocation(methodInvocationToRemove) != null) {
-            getCallGraphContainingTheMethodInvocation(methodInvocationToRemove).remove(methodInvocationToRemove);
+            getCallGraphContainingTheMethodInvocation(methodInvocationToRemove).replaceMethodInvocationWithExecution(methodInvocationToRemove);
+//            getCallGraphContainingTheMethodInvocation(methodInvocationToRemove).remove(methodInvocationToRemove);
         }
         if (getDataDependencyGraphContainingTheMethodInvocation(methodInvocationToRemove) != null) {
             getDataDependencyGraphContainingTheMethodInvocation(methodInvocationToRemove)

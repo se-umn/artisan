@@ -67,6 +67,22 @@ public class BasicTestGenerator implements TestGenerator {
             // Transform android service calls into robolectric-calls
             new RobolectricServiceSimplifier());
 
+    // This is a kind of strict mode
+    private boolean forceMutVisible = true;
+
+    // Use relaxed mode by default
+    public BasicTestGenerator() {
+        this(false);
+    }
+
+    public BasicTestGenerator(boolean relaxedMode) {
+        if( relaxedMode ) {
+            this.forceMutVisible = false;
+        } else {
+            this.forceMutVisible = true;
+        }
+    }
+
     @Override
     public Collection<CarvedTest> generateTests(List<MethodInvocation> targetMethodsInvocations, ParsedTrace trace)
             throws CarvingException, ABCException {
@@ -130,7 +146,7 @@ public class BasicTestGenerator implements TestGenerator {
                     logger.error("-------------------------");
                     logger.error("Uncaught exception ", e);
                     logger.error("-------------------------");
-                } 
+                }
             }
         }
 
@@ -209,127 +225,133 @@ public class BasicTestGenerator implements TestGenerator {
         logger.info("Directly callable method invocations:");
         directlyCallableMethodInvocations.stream().map(m -> m.toFullString()).forEach(logger::info);
 
-        /*
-         * Validation: If the directlyCallableMethodInvocations do not contain the
-         * target method invocation AND this was not on purpose (e.g., simplification),
-         * this test needs some adjustment. For the moment, simply raise an exception.
-         */
-
-        // TODO This should be placed in yet another simplifier or post-processor
-        boolean needsFix = false;
-        final MethodInvocation mut = carvedExecution.methodInvocationUnderTest;
-        if (!directlyCallableMethodInvocations.stream().anyMatch(mi -> mi.equals(mut))
-                && !carvedExecution.isMethodInvocationUnderTestWrapped) {
-
-            // This might break the test because it might expose a method that is necessary
-            // but subsumes the MUT resulting in invoking the method under test twice!
-            logger.info("Method invocation under test " + carvedExecution.methodInvocationUnderTest
-                    + " is not visible. Try to recover ...");
-            needsFix = true;
-
-            // TODO This might be overly strict... but avoid broken test cases.
-            // For instance, if the MUT is inside the onCreate method and uses Android
-            // objects, then we cannot setup the test because the MUT will be always INSIDE
-            // the necessary onCreate method...
-            List<MethodInvocation> necessaryAndSubsuming = carvedExecution
-                    .getCallGraphContainingTheMethodInvocationUnderTest()
-                    .getOrderedSubsumingMethodInvocationsFor(carvedExecution.methodInvocationUnderTest).stream()
-                    .filter(mi -> mi.isNecessary()).collect(Collectors.toList());
-
-            if (necessaryAndSubsuming.size() > 0) {
-                throw new CarvingException("We cannot make visible " + carvedExecution.methodInvocationUnderTest
-                        + " because it is subsumed by necessary invocations: " + necessaryAndSubsuming);
-            }
+        if (forceMutVisible) {
 
             /*
-             * Recovery works as follow. Recursively replace the invocation of a parent
-             * method with its (necessary) executions until the method invocation under test
-             * becomes visible again. Necessary/Un-necessary must be established within the
-             * (new) exploded method only. The other (directly) callable methods must stay
-             * where they are!
+             * Validation: If the directlyCallableMethodInvocations do not contain the
+             * target method invocation AND this was not on purpose (e.g., simplification),
+             * this test needs some adjustment. For the moment, simply raise an exception.
              */
 
-            CallGraph callGraph = carvedExecution.getCallGraphContainingTheMethodInvocationUnderTest();
+            // TODO This should be placed in yet another simplifier or post-processor
+            boolean needsFix = false;
 
-            // Reverse iteration
-            List<MethodInvocation> methodsSubsumingMethodInvocationUnderTest = callGraph
-                    .getOrderedSubsumingMethodInvocationsFor(carvedExecution.methodInvocationUnderTest);
+            final MethodInvocation mut = carvedExecution.methodInvocationUnderTest;
 
-            // Make sure we tag as necessary all the calls BEFORE the top
-            // methodsSubsumingMethodInvocationUnderTest
-            // TODO Make it robust? At least one must be here
-            MethodInvocation parentSubsumingMethodInvocation = methodsSubsumingMethodInvocationUnderTest.get(0);
-            logger.info("Parent Subsuming " + parentSubsumingMethodInvocation);
+            if (!directlyCallableMethodInvocations.stream().anyMatch(mi -> mi.equals(mut))
+                    && !carvedExecution.isMethodInvocationUnderTestWrapped) {
 
-            final List<MethodInvocation> strictlyNecessaryMethods = new ArrayList<MethodInvocation>();
-            carvedExecution.executionFlowGraphs.forEach(efg -> {
-                efg.getMethodInvocationsBefore(parentSubsumingMethodInvocation, new Predicate<MethodInvocation>() {
+                // This might break the test because it might expose a method that is necessary
+                // but subsumes the MUT resulting in invoking the method under test twice!
+                logger.info("Method invocation under test " + carvedExecution.methodInvocationUnderTest
+                        + " is not visible. Try to recover ...");
+                needsFix = true;
 
-                    @Override
-                    public boolean test(MethodInvocation t) {
-                        return true;
-                    }
+                // TODO This might be overly strict... but avoid broken test cases.
+                // For instance, if the MUT is inside the onCreate method and uses Android
+                // objects, then we cannot setup the test because the MUT will be always INSIDE
+                // the necessary onCreate method...
+                List<MethodInvocation> necessaryAndSubsuming = carvedExecution
+                        .getCallGraphContainingTheMethodInvocationUnderTest()
+                        .getOrderedSubsumingMethodInvocationsFor(carvedExecution.methodInvocationUnderTest).stream()
+                        .filter(mi -> mi.isNecessary()).collect(Collectors.toList());
 
-                }).forEach(mi -> strictlyNecessaryMethods.add(mi));
-            });
+                if (necessaryAndSubsuming.size() > 0) {
+                    throw new CarvingException("We cannot make visible " + carvedExecution.methodInvocationUnderTest
+                            + " because it is subsumed by necessary invocations: " + necessaryAndSubsuming);
+                }
 
-            // All the calls BEFORE the subsuming methods must be declared necessary
-            carvedExecution.setNecessaryTagFor(strictlyNecessaryMethods);
+                /*
+                 * Recovery works as follow. Recursively replace the invocation of a parent
+                 * method with its (necessary) executions until the method invocation under test
+                 * becomes visible again. Necessary/Un-necessary must be established within the
+                 * (new) exploded method only. The other (directly) callable methods must stay
+                 * where they are!
+                 */
 
-            // Debug who's containing the MUT
-            logger.info("Subsuming method invocations:");
-            methodsSubsumingMethodInvocationUnderTest.stream().map(m -> m.toString()).forEach(logger::info);
+                CallGraph callGraph = carvedExecution.getCallGraphContainingTheMethodInvocationUnderTest();
 
-            ListIterator<MethodInvocation> listIterator = methodsSubsumingMethodInvocationUnderTest
-                    .listIterator(methodsSubsumingMethodInvocationUnderTest.size());
+                // Reverse iteration
+                List<MethodInvocation> methodsSubsumingMethodInvocationUnderTest = callGraph
+                        .getOrderedSubsumingMethodInvocationsFor(carvedExecution.methodInvocationUnderTest);
 
-            // *Try* to explode whatever method contains MUT
-            // Adjust the other graphs accordingly !
-            while (listIterator.hasPrevious()) {
-                MethodInvocation methodInvocationToReplace = listIterator.previous();
-                callGraph.replaceMethodInvocationWithExecution(methodInvocationToReplace);
-                // This ensures the correct linking
-                carvedExecution.getExecutionFlowGraphGraphContainingTheMethodInvocation(methodInvocationToReplace)
-                        .remove(methodInvocationToReplace);
-                // This removes the node and all the edges attached to it
-                carvedExecution.getDataDependencyGraphContainingTheMethodInvocation(methodInvocationToReplace)
-                        .remove(methodInvocationToReplace);
+                // Make sure we tag as necessary all the calls BEFORE the top
+                // methodsSubsumingMethodInvocationUnderTest
+                // TODO Make it robust? At least one must be here
+                MethodInvocation parentSubsumingMethodInvocation = methodsSubsumingMethodInvocationUnderTest.get(0);
+                logger.info("Parent Subsuming " + parentSubsumingMethodInvocation);
+
+                final List<MethodInvocation> strictlyNecessaryMethods = new ArrayList<MethodInvocation>();
+                carvedExecution.executionFlowGraphs.forEach(efg -> {
+                    efg.getMethodInvocationsBefore(parentSubsumingMethodInvocation, new Predicate<MethodInvocation>() {
+
+                        @Override
+                        public boolean test(MethodInvocation t) {
+                            return true;
+                        }
+
+                    }).forEach(mi -> strictlyNecessaryMethods.add(mi));
+                });
+
+                // All the calls BEFORE the subsuming methods must be declared necessary
+                carvedExecution.setNecessaryTagFor(strictlyNecessaryMethods);
+
+                // Debug who's containing the MUT
+                logger.info("Subsuming method invocations:");
+                methodsSubsumingMethodInvocationUnderTest.stream().map(m -> m.toString()).forEach(logger::info);
+
+                ListIterator<MethodInvocation> listIterator = methodsSubsumingMethodInvocationUnderTest
+                        .listIterator(methodsSubsumingMethodInvocationUnderTest.size());
+
+                // *Try* to explode whatever method contains MUT
+                // Adjust the other graphs accordingly !
+                while (listIterator.hasPrevious()) {
+                    MethodInvocation methodInvocationToReplace = listIterator.previous();
+                    callGraph.replaceMethodInvocationWithExecution(methodInvocationToReplace);
+                    // This ensures the correct linking
+                    carvedExecution.getExecutionFlowGraphGraphContainingTheMethodInvocation(methodInvocationToReplace)
+                            .remove(methodInvocationToReplace);
+                    // This removes the node and all the edges attached to it
+                    carvedExecution.getDataDependencyGraphContainingTheMethodInvocation(methodInvocationToReplace)
+                            .remove(methodInvocationToReplace);
+                }
+
+                /*
+                 * At this point we should get rid of the method invocations that became visible
+                 * after replacing their caller but are not strictly necessary for carving. We
+                 * resort to re-carving again.
+                 */
+
+                BasicCarver carver = new BasicCarver(carvedExecution);
+                CarvedExecution reCarvedExecution = carver.recarve(carvedExecution.methodInvocationUnderTest).stream()
+                        .findFirst().get();
+
+                reCarvedExecution.traceId = carvedExecution.traceId;
+                reCarvedExecution.isMethodInvocationUnderTestWrapped = carvedExecution.isMethodInvocationUnderTestWrapped;
+
+                // NOTE We need to replace the carvedExecution with the recarved one at this
+                // point !
+                carvedExecution = reCarvedExecution;
+
             }
 
-            /*
-             * At this point we should get rid of the method invocations that became visible
-             * after replacing their caller but are not strictly necessary for carving. We
-             * resort to re-carving again.
-             */
+            // Check if, after the recovery, the method under test is still not visible...
+            directlyCallableMethodInvocations.clear();
+            carvedExecution.callGraphs
+                    .forEach(callGraph -> directlyCallableMethodInvocations.addAll(callGraph.getRoots()));
+            if (needsFix) {
+                // logging
+                logger.info("New directly callable method invocations:");
+                directlyCallableMethodInvocations.stream().map(m -> m.toString()).forEach(logger::info);
+            }
 
-            BasicCarver carver = new BasicCarver(carvedExecution);
-            CarvedExecution reCarvedExecution = carver.recarve(carvedExecution.methodInvocationUnderTest).stream()
-                    .findFirst().get();
-
-            reCarvedExecution.traceId = carvedExecution.traceId;
-            reCarvedExecution.isMethodInvocationUnderTestWrapped = carvedExecution.isMethodInvocationUnderTestWrapped;
-
-            // NOTE We need to replace the carvedExecution with the recarved one at this
-            // point !
-            carvedExecution = reCarvedExecution;
+            if (!directlyCallableMethodInvocations.stream().anyMatch(mi -> mi.equals(mut))
+                    && !carvedExecution.isMethodInvocationUnderTestWrapped) {
+                throw new CarvingException("Target method invocation " + carvedExecution.methodInvocationUnderTest
+                        + "is not directly visible ");
+            }
 
         }
-
-        // Check if, after the recovery, the method under test is still not visible...
-        directlyCallableMethodInvocations.clear();
-        carvedExecution.callGraphs.forEach(callGraph -> directlyCallableMethodInvocations.addAll(callGraph.getRoots()));
-        if (needsFix) {
-            // logging
-            logger.info("New directly callable method invocations:");
-            directlyCallableMethodInvocations.stream().map(m -> m.toString()).forEach(logger::info);
-        }
-
-        if (!directlyCallableMethodInvocations.stream().anyMatch(mi -> mi.equals(mut))
-                && !carvedExecution.isMethodInvocationUnderTestWrapped) {
-            throw new CarvingException("Target method invocation " + carvedExecution.methodInvocationUnderTest
-                    + "is not directly visible ");
-        }
-
         logger.info("-------------------------");
         logger.info(" VALIDATING THE CARVED EXECUTION ");
         logger.info("-------------------------");
@@ -426,7 +448,8 @@ public class BasicTestGenerator implements TestGenerator {
              * SPY or not SPY
              */
 
-            if (!directlyCallableMethodInvocations.contains(methodInvocationUnderTest)
+            if (forceMutVisible //
+                    && !directlyCallableMethodInvocations.contains(methodInvocationUnderTest)
                     && !carvedExecution.isMethodInvocationUnderTestWrapped) {
                 // SPY
                 throw new CarvingException(

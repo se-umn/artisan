@@ -66,9 +66,9 @@ public class RobolectricActivitySimplifier extends AbstractCarvedExecutionSimpli
         // Activity
         carvedExecution = resetIsNecessaryTag(carvedExecution);
         // Those also set the necessary tag
-
         carvedExecution = introduceControllerAndGetTheActivity(carvedExecution);
         carvedExecution = wrapOnCreate(carvedExecution);
+        
         carvedExecution = wrapOnStart(carvedExecution);
         // TODO Visible might be used to carvedExecution =
         // wrapOnLoadFinished(carvedExecution);

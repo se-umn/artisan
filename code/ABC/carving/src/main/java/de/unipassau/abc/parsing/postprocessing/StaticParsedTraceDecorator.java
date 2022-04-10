@@ -104,7 +104,14 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
     // Some generated method calls must be filtered using a different strategy
     final static Predicate<MethodInvocation> filterLamdaGenerators = mi -> !mi.getMethodSignature()
             .contains("lambdaFactory$");
-
+    final static Predicate<MethodInvocation> filterLamdas= mi -> !mi.getMethodSignature()
+            .contains("lambda$");
+    
+    // This is only to debug whether static deps create issues
+    final static Predicate<MethodInvocation> filterAllForDebug = mi -> false;
+    
+    
+    
     final static Predicate<MethodInvocation> filterDaggerPreconditions = mi -> !mi.getMethodSignature()
             .contains("<dagger.internal.Preconditions");
     final static Predicate<MethodInvocation> filterLang3Validate = mi -> !mi.getMethodSignature()
@@ -115,8 +122,12 @@ public class StaticParsedTraceDecorator implements ParsedTraceDecorator {
     // Build the actual predicate to filter static dependencies
     final static List<Predicate<MethodInvocation>> allPredicates = new ArrayList<Predicate<MethodInvocation>>();
     {
+        // Enable this to avoid all static deps
+//        allPredicates.add(filterAllForDebug);
+        
         // https://www.baeldung.com/java-predicate-chain
         allPredicates.add(filterLamdaGenerators);
+        allPredicates.add(filterLamdas);
         allPredicates.add(filterDaggerPreconditions);
         allPredicates.add(filterLang3Validate);
         //
