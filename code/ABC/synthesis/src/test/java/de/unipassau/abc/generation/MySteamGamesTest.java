@@ -49,7 +49,7 @@ public class MySteamGamesTest extends BaseDebuggingTest {
 
     @BeforeClass
     public static void setupLogger() {
-        logger = LoggerFactory.getLogger(EarthQuakeMonitorTest.class);
+        logger = LoggerFactory.getLogger(MySteamGamesTest.class);
     }
 
     @Before
