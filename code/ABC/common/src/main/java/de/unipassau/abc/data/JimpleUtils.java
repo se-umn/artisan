@@ -298,8 +298,9 @@ public class JimpleUtils {
 
 	public static boolean isAndroidMethod(String methodSignature) {
 		String classSignature = getClassNameForMethod(methodSignature);
-		return androidPackagePrefixes.stream().map(classSignature::startsWith).reduce(false,
-				(res, curr) -> res || curr);
+		String returnType = getReturnType(methodSignature);
+		return androidPackagePrefixes.stream().map(pre -> classSignature.startsWith(pre)
+				|| returnType.startsWith(pre)).reduce(false, (res, curr) -> res || curr);
 	}
 
 	// Strip the [] from an array type

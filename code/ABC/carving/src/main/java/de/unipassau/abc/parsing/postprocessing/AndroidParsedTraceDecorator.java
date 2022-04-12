@@ -71,7 +71,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                                         // anything
             int invocationCount = -2; // This will be set by the execution flow graph
             String methodSignature = "<abc.DefaultContextGenerator: android.content.Context generateDefaultContext()>";
-            MethodInvocation generateDefaultAndroidContext = new MethodInvocation(invocationTraceId, invocationCount,
+            MethodInvocation generateDefaultAndroidContext = new AndroidMethodInvocation(invocationTraceId, invocationCount,
                     methodSignature);
             ObjectInstance defaultContext = new ObjectInstance("android.content.Context@-1");
             generateDefaultAndroidContext.setReturnValue(defaultContext);
