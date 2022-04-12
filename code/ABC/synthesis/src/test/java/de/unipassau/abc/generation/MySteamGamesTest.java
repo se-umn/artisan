@@ -57,19 +57,42 @@ public class MySteamGamesTest extends BaseDebuggingTest {
         this.traceFolder = "/Users/gambi/action-based-test-carving/apps-src/MySteamGames/traces/";
     }
 
+    // Generated from
+    // /Users/gambi/action-based-test-carving/apps-src/MySteamGames/traces/com.joffreylagut.mysteamgames.mysteamgames.ui.HomeFragmentTests#displayFavorites_noFavorites/Trace-1649771983930.txt
+//    * Method invocation under test: <com.joffreylagut.mysteamgames.mysteamgames.ui.MainActivity: void onCreate(android.os.Bundle)>_8_16
+    // * Generated from
+    // /Users/gambi/action-based-test-carving/apps-src/MySteamGames/traces/com.joffreylagut.mysteamgames.mysteamgames.ui.HomeFragmentTests#displayFavorites_noFavorites/Trace-1649771983930.txt
+//    * Method invocation under test: <com.joffreylagut.mysteamgames.mysteamgames.ui.MainActivity: void onPageScrolled(int,float,int)>_364_728
+
+    @Test
+    public void testDoNotMockIntents() throws FileNotFoundException, IOException, ABCException {
+        file = this.getTraceFileFrom(
+                "com.joffreylagut.mysteamgames.mysteamgames.ui.HomeFragmentTests#displayFavorites_noFavorites");
+        //
+        String methodSignature = "<com.joffreylagut.mysteamgames.mysteamgames.ui.MainActivity: void onCreate(android.os.Bundle)>";
+        int invocationCount = 8;
+        int invocationTraceId = 16;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+
+    }
+
     /**
-     * We do not treat floats as such (i.e., missing "f" after them or a cast double to float)
-     * Generated from /Users/gambi/action-based-test-carving/apps-src/MySteamGames/traces/com.joffreylagut.mysteamgames.mysteamgames.ui.HomeFragmentTests#displayFavorites_noFavorites/Trace-1649771983930.txt
-     * Method invocation under test: <com.joffreylagut.mysteamgames.mysteamgames.ui.MainActivity: void onPageScrolled(int,float,int)>_364_728
+     * We do not treat floats as such (i.e., missing "f" after them or a cast double
+     * to float)
+     * 
+     * Solved by ensuring toString add the missing "f"
      * 
      * @throws FileNotFoundException
      * @throws IOException
      * @throws ABCException
      */
     @Test
+    @Ignore
     public void testFloatNotDouble() throws FileNotFoundException, IOException, ABCException {
-        file = this.getTraceFileFrom("com.joffreylagut.mysteamgames.mysteamgames.ui.HomeFragmentTests#displayFavorites_noFavorites");
-        // 
+        file = this.getTraceFileFrom(
+                "com.joffreylagut.mysteamgames.mysteamgames.ui.HomeFragmentTests#displayFavorites_noFavorites");
+        //
         String methodSignature = "<com.joffreylagut.mysteamgames.mysteamgames.ui.MainActivity: void onPageScrolled(int,float,int)>";
         int invocationCount = 364;
         int invocationTraceId = 728;
@@ -77,9 +100,10 @@ public class MySteamGamesTest extends BaseDebuggingTest {
         runTheTest(methodSignature, invocationCount, invocationTraceId);
 
     }
-    
+
     // This is fixed now
-    @Test @Ignore
+    @Test
+    @Ignore
     public void testClassAsPrimitiveType() throws FileNotFoundException, IOException, ABCException {
         traceFolder = "src/test/resources/com.joffreylagut.mysteamgames.mysteamgames";
         file = "Trace-1641930295651";
