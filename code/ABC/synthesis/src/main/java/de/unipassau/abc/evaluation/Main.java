@@ -196,7 +196,9 @@ public class Main {
 
                 
                 boolean relaxMode = cli.getRelaxed();
-                logger.info("Use RELAXED mode");
+                if( relaxMode ) {
+                    logger.info("Use RELAXED mode");
+                }
                         
                 BasicTestGenerator basicTestGenerator = new BasicTestGenerator(relaxMode);
                 Collection<CarvedTest> carvedTests = basicTestGenerator.generateTests(targetMethodsInvocationsList,

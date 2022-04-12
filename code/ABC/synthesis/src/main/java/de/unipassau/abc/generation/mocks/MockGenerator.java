@@ -35,7 +35,7 @@ import edu.emory.mathcs.backport.java.util.concurrent.atomic.AtomicInteger;
 public class MockGenerator {
 
     private final static Logger logger = LoggerFactory.getLogger(MockGenerator.class);
-    
+
     private static final String MOCK_SIGNATURE = "<org.mockito.Mockito: java.lang.Object mock(java.lang.Class)>";
     private static final String RETURN_SIGNATURE = "<org.mockito.Mockito: org.mockito.stubbing.Stubber doReturn(java.lang.Object)>";
     private static final String RETURN_VOID_SIGNATURE = "<org.mockito.Mockito: org.mockito.stubbing.Stubber doNothing()>";
@@ -55,13 +55,11 @@ public class MockGenerator {
 
 //            MethodInvocation.INVOCATION_TRACE_ID_NA_CONSTANT);
 
-    
-
     /**
-     * Generate mocks is an iterative process. We start from the carvedTest and
-     * mock visible (but dangling objects). While doing so we might expose
-     * additional dependencies that before were buries in the carved execution,
-     * therefore we need to re-carve and mock them again...
+     * Generate mocks is an iterative process. We start from the carvedTest and mock
+     * visible (but dangling objects). While doing so we might expose additional
+     * dependencies that before were buries in the carved execution, therefore we
+     * need to re-carve and mock them again...
      * 
      * @param carvedTest
      * @param carvedExecution
@@ -74,10 +72,14 @@ public class MockGenerator {
 
         // We assume that there are no more than 1000 calls in each mocking cycle
         boolean repeatMocking = generateMocksForVisibleCalls(carvedTest, carvedExecution);
+        repeatMocking = repeatMocking || regenerateIntents(carvedTest, carvedExecution);
         while (repeatMocking) {
             uniqueIdGenerator.addAndGet(-1000);
             logicaTimeStampGenerator.addAndGet(-1000);
             repeatMocking = generateMocksForVisibleCalls(carvedTest, carvedExecution);
+            // Not sure we need to regenerat the intents again... maybe some additional call
+            // to them?
+//            repeatMocking = repeatMocking || regenerateIntents(carvedTest, carvedExecution);
         }
 
         // Does this require some sort of iteration?
@@ -85,6 +87,176 @@ public class MockGenerator {
         logicaTimeStampGenerator.addAndGet(-1000);
         uniqueIdGenerator.addAndGet(-1000);
         carvedTest = generateShadows(carvedTest, carvedExecution);
+
+    }
+
+    /*
+     * When Intents are not tainted, i.e., the test code trigger an intent, the
+     * basic behavior would be to mock them. However, mocking data containers like
+     * Intent is conceptually wrong... beside that, Robolectric does not work if we
+     * provide it mocked intents
+     */
+    public boolean regenerateIntents(CarvedTest carvedTest, CarvedExecution carvedExecution) {
+        logger.info("-------------------------");
+        logger.info("  REGENERATE INTENTS FOR " + carvedTest.getMethodUnderTest());
+        logger.info("-------------------------");
+
+        // Find Dangling Intents
+        ExecutionFlowGraph carvedTestExecutionFlowGraph = carvedTest.getExecutionFlowGraph();
+        DataDependencyGraph carvedTestDataDependencyGraph = carvedTest.getDataDependencyGraph();
+
+        MethodInvocation methodInvocationUnderTest = carvedTest.getMethodUnderTest();
+
+        List<MockInfo> mockInfoList = new ArrayList<MockInfo>();
+
+        boolean newMocksGenerated = false;
+
+        // Look for intents that are also dangling.
+        // NOTE: This does not account for classes that extend intends, if there are any
+        for (ObjectInstance danglingIntent : carvedTestDataDependencyGraph.getDanglingObjects().stream()
+                .filter(obj -> obj.getType().equals("android.content.Intent")).collect(Collectors.toList())) {
+
+            // Look where this Intent is used
+            List<MethodInvocation> allCallsThatRequireTheDanglingIntent = new ArrayList<>(
+                    carvedExecution.getDataDependencyGraphContainingTheMethodInvocationUnderTest()
+                            .getMethodInvocationsForOwner(danglingIntent));
+
+            // Order by timestamp
+            Collections.sort(allCallsThatRequireTheDanglingIntent);
+
+            List<MethodInvocation> callsThatRequireTheDanglingIntent = new ArrayList<>();
+            for (MethodInvocation mi : allCallsThatRequireTheDanglingIntent) {
+
+                // How it is possible that
+                // carvedExecution.getCallGraphContainingTheMethodInvocation(mi) == null ?!
+                // It seems that only calls to findItem cause this issue... so maybe there's
+                // something fishy about finding the ids.
+                if (carvedExecution.getCallGraphContainingTheMethodInvocation(mi) == null) {
+                    logger.error("There is no call graph that contains " + mi);
+                    continue;
+                }
+
+                List<MethodInvocation> possiblySubsumingMI = allCallsThatRequireTheDanglingIntent.stream().filter(_mi ->
+                // We care about _mi that happens before us
+                _mi.isBefore(mi) &&
+                // and are in the same CG
+                        carvedExecution.getCallGraphContainingTheMethodInvocation(_mi)
+                                .equals(carvedExecution.getCallGraphContainingTheMethodInvocation(mi))
+                        &&
+                        // and subsume us - if we are in the same graph
+                        carvedExecution.getCallGraphContainingTheMethodInvocation(_mi)
+                                .getMethodInvocationsSubsumedBy(_mi).contains(mi))
+                        .collect(Collectors.toList());
+
+                // Check whenter any of those call has the method name (and parameter), but
+                // different type
+                List<MethodInvocation> callsToSuper = possiblySubsumingMI.stream().filter(smi ->
+                // Same return type
+                JimpleUtils.getReturnType(smi.getMethodSignature())
+                        .equals(JimpleUtils.getReturnType(mi.getMethodSignature()))
+                        && JimpleUtils.getMethodName(smi.getMethodSignature())
+                                .equals(JimpleUtils.getMethodName(mi.getMethodSignature()))
+                        && Arrays.equals(JimpleUtils.getParameterList(smi.getMethodSignature()),
+                                JimpleUtils.getParameterList(mi.getMethodSignature()))
+                        && !JimpleUtils.getClassNameForMethod(smi.getMethodSignature())
+                                .equals(JimpleUtils.getClassNameForMethod(mi.getMethodSignature())))
+                        .collect(Collectors.toList());
+
+                if (callsToSuper.size() > 0) {
+                    logger.debug("Found usage of super " + callsToSuper + " : " + mi);
+                } else {
+                    callsThatRequireTheDanglingIntent.add(mi);
+                }
+
+            }
+
+            if (logger.isDebugEnabled()) {
+                logger.debug("Found that dangling Intent " + danglingIntent + " is invoked "
+                        + callsThatRequireTheDanglingIntent.size() + " times");
+                callsThatRequireTheDanglingIntent.forEach(mi -> logger.debug(mi.toFullString()));
+            }
+
+            if (callsThatRequireTheDanglingIntent.isEmpty()) {
+                continue;
+            }
+
+            // Reconstruct them
+
+            // Construct the Intent - TODO Add context?
+            final ObjectInstance intentToRecreate = danglingIntent;
+
+            // Call the constructor
+            MethodInvocation instantiateIntent = new MethodInvocation(logicaTimeStampGenerator.getAndIncrement(),
+                    uniqueIdGenerator.getAndIncrement(), "<android.content.Intent: void <init>()>");
+            instantiateIntent.setConstructor(true);
+            instantiateIntent.setHasGenericReturnType(false);
+            instantiateIntent.setStatic(false);
+            instantiateIntent.setNecessary(true);
+            // For the moment use Defatul constructor
+            instantiateIntent.setActualParameterInstances(Arrays.asList(new DataNode[0]));
+            instantiateIntent.setOwner(intentToRecreate);
+
+            logger.debug("Rebuild dangling Intent " + danglingIntent + " via " + instantiateIntent.toFullString());
+
+            // Inject the created call inside the graphs
+            carvedTestExecutionFlowGraph.enqueueMethodInvocations(instantiateIntent);
+            // Fix the data deps
+            // What about ownership?
+            carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(instantiateIntent);
+            carvedTestDataDependencyGraph.addDataDependencyOnOwner(instantiateIntent, intentToRecreate);
+
+            callsThatRequireTheDanglingIntent //
+                    .stream()//
+                    .filter(mi -> JimpleUtils.getMethodName(mi.getMethodSignature()).startsWith("get") //
+                            && JimpleUtils.getMethodName(mi.getMethodSignature()).endsWith("Extra"))//
+                    .forEach(mi -> {
+                        if (mi.getReturnValue() instanceof PrimitiveValue) {
+                            MethodInvocation putExtraGeneric = new MethodInvocation(
+                                    logicaTimeStampGenerator.getAndIncrement(), uniqueIdGenerator.getAndIncrement(),
+                                    // It does not really matter at this point...
+                                    "<android.content.Intent: android.content.Intent putExtra(java.lang.String,"
+                                            + mi.getReturnValue().getType() + ")>");
+                            // Make sure its the same intent
+                            putExtraGeneric.setOwner(intentToRecreate);
+                            // Somehow it needs to return itself
+                            putExtraGeneric.setReturnValue(intentToRecreate);
+                            // Parameters
+                            List<DataNode> parameterInstances = new ArrayList<DataNode>();
+                            //
+                            DataNode theKey = mi.getActualParameterInstances().get(0);
+                            DataNode theValue = mi.getReturnValue();
+                            //
+                            parameterInstances.add(theKey);
+                            parameterInstances.add(theValue);
+                            //
+                            putExtraGeneric.setActualParameterInstances(parameterInstances);
+                            //
+                            // Inject the created call inside the graphs
+                            carvedTestExecutionFlowGraph.enqueueMethodInvocations(putExtraGeneric);
+                            // Fix the data deps
+                            carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(putExtraGeneric);
+                            carvedTestDataDependencyGraph.addDataDependencyOnOwner(putExtraGeneric, intentToRecreate);
+                            carvedTestDataDependencyGraph.addDataDependencyOnReturn(putExtraGeneric, intentToRecreate);
+
+                            carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(putExtraGeneric, theKey,
+                                    0);
+                            carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(putExtraGeneric, theValue,
+                                    1);
+
+                            logger.debug("Replacing " + mi + " with " + putExtraGeneric.toFullString());
+
+                        } else {
+                            logger.warn("We do not support yet Parceable and Serializable here !!!!");
+                        }
+
+                    });
+
+            // For each call to getExtra* add a call putExtra* with same key and return
+            // value as parameter
+
+        }
+
+        return false;
 
     }
 
@@ -110,9 +282,10 @@ public class MockGenerator {
 
         boolean newMocksGenerated = false;
 
-        // Stubbers and EnumItems shall not be mocked
+        // Stubber, EnumItems, and INTENTS, shall not be mocked
         for (ObjectInstance danglingObject : carvedTestDataDependencyGraph.getDanglingObjects().stream()
                 .filter(obj -> !obj.getType().equals("org.mockito.stubbing.Stubber"))
+                .filter(obj -> !obj.getType().equals("android.content.Intent"))
                 .filter(obj -> !(obj instanceof EnumConstant)).collect(Collectors.toList())) {
 
             List<MethodInvocation> allCallsThatRequireTheDanglingObject = new ArrayList<>(
@@ -339,7 +512,7 @@ public class MockGenerator {
                         carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(doReturnNothingMock);
                         carvedTestDataDependencyGraph.addDataDependencyOnReturn(doReturnNothingMock, returnStubber);
 
-                        logger.debug("\t Adding doReturn " + doReturnNothingMock.toFullString() );
+                        logger.debug("\t Adding doReturn " + doReturnNothingMock.toFullString());
                         // handle calls to mock
                         callSet.add(doReturnNothingMock);
                     } else {
@@ -375,7 +548,8 @@ public class MockGenerator {
                         carvedTestExecutionFlowGraph.enqueueMethodInvocations(doReturnMock);
 
                         carvedTestDataDependencyGraph.addMethodInvocationWithoutAnyDependency(doReturnMock);
-                        carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(doReturnMock, doReturnArgument, 0);
+                        carvedTestDataDependencyGraph.addDataDependencyOnActualParameter(doReturnMock, doReturnArgument,
+                                0);
                         carvedTestDataDependencyGraph.addDataDependencyOnReturn(doReturnMock, returnStubber);
 
                         logger.debug("\t Adding doReturn " + doReturnMock.toFullString());
@@ -637,9 +811,8 @@ public class MockGenerator {
             // Collect the uses of this view to configure the mocked object
             List<MethodInvocation> methodInvocationsOnTheObjectViewToShadow = allMethodInvocationsInTheCarvedTest
                     .stream().filter(mi -> !mi.isStatic() //
-                            && ! mi.isExceptional() //
-                            && mi.getOwner().equals(objectViewToShadow)
-                            && mi.getInvocationTraceId() >= onCreateTraceID)
+                            && !mi.isExceptional() //
+                            && mi.getOwner().equals(objectViewToShadow) && mi.getInvocationTraceId() >= onCreateTraceID)
                     .collect(Collectors.toList());
 
             // Generate the mockery for the uses of the objectViewToShadow (the
