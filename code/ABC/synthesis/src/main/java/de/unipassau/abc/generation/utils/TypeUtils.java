@@ -15,6 +15,7 @@ import de.unipassau.abc.data.JimpleUtils;
 import de.unipassau.abc.data.ObjectInstance;
 import de.unipassau.abc.data.ObjectInstanceFactory;
 import de.unipassau.abc.data.PrimitiveValue;
+import edu.emory.mathcs.backport.java.util.Arrays;
 
 public class TypeUtils {
 
@@ -30,6 +31,8 @@ public class TypeUtils {
             replaceType = "java.util.EnumSet";
         } else if (actualType.equals("android.app.SharedPreferencesImpl")) {
             replaceType = "android.content.SharedPreferences";
+        } else if (actualType.equals("java.util.ArrayList$Itr")) {
+            replaceType = "java.util.Iterator";
         } else {
             replaceType = null;
         }
@@ -102,28 +105,30 @@ public class TypeUtils {
     public static String getFormalTypeFor(ObjectInstance objectInstance, DataDependencyGraph dataDependencyGraph) {
 
         logger.info("Getting formal types for " + objectInstance);
-        
+
         // If the object is annotated with resolved type, choose one
-        if( ! objectInstance.getResolvedTypes().isEmpty() ) {
+        if (!objectInstance.getResolvedTypes().isEmpty()) {
             String resolvedType = objectInstance.getResolvedTypes().iterator().next();
             logger.info("Returning one of the Resolved Types" + resolvedType);
             return resolvedType;
         }
-        
+
         // Collects types for DataNode
         // This requires the knowledge on how types are organized and the select the
         // most precise type above the actual one.
         // We approximate this by looking at the methods that return or use the object.
 
-        
         // Ideally one can also look at who uses it
         Set<String> alternativeTypesFromReturn = dataDependencyGraph.getMethodInvocationsWhichReturn(objectInstance)
                 .stream().map(mi -> JimpleUtils.getReturnType(mi.getMethodSignature()))
                 .filter(type -> !type.equals(objectInstance.getType())).collect(Collectors.toSet());
 
-        // Extract the Type of the parameter at position
+        // Extract the Type of the parameter at position IF this is a parameter,
+        // otherswise (e.g., static dep) skip it
         Set<String> alternativeTypesFromUsage = dataDependencyGraph.getMethodInvocationsWhichUse(objectInstance)
                 .stream()
+                // Avoid Static and implicit dependencies here
+                .filter(mi -> mi.getActualParameterInstances().indexOf(objectInstance) != -1)
                 .map(mi -> JimpleUtils.getParameterList(mi.getMethodSignature())[mi.getActualParameterInstances()
                         .indexOf(objectInstance)])
                 .filter(type -> !type.equals(objectInstance.getType())).collect(Collectors.toSet());
@@ -144,6 +149,13 @@ public class TypeUtils {
             } catch (Exception e) {
                 // continue
             }
+        }
+
+        // As a Last Resort
+        if (objectInstance.getType().contains("$")) {
+            String forcedType = objectInstance.getType().replace("$", ".");
+            logger.info("Force types for " + objectInstance + ": " + forcedType);
+            return forcedType;
         }
 
         throw new RuntimeException("Cannot find Formal type for " + objectInstance);

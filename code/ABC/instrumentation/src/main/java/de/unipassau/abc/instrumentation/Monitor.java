@@ -715,7 +715,7 @@ public class Monitor {
     // Utility methods
 
     private static boolean isStringMethod(String methodSignature) {
-        return isString(methodSignature.replaceFirst("<", "").split(" ")[0].replaceAll(":", ""));
+        return isString(methodSignature.replaceFirst("<", "").split(" ")[0].replaceAll(":", ""), null);
     }
 
     /**
@@ -734,13 +734,8 @@ public class Monitor {
             boolean isLibCall, boolean isSynthetic) {
 
         // Book keeping. TODO Can be improved by skipping calls to java.lang.String
-        // (isStringMethod(methodSignature)
 
         inside_clinit = (methodSignature.contains("clinit")) ? inside_clinit + 1 : inside_clinit;
-
-//        if (methodSignature.contains("clinit")) {
-//            Log.i(ABC_TAG, ">>> Moving inside clinit " + methodSignature + " level " + inside_clinit);
-//        }
 
         StackElement se = new StackElement();
         se.methodOwner = methodOwner;
@@ -874,14 +869,15 @@ public class Monitor {
                     // We do not support
 
                     /*
-                     *  Calling enumClass.getEnumConstants() on an ENUM defined by the app results in logging calls to
-                     *  to values[] and clone() on the Enums which then might create wrong static dependencies.
-                     *  
-                     *  To avoid this, we wrap the entire processing of enums inside a "fake call" that we can remove from the trace entirely
+                     * Calling enumClass.getEnumConstants() on an ENUM defined by the app results in
+                     * logging calls to to values[] and clone() on the Enums which then might create
+                     * wrong static dependencies.
+                     * 
+                     * To avoid this, we wrap the entire processing of enums inside a "fake call"
+                     * that we can remove from the trace entirely
                      */
-                    libCall_impl(null, ENUM_PROCESSING, methodContext, new Object[] { });
-                    
-                    
+                    libCall_impl(null, ENUM_PROCESSING, methodContext, new Object[] {});
+
                     for (Object enumConstant : enumClass.getEnumConstants()) {
                         // DEBUG
 //                        android.util.Log.e(ABC_TAG, "     ----------- Enum Constant " + enumConstant + " --> "
@@ -896,10 +892,7 @@ public class Monitor {
                     }
 
                     returnInto_impl(null, ENUM_PROCESSING, methodContext, null, METHOD_END_TOKEN);
-                    
-                    
-                    
-                    
+
                 } catch (Exception e) {
                     android.util.Log.e(ABC_TAG, "FAILED TO PROCESS ENUM FOR " + objects[i]);
                 }
@@ -996,7 +989,7 @@ public class Monitor {
          * Append method owner if any but discard Strings as we treat them as
          * primitives. Note that an array cannot be owner of method !
          */
-        if (methodOwner != null && !isString(extractOwnerType(method))) {
+        if (methodOwner != null && !isString(extractOwnerType(method), methodOwner)) {
             // OwnerType we know it from the method signature, here we need the
             // actual object type instead...
 
@@ -1013,7 +1006,7 @@ public class Monitor {
 
             // Owner can be an array
 
-        } else if (methodOwner == null && !isString(extractOwnerType(method))) {
+        } else if (methodOwner == null && !isString(extractOwnerType(method), methodOwner)) {
             content.append(extractOwnerType(method) + "@0");
         }
 
@@ -1054,7 +1047,7 @@ public class Monitor {
                      * arrays
                      */
 
-                    if (isString(formalParametersType[i])) {
+                    if (isString(formalParametersType[i], objects[i])) {
                         /*
                          * We handle strings as primitives, with two catches: String can be null, String
                          * can be multi-line A null string corresponds to an "empty slot", and empty
@@ -1081,7 +1074,7 @@ public class Monitor {
                     if (isArray(actualParameterType)) {
                         String arrayType = getArrayType(actualParameterType, formalParametersType[i]);
                         content.append(arrayType + "[]" + "@" + System.identityHashCode(objects[i]));
-                    } else if (isString(actualParameterType)) {
+                    } else if (isString(actualParameterType, objects[i])) {
                         /*
                          * A non-null String might be disguised as java.lang.Object
                          */
@@ -1137,7 +1130,7 @@ public class Monitor {
             // Opening Token
             content.append(token).append(DELIMITER);
             // Method Owner. But not String objects
-            if (methodOwner != null && !isString(extractOwnerType(method))) {
+            if (methodOwner != null && !isString(extractOwnerType(method), methodOwner)) {
                 // OwnerType we know it from the method signature, here we need
                 // the
                 // actual object type instead...
@@ -1155,7 +1148,7 @@ public class Monitor {
 
                 // Owner can be an array
 
-            } else if (methodOwner == null && !isString(extractOwnerType(method))) {
+            } else if (methodOwner == null && !isString(extractOwnerType(method), methodOwner)) {
                 content.append(extractOwnerType(method) + "@0");
             }
 
@@ -1170,7 +1163,7 @@ public class Monitor {
                     content.append(returnValueOrException.toString());
                 } else if (isVoid(extractReturnType(method))) {
                     content.append("");
-                } else if (isString(extractReturnType(method))) {
+                } else if (isString(extractReturnType(method), returnValueOrException)) {
                     // Null String -> empty
                     if (returnValueOrException == null) {
                         content.append("");
@@ -1254,8 +1247,9 @@ public class Monitor {
         return null;
     }
 
-    private static boolean isString(String type) {
-        return type.equals("java.lang.String");
+    private static boolean isString(String formalType, Object objectInstance) {
+        String actualType = (objectInstance != null) ? objectInstance.getClass().getName() : formalType;
+        return "java.lang.String".equals(formalType) || "java.lang.String".equals(actualType);
     }
 
     private static boolean isArray(String type) {

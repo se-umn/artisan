@@ -234,9 +234,13 @@ public class MethodInvocation implements GraphNode, Comparable<MethodInvocation>
     }
 
     public String toFullString() {
+        final StringBuffer parameterList = new StringBuffer("\t Actual Parameters: ");
+        actualParameterInstances.forEach(dn -> parameterList.append(dn + "(" + dn.getType() + ")"));
+        parameterList.append("\n");
+
         return methodSignature + "_" + invocationId + "_" + invocationTraceId + "\n" + //
                 "\t Owner: " + owner + "\n" + //
-                "\t Actual Parameters: " + actualParameterInstances + "\n" + //
+                parameterList.toString() + //
                 "\t Return Value: " + returnValue;
     }
 

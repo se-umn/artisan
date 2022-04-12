@@ -120,7 +120,7 @@ public class AndroidParsedTraceDecorator implements ParsedTraceDecorator {
                     // Replace them
                     for (Integer positionOfParameterToReplace : positions) {
                         // This works also by replacing the Default Contenxt with itself
-                        logger.info("Replacing Actual Context "
+                        logger.debug("Replacing Actual Context "
                                 + mi.getActualParameterInstances().get(positionOfParameterToReplace)
                                 + " with DefaultContext one in method " + mi + " at position "
                                 + positionOfParameterToReplace);

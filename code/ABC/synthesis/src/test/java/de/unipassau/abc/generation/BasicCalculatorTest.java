@@ -60,8 +60,26 @@ public class BasicCalculatorTest extends BaseDebuggingTest {
     }
 
    
+    // Error Carving <abc.basiccalculator.ExtendedResultActivity: void checkResult(java.lang.String)>_92_183 from 
+    //  abc.basiccalculator.ExtendedMainActivityTest#testCalculateNullPointerThrownByResultActivity/Trace-testCalculateNullPointerThrownByResultActivity-1649347464306.txt
+    //  4612 [main] ERROR de.unipassau.abc.generation.BasicTestGenerator - Reason: We cannot make visible <abc.basiccalculator.ExtendedResultActivity: void checkResult(java.lang.String)>_92_183 because it is subsumed by necessary invocations: [<org.robolectric.android.controller.ActivityController org.robolectric.android.controller.ActivityController create()>_10014_112]
+
+    @Test
+    public void testCannotGenerateTestBecauseOfRobolectricWrapping() throws FileNotFoundException, IOException, ABCException {
+        file = getTraceFileFrom(
+                "abc.basiccalculator.ExtendedMainActivityTest#testCalculateNullPointerThrownByResultActivity");
+
+        String methodSignature = "<abc.basiccalculator.ExtendedResultActivity: void checkResult(java.lang.String)>";
+        int invocationCount = 92;
+        int invocationTraceId = 183;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
+
     /*
      * This seems to be a critical test case
+     * abc.basiccalculator.ExtendedMainActivityTest#testCalculateNullPointerThrownByResultActivity: 
+     *  <abc.basiccalculator.ExtendedResultActivity: void onCreate(android.os.Bundle)>_56_112 
      */
     @Test
     public void testCannotFilterOutMultipleActivities() throws FileNotFoundException, IOException, ABCException {
@@ -69,8 +87,8 @@ public class BasicCalculatorTest extends BaseDebuggingTest {
                 "abc.basiccalculator.ExtendedMainActivityTest#testCalculateNullPointerThrownByResultActivity");
 
         String methodSignature = "<abc.basiccalculator.ExtendedResultActivity: void onCreate(android.os.Bundle)>";
-        int invocationCount = 60;
-        int invocationTraceId = 120;
+        int invocationCount = 56;
+        int invocationTraceId = 112;
 
         runTheTest(methodSignature, invocationCount, invocationTraceId);
     }

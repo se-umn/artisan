@@ -89,7 +89,7 @@ public class BasicCarver implements MethodCarver {
         this.executionFlowGraph = executionTraceForMainThread.getFirst();
         this.dataDependencyGraph = executionTraceForMainThread.getSecond();
         this.callGraph = executionTraceForMainThread.getThird();
-        
+
         this.traceId = parsedTrace.traceFileName();
 
     }
@@ -163,8 +163,10 @@ public class BasicCarver implements MethodCarver {
                      * fails silenty and return an empyt set
                      */
                     t -> methodInvocationOwner.equals(t.getOwner())));
-            logger.debug("Adding " + relevantMethodInvocations.size() + " method invocations on owner: " + methodInvocationOwner);
-            logger.debug("  " + Arrays.toString(relevantMethodInvocations.toArray()));
+
+            logger.debug("Adding " + relevantMethodInvocations.size() + " method invocations on owner: "
+                    + methodInvocationOwner);
+
         } else {
             // TODO In theory those are NOT mutually exclusive since a class may have static
             // methods and instances...
@@ -180,7 +182,7 @@ public class BasicCarver implements MethodCarver {
 
             relevantMethodInvocations.addAll(staticMethodsOnSameClass);
 
-            logger.debug("Adding " + relevantMethodInvocations.size() +" method invocations on STATIC of same class: "
+            logger.debug("Adding " + relevantMethodInvocations.size() + " method invocations on STATIC of same class: "
                     + Arrays.toString(relevantMethodInvocations.toArray()));
 
         }
@@ -249,7 +251,8 @@ public class BasicCarver implements MethodCarver {
         /*
          * Relevant Uses (not sure what are they).
          */
-        logger.debug("Collecting data dependencies for relevant " + relevantMethodInvocations.size() + " method invocations");
+        logger.debug("Collecting data dependencies for relevant " + relevantMethodInvocations.size()
+                + " method invocations");
 
         // TODO Maybe we can avoid this because we have them cached? So we do not add
         // them
@@ -259,9 +262,9 @@ public class BasicCarver implements MethodCarver {
 
         int i = 1;
         int all = relevantMethodInvocations.size();
-        
+
         for (Iterator<MethodInvocation> it = relevantMethodInvocations.iterator(); it.hasNext(); i++) {
-            
+
             MethodInvocation relevantMethodInvocation = it.next();
 
             Set<DataNode> dataDendencies = new HashSet<DataNode>();
@@ -282,8 +285,8 @@ public class BasicCarver implements MethodCarver {
                 }
             }
 
-            logger.debug( i + "/" + all + ") Found " +dataDendencies.size() + " DataDendencies for " + relevantMethodInvocation + ": "
-                    + Arrays.toString(dataDendencies.toArray()));
+            logger.debug(i + "/" + all + ") Found " + dataDendencies.size() + " DataDendencies for "
+                    + relevantMethodInvocation + ": " + Arrays.toString(dataDendencies.toArray()));
 
             // TODO Really we should also look at system calls that take this data as
             // parameter as they may change it using side-effects
@@ -301,8 +304,11 @@ public class BasicCarver implements MethodCarver {
 
                 // TODO For static methods this is tricky... because some of them are indeed
                 // needed
-                List<MethodInvocation> usesOfDataDep = new ArrayList(this.executionFlowGraph.getMethodInvocationsBefore(
-                        methodInvocation, t -> !t.isStatic() && t.getOwner().equals(dataDep)));
+                // TODO This filter and all the ones in Android Simplifier must be refactored !!
+                List<MethodInvocation> usesOfDataDep = new ArrayList(
+                        this.executionFlowGraph.getMethodInvocationsBefore(methodInvocation, t -> !t.isStatic() //
+                                && !t.isExceptional() //
+                                && t.getOwner().equals(dataDep)));
                 // Be sure they are returned sorted
                 Collections.sort(usesOfDataDep);
                 logger.debug("Visible uses of " + dataDep + " before " + methodInvocation + " are : "
@@ -483,7 +489,7 @@ public class BasicCarver implements MethodCarver {
             // Create a clone and mark it as necessary
             MethodInvocation clonedMethodInvocation = t.clone();
             clonedMethodInvocation.setNecessary(true);
-            
+
             return clonedMethodInvocation;
         }).collect(Collectors.toSet()));
 
