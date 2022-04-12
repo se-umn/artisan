@@ -134,6 +134,7 @@ public class PrimitiveValue implements ValueNode, Cloneable {
             // TODO Apparently we rely on this to check for equality !
             return JimpleUtils.generateStringContent(stringValue);
         } else {
+            
             return stringValue;
         }
     }

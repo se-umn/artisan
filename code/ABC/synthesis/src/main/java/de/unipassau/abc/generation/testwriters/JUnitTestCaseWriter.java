@@ -159,17 +159,17 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
     }
 
     public CompilationUnit generateJUnitTestCase(TestClass testCase, TestMethodNamer testMethodNamer) {
-        
+
         CompilationUnit cu = new CompilationUnit();
 
         cu.setPackageDeclaration(testCase.getPackageName());
 
         ClassOrInterfaceDeclaration testClass = cu.addClass(testCase.getName());
-        
+
         logger.info("-------------------------");
         logger.info("Generating JUnit Test Case " + testCase.getName());
         logger.info("-------------------------");
-                
+
         testClass.setModifiers(Modifier.Keyword.PUBLIC);
 
         // TODO For the moment this creates problems because we need to put a jar on the
@@ -244,7 +244,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             // TODO Name tests
             MethodDeclaration testMethod = testClass.addMethod(testMethodNamer.generateTestMethodName(carvedTest),
                     Modifier.Keyword.PUBLIC);
-                        
+
             // Annotate the method with JUnit @Test, add time out
             NormalAnnotationExpr annotation = testMethod.addAndGetAnnotation(Test.class);
             MemberValuePair timeout = new MemberValuePair("timeout", new NameExpr("4000"));
@@ -256,10 +256,9 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                     carvedTest.getTraceId(), carvedTest.getMethodUnderTest());
             testMethod.setComment(new JavadocComment(generatedFromComment));
 
-            // 
-            logger.info(" - Test Method " + carvedTest.getMethodUnderTest()  + " " + generatedFromComment );
+            //
+            logger.info(" - Test Method " + carvedTest.getMethodUnderTest() + " " + generatedFromComment);
 
-            
             // Generate method body
             generateMethodBody(testMethod, carvedTest);
             handleUnusedVariables(testMethod);
@@ -746,7 +745,7 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
         Expression methodCallExpr;
         String variableName = null;
 
-        logger.debug("GENERATING CODE FOR " + methodInvocation.toFullString() );
+        logger.debug("GENERATING CODE FOR " + methodInvocation.toFullString());
 
         /**
          * Step 1: prepare the invocation of the method
@@ -1008,6 +1007,9 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
                 if (Class.class.getName().equals(dataNode.getType())) {
                     // Try to represent inner classes with dot notation
                     return ((PrimitiveValue) dataNode).getStringValue().replaceAll("\\$", ".");
+                } else if ("float".equals(dataNode.getType())) {
+                    // TODO I suspect that this "f" should be generated directly inside the toString method...
+                    return dataNode.toString() + "f";
                 } else {
                     /*
                      * We use toString() instead of getStringValue() to wrap strings which have two
