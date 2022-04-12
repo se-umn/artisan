@@ -76,7 +76,7 @@ public class BasicTestGenerator implements TestGenerator {
     }
 
     public BasicTestGenerator(boolean relaxedMode) {
-        if( relaxedMode ) {
+        if (relaxedMode) {
             this.forceMutVisible = false;
         } else {
             this.forceMutVisible = true;
@@ -119,8 +119,8 @@ public class BasicTestGenerator implements TestGenerator {
             carver.clearTheCache();
 
             for (CarvedExecution carvedExecution : carver.carve(targetMethodInvocation)) {
+                long startingTime = System.currentTimeMillis();
                 try {
-
                     // At this point, we should disable caching
                     BasicCarver.disableGlobalCache();
 
@@ -147,6 +147,10 @@ public class BasicTestGenerator implements TestGenerator {
                     logger.error("Uncaught exception ", e);
                     logger.error("-------------------------");
                 }
+                long milliseconds = System.currentTimeMillis() - startingTime;
+                long minutes = (milliseconds / 1000) / 60;
+                long seconds = (milliseconds / 1000) % 60;
+                logger.info("CARVING TOOK " + minutes + " minutes and " + seconds + " seconds. Millis: " + milliseconds );
             }
         }
 

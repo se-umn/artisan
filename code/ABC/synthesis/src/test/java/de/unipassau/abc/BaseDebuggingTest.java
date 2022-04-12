@@ -104,26 +104,28 @@ public abstract class BaseDebuggingTest {
                 _parsedTrace.getUIThreadParsedTrace().getThird());
 
         List<ParsedTraceDecorator> decorators = new ArrayList<ParsedTraceDecorator>();
-        decorators.add( new AndroidParsedTraceDecorator());
-        
-        
+        decorators.add(new AndroidParsedTraceDecorator());
+
         String packageName = ParsingUtils.findApkPackageName(theAPK);
         boolean useOnlyOwnDependencies = (packageName != "");
-        
-        decorators.add( new StaticParsedTraceDecorator(useOnlyOwnDependencies, packageName));
-        
+
+        decorators.add(new StaticParsedTraceDecorator(useOnlyOwnDependencies, packageName));
+
         // Decorate the trace
-        for( ParsedTraceDecorator decorator : decorators ) {
-            _parsedTrace = decorator.decorate(_parsedTrace); 
+        for (ParsedTraceDecorator decorator : decorators) {
+            _parsedTrace = decorator.decorate(_parsedTrace);
         }
-        
+
         ParsedTrace parsedTrace = _parsedTrace;
-        
+
         checkAssumptions(parsedTrace.getUIThreadParsedTrace().getFirst(),
                 parsedTrace.getUIThreadParsedTrace().getThird());
-        
+
         Set<MethodInvocation> all = mis.findCarvableMethodInvocations(parsedTrace);
-        logger.debug("-- All possible carvable targets from " + traceFile);
+        if (logger.isDebugEnabled()) {
+            logger.debug("-- All possible carvable targets from " + traceFile);
+            all.forEach(mi -> logger.debug("\t" + mi.toString()));
+        }
 
         MethodInvocationMatcher matcher = MethodInvocationMatcher
                 .fromMethodInvocation(new MethodInvocation(invocationTraceId, invocationCount, methodSignature));
@@ -159,7 +161,7 @@ public abstract class BaseDebuggingTest {
             CompilationUnit cu = writer.generateJUnitTestCase(testCase, testMethodNamer);
             logger.info(cu.toString());
         }
-        
+
         return testSuite;
     }
 }

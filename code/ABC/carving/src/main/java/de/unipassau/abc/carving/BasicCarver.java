@@ -163,9 +163,10 @@ public class BasicCarver implements MethodCarver {
                      * fails silenty and return an empyt set
                      */
                     t -> methodInvocationOwner.equals(t.getOwner())));
+
             logger.debug("Adding " + relevantMethodInvocations.size() + " method invocations on owner: "
                     + methodInvocationOwner);
-            logger.debug("  " + Arrays.toString(relevantMethodInvocations.toArray()));
+
         } else {
             // TODO In theory those are NOT mutually exclusive since a class may have static
             // methods and instances...
@@ -306,7 +307,7 @@ public class BasicCarver implements MethodCarver {
                 // TODO This filter and all the ones in Android Simplifier must be refactored !!
                 List<MethodInvocation> usesOfDataDep = new ArrayList(
                         this.executionFlowGraph.getMethodInvocationsBefore(methodInvocation, t -> !t.isStatic() //
-                                && ! t.isExceptional() //
+                                && !t.isExceptional() //
                                 && t.getOwner().equals(dataDep)));
                 // Be sure they are returned sorted
                 Collections.sort(usesOfDataDep);

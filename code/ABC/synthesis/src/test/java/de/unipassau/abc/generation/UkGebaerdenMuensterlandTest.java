@@ -65,6 +65,28 @@ public class UkGebaerdenMuensterlandTest extends BaseDebuggingTest {
         this.traceFolder = "/Users/gambi/action-based-test-carving/apps-src/UK-Gebaerden_Muensterland/traces/";
     }
 
+    /**
+     * Errors: Broken test: error: cannot find symbol
+     * java.lang.Object object6 = org.mockito.Mockito.mock(android.widget.RelativeLayout$LayoutParams.class);
+     * 
+     * In general, the carver brings in tons of stuff that we might not need to test onBackPressed()
+     * @throws FileNotFoundException
+     * @throws IOException
+     * @throws ABCException
+     */
+    @Test
+    public void testBrokenTest() throws FileNotFoundException, IOException, ABCException {
+        file = this.getTraceFileFrom("de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_browser.search.SignSearchTest#checkNavigatingToVideosAndReturningViaBackButtonWorks");
+
+        String methodSignature = "<de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_browser.search.video.SignSearchVideoActivity: void onBackPressed()>";
+        int invocationCount = 551;
+        int invocationTraceId = 1102;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+
+    }
+    
+    
     
     /**
      * Errors: This test brings in too many stuff, especially for mocking objects and then shadow fails with NPE
