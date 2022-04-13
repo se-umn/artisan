@@ -59,6 +59,19 @@ public class BasicCalculatorTest extends BaseDebuggingTest {
         this.traceFolder = "/Users/gambi/action-based-test-carving/apps-src/BasicCalculator/traces/";
     }
 
+
+
+    @Test
+    public void testCannotParse() throws FileNotFoundException, IOException, ABCException {
+        file = getTraceFileFrom(
+                "abc.basiccalculator.ExtendedMainActivityTest#testCalculateNullPointerThrownByResultActivity");
+
+        String methodSignature = "<abc.basiccalculator.ExtendedResultActivity: void checkResult(java.lang.String)>";
+        int invocationCount = 92;
+        int invocationTraceId = 183;
+
+        runTheTest(methodSignature, invocationCount, invocationTraceId);
+    }
    
     // Error Carving <abc.basiccalculator.ExtendedResultActivity: void checkResult(java.lang.String)>_92_183 from 
     //  abc.basiccalculator.ExtendedMainActivityTest#testCalculateNullPointerThrownByResultActivity/Trace-testCalculateNullPointerThrownByResultActivity-1649347464306.txt

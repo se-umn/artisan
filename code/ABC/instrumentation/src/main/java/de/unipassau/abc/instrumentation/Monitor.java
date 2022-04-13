@@ -1249,7 +1249,10 @@ public class Monitor {
 
     private static boolean isString(String formalType, Object objectInstance) {
         String actualType = (objectInstance != null) ? objectInstance.getClass().getName() : formalType;
-        return "java.lang.String".equals(formalType) || "java.lang.String".equals(actualType);
+        // Not that this is not robust:
+        // java.lang.CharSequence should be treated like java.lang.String
+        return "java.lang.String".equals(formalType) || "java.lang.String".equals(actualType) ||
+                "java.lang.CharSequence".equals(formalType) || "java.lang.CharSequence".equals(actualType);
     }
 
     private static boolean isArray(String type) {
