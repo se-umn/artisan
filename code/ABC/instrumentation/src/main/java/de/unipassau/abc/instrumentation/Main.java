@@ -72,6 +72,7 @@ public class Main {
         CLI cli = null;
         try {
             cli = CliFactory.parseArguments(CLI.class, args);
+
         } catch (ArgumentValidationException e) {
             e.printStackTrace();
             System.exit(1);
@@ -168,7 +169,10 @@ public class Main {
         cli.getMethodFilters().forEach(System.out::println);
         abcInstrumentation.setMethodFilters(cli.getMethodFilters());
 
+        System.out.println("Main.main() DEBUG: Debug option " + cli.getDebug());
         abcInstrumentation.setDebug(cli.getDebug());
+
+        System.out.println("Main.main() DEBUG: MultiThreadedExecution option " + cli.getMultiThread());
         abcInstrumentation.setMultiThreadedExecution(cli.getMultiThread());
 
         PackManager.v().getPack("wjtp").add(new Transform("wjtp.mt", abcInstrumentation));
