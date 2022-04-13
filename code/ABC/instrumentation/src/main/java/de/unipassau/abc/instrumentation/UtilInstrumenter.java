@@ -264,8 +264,6 @@ public class UtilInstrumenter {
 
 		if (value.getType() instanceof PrimType || JimpleUtils.isPrimitive(value.getType())) {
 		    
-		    System.out.println("UtilInstrumenter.generateCorrectObject() " + (value instanceof DIntConstant));
-		    
 			// in case of a primitive type, we use boxing (I know it is not
 			// nice, but it works...) in order to use the Object type
 			if (value.getType() instanceof BooleanType || value.getType().toString().equals("boolean") || (
