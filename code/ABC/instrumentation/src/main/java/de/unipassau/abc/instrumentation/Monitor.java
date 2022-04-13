@@ -1168,7 +1168,7 @@ public class Monitor {
                     if (returnValueOrException == null) {
                         content.append("");
                     } else {
-                        content.append(Arrays.toString(((String) returnValueOrException).getBytes()));
+                        content.append(Arrays.toString(returnValueOrException.toString().getBytes()));
                     }
                 } else {
                     // What about String content ?!
