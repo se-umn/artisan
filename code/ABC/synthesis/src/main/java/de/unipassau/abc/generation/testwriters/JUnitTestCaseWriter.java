@@ -349,25 +349,6 @@ public class JUnitTestCaseWriter implements TestCaseWriter {
             }
         }
 
-//		logger.debug("##################Shadows");
-//        for (CarvingShadow carvingShadow : carvedTest.getShadows()) {
-//              for (Pair<ExecutionFlowGraph, DataDependencyGraph> pair : zip(
-//                  carvingShadow.executionFlowGraphs,
-//                  carvingShadow.dataDependencyGraphs)) {
-//                ExecutionFlowGraph carvingExecutionFlowGraph = pair.getFirst();
-//                for (MethodInvocation methodInvocation : carvingExecutionFlowGraph
-//                    .getOrderedMethodInvocations()) {
-//                	logger.debug(methodInvocation);
-//                    if (methodInvocation.isConstructor()) {
-//                        generateConstructorCall(methodInvocation, blockStmt);
-//                    } else {
-//                        generateMethodCall(methodInvocation, blockStmt);
-//                    }
-//                }
-//            }
-//        }
-
-        // TODO ALESSIO: The asseritions should be recomputed after simplification !!
         logger.warn("Synthesis of Assertion is currently DISABLED!");
 //        logger.debug("##################Assertions");
 //        // MF: FIXME should we really have assertions?

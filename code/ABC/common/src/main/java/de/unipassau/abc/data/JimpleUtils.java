@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -258,7 +259,11 @@ public class JimpleUtils {
 			for (int ii = 0; ii < bytes.length; ii++) {
 				bytes[ii] = new Byte(bytesAsString[ii].trim());
 			}
-			return '"' + new String(bytes) + '"';
+			
+			String originalValue = new String(bytes);
+			String escapedValue = StringEscapeUtils.escapeJava(originalValue);
+			
+			return '"' + escapedValue + '"';
 		}
 	}
 
