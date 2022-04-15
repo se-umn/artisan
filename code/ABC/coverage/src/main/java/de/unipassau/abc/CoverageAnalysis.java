@@ -189,7 +189,7 @@ public final class CoverageAnalysis {
                     for(Integer line:carvedCoverageForFile.keySet()){
                         Integer coverageCount = carvedCoverageForFile.get(line);
                         if(coverageCount.intValue()>0) {
-                            System.out.println("Espresso did not cover:"+fileName+"#"+line);
+                            //System.out.println("Espresso did not cover:"+fileName+"#"+line);
                             carvedCoveredLinesNotInEspresso++;
                         }
                     }
@@ -200,12 +200,12 @@ public final class CoverageAnalysis {
                         if(espressoCoverageForFile.keySet().contains(line)){
                             Integer espressoCoverageCount = espressoCoverageForFile.get(line);
                             if(espressoCoverageCount.intValue()==0){
-                                System.out.println("Espresso did not cover:"+fileName+"#"+line);
+                                //System.out.println("Espresso did not cover:"+fileName+"#"+line);
                                 carvedCoveredLinesNotInEspresso++;
                             }
                         }
                         else{
-                            System.out.println("Espresso did not cover:"+fileName+"#"+line);
+                            //System.out.println("Espresso did not cover:"+fileName+"#"+line);
                             carvedCoveredLinesNotInEspresso++;
                         }
                     }
@@ -225,7 +225,7 @@ public final class CoverageAnalysis {
                     for(Integer line:espressoCoverageForFile.keySet()){
                         Integer coverageCount = espressoCoverageForFile.get(line);
                         if(coverageCount.intValue()>0) {
-                            System.out.println("Carved did not cover:"+fileName+"#"+line);
+                            //System.out.println("Carved did not cover:"+fileName+"#"+line);
                             espressoCoveredLinesNotInCarved++;
                         }
                     }
@@ -236,12 +236,12 @@ public final class CoverageAnalysis {
                         if(carvedCoverageForFile.keySet().contains(line)){
                             Integer carvedCoverageCount = carvedCoverageForFile.get(line);
                             if(carvedCoverageCount.intValue()==0){
-                                System.out.println("Carved did not cover:"+fileName+"#"+line);
+                                //System.out.println("Carved did not cover:"+fileName+"#"+line);
                                 espressoCoveredLinesNotInCarved++;
                             }
                         }
                         else{
-                            System.out.println("Carved did not cover:"+fileName+"#"+line);
+                            //System.out.println("Carved did not cover:"+fileName+"#"+line);
                             espressoCoveredLinesNotInCarved++;
                         }
                     }
