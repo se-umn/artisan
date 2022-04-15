@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+	<parent>
+		<artifactId>abc-parent</artifactId>
+		<groupId>de.unipassau.abc</groupId>
+		<version>1.0-SNAPSHOT</version>
+	</parent>
+
+	<name>Coverage Analysis</name>
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<artifactId>coverage</artifactId>
+
+	<packaging>jar</packaging>
+
+	<properties>
+		<maven.compiler.source>8</maven.compiler.source>
+		<maven.compiler.target>8</maven.compiler.target>
+		<javaparser.version>3.16.1</javaparser.version>
+	</properties>
+
+	<dependencies>
+
+		<dependency>
+			<groupId>de.unipassau.abc</groupId>
+			<artifactId>common</artifactId>
+			<version>1.0-SNAPSHOT</version>
+		</dependency>
+
+		<dependency>
+			<groupId>de.unipassau.abc</groupId>
+			<artifactId>carving</artifactId>
+			<version>1.0-SNAPSHOT</version>
+		</dependency>
+
+		<dependency>
+			<groupId>de.unipassau.abc</groupId>
+			<artifactId>test-utils</artifactId>
+			<version>1.0-SNAPSHOT</version>
+			<scope>test</scope>
+		</dependency>
+
+
+		<dependency>
+			<groupId>org.ow2.asm</groupId>
+			<artifactId>asm-util</artifactId>
+			<version>9.2</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.jacoco</groupId>
+			<artifactId>jacoco</artifactId>
+			<version>0.8.7</version>
+			<type>pom</type>
+			<exclusions>
+				<exclusion>
+					<groupId>org.jacoco</groupId>
+					<artifactId>org.jacoco.examples</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.jacoco</groupId>
+					<artifactId>org.jacoco.doc</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>2.11.0</version>
+		</dependency>
+
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>appassembler-maven-plugin</artifactId>
+				<version>1.10</version>
+				<configuration>
+					<programs>
+						<program>
+							<mainClass>de.unipassau.abc.ExecDump</mainClass>
+							<id>dump-jacoco-coverage</id>
+							<jvmSettings>
+								<initialMemorySize>200m</initialMemorySize>
+								<maxMemorySize>4g</maxMemorySize>
+								<maxStackSize>512m</maxStackSize>
+							</jvmSettings>
+						</program>
+					</programs>
+					<copyConfigurationDirectory>true</copyConfigurationDirectory>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>

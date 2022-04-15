@@ -47,6 +47,7 @@
 		<module>instrumentation</module>
 		<module>carving</module>
 		<module>synthesis</module>
+		<module>coverage</module>
 	</modules>
 
 	<build>
