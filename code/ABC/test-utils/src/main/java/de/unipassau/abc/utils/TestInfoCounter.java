@@ -18,7 +18,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class TestLinesCounter {
+public class TestInfoCounter {
     public static void main(String args[]){
         String carvedTestsFolder = "/Users/mattia/Faculty/Research/2020_android_test_carving/repositories/action-based-test-carving/apps-src/A1/blabbertabber_main_data/app/src/allCarvedTest";
         countStatementsIntests(carvedTestsFolder);
@@ -45,7 +45,12 @@ public class TestLinesCounter {
                     }
                 }
                 int testsCount = 0;
+                int shadowsCount = 0;
+                int mocksCount = 0;
                 for(String testFileName:testFileNames){
+                    if(testFileName.contains("Shadow")){
+                        shadowsCount++;
+                    }
                     CompilationUnit compilationUnit = StaticJavaParser.parse(new File(testFileName));
                     List<MethodDeclaration> methodDeclarations = compilationUnit.findAll(MethodDeclaration.class);
                     for(MethodDeclaration methodDeclaration:methodDeclarations) {
@@ -60,11 +65,18 @@ public class TestLinesCounter {
                             testsCount++;
                             if (methodDeclaration.getBody().isPresent()) {
                                 System.out.println(methodDeclaration.getBody().get().getStatements().size());
+                                for(Statement statement:methodDeclaration.getBody().get().getStatements()){
+                                    if(statement.toString().contains("org.mockito.Mockito.mock(")){
+                                        mocksCount++;
+                                    }
+                                }
                             }
                         }
                     }
                 }
                 System.out.println("TESTS COUNT:"+testsCount);
+                System.out.println("SHADOWS COUNT:"+shadowsCount);
+                System.out.println("MOCKS COUNT:"+mocksCount);
             }
             catch(Exception e){
                 e.printStackTrace();
