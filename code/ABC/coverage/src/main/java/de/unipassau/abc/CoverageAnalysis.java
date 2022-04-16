@@ -1,8 +1,5 @@
 package de.unipassau.abc;
 
-import com.lexicalscope.jewel.cli.CliFactory;
-import com.lexicalscope.jewel.cli.Option;
-import de.unipassau.abc.IWriter.TextWriter;
 import org.jacoco.core.analysis.*;
 import org.jacoco.core.tools.ExecFileLoader;
 
@@ -11,9 +8,6 @@ import java.io.IOException;
 import java.util.*;
 
 public final class CoverageAnalysis {
-
-//    private static Set<String> instructionAnalyzed = new HashSet<String>();
-//    private static int instructionCount = 0;
 
     public Coverage execute(String classesDirectoryName, List<String> execFileFolderNames) {
         List<File> execFiles = new ArrayList<File>();
@@ -35,32 +29,51 @@ public final class CoverageAnalysis {
             }
         }
         File classesDirectoryFile = new File(classesDirectoryName);
-        Map<String, Map<Integer, Integer>> coverage = execFiles.stream().map(coverageFile -> {
-            Map<String, Map<Integer, Integer>> data = null;
+        Map<String, Map<Integer, LineInfo>> coverage = new HashMap<String, Map<Integer, LineInfo>>();
+        for(File execFile:execFiles){
             try {
-                data = dump(coverageFile, classesDirectoryFile);
-            } catch (IOException e) {
+                Map<String, Map<Integer, LineInfo>> coverageFromFile = dump(execFile, classesDirectoryFile);
+                coverage = merge(coverage, coverageFromFile);
+            }
+            catch(IOException e){
                 e.printStackTrace();
-                System.err.printf("An error occurred while analyzing %s", coverageFile);
+                System.err.printf("An error occurred while analyzing %s", execFile.getAbsolutePath());
                 System.exit(1);
             }
-            return data;
-        }).reduce(CoverageAnalysis::mergeClasses).get();
+        }
         return new Coverage(coverage, execFiles.size());
     }
 
-    private static Map<String, Map<Integer, Integer>> mergeClasses(final Map<String, Map<Integer, Integer>> a,
-            final Map<String, Map<Integer, Integer>> b) {
-        b.forEach((key, value) -> a.merge(key, value, CoverageAnalysis::mergeLines));
-        return a;
+    private static Map<String, Map<Integer, LineInfo>> merge(final Map<String, Map<Integer, LineInfo>> currentCoverageData,
+            final Map<String, Map<Integer, LineInfo>> newCoverageData) {
+        for(String className:newCoverageData.keySet()){
+            if(currentCoverageData.keySet().contains(className)){
+                //merge class data
+                Map<Integer, LineInfo> newClassData = newCoverageData.get(className);
+                Map<Integer, LineInfo> currentClassData = currentCoverageData.get(className);
+                for(Integer line:newClassData.keySet()){
+                    if(currentClassData.keySet().contains(line)){
+                        //taking the max of covered instructions
+                        LineInfo newClassDataLineInfo = newClassData.get(line);
+                        LineInfo currentClassDataLineInfo = currentClassData.get(line);
+                        LineInfo newLineInfo = new LineInfo(Math.max(newClassDataLineInfo.getCoverageType(), currentClassDataLineInfo.getCoverageType()),
+                                Math.max(newClassDataLineInfo.getCoveredInstructionsCount(), currentClassDataLineInfo.getCoveredInstructionsCount()),
+                                Math.max(newClassDataLineInfo.getCoveredBranchCount(), currentClassDataLineInfo.getCoveredBranchCount()));
+                        currentClassData.put(line, newLineInfo);
+                    }
+                    else{
+                        currentClassData.put(line, newClassData.get(line));
+                    }
+                }
+            }
+            else{
+                currentCoverageData.put(className, newCoverageData.get(className));
+            }
+        }
+        return currentCoverageData;
     }
 
-    private static Map<Integer, Integer> mergeLines(final Map<Integer, Integer> a, final Map<Integer, Integer> b) {
-        b.forEach((key, value) -> a.merge(key, value, Integer::sum));
-        return a;
-    }
-
-    private Map<String, Map<Integer, Integer>> dump(final File file, final File classesDir) throws IOException {
+    private Map<String, Map<Integer, LineInfo>> dump(final File file, final File classesDir) throws IOException {
         if (!file.exists()) {
             throw new RuntimeException(String.format("Coverage file does not exist: %s", file));
         } else if (!classesDir.exists()) {
@@ -70,64 +83,42 @@ public final class CoverageAnalysis {
         ExecFileLoader execFileLoader = new ExecFileLoader();
         execFileLoader.load(file);
 
-        // This might be something to change as well. Not really it outputs the coverage
-        // data computed by
-        // whoever calls visitCoverage.
         CoverageBuilder coverageBuilder = new CoverageBuilder();
 
         Analyzer analyzer = new Analyzer(execFileLoader.getExecutionDataStore(), coverageBuilder);
-        //PatchedAnalyzer analyzer = new PatchedAnalyzer(execFileLoader.getExecutionDataStore(), coverageBuilder);
-        //Analyzer analyzer = new Analyzer(execFileLoader.getExecutionDataStore(), coverageBuilder);
         analyzer.analyzeAll(classesDir);
 
-        Map<String, Map<Integer, Integer>> data = new TreeMap<>();
-
-
+        Map<String, Map<Integer, LineInfo>> data = new TreeMap<>();
         for (final IClassCoverage cc : coverageBuilder.getClasses()) {
-
             String canonicalClassName = canonicalClassName(cc.getName());
-            Map<Integer, Integer> classData = new TreeMap<>();
-
-
-//            System.out.println("Class: " + canonicalClassName);
+            Map<Integer, LineInfo> classData = new TreeMap<>();
             for (int i = cc.getFirstLine(); i <= cc.getLastLine(); i++) {
-//                System.out.println(getStatusSymbol(cc.getLine(i).getStatus()) + String.format("%4d", i));
-
-                // TODO THIS SHOULD NOT BE NECESSARY ANYMORE< BUT I NEED TO TEST IT SOMEHOW
-                // Report only white listed lines
-                //if (analyzer.isLineNumberWhiteListed(cc.getName(), i)) {
-                if(cc.getLine(i).getInstructionCounter().getCoveredCount()>0) {
-                    classData.put(i, status(cc.getLine(i).getStatus()));
-//                    if(!instructionAnalyzed.contains(canonicalClassName(cc.getName())+i) && !canonicalClassName(cc.getName()).endsWith(".R")){
-//                        instructionCount = instructionCount + cc.getLine(i).getInstructionCounter().getCoveredCount();
-//                        instructionAnalyzed.add(canonicalClassName(cc.getName())+i);
-//                    }
+                if(cc.getLine(i).getInstructionCounter().getCoveredCount()>0 || cc.getLine(i).getInstructionCounter().getCoveredCount()>0) {
+                    classData.put(i, new LineInfo(status(cc.getLine(i).getStatus()), cc.getLine(i).getInstructionCounter().getCoveredCount(), cc.getLine(i).getBranchCounter().getCoveredCount()));
                 }
             }
-
             if (data.containsKey(canonicalClassName)) {
-                Map<Integer, Integer> providedData = data.get(canonicalClassName);
-                classData.forEach((key, value) -> providedData.merge(key, value, Integer::max));
+                Map<Integer, LineInfo> alreadyComputedData = data.get(canonicalClassName);
+                for(Integer line:classData.keySet()){
+                    if(alreadyComputedData.keySet().contains(line)){
+                        //taking the max of covered instructions
+                        LineInfo classDataLineInfo = classData.get(line);
+                        LineInfo alreadyComputedDataLineInfo = alreadyComputedData.get(line);
+                        LineInfo newLineInfo = new LineInfo(Math.max(classDataLineInfo.getCoverageType(), alreadyComputedDataLineInfo.getCoverageType()),
+                                Math.max(classDataLineInfo.getCoveredInstructionsCount(), alreadyComputedDataLineInfo.getCoveredInstructionsCount()),
+                                Math.max(classDataLineInfo.getCoveredBranchCount(), alreadyComputedDataLineInfo.getCoveredBranchCount()));
+                        alreadyComputedData.put(line, newLineInfo);
+                    }
+                    else{
+                        alreadyComputedData.put(line, classData.get(line));
+                    }
+                }
             } else {
                 data.put(canonicalClassName, classData);
             }
         }
 
         return data;
-    }
-
-    private String getStatusSymbol(int status) {
-        switch (status) {
-        case ICounter.FULLY_COVERED:
-            return "[*]";
-        case ICounter.PARTLY_COVERED:
-            return "[+]";
-        case ICounter.NOT_COVERED:
-            return "[ ]";
-        case ICounter.EMPTY:
-        default:
-            return "   ";
-        }
     }
 
     private String canonicalClassName(String className) {
@@ -146,111 +137,175 @@ public final class CoverageAnalysis {
         return 0;
     }
 
+    public static void printCoverageCount(String coverageType, Map<String, Map<Integer, LineInfo>> coverageInfo){
+        int coveredInstructionCount = 0;
+        int coveredBranchCount = 0;
+        for(String className:coverageInfo.keySet()){
+            if(className.endsWith(".R")){
+                continue;
+            }
+            //System.out.println(className);
+            Map<Integer, LineInfo> classCoverageInfo = coverageInfo.get(className);
+            for(Integer line:classCoverageInfo.keySet()){
+                LineInfo lineInfo = classCoverageInfo.get(line);
+                if(lineInfo.getCoverageType()>0){
+                    coveredInstructionCount = coveredInstructionCount + lineInfo.getCoveredInstructionsCount();
+                    coveredBranchCount = coveredBranchCount + lineInfo.getCoveredBranchCount();
+                }
+            }
+        }
+        System.out.println(coverageType+" Instruction Count:"+coveredInstructionCount);
+        System.out.println(coverageType+" Branch Count:"+coveredBranchCount);
+    }
+
+    public static int findSharedCoverage(Map<String, Map<Integer, LineInfo>> coverageA, Map<String, Map<Integer, LineInfo>> coverageB, String type){
+        int sharedCoverageCount = 0;
+        for(String className:coverageA.keySet()){
+            if(className.endsWith(".R")){
+                continue;
+            }
+            if(coverageB.keySet().contains(className)){
+                Map<Integer, LineInfo> classCoverageA = coverageA.get(className);
+                Map<Integer, LineInfo> classCoverageB = coverageB.get(className);
+                for(Integer line:classCoverageA.keySet()){
+                    if(classCoverageB.keySet().contains(line)){
+                        LineInfo lineInfoA = classCoverageA.get(line);
+                        LineInfo lineInfoB = classCoverageB.get(line);
+                        if(type.equals("instruction")){
+                            if(lineInfoA.getCoverageType()>0 && lineInfoB.getCoverageType()>0 && lineInfoA.getCoveredInstructionsCount()>0 && lineInfoB.getCoveredInstructionsCount()>0){
+                                sharedCoverageCount = sharedCoverageCount + lineInfoA.getCoveredInstructionsCount();
+                            }
+                        }
+                        else if (type.equals("branch")){
+                            if(lineInfoA.getCoverageType()>0 && lineInfoB.getCoverageType()>0 && lineInfoA.getCoveredBranchCount()>0 && lineInfoB.getCoveredBranchCount()>0){
+                                sharedCoverageCount = sharedCoverageCount + lineInfoA.getCoveredBranchCount();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return sharedCoverageCount;
+    }
+
     public static void main(final String[] args) throws IOException {
-        //carved data
-        String packageName = "fifthelement.theelement";
-        String carvedClassesDirectory = "/Users/mattia/Faculty/Research/2020_android_test_carving/repositories/action-based-test-carving/apps-src/FifthElement/carved_coverage_data/build/intermediates/classes/debug";
+        //params
+        String packageName = "";
+        String carvedClassesDirectory = "/Users/mattia/Faculty/Research/2020_android_test_carving/repositories/action-based-test-carving/apps-src/A1/blabbertabber_main_data/carved_coverage/build/intermediates/javac/debug/classes";
         List<String> carvedExecFolders = new ArrayList<>();
-        carvedExecFolders.add("/Users/mattia/Faculty/Research/2020_android_test_carving/repositories/action-based-test-carving/apps-src/FifthElement/carved_coverage_data/build/jacoco");
+        carvedExecFolders.add("/Users/mattia/Faculty/Research/2020_android_test_carving/repositories/action-based-test-carving/apps-src/A1/blabbertabber_main_data/carved_coverage/build/jacoco");
+        String guiClassesDirectory = "/Users/mattia/Faculty/Research/2020_android_test_carving/repositories/action-based-test-carving/apps-src/A1/blabbertabber_main_data/gui_coverage/build/intermediates/javac/debug/classes";
+        List<String> guiExecFolders = new ArrayList<>();
+        guiExecFolders.add("/Users/mattia/Faculty/Research/2020_android_test_carving/repositories/action-based-test-carving/apps-src/A1/blabbertabber_main_data/gui_coverage/espresso_tests");
+        ////////////////////////
+
+        //carved coverage
         Coverage carvedCoverage = new CoverageAnalysis().execute(carvedClassesDirectory, carvedExecFolders);
-        Map<String, Map<Integer, Integer>>  overallCarvedCoverageInfo = carvedCoverage.get();
-        //espresso data
-        String espressoClassesDirectory = "/Users/mattia/Faculty/Research/2020_android_test_carving/repositories/action-based-test-carving/apps-src/FifthElement/espresso_coverage_data/build/intermediates/classes/debug";
-        List<String> espressoExecFolders = new ArrayList<>();
-        espressoExecFolders.add("/Users/mattia/Faculty/Research/2020_android_test_carving/repositories/action-based-test-carving/apps-src/FifthElement/espresso_coverage_data/coverage_ec");
-        Coverage espressoCoverage = new CoverageAnalysis().execute(espressoClassesDirectory, espressoExecFolders);
-        Map<String, Map<Integer, Integer>>  overallEspressoCoverageInfo = espressoCoverage.get();
+        Map<String, Map<Integer, LineInfo>>  carvedCoverageInfo = carvedCoverage.get();
+        //GUI coverage
+        Coverage guiCoverage = new CoverageAnalysis().execute(guiClassesDirectory, guiExecFolders);
+        Map<String, Map<Integer, LineInfo>>  guiCoverageInfo = guiCoverage.get();
 
-        int carvedCoveredLines = 0;
-        for(String fileName:overallCarvedCoverageInfo.keySet()) {
-            if (fileName.startsWith(packageName)) {
-                if (fileName.equals(packageName + ".R") || fileName.equals(packageName + ".BuildConfig")) {
-                    continue;
-                }
-                Map<Integer, Integer> carvedCoverageForFile = overallCarvedCoverageInfo.get(fileName);
-                for (Integer line : carvedCoverageForFile.keySet()) {
-                    Integer coverageCount = carvedCoverageForFile.get(line);
-                    if (coverageCount.intValue() > 0) {
-                        carvedCoveredLines++;
-                    }
-                }
-            }
-        }
 
-        int carvedCoveredLinesNotInEspresso = 0;
-        for(String fileName:overallCarvedCoverageInfo.keySet()){
-            if(fileName.startsWith(packageName)){
-                if(fileName.equals(packageName+".R") || fileName.equals(packageName+".BuildConfig")){
-                    continue;
-                }
-                Map<Integer, Integer> carvedCoverageForFile = overallCarvedCoverageInfo.get(fileName);
-                Map<Integer, Integer> espressoCoverageForFile = overallEspressoCoverageInfo.get(fileName);
-                if(espressoCoverageForFile==null){
-                    for(Integer line:carvedCoverageForFile.keySet()){
-                        Integer coverageCount = carvedCoverageForFile.get(line);
-                        if(coverageCount.intValue()>0) {
-                            //System.out.println("Espresso did not cover:"+fileName+"#"+line);
-                            carvedCoveredLinesNotInEspresso++;
-                        }
-                    }
-                }
-                for(Integer line:carvedCoverageForFile.keySet()){
-                    Integer coverageCount = carvedCoverageForFile.get(line);
-                    if(coverageCount.intValue()>0) {
-                        if(espressoCoverageForFile.keySet().contains(line)){
-                            Integer espressoCoverageCount = espressoCoverageForFile.get(line);
-                            if(espressoCoverageCount.intValue()==0){
-                                //System.out.println("Espresso did not cover:"+fileName+"#"+line);
-                                carvedCoveredLinesNotInEspresso++;
-                            }
-                        }
-                        else{
-                            //System.out.println("Espresso did not cover:"+fileName+"#"+line);
-                            carvedCoveredLinesNotInEspresso++;
-                        }
-                    }
-                }
-            }
-        }
+        printCoverageCount("Carved Coverage", carvedCoverageInfo);
+        printCoverageCount("GUI Coverage", guiCoverageInfo);
+        int sharedInstructionCoverageCount = findSharedCoverage(carvedCoverageInfo, guiCoverageInfo, "instruction");
+        System.out.println("Shared Instruction Coverage Count:"+sharedInstructionCoverageCount);
+        int sharedBranchCoverageCount = findSharedCoverage(carvedCoverageInfo, guiCoverageInfo, "branch");
+        System.out.println("Shared Branch Coverage Count:"+sharedBranchCoverageCount);
 
-        int espressoCoveredLinesNotInCarved = 0;
-        for(String fileName:overallEspressoCoverageInfo.keySet()){
-            if(fileName.startsWith(packageName)){
-                if(fileName.equals(packageName+".R") || fileName.equals(packageName+".BuildConfig")){
-                    continue;
-                }
-                Map<Integer, Integer> espressoCoverageForFile = overallEspressoCoverageInfo.get(fileName);
-                Map<Integer, Integer> carvedCoverageForFile = overallCarvedCoverageInfo.get(fileName);
-                if(carvedCoverageForFile==null){
-                    for(Integer line:espressoCoverageForFile.keySet()){
-                        Integer coverageCount = espressoCoverageForFile.get(line);
-                        if(coverageCount.intValue()>0) {
-                            //System.out.println("Carved did not cover:"+fileName+"#"+line);
-                            espressoCoveredLinesNotInCarved++;
-                        }
-                    }
-                }
-                for(Integer line:espressoCoverageForFile.keySet()){
-                    Integer coverageCount = espressoCoverageForFile.get(line);
-                    if(coverageCount.intValue()>0) {
-                        if(carvedCoverageForFile.keySet().contains(line)){
-                            Integer carvedCoverageCount = carvedCoverageForFile.get(line);
-                            if(carvedCoverageCount.intValue()==0){
-                                //System.out.println("Carved did not cover:"+fileName+"#"+line);
-                                espressoCoveredLinesNotInCarved++;
-                            }
-                        }
-                        else{
-                            //System.out.println("Carved did not cover:"+fileName+"#"+line);
-                            espressoCoveredLinesNotInCarved++;
-                        }
-                    }
-                }
-            }
-        }
 
-        System.out.println(carvedCoveredLines);
-        System.out.println(carvedCoveredLinesNotInEspresso);
-        System.out.println(espressoCoveredLinesNotInCarved);
+
+//        int carvedCoveredLines = 0;
+//        for(String fileName:overallCarvedCoverageInfo.keySet()) {
+//            if (fileName.startsWith(packageName)) {
+//                if (fileName.equals(packageName + ".R") || fileName.equals(packageName + ".BuildConfig")) {
+//                    continue;
+//                }
+//                Map<Integer, Integer> carvedCoverageForFile = overallCarvedCoverageInfo.get(fileName);
+//                for (Integer line : carvedCoverageForFile.keySet()) {
+//                    Integer coverageCount = carvedCoverageForFile.get(line);
+//                    if (coverageCount.intValue() > 0) {
+//                        carvedCoveredLines++;
+//                    }
+//                }
+//            }
+//        }
+//
+//        int carvedCoveredLinesNotInEspresso = 0;
+//        for(String fileName:overallCarvedCoverageInfo.keySet()){
+//            if(fileName.startsWith(packageName)){
+//                if(fileName.equals(packageName+".R") || fileName.equals(packageName+".BuildConfig")){
+//                    continue;
+//                }
+//                Map<Integer, Integer> carvedCoverageForFile = overallCarvedCoverageInfo.get(fileName);
+//                Map<Integer, Integer> espressoCoverageForFile = overallEspressoCoverageInfo.get(fileName);
+//                if(espressoCoverageForFile==null){
+//                    for(Integer line:carvedCoverageForFile.keySet()){
+//                        Integer coverageCount = carvedCoverageForFile.get(line);
+//                        if(coverageCount.intValue()>0) {
+//                            //System.out.println("Espresso did not cover:"+fileName+"#"+line);
+//                            carvedCoveredLinesNotInEspresso++;
+//                        }
+//                    }
+//                }
+//                for(Integer line:carvedCoverageForFile.keySet()){
+//                    Integer coverageCount = carvedCoverageForFile.get(line);
+//                    if(coverageCount.intValue()>0) {
+//                        if(espressoCoverageForFile.keySet().contains(line)){
+//                            Integer espressoCoverageCount = espressoCoverageForFile.get(line);
+//                            if(espressoCoverageCount.intValue()==0){
+//                                //System.out.println("Espresso did not cover:"+fileName+"#"+line);
+//                                carvedCoveredLinesNotInEspresso++;
+//                            }
+//                        }
+//                        else{
+//                            //System.out.println("Espresso did not cover:"+fileName+"#"+line);
+//                            carvedCoveredLinesNotInEspresso++;
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//
+//        int espressoCoveredLinesNotInCarved = 0;
+//        for(String fileName:overallEspressoCoverageInfo.keySet()){
+//            if(fileName.startsWith(packageName)){
+//                if(fileName.equals(packageName+".R") || fileName.equals(packageName+".BuildConfig")){
+//                    continue;
+//                }
+//                Map<Integer, Integer> espressoCoverageForFile = overallEspressoCoverageInfo.get(fileName);
+//                Map<Integer, Integer> carvedCoverageForFile = overallCarvedCoverageInfo.get(fileName);
+//                if(carvedCoverageForFile==null){
+//                    for(Integer line:espressoCoverageForFile.keySet()){
+//                        Integer coverageCount = espressoCoverageForFile.get(line);
+//                        if(coverageCount.intValue()>0) {
+//                            //System.out.println("Carved did not cover:"+fileName+"#"+line);
+//                            espressoCoveredLinesNotInCarved++;
+//                        }
+//                    }
+//                }
+//                for(Integer line:espressoCoverageForFile.keySet()){
+//                    Integer coverageCount = espressoCoverageForFile.get(line);
+//                    if(coverageCount.intValue()>0) {
+//                        if(carvedCoverageForFile.keySet().contains(line)){
+//                            Integer carvedCoverageCount = carvedCoverageForFile.get(line);
+//                            if(carvedCoverageCount.intValue()==0){
+//                                //System.out.println("Carved did not cover:"+fileName+"#"+line);
+//                                espressoCoveredLinesNotInCarved++;
+//                            }
+//                        }
+//                        else{
+//                            //System.out.println("Carved did not cover:"+fileName+"#"+line);
+//                            espressoCoveredLinesNotInCarved++;
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//
+//        System.out.println(carvedCoveredLines);
+//        System.out.println(carvedCoveredLinesNotInEspresso);
+//        System.out.println(espressoCoveredLinesNotInCarved);
     }
 }

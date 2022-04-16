@@ -79,11 +79,26 @@ public class Main {
         @Option(longName = "relaxed")
         public boolean getRelaxed();
 
+        @Option(longName = "timeout", defaultValue = Integer.MAX_VALUE+"")
+        public long getTimeout();
+
     }
+
+    public static long startTime = 0;
+    public static long timeout = 0;
+    public static boolean stop = false;
 
     public static void main(String[] args) throws IOException, ABCException {
 
+        Main.startTime = System.nanoTime();
+        System.out.println("STARTTIME:"+Main.startTime);
+
         CLI cli = CliFactory.parseArguments(CLI.class, args);
+
+        //transforming seconds in nanoseconds
+        Main.timeout = cli.getTimeout();
+        Main.timeout = Main.timeout * 1000000000;
+        System.out.println("TIMEOUT:"+Main.timeout);
 
         /*
          * Soot is a singleton and exposes static methods only, so we encapsulate its
@@ -112,6 +127,11 @@ public class Main {
         int totalGeneratedTests = 0;
 
         for (File traceFile : cli.getTraceFiles()) {
+
+            if(Main.stop){
+                break;
+            }
+
             // avoid processing unrelated files (based on extension)
             if (!traceFile.getAbsolutePath().endsWith(".txt")) {
                 continue;
@@ -280,6 +300,10 @@ public class Main {
                 // generate shadows needed for test cases
                 ShadowWriter shadowWriter = new ShadowWriter();
                 shadowWriter.generateAndWriteShadows(sortedTestSuiteList, sourceFolder);
+
+                if(Main.stop){
+                    break;
+                }
 
             } catch (Exception e) {
                 logger.error("** Error while processing trace " + traceFile);

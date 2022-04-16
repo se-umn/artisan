@@ -1,5 +1,6 @@
 package de.unipassau.abc.generation;
 
+import de.unipassau.abc.evaluation.Main;
 import de.unipassau.abc.generation.simplifiers.RobolectricServiceSimplifier;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -103,6 +104,14 @@ public class BasicTestGenerator implements TestGenerator {
         int total = targetMethodsInvocations.size();
 
         for (MethodInvocation targetMethodInvocation : targetMethodsInvocations) {
+
+            long currentTime = System.nanoTime();
+            long difference = currentTime-Main.startTime;
+            System.out.println("DIFFERENCE:"+difference);
+            if(difference>Main.timeout){
+                Main.stop=true;
+                break;
+            }
 
             carved = carved + 1;
 
