@@ -119,9 +119,20 @@ public class EspressoTestsFinder {
                 CompilationUnit cu = StaticJavaParser.parse(new File(testFileName));
                 //find whether file uses espresso
                 List<ImportDeclaration> importDeclarations = cu.findAll(ImportDeclaration.class);
-                List<ClassOrInterfaceDeclaration> classDeclarations = cu.findAll(ClassOrInterfaceDeclaration.class);
+                boolean usesEspresso = false;
+                for (ImportDeclaration importDeclaration : importDeclarations) {
+                    if(importDeclaration.getName().asString().toLowerCase().contains("espresso")){
+                        System.out.println(importDeclaration.getName().asString());
+                    }
+                    if(importDeclaration.getName().asString().startsWith("androidx.test.espresso") ||
+                            importDeclaration.getName().asString().startsWith("android.support.test.espresso")){
+                        usesEspresso = true;
+                        break;
+                    }
+                }
 
                 // Find ignored classes and exclude them
+                List<ClassOrInterfaceDeclaration> classDeclarations = cu.findAll(ClassOrInterfaceDeclaration.class);
                 for(ClassOrInterfaceDeclaration classDeclaration : classDeclarations){
                     NodeList<AnnotationExpr> annotations = classDeclaration.getAnnotations();
                     for(AnnotationExpr annotation : annotations) {
@@ -135,17 +146,6 @@ public class EspressoTestsFinder {
                     }
                 }
 
-                boolean usesEspresso = false;
-                for (ImportDeclaration importDeclaration : importDeclarations) {
-                    if(importDeclaration.getName().asString().toLowerCase().contains("espresso")){
-                        System.out.println(importDeclaration.getName().asString());
-                    }
-                    if(importDeclaration.getName().asString().startsWith("androidx.test.espresso") ||
-                            importDeclaration.getName().asString().startsWith("android.support.test.espresso")){
-                        usesEspresso = true;
-                        break;
-                    }
-                }
                 if(usesEspresso){
                     //find package name
                     String packageName = "";
