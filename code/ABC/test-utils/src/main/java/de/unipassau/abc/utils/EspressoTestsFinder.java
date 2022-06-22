@@ -64,13 +64,21 @@ public class EspressoTestsFinder {
         String testsListFileName = "/Users/mattia/Faculty/Research/2020_android_test_carving/repositories/benchmarks/UK-Gebaerden_Muensterland/tests.txt";
         String espressoTestsListFileName = "/Users/mattia/Faculty/Research/2020_android_test_carving/repositories/benchmarks/UK-Gebaerden_Muensterland/espresso_tests.txt";
 
+        testFolderName = args[0];
+        espressoTestsListFileName = args[1];
+        boolean ignoreTestList = false;
+        if(args.length < 3 || args[2].toLowerCase().equals("false"))
+            ignoreTestList = true;
+        else {
+            testsListFileName = args[2];
+        }
 
-
-        printEspressoTests(testFolderName, testsListFileName, espressoTestsListFileName);
+        printEspressoTests(testFolderName, testsListFileName, espressoTestsListFileName, ignoreTestList);
     }
 
 
-    public static void printEspressoTests(String testFolderName, String testsListFileName, String espressoTestsListFileName){
+    public static void printEspressoTests(String testFolderName, String testsListFileName,
+                                          String espressoTestsListFileName, boolean ignoreTestList){
         //result
         List<String> relevantTestMethodSignatures = new ArrayList<String>();
         try {
@@ -95,13 +103,15 @@ public class EspressoTestsFinder {
             }
             //read tests list
             Set<String> testsListMethodSignatures = new HashSet<String>();
-            FileInputStream fis = new FileInputStream(testsListFileName);
-            BufferedReader br = new BufferedReader(new InputStreamReader(fis));
-            String testsListLine;
-            while ((testsListLine = br.readLine()) != null)   {
-                testsListMethodSignatures.add(testsListLine);
+            if(!ignoreTestList) {
+                FileInputStream fis = new FileInputStream(testsListFileName);
+                BufferedReader br = new BufferedReader(new InputStreamReader(fis));
+                String testsListLine;
+                while ((testsListLine = br.readLine()) != null) {
+                    testsListMethodSignatures.add(testsListLine);
+                }
+                fis.close();
             }
-            fis.close();
 
             //iterate over test files
             for(String testFileName:testFileNames) {
@@ -120,6 +130,22 @@ public class EspressoTestsFinder {
                         break;
                     }
                 }
+
+                // Find ignored classes and exclude them
+                List<ClassOrInterfaceDeclaration> classDeclarations = cu.findAll(ClassOrInterfaceDeclaration.class);
+                for(ClassOrInterfaceDeclaration classDeclaration : classDeclarations){
+                    NodeList<AnnotationExpr> annotations = classDeclaration.getAnnotations();
+                    for(AnnotationExpr annotation : annotations) {
+                        if(annotation.getName().asString().equals("IgnoreClass")){
+                            if(classDeclaration.getParentNode().isPresent()){
+                                Node parent = classDeclaration.getParentNode().get();
+                                parent.remove(classDeclaration);
+                            }
+                            break;
+                        }
+                    }
+                }
+
                 if(usesEspresso){
                     //find package name
                     String packageName = "";
@@ -154,7 +180,7 @@ public class EspressoTestsFinder {
                             }
                         }
                         if(!testMethodSignature.equals("") && !ignoreTest) {
-                            if (!testsListMethodSignatures.contains(testMethodSignature)) {
+                            if (!testsListMethodSignatures.contains(testMethodSignature) && !ignoreTestList) {
                                 System.out.println("ERROR:test not in original list " + testMethodSignature);
                                 System.exit(1);
                             }
