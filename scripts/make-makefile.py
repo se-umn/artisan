@@ -9,6 +9,16 @@ script_path = os.path.realpath(__file__)
 scripts_dir = os.path.dirname(script_path)
 template_path = os.path.join(scripts_dir, "make-template.make")
 
+def parse_assemble_commands(config_values):
+    if not "make_assemble_apk_command" in config_values or not config_values["make_assemble_apk_command"]:
+        config_values["make_assemble_apk_command"] = "assembleDebug"
+
+    if not "make_assemble_android_test_command" in config_values or not config_values["make_assemble_android_test_command"]:
+        config_values["make_assemble_android_test_command"] = assembleAndroidTest
+
+def parse_gui_coverage_file(config_values):
+    if not "make_gui_coverage_file" in config_values or not config_values["make_gui_coverage_file"]:
+        config_values["make_gui_coverage_file"] = "app/build/outputs/code_coverage/debugAndroidTest/connected/*coverage.ec"
 
 def parse_zip_align(config_values):
     if "make_zipalign" in config_values and "true" in config_values["make_zipalign"]:
@@ -82,6 +92,8 @@ if __name__ == '__main__':
             parse_carving_options(config_values)
             parse_instrumentation_options(config_values)
             parse_zip_align(config_values)
+            parse_gui_coverage_file(config_values)
+            parse_assemble_commands(config_values)
 
             with open(template_path, "r") as template_file:
                 t = Template(template_file.read())

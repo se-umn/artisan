@@ -183,7 +183,7 @@ list-sed:
 # Debug Target
 list-all-tests :
 	@echo $(ESPRESSO_TESTS) | tr " " "\n"
-	
+
 list-tests : $(ESPRESSO_TESTS)
 	@echo $? | tr " " "\n"
 
@@ -229,7 +229,7 @@ clean-all : clean-carved-tests clean-carved-coverage clean-espresso-coverage
 	$(RM) -rv  unit-tests-coverage
 
 # Build the various apks
-app-original.apk : 
+app-original.apk :
 	@export ABC_CONFIG=$(ABC_CFG) && \
 	$(GW) -PjacocoEnabled=false {{make_assemble_apk_command}} </dev/null && \
 	mv {{make_original_apk_path}} app-debug.apk && \
@@ -345,7 +345,7 @@ carve-all-select-activities-all : .carved-all-select-activities-all
 # Make sure this file has the right timestamp - probably touch will work the same
 	@sleep 1; echo "" > .carved-all-select-one
 	@sleep 1; echo "" > .carved-all
-	
+
 .carved-all-select-activities-all : $(ESPRESSO_TESTS)
 	@export ABC_CONFIG=$(ABC_CFG) && \
 	export CARVING_OPTIONS=$(SELECT_ACTIVITIES_ALL_CARVING_OPTIONS) && \
@@ -366,7 +366,7 @@ carve-all-select-activities-all : .carved-all-select-activities-all
 
 ### ### ### ### ### ### ###
 ### Coverage targets
-### ### ### ### ### ### ### 
+### ### ### ### ### ### ###
 
 coverage-espresso-tests : espresso-tests-coverage/html/index.html
 	@echo "Done"
@@ -397,7 +397,7 @@ $(ESPRESSO_TESTS_COVERAGE): app-original-for-coverage.apk app-androidTest-for-co
 	$(GW) -PjacocoEnabled=true -PcarvedTests=false -Pandroid.testInstrumentationRunnerArguments.class=$(TEST_NAME) jacocoGUITestCoverage </dev/null
 	mv -v app/build/reports/jacoco/jacocoGUITestCoverage $(COVERAGE_FOLDER)
 # TODO debugAndroidTest folder might probably have some other name based on gradle config
-	mv -v app/build/outputs/code_coverage/debugAndroidTest/connected/*coverage.ec $(COVERAGE_FOLDER)/$(TEST_NAME).ec
+	mv -v {{make_gui_coverage_file}} $(COVERAGE_FOLDER)/$(TEST_NAME).ec
 
 coverage-unit-tests : unit-tests-coverage/html/index.html
 	@echo "Done"
