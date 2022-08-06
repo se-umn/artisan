@@ -779,14 +779,21 @@ function align-apk() {
 
 # shellcheck disable=SC2120
 function make() {
-  MAKE_GENERATOR="${MAKE_GENERATOR:-$(dirname "$0")/make-makefile.py}"
+  : ${ABC_HOME:?Please provide a value for ABC_HOME in $config_file}
+  
+  # Fail if the python venv is not there. 
+  if [[ ! -e "${ABC_HOME}/../../scripts/.venv" ]]; then
+    (echo >&2 "Missing: ${ABC_HOME}/../../scripts/.venv")
+    (echo >&2 "Check: ${ABC_HOME}/../../scripts/README.md")
+    return 1
+  fi
 
   local app_root="${1:?Missing application root directory}"
   local absolute_app_root=$(realpath "${app_root}")
   #(echo >&2 "Application root: $app_root")
 
   if [[ -f "${app_root}/abc-apk-config" ]]; then
-    python3 "${MAKE_GENERATOR}" "${absolute_app_root}"
+    ${ABC_HOME}/../../scripts/.venv/bin/python ${ABC_HOME}/../../scripts/make-makefile.py "${absolute_app_root}"
   else
     (echo >&2 "$app_root/abc-apk-config does not exist")
     return 1
