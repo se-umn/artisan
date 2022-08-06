@@ -18,7 +18,8 @@ CARVING_JAVA_OPTIONS=" \
 -Dorg.slf4j.simpleLogger.defaultLogLevel=info \
 "
 
-CARVING_OPTIONS=""
+CARVING_OPTIONS=" \
+"
 
 SELECT_ONE_CARVING_OPTIONS=$(CARVING_OPTIONS)" \
 --selection-strategy=SELECT_ONE \
@@ -26,6 +27,16 @@ SELECT_ONE_CARVING_OPTIONS=$(CARVING_OPTIONS)" \
 
 SELECT_ALL_CARVING_OPTIONS=$(CARVING_OPTIONS)" \
 --selection-strategy=SELECT_ALL \
+"
+
+SELECT_ALL_TIMEOUT_5_CARVING_OPTIONS=$(CARVING_OPTIONS)" \
+--selection-strategy=SELECT_ALL \
+--timeout=18000 \
+"
+
+SELECT_ALL_TIMEOUT_10_CARVING_OPTIONS=$(CARVING_OPTIONS)" \
+--selection-strategy=SELECT_ALL \
+--timeout=36000 \
 "
 
 SELECT_ACTIVITIES_ALL_CARVING_OPTIONS=$(CARVING_OPTIONS)" \
@@ -138,7 +149,7 @@ fi)
 $(eval COVERAGE_APKS_INSTALLED := 1)
 endef
 
-.PHONY: clean-gradle clean-all carve-all-select-one carve-all-selected-all run-espresso-tests trace-espresso-tests
+.PHONY: clean-gradle clean-all carve-all-select-one carve-all-select-all run-espresso-tests trace-espresso-tests
 
 show :
 	$(info $(ADB))
@@ -206,13 +217,14 @@ app-original.apk :
 	$(ABC) sign-apk app-debug.apk && \
 	mv -v app-debug.apk app-original.apk
 
+
 app-instrumented.apk : app-original.apk
 	@export ABC_CONFIG=$(ABC_CFG) && \
 	export JAVA_OPTS=$(JAVA_OPTS) && \
 	export INSTRUMENTATION_OPTS=$(INSTRUMENTATION_OPTS) && \
 	INSTRUMENTED_APK=`$(ABC) instrument-apk app-original.apk` && \
 	$(ABC) instrument-apk app-original.apk && \
-	mv -v $${INSTRUMENTED_APK} app-instrumented.apk
+	mv -v $${INSTRUMENTED_APK} app-instrumented.apk 
 
 app-androidTest.apk :
 	@export ABC_CONFIG=$(ABC_CFG) && \
@@ -252,6 +264,12 @@ $(ESPRESSO_TESTS) : app-instrumented.apk app-androidTest.apk
 carve-all-select-all : .carved-all-select-all
 	@echo "Done"
 
+carve-all-select-all-timeout-5 : .carved-all-select-all-timeout-5
+	@echo "Done"
+
+carve-all-select-all-timeout-10 : .carved-all-select-all-timeout-10
+	@echo "Done"
+
 carve-all-select-one : .carved-all-select-one
 	@echo "Done"
 
@@ -270,6 +288,27 @@ carve-all-select-activities-all : .carved-all-select-activities-all
 	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
 # Make sure this file has the right timestamp - probably touch will work the same
 	@sleep 1; echo "" > .carved-all-select-all
+	@sleep 1; echo "" > .carved-all
+
+
+.carved-all-select-all-timeout-5 : $(ESPRESSO_TESTS)
+	@export ABC_CONFIG=$(ABC_CFG) && \
+	export CARVING_OPTIONS=$(SELECT_ALL_TIMEOUT_5_CARVING_OPTIONS) && \
+	export CARVING_JAVA_OPTIONS=$(CARVING_JAVA_OPTIONS) && \
+	$(ABC) carve-all app-original.apk traces app/src/allCarvedTest force-clean 2>&1 | tee carving.log
+	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
+# Make sure this file has the right timestamp - probably touch will work the same
+	@sleep 1; echo "" > .carved-all-select-all-timeout-5
+	@sleep 1; echo "" > .carved-all
+
+.carved-all-select-all-timeout-10 : $(ESPRESSO_TESTS)
+	@export ABC_CONFIG=$(ABC_CFG) && \
+	export CARVING_OPTIONS=$(SELECT_ALL_TIMEOUT_10_CARVING_OPTIONS) && \
+	export CARVING_JAVA_OPTIONS=$(CARVING_JAVA_OPTIONS) && \
+	$(ABC) carve-all app-original.apk traces app/src/allCarvedTest force-clean 2>&1 | tee carving.log
+	@export ABC_CONFIG=$(ABC_CFG) && $(ABC) stop-all-emulators
+# Make sure this file has the right timestamp - probably touch will work the same
+	@sleep 1; echo "" > .carved-all-select-all-timeout-10
 	@sleep 1; echo "" > .carved-all
 
 .carved-all-select-one : $(ESPRESSO_TESTS)
