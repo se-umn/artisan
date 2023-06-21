@@ -31,13 +31,24 @@ ANDROID_JAR=~/Android/Sdk/platforms/android-29/android.jar
 
 # Build instructions:
 
+- Use Java 8
+
 - Run `abc.sh rebuild-all`; this should build all necessary components of the project.
 
 # Running instructions:
 
 ## BasicCalculator:
 
-- To carve tests, change directory to `./apps-src/BasicCalculator` and run `make carve-all`
+- Go to the scripts folder and create a virtual env: `python -m venv .venv`
+- Activate the .venv: `. .venv/bin/activate`
+- Install the deps: `pip install jinja2`
+- Go to basic calculator folder `./apps-src/BasicCalculator`
+- Create makefile with `abc.sh make .`
+- If you use zsh add this `SHELL := /bin/bash` at the top of the generated `makefile`
+- To carve tests, run `make carve-all-select-one`
+
+
+## Other instructions
 - To run the carved tests, run `make run-all-carved-tests`
 - To carve tests from traces in the `traces` folder run `make carve-cached-traces` 
 - To collect coverage, run:

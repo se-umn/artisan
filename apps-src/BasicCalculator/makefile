@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 ### MAIN VARIABLES
 GW=./gradlew --console plain
 ABC=../../scripts/abc.sh
@@ -164,7 +166,7 @@ list-sed:
 # Debug Target
 list-all-tests :
 	@echo $(ESPRESSO_TESTS) | tr " " "\n"
-	
+
 list-tests : $(ESPRESSO_TESTS)
 	@echo $? | tr " " "\n"
 
@@ -210,7 +212,7 @@ clean-all : clean-carved-tests clean-carved-coverage clean-espresso-coverage
 	$(RM) -rv  unit-tests-coverage
 
 # Build the various apks
-app-original.apk : 
+app-original.apk :
 	@export ABC_CONFIG=$(ABC_CFG) && \
 	$(GW) -PjacocoEnabled=false assembleDebug </dev/null && \
 	mv app/build/outputs/apk/debug/app-debug.apk app-debug.apk && \
@@ -320,7 +322,7 @@ carve-all-select-activities-all : .carved-all-select-activities-all
 # Make sure this file has the right timestamp - probably touch will work the same
 	@sleep 1; echo "" > .carved-all-select-one
 	@sleep 1; echo "" > .carved-all
-	
+
 .carved-all-select-activities-all : $(ESPRESSO_TESTS)
 	@export ABC_CONFIG=$(ABC_CFG) && \
 	export CARVING_OPTIONS=$(SELECT_ACTIVITIES_ALL_CARVING_OPTIONS) && \
@@ -341,7 +343,7 @@ carve-all-select-activities-all : .carved-all-select-activities-all
 
 ### ### ### ### ### ### ###
 ### Coverage targets
-### ### ### ### ### ### ### 
+### ### ### ### ### ### ###
 
 coverage-espresso-tests : espresso-tests-coverage/html/index.html
 	@echo "Done"
