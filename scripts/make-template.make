@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 ### MAIN VARIABLES
 GW=./gradlew --console plain
 ABC=../../scripts/abc.sh
@@ -243,6 +245,7 @@ app-instrumented.apk : app-original.apk
 	@export ABC_CONFIG=$(ABC_CFG) && \
 	export JAVA_OPTS=$(JAVA_OPTS) && \
 	export INSTRUMENTATION_OPTS=$(INSTRUMENTATION_OPTS) && \
+	touch instrumentation.log && \
 	INSTRUMENTED_APK=`$(ABC) instrument-apk app-original.apk` && \
 	$(ABC) instrument-apk app-original.apk && \
 	mv -v $${INSTRUMENTED_APK} app-instrumented.apk {% if make_zipalign %} && \
