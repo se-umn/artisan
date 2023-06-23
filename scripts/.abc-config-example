@@ -9,5 +9,5 @@ ABC_HOME=~/carving/code/ABC
 APK_SIGNER=~/Library/Android/sdk/build-tools/29.0.3/apksigner
 MONKEYRUNNER_EXE=~/Library/Android/sdk/tools/bin/monkeyrunner
 ANDROID_ADB_EXE=~/Library/Android/sdk/platform-tools/adb
-ANDROID_AAPT_EXE=~/Library/Android/sdk//build-tools/29.0.3/aapt
-
+ANDROID_AAPT_EXE=~/Library/Android/sdk/build-tools/29.0.3/aapt
+ANDROID_JAR=~/Library/Android/sdk/platforms/android-29/android.jar
