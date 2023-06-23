@@ -4,7 +4,7 @@
 #	BAD: EMULATOR_EXE="~/Library/Android/sdk/tools/emulator"
 #####
 EMULATOR_EXE=~/Library/Android/sdk/tools/emulator
-IMAGE_NAME="Nexus_One_API_24"
+IMAGE_NAME=Nexus_One_API_24
 ABC_HOME=~/carving/code/ABC
 APK_SIGNER=~/Library/Android/sdk/build-tools/29.0.3/apksigner
 MONKEYRUNNER_EXE=~/Library/Android/sdk/tools/bin/monkeyrunner
