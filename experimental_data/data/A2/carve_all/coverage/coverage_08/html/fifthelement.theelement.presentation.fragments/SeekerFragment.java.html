@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SeekerFragment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.presentation.fragments</a> &gt; <span class="el_source">SeekerFragment.java</span></div><h1>SeekerFragment.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.presentation.fragments;
+
+import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageButton;
+import android.widget.SeekBar;
+
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import fifthelement.theelement.R;
+import fifthelement.theelement.application.Services;
+import fifthelement.theelement.presentation.services.MusicService;
+
+<span class="nc" id="L19">public class SeekerFragment extends Fragment {</span>
+
+    public static final int PLAYBACK_POSITION_REFRESH_INTERVAL_MS = 500;
+
+    private SeekBar mSeekbarAudio;
+    private MusicService musicService;
+    private View view;
+<span class="nc" id="L26">    private boolean mUserIsSeeking = false;</span>
+    private ScheduledExecutorService mExecutor;
+    private Runnable mSeekbarPositionUpdateTask;
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+
+<span class="nc" id="L34">        view = inflater.inflate(R.layout.seeker_fragment, container, false);</span>
+
+<span class="nc" id="L36">        musicService = Services.getMusicService();</span>
+<span class="nc" id="L37">        initializeUI();</span>
+<span class="nc" id="L38">        initializeSeekbar();</span>
+<span class="nc" id="L39">        return view;</span>
+    }
+
+    private void initializeUI() {
+<span class="nc" id="L43">        final ImageButton mPlayButton = view.findViewById(R.id.button_play_pause);</span>
+<span class="nc" id="L44">        final ImageButton mSkipButton = view.findViewById(R.id.button_next);</span>
+<span class="nc" id="L45">        final ImageButton mPrevButton = view.findViewById(R.id.button_prev);</span>
+<span class="nc" id="L46">        mSeekbarAudio = view.findViewById(R.id.seekbar_audio);</span>
+
+<span class="nc bnc" id="L48" title="All 2 branches missed.">        if(!musicService.isPlaying()) {</span>
+<span class="nc" id="L49">            mPlayButton.setImageResource(R.drawable.ic_play_button);</span>
+        } else {
+<span class="nc" id="L51">            mPlayButton.setImageResource(R.drawable.ic_pause_button);</span>
+        }
+
+<span class="nc" id="L54">        mPlayButton.setOnClickListener(</span>
+<span class="nc" id="L55">                new View.OnClickListener() {</span>
+                    @Override
+                    public void onClick(View view) {
+<span class="nc bnc" id="L58" title="All 2 branches missed.">                        if(!musicService.isPlaying()) {</span>
+<span class="nc" id="L59">                            mPlayButton.setImageResource(R.drawable.ic_play_button);</span>
+<span class="nc" id="L60">                            startUpdatingCallbackWithPosition();</span>
+<span class="nc" id="L61">                            musicService.start();</span>
+                        } else {
+<span class="nc" id="L63">                            mPlayButton.setImageResource(R.drawable.ic_pause_button);</span>
+<span class="nc" id="L64">                            stopUpdatingCallbackWithPosition(false);</span>
+<span class="nc" id="L65">                            musicService.pause();</span>
+                        }
+<span class="nc" id="L67">                    }</span>
+                });
+
+<span class="nc" id="L70">        mSkipButton.setOnClickListener(</span>
+<span class="nc" id="L71">                new View.OnClickListener() {</span>
+                    @Override
+                    public void onClick(View view) {
+<span class="nc" id="L74">                        musicService.skip();</span>
+<span class="nc" id="L75">                    }</span>
+                });
+
+<span class="nc" id="L78">        mPrevButton.setOnClickListener(</span>
+<span class="nc" id="L79">                new View.OnClickListener() {</span>
+                    @Override
+                    public void onClick(View view) {
+<span class="nc" id="L82">                        musicService.prev();</span>
+<span class="nc" id="L83">                    }</span>
+                });
+<span class="nc" id="L85">    }</span>
+
+    private void initializeSeekbar() {
+<span class="nc" id="L88">        mSeekbarAudio.setOnSeekBarChangeListener(</span>
+<span class="nc" id="L89">                new SeekBar.OnSeekBarChangeListener() {</span>
+<span class="nc" id="L90">                    int userSelectedPosition = 0;</span>
+
+                    @Override
+                    public void onStartTrackingTouch(SeekBar seekBar) {
+<span class="nc" id="L94">                        mUserIsSeeking = true;</span>
+<span class="nc" id="L95">                    }</span>
+
+                    @Override
+                    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+<span class="nc bnc" id="L99" title="All 2 branches missed.">                        if (fromUser) {</span>
+<span class="nc" id="L100">                            userSelectedPosition = progress;</span>
+                        }
+<span class="nc" id="L102">                    }</span>
+
+                    @Override
+                    public void onStopTrackingTouch(SeekBar seekBar) {
+<span class="nc" id="L106">                        mUserIsSeeking = false;</span>
+<span class="nc" id="L107">                        musicService.seekTo(userSelectedPosition);</span>
+<span class="nc" id="L108">                    }</span>
+                });
+
+        //Set up new playback listener which will initiate seekbar updating if playback starts somehow
+<span class="nc" id="L112">        musicService.setSeekerPlaybackListener(new SeekerPlaybackStartStopListener());</span>
+
+        //Update the seekbar with current playback position and duration
+<span class="nc" id="L115">        int currentPosition = musicService.getCurrentPosition();</span>
+<span class="nc" id="L116">        final int duration = musicService.getDuration();</span>
+<span class="nc bnc" id="L117" title="All 2 branches missed.">        if (mSeekbarAudio.getMax() != duration){</span>
+<span class="nc" id="L118">            mSeekbarAudio.setMax(duration);</span>
+        }
+<span class="nc" id="L120">        mSeekbarAudio.setProgress(currentPosition);</span>
+
+        //Start updating the seekbar if music is playing
+<span class="nc bnc" id="L123" title="All 2 branches missed.">        if(musicService.isPlaying()){</span>
+<span class="nc" id="L124">            startUpdatingCallbackWithPosition();</span>
+        }
+<span class="nc" id="L126">    }</span>
+
+    // This function will spawn a scheduled executor to call a UI update function at a set interval.
+    private void startUpdatingCallbackWithPosition() {
+<span class="nc bnc" id="L130" title="All 2 branches missed.">        if (mExecutor == null) {</span>
+<span class="nc" id="L131">            mExecutor = Executors.newSingleThreadScheduledExecutor();</span>
+        }
+<span class="nc bnc" id="L133" title="All 2 branches missed.">        if (mSeekbarPositionUpdateTask == null) {</span>
+<span class="nc" id="L134">            mSeekbarPositionUpdateTask = new Runnable() {</span>
+                @Override
+                public void run() {
+<span class="nc" id="L137">                    updateProgressCallbackTask();</span>
+<span class="nc" id="L138">                }</span>
+            };
+        }
+<span class="nc" id="L141">        mExecutor.scheduleAtFixedRate(</span>
+                mSeekbarPositionUpdateTask,
+                0,
+                PLAYBACK_POSITION_REFRESH_INTERVAL_MS,
+                TimeUnit.MILLISECONDS
+        );
+<span class="nc" id="L147">    }</span>
+
+    // This function will stop the scheduled executor from calling UI update function and uses a
+    // boolean parameter to determine if seekbar UI elements reporting playback must reset to 0.
+    private void stopUpdatingCallbackWithPosition(boolean resetUIPlaybackPosition) {
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        if (mExecutor != null) {</span>
+<span class="nc" id="L153">            mExecutor.shutdownNow();</span>
+<span class="nc" id="L154">            mExecutor = null;</span>
+<span class="nc" id="L155">            mSeekbarPositionUpdateTask = null;</span>
+<span class="nc bnc" id="L156" title="All 2 branches missed.">            if (resetUIPlaybackPosition) {</span>
+<span class="nc" id="L157">                mSeekbarAudio.setProgress(0);</span>
+            }
+        }
+<span class="nc" id="L160">    }</span>
+
+    // This function will call the setProgress method on the seekbar with the music player's
+    // current position, which will update the position of the seekbar during playback
+    private void updateProgressCallbackTask() {
+<span class="nc bnc" id="L165" title="All 4 branches missed.">        if (musicService != null &amp;&amp; musicService.isPlaying()) {</span>
+<span class="nc" id="L166">            int currentPosition = musicService.getCurrentPosition();</span>
+<span class="nc" id="L167">            final int duration = musicService.getDuration();</span>
+<span class="nc bnc" id="L168" title="All 2 branches missed.">            if (mSeekbarAudio.getMax() != duration){</span>
+<span class="nc" id="L169">                mSeekbarAudio.setMax(duration);</span>
+            }
+<span class="nc bnc" id="L171" title="All 2 branches missed.">            if (!mUserIsSeeking) {</span>
+<span class="nc" id="L172">                mSeekbarAudio.setProgress(currentPosition);</span>
+            }
+        }
+<span class="nc" id="L175">    }</span>
+
+<span class="nc" id="L177">    public class SeekerPlaybackStartStopListener {</span>
+        public void onPlaybackStart(){
+<span class="nc" id="L179">            ImageButton mPlayButton = view.findViewById(R.id.button_play_pause);</span>
+<span class="nc" id="L180">            mPlayButton.setImageResource(R.drawable.ic_pause_button);</span>
+<span class="nc" id="L181">            startUpdatingCallbackWithPosition();</span>
+<span class="nc" id="L182">        }</span>
+
+        public void onPlaybackStop(boolean resetUIPlaybackPosition){
+<span class="nc" id="L185">            ImageButton mPlayButton = view.findViewById(R.id.button_play_pause);</span>
+<span class="nc" id="L186">            mPlayButton.setImageResource(R.drawable.ic_play_button);</span>
+<span class="nc" id="L187">            stopUpdatingCallbackWithPosition(resetUIPlaybackPosition);</span>
+<span class="nc" id="L188">        }</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

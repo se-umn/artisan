@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthorPersistenceHSQLDB.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.persistence.hsqldb</a> &gt; <span class="el_source">AuthorPersistenceHSQLDB.java</span></div><h1>AuthorPersistenceHSQLDB.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.persistence.hsqldb;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+import fifthelement.theelement.objects.Author;
+import fifthelement.theelement.persistence.AuthorPersistence;
+
+public class AuthorPersistenceHSQLDB implements AuthorPersistence {
+    private Connection c;
+
+<span class="fc" id="L19">    public AuthorPersistenceHSQLDB(final String dbPath) {</span>
+        try {
+<span class="fc" id="L21">            this.c = DriverManager.getConnection(&quot;jdbc:hsqldb:file:&quot; + dbPath, &quot;SA&quot;, &quot;&quot;);</span>
+<span class="nc" id="L22">        } catch (final SQLException e) {</span>
+<span class="nc" id="L23">            throw new PersistenceException(e);</span>
+<span class="fc" id="L24">        }</span>
+<span class="fc" id="L25">    }</span>
+
+    private Author fromResultSet(final ResultSet rs) throws SQLException {
+<span class="fc" id="L28">        final UUID authorUUID = UUID.fromString(rs.getString(&quot;authorUUID&quot;));</span>
+<span class="fc" id="L29">        final String authorName = rs.getString(&quot;authorName&quot;);</span>
+<span class="fc" id="L30">        final int numPlayed = rs.getInt(&quot;numPlayed&quot;);</span>
+<span class="fc" id="L31">        return new Author(authorUUID, authorName, numPlayed);</span>
+    }
+
+    @Override
+    public List&lt;Author&gt; getAllAuthors() throws PersistenceException {
+
+<span class="nc" id="L37">        final List&lt;Author&gt; authors = new ArrayList&lt;&gt;();</span>
+
+        try
+        {
+<span class="nc" id="L41">            final Statement st = c.createStatement();</span>
+<span class="nc" id="L42">            final ResultSet rs = st.executeQuery(&quot;SELECT * FROM authors&quot;);</span>
+<span class="nc bnc" id="L43" title="All 2 branches missed.">            while (rs.next())</span>
+            {
+<span class="nc" id="L45">                final Author author = fromResultSet(rs);</span>
+<span class="nc" id="L46">                authors.add(author);</span>
+<span class="nc" id="L47">            }</span>
+<span class="nc" id="L48">            rs.close();</span>
+<span class="nc" id="L49">            st.close();</span>
+
+<span class="nc" id="L51">            return authors;</span>
+        }
+<span class="nc" id="L53">        catch (final SQLException e)</span>
+        {
+<span class="nc" id="L55">            throw new PersistenceException(e);</span>
+        }
+    }
+
+    @Override
+    public Author getAuthorByUUID(UUID uuid) throws PersistenceException, IllegalArgumentException {
+<span class="pc bpc" id="L61" title="1 of 2 branches missed.">        if(uuid == null)</span>
+<span class="nc" id="L62">            throw new IllegalArgumentException(&quot;Cannot get author with a null UUID&quot;);</span>
+        try {
+<span class="fc" id="L64">            final PreparedStatement st = c.prepareStatement(&quot;SELECT * FROM authors WHERE authorUUID = ?&quot;);</span>
+<span class="fc" id="L65">            String uuidString = uuid.toString();</span>
+<span class="fc" id="L66">            st.setString(1, uuidString);</span>
+
+<span class="fc" id="L68">            Author author = null;</span>
+<span class="fc" id="L69">            final ResultSet rs = st.executeQuery();</span>
+<span class="pc bpc" id="L70" title="1 of 2 branches missed.">            if(rs.next()) {</span>
+<span class="fc" id="L71">                author = fromResultSet(rs);</span>
+            }
+<span class="fc" id="L73">            rs.close();</span>
+<span class="fc" id="L74">            st.close();</span>
+
+<span class="fc" id="L76">            return author;</span>
+<span class="nc" id="L77">        } catch (final SQLException e) {</span>
+<span class="nc" id="L78">            throw new PersistenceException(e);</span>
+        }
+    }
+
+    @Override
+    public boolean storeAuthor(Author author) throws PersistenceException, IllegalArgumentException {
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        if(author == null)</span>
+<span class="nc" id="L85">            throw new IllegalArgumentException(&quot;Cannot insert a null author&quot;);</span>
+//        if(authorExists(author.getUUID()))
+//            throw new IllegalArgumentException(&quot;Cant store an author with existing UUID&quot;);
+        try {
+<span class="nc" id="L89">            final PreparedStatement st = c.prepareStatement(&quot;INSERT INTO authors VALUES(?, ?, ?)&quot;);</span>
+<span class="nc" id="L90">            st.setString(1, author.getUUID().toString());</span>
+<span class="nc" id="L91">            st.setString(2, author.getName());</span>
+<span class="nc" id="L92">            st.setInt(3, author.getNumPlayed());</span>
+
+<span class="nc" id="L94">            st.executeUpdate();</span>
+
+<span class="nc" id="L96">            return true;</span>
+<span class="nc" id="L97">        } catch (final SQLException e) {</span>
+<span class="nc" id="L98">            throw new PersistenceException(e);</span>
+        }
+    }
+
+    @Override
+    public boolean updateAuthor(Author author) throws PersistenceException, IllegalArgumentException {
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        if(author == null)</span>
+<span class="nc" id="L105">            throw new IllegalArgumentException(&quot;Cannot update a null author&quot;);</span>
+        try {
+<span class="nc bnc" id="L107" title="All 2 branches missed.">            if(authorExists(author.getUUID())) {</span>
+<span class="nc" id="L108">                final PreparedStatement st = c.prepareStatement(&quot;UPDATE authors SET authorName = ?, numPlayed = ? WHERE authorUUID = ? &quot;);</span>
+<span class="nc" id="L109">                st.setString(1, author.getName());</span>
+<span class="nc" id="L110">                st.setInt(2, author.getNumPlayed());</span>
+<span class="nc" id="L111">                st.setString(3, author.getUUID().toString());</span>
+
+<span class="nc" id="L113">                st.executeUpdate();</span>
+
+<span class="nc" id="L115">                return true;</span>
+            }
+<span class="nc" id="L117">            return false;</span>
+<span class="nc" id="L118">        } catch (final SQLException e) {</span>
+<span class="nc" id="L119">            throw new PersistenceException(e);</span>
+        }
+    }
+
+    @Override
+    public boolean deleteAuthor(Author author) throws PersistenceException, IllegalArgumentException  {
+<span class="nc bnc" id="L125" title="All 2 branches missed.">        if (author == null)</span>
+<span class="nc" id="L126">            throw new IllegalArgumentException(&quot;Cannot delete an author with a null author&quot;);</span>
+<span class="nc" id="L127">        return deleteAuthor(author.getUUID());</span>
+    }
+
+    @Override
+    public boolean deleteAuthor(UUID uuid) throws PersistenceException, IllegalArgumentException {
+<span class="nc" id="L132">        boolean removed = false;</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">        if(uuid == null)</span>
+<span class="nc" id="L134">            throw new IllegalArgumentException(&quot;Cannot delete an author with a null UUID&quot;);</span>
+        try {
+<span class="nc bnc" id="L136" title="All 2 branches missed.">            if(getAuthorByUUID(uuid) != null) {</span>
+<span class="nc" id="L137">                final PreparedStatement st = c.prepareStatement(&quot;DELETE FROM authors WHERE authorUUID = ?&quot;);</span>
+<span class="nc" id="L138">                st.setString(1, uuid.toString());</span>
+
+<span class="nc" id="L140">                st.executeUpdate();</span>
+<span class="nc" id="L141">                removed = true;</span>
+            }
+<span class="nc" id="L143">        } catch (final SQLException e) {</span>
+<span class="nc" id="L144">            throw new PersistenceException(e);</span>
+<span class="nc" id="L145">        }</span>
+
+<span class="nc" id="L147">        return  removed;</span>
+    }
+
+    @Override
+    public boolean authorExists(Author author) throws PersistenceException, IllegalArgumentException {
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        if(author == null)</span>
+<span class="nc" id="L153">            throw new IllegalArgumentException(&quot;Cannot check exists with a null Author&quot;);</span>
+<span class="nc" id="L154">        return authorExists(author.getUUID());</span>
+    }
+
+    @Override
+    public boolean authorExists(UUID uuid) throws PersistenceException, IllegalArgumentException {
+<span class="nc bnc" id="L159" title="All 2 branches missed.">        if(uuid == null)</span>
+<span class="nc" id="L160">            throw new IllegalArgumentException(&quot;Cannot check exists with a null UUID&quot;);</span>
+<span class="nc" id="L161">        Author author = getAuthorByUUID(uuid);</span>
+<span class="nc bnc" id="L162" title="All 2 branches missed.">        return author != null;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

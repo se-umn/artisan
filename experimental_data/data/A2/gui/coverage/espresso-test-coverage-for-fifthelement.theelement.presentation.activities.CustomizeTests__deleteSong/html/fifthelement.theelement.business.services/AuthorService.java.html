@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthorService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.business.services</a> &gt; <span class="el_source">AuthorService.java</span></div><h1>AuthorService.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.business.services;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.UUID;
+
+import fifthelement.theelement.application.Persistence;
+import fifthelement.theelement.objects.Author;
+import fifthelement.theelement.persistence.AuthorPersistence;
+
+
+public class AuthorService {
+
+    private AuthorPersistence authorPersistence;
+
+<span class="fc" id="L18">    public AuthorService() {</span>
+<span class="fc" id="L19">        authorPersistence = Persistence.getAuthorPersistence();</span>
+<span class="fc" id="L20">    }</span>
+
+<span class="nc" id="L22">    public AuthorService(AuthorPersistence authorPersistence) {</span>
+<span class="nc" id="L23">        this.authorPersistence = authorPersistence;</span>
+<span class="nc" id="L24">    }</span>
+
+    public Author getAuthorByUUID(UUID uuid) {
+<span class="nc" id="L27">        return authorPersistence.getAuthorByUUID(uuid);</span>
+    }
+
+    public List&lt;Author&gt; getAuthors() {
+<span class="fc" id="L31">        return authorPersistence.getAllAuthors();</span>
+    }
+
+    public boolean insertAuthor(Author author) throws ArrayStoreException, IllegalArgumentException {
+<span class="nc bnc" id="L35" title="All 4 branches missed.">        if(author == null || getAuthorByUUID(author.getUUID()) != null)</span>
+<span class="nc" id="L36">            throw new IllegalArgumentException();</span>
+<span class="nc" id="L37">        return authorPersistence.storeAuthor(author);</span>
+    }
+
+    public boolean updateAuthor(Author author) throws  IllegalArgumentException {
+<span class="nc bnc" id="L41" title="All 2 branches missed.">        if(author == null)</span>
+<span class="nc" id="L42">            throw new IllegalArgumentException();</span>
+<span class="nc" id="L43">        return authorPersistence.updateAuthor(author);</span>
+    }
+
+    public boolean deleteAuthor(Author author) throws IllegalArgumentException {
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        if(author == null)</span>
+<span class="nc" id="L48">            throw new IllegalArgumentException();</span>
+<span class="nc" id="L49">        return authorPersistence.deleteAuthor(author.getUUID());</span>
+    }
+
+    public Author getMostPlayedAuthor() {
+<span class="fc" id="L53">        Author author = null;</span>
+<span class="fc" id="L54">        List&lt;Author&gt; authorList = getSortedAuthorListByMostPlayed();</span>
+<span class="pc bpc" id="L55" title="2 of 4 branches missed.">        if( authorList != null &amp;&amp; authorList.size() &gt; 0 ) {</span>
+<span class="fc" id="L56">            author = authorList.get(0);</span>
+        }
+<span class="fc" id="L58">        return author;</span>
+    }
+
+    public List&lt;Author&gt; getSortedAuthorListByMostPlayed() {
+<span class="fc" id="L62">       List&lt;Author&gt; authorList = this.getAuthors();</span>
+<span class="pc bpc" id="L63" title="1 of 2 branches missed.">        if( authorList != null ) {</span>
+<span class="fc" id="L64">            Collections.sort(authorList, new Comparator&lt;Author&gt;() {</span>
+                @Override
+                public int compare(Author author, Author t1) {
+<span class="fc" id="L67">                    return Integer.compare(Integer.valueOf(t1.getNumPlayed()), Integer.valueOf(author.getNumPlayed()));</span>
+                }
+            });
+        }
+<span class="fc" id="L71">       return authorList;</span>
+    }
+
+    public int getTotalAuthorPlays() {
+<span class="fc" id="L75">        List&lt;Author&gt; authorList = this.getAuthors();</span>
+<span class="fc" id="L76">        int totalPlays = 0;</span>
+<span class="fc bfc" id="L77" title="All 2 branches covered.">        for( Author author : authorList ) {</span>
+<span class="fc" id="L78">            totalPlays += author.getNumPlayed();</span>
+<span class="fc" id="L79">        }</span>
+<span class="fc" id="L80">        return totalPlays;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

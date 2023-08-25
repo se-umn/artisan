@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LogIncoming.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker.actions</a> &gt; <span class="el_source">LogIncoming.java</span></div><h1>LogIncoming.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker.actions;
+
+import android.content.Context;
+import android.database.sqlite.SQLiteDatabase;
+import android.util.Log;
+
+import com.prismaqf.callblocker.CallHelper;
+import com.prismaqf.callblocker.sql.DbHelper;
+import com.prismaqf.callblocker.sql.LoggedCallProvider;
+import com.prismaqf.callblocker.sql.ServiceRunProvider;
+
+import java.io.Serializable;
+
+/**
+ * Class to log an incoming call
+ * @author ConteDiMonteCristo
+ */
+@AvailableAction(description = &quot;Logs events to DB&quot;)
+<span class="nc" id="L19">public class LogIncoming implements IAction, Serializable{</span>
+
+<span class="nc" id="L21">    private final static String TAG = LogIncoming.class.getCanonicalName();</span>
+    private final static String DESCRIPTION = &quot;Logs events to DB&quot;;
+    private final static long serialVersionUID = 1L; //for serialization consistency
+
+    @Override
+    public String getName() {
+<span class="nc" id="L27">        return getClass().getCanonicalName();</span>
+    }
+
+    @Override
+    public void act(final Context ctx, final String number, final LogInfo info) {
+        //start a thread to write to DC
+<span class="nc" id="L33">        new Thread(new Runnable() {</span>
+            @Override
+            public void run() {
+<span class="nc" id="L36">                Log.i(TAG, &quot;Recording a call received in DB&quot;);</span>
+<span class="nc" id="L37">                SQLiteDatabase db = new DbHelper(ctx).getWritableDatabase();</span>
+                try {
+<span class="nc" id="L39">                    String contactDescription = CallHelper.resolveContactDescription(ctx,number);</span>
+<span class="nc" id="L40">                    LoggedCallProvider.LoggedCall lc = new LoggedCallProvider.LoggedCall(info.getRunId(),info.getAction(),number,contactDescription);</span>
+<span class="nc" id="L41">                    LoggedCallProvider.InsertRow(db, lc);</span>
+<span class="nc" id="L42">                    ServiceRunProvider.UpdateWhileRunning(db, info.getRunId(), info.getNumReceived(), info.getNumTriggered());</span>
+                }
+                finally {
+<span class="nc" id="L45">                    db.close();</span>
+                }
+<span class="nc" id="L47">            }</span>
+<span class="nc" id="L48">        }).start();</span>
+<span class="nc" id="L49">    }</span>
+
+    @Override
+    public String toString() {
+<span class="nc" id="L53">        return DESCRIPTION;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

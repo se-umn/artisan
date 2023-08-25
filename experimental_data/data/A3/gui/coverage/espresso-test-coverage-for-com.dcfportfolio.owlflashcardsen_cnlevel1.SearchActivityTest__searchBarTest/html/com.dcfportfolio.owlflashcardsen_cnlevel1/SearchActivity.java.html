@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SearchActivity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.dcfportfolio.owlflashcardsen_cnlevel1</a> &gt; <span class="el_source">SearchActivity.java</span></div><h1>SearchActivity.java</h1><pre class="source lang-java linenums">package com.dcfportfolio.owlflashcardsen_cnlevel1;
+
+import android.arch.lifecycle.LiveData;
+import android.arch.lifecycle.Observer;
+import android.arch.lifecycle.ViewModel;
+import android.arch.lifecycle.ViewModelProviders;
+import android.content.Context;
+import android.media.AudioAttributes;
+import android.media.AudioManager;
+import android.media.SoundPool;
+import android.os.AsyncTask;
+import android.os.Build;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.constraint.ConstraintLayout;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.AsyncTaskLoader;
+import android.support.v4.content.Loader;
+import android.support.v7.app.AppCompatActivity;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.RadioButton;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import com.dcfportfolio.owlflashcardsen_cnlevel1.roomDataBase.Card;
+import com.dcfportfolio.owlflashcardsen_cnlevel1.roomDataBase.CardViewModel;
+
+import java.util.List;
+
+/**
+ * Search Activity class
+ * Allows searching the database by using query terms from English, Chinese, or pinyin.
+ */
+<span class="fc" id="L45">public class SearchActivity extends AppCompatActivity {</span>
+    private EditText mSearchText;
+<span class="fc" id="L47">    private boolean mHasSearched = false;</span>
+    private ConstraintLayout mSearchResultsHolder;
+    private CardViewModel mViewModel;
+    private TextView mEnglishText;
+    private TextView mChineseText;
+    private TextView mChineseEnglishText;
+<span class="fc" id="L53">    private String mLastSearchTerm = &quot;&quot;;</span>
+    private static final String LAST_TERM_LABEL = &quot;com.dcfportfolio.owlflashcardsen_cnlevel1.LAST_SEARCH_TERM_LABEL&quot;;
+    private static final String HAS_SERACHED_LABEL = &quot;com.dcfportfolio.owlflashcardsen_cnlevel1.BOOLEAN_HAS_SEARCHED&quot;;
+
+    //Media Section
+<span class="fc" id="L58">    boolean loaded = false;</span>
+    AudioManager audioManager;
+    private float volume;
+    protected SoundPool soundPool;
+<span class="fc" id="L62">    protected int soundEnglish = 0;</span>
+<span class="fc" id="L63">    protected int soundChinese = 0;</span>
+
+    //Debugging tools
+    private static final String LOG_TAG = &quot;SearchActivity_DEBUG&quot;;
+<span class="fc" id="L67">    private static boolean DEBUG_MODE = false;</span>
+
+    private List&lt;Card&gt; mAllCards;
+
+    /**
+     * Init all buttons and views
+     * Displays search results after click handler has been pressed.
+     * Uses LiveObservers for changing search terms in the view model
+     * @param savedInstanceState
+     */
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+<span class="fc" id="L79">        super.onCreate(savedInstanceState);</span>
+<span class="fc" id="L80">        setContentView(R.layout.activity_search);</span>
+
+<span class="fc" id="L82">        mSearchResultsHolder = findViewById(R.id.searchConstraintInnerLayout);</span>
+<span class="fc" id="L83">        mSearchText = findViewById(R.id.searchEditTextView);</span>
+<span class="fc" id="L84">        mViewModel = ViewModelProviders.of(this).get(CardViewModel.class);</span>
+
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">        if (savedInstanceState != null){</span>
+<span class="nc" id="L87">            mLastSearchTerm = savedInstanceState.getString(LAST_TERM_LABEL, &quot;&quot;);</span>
+<span class="nc" id="L88">            mHasSearched = savedInstanceState.getBoolean(HAS_SERACHED_LABEL, false);</span>
+        }
+
+<span class="pc bpc" id="L91" title="3 of 4 branches missed.">        if (mLastSearchTerm.length() &gt; 0 &amp;&amp; mHasSearched) {</span>
+<span class="nc" id="L92">            mViewModel.setSearchTerm(mLastSearchTerm);</span>
+<span class="nc" id="L93">            mSearchResultsHolder.setVisibility(View.VISIBLE);</span>
+        }
+
+<span class="fc" id="L96">        final Observer&lt;List&lt;Card&gt;&gt; cardObserver = new Observer&lt;List&lt;Card&gt;&gt;() {</span>
+            @Override
+            public void onChanged(@Nullable List&lt;Card&gt; cards) {
+
+<span class="fc" id="L100">                ImageButton englishSound = findViewById(R.id.search_sound_english_button);</span>
+<span class="fc" id="L101">                ImageButton chineseSound = findViewById(R.id.search_sound_chinese_button);</span>
+<span class="pc bpc" id="L102" title="1 of 4 branches missed.">                if (cards != null &amp;&amp; cards.size() &gt; 0){</span>
+<span class="fc" id="L103">                    mAllCards = cards;</span>
+<span class="fc" id="L104">                    mEnglishText.setText(mAllCards.get(0).getEnglish());</span>
+<span class="fc" id="L105">                    mEnglishText.setContentDescription(mAllCards.get(0).getEnglish());</span>
+<span class="fc" id="L106">                    mChineseText.setText(mAllCards.get(0).getChinese());</span>
+
+<span class="fc" id="L108">                    mChineseEnglishText.setText(mAllCards.get(0).getChineseEnglish());</span>
+<span class="fc" id="L109">                    mChineseEnglishText.setContentDescription(mAllCards.get(0).getChineseEnglish());</span>
+<span class="pc bpc" id="L110" title="2 of 4 branches missed.">                    if (mAllCards.get(0).getSoundEn() != 0 &amp;&amp; mAllCards.get(0).getSoundCn() != 0) {</span>
+
+<span class="fc" id="L112">                        int soundE = mAllCards.get(0).getSoundEn();</span>
+<span class="fc" id="L113">                        int soundC = mAllCards.get(0).getSoundCn();</span>
+                        try {
+<span class="fc" id="L115">                            soundEnglish = soundPool.load(getApplicationContext(), soundE, 0);</span>
+<span class="fc" id="L116">                            soundChinese = soundPool.load(getApplicationContext(), soundC, 0);</span>
+<span class="fc" id="L117">                            englishSound.setEnabled(true);</span>
+<span class="fc" id="L118">                            chineseSound.setEnabled(true);</span>
+                            /*englishSound.setTextColor(getResources().getColor(R.color.enabled_color));
+                            chineseSound.setTextColor(getResources().getColor(R.color.enabled_color));*/
+
+<span class="nc" id="L122">                        } catch (Exception e){</span>
+<span class="nc bnc" id="L123" title="All 2 branches missed.">                            if (DEBUG_MODE) {</span>
+<span class="nc" id="L124">                                Log.e(LOG_TAG, Log.getStackTraceString(e));</span>
+                            }
+<span class="fc" id="L126">                        }</span>
+
+<span class="fc" id="L128">                    } else {</span>
+<span class="nc" id="L129">                        englishSound.setEnabled(false);</span>
+<span class="nc" id="L130">                        chineseSound.setEnabled(false);</span>
+                        /*englishSound.setTextColor(getResources().getColor(R.color.disabled_color));
+                        chineseSound.setTextColor(getResources().getColor(R.color.disabled_color));*/
+                    }
+                } else {
+<span class="fc" id="L135">                    mEnglishText.setText(getString(R.string.search_no_results_default_text));</span>
+<span class="fc" id="L136">                    mEnglishText.setContentDescription(getString(R.string.search_no_results_default_text));</span>
+<span class="fc" id="L137">                    mChineseText.setText(getString(R.string.search_no_results_default_text));</span>
+<span class="fc" id="L138">                    mChineseText.setContentDescription(getString(R.string.search_no_results_default_text));</span>
+<span class="fc" id="L139">                    mChineseEnglishText.setText(getString(R.string.search_no_results_default_text));</span>
+<span class="fc" id="L140">                    mChineseEnglishText.setContentDescription(getString(R.string.search_no_results_default_text));</span>
+<span class="fc" id="L141">                    englishSound.setEnabled(false);</span>
+<span class="fc" id="L142">                    chineseSound.setEnabled(false);</span>
+                    /*englishSound.setTextColor(getResources().getColor(R.color.disabled_color));
+                    chineseSound.setTextColor(getResources().getColor(R.color.disabled_color));*/
+                }
+<span class="fc" id="L146">            }</span>
+        };
+
+<span class="fc" id="L149">        mViewModel.mSearchedCard.observe(this, cardObserver);</span>
+
+<span class="fc" id="L151">        mEnglishText = findViewById(R.id.searchEnglishTextView);</span>
+<span class="fc" id="L152">        mChineseText = findViewById(R.id.searchChineseTextView);</span>
+<span class="fc" id="L153">        mChineseEnglishText = findViewById(R.id.searchChineseEnglishTextView);</span>
+
+        //Hardware buttons setting to adjust the media sound
+<span class="fc" id="L156">        this.setVolumeControlStream(AudioManager.STREAM_MUSIC);</span>
+
+        //audio manager for volume
+<span class="fc" id="L159">        audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);</span>
+        float actVolume, maxVolume;
+        try {
+<span class="fc" id="L162">            actVolume = (float) audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);</span>
+<span class="fc" id="L163">            maxVolume = (float) audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);</span>
+<span class="fc" id="L164">            volume = actVolume / maxVolume;</span>
+<span class="nc" id="L165">        } catch (Exception e){</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">            if (DEBUG_MODE) {</span>
+<span class="nc" id="L167">                Log.e(LOG_TAG, Log.getStackTraceString(e));</span>
+            }
+<span class="nc" id="L169">            volume = 1;</span>
+<span class="fc" id="L170">        }</span>
+<span class="pc bpc" id="L171" title="1 of 2 branches missed.">        if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.LOLLIPOP){</span>
+<span class="fc" id="L172">            AudioAttributes attr = new AudioAttributes.Builder()</span>
+<span class="fc" id="L173">                    .setUsage(AudioAttributes.USAGE_MEDIA)</span>
+<span class="fc" id="L174">                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)</span>
+<span class="fc" id="L175">                    .build();</span>
+
+<span class="fc" id="L177">            soundPool = new SoundPool.Builder().setAudioAttributes(attr).setMaxStreams(2).build();</span>
+<span class="fc" id="L178">        } else {</span>
+<span class="nc" id="L179">            soundPool = new SoundPool(2, AudioManager.STREAM_MUSIC, 0);</span>
+        }
+<span class="fc" id="L181">        soundPool.setOnLoadCompleteListener(new SoundPool.OnLoadCompleteListener() {</span>
+            @Override
+            public void onLoadComplete(SoundPool soundPool, int sampleId, int status) {
+<span class="fc" id="L184">                loaded = true;</span>
+<span class="fc" id="L185">            }</span>
+        });
+
+<span class="pc bpc" id="L188" title="1 of 2 branches missed.">        if (!mHasSearched){</span>
+<span class="fc" id="L189">            mSearchResultsHolder.setVisibility(View.GONE);</span>
+        } else {
+<span class="nc" id="L191">            mSearchResultsHolder.setVisibility(View.VISIBLE);</span>
+        }
+
+<span class="fc" id="L194">        this.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);</span>
+<span class="fc" id="L195">    }</span>
+
+    /**
+     * Edits the search term to have no leading or trailing whitespaces and to be lowercase then inserts it to the view model
+     * @param view
+     */
+    public void commitSearch(View view) {
+<span class="pc bpc" id="L202" title="1 of 2 branches missed.">        if (!mHasSearched) {</span>
+<span class="fc" id="L203">            mHasSearched = true;</span>
+<span class="fc" id="L204">            mSearchResultsHolder.setVisibility(View.VISIBLE);</span>
+        }
+
+<span class="fc" id="L207">        String search_text = mSearchText.getText().toString().toLowerCase();</span>
+
+<span class="fc" id="L209">        mLastSearchTerm = search_text.trim();</span>
+<span class="fc" id="L210">        mViewModel.setSearchTerm(mLastSearchTerm);</span>
+
+
+        try {
+<span class="fc" id="L214">            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);</span>
+<span class="fc" id="L215">            imm.hideSoftInputFromWindow(mSearchResultsHolder.getWindowToken(), InputMethodManager.RESULT_UNCHANGED_SHOWN);</span>
+<span class="nc" id="L216">        } catch (Exception e){</span>
+<span class="nc bnc" id="L217" title="All 2 branches missed.">            if (DEBUG_MODE) {</span>
+<span class="nc" id="L218">                Log.e(LOG_TAG, Log.getStackTraceString(e));</span>
+            }
+<span class="fc" id="L220">        }</span>
+
+<span class="fc" id="L222">    }</span>
+
+    /**
+     * plays the English sound if loaded
+     * @param view
+     */
+    public void playEnglishSound(View view) {
+<span class="nc bnc" id="L229" title="All 4 branches missed.">        if (loaded &amp;&amp; soundEnglish != 0){</span>
+<span class="nc" id="L230">            soundPool.play(soundEnglish, volume,volume,1,0, 1f);</span>
+        }
+<span class="nc" id="L232">    }</span>
+
+    /**
+     * Plays the Chinese sound if loaded
+     * @param view
+     */
+    public void playChineseSound(View view) {
+<span class="nc bnc" id="L239" title="All 4 branches missed.">        if (loaded &amp;&amp; soundChinese != 0){</span>
+<span class="nc" id="L240">            soundPool.play(soundChinese, volume,volume,1,0, 1f);</span>
+        }
+<span class="nc" id="L242">    }</span>
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+<span class="fc" id="L246">        getMenuInflater().inflate(R.menu.close_search_menu, menu);</span>
+<span class="fc" id="L247">        return super.onCreateOptionsMenu(menu);</span>
+    }
+
+    /**
+     * Closes Search Activity
+     * @param item
+     * @return
+     */
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+<span class="nc" id="L257">        int id = item.getItemId();</span>
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        switch (id){</span>
+            case R.id.close_search_activity_button:
+<span class="nc" id="L260">                finish();</span>
+        }
+<span class="nc" id="L262">        return super.onOptionsItemSelected(item);</span>
+    }
+
+    @Override
+    protected void onDestroy() {
+<span class="fc" id="L267">        super.onDestroy();</span>
+<span class="nc" id="L268">        soundPool.release();</span>
+<span class="nc" id="L269">        soundPool = null;</span>
+<span class="nc" id="L270">    }</span>
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+<span class="nc bnc" id="L274" title="All 2 branches missed.">        if (mHasSearched) {</span>
+<span class="nc" id="L275">            outState.putString(LAST_TERM_LABEL, mLastSearchTerm);</span>
+<span class="nc" id="L276">            outState.putBoolean(HAS_SERACHED_LABEL, mHasSearched);</span>
+        }
+<span class="nc" id="L278">        super.onSaveInstanceState(outState);</span>
+<span class="nc" id="L279">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

@@ -1,0 +1,137 @@
+package fifthelement.theelement.objects;
+
+import org.junit.Before;
+import androidx.test.core.app.ApplicationProvider;
+import org.junit.Test;
+import java.io.File;
+import fifthelement.theelement.utils.TestDatabaseUtil;
+
+public class Test3572 {
+
+    /**
+     * Generated from /home/mattia/Research/AndroidCarving/action-based-test-carving/apps-src/FifthElement/traces/fifthelement.theelement.presentation.activities.PlayMusicTests#skipSongsTest/Trace-1650046483856.txt
+     * Method invocation under test: <fifthelement.theelement.objects.Song: fifthelement.theelement.objects.Album getAlbum()>_2051_4098
+     */
+    @Test(timeout = 4000)
+    public void test_fifthelement_theelement_objects_Song_getAlbum_049() throws Exception {
+        File tempDB = TestDatabaseUtil.copyDB();
+        fifthelement.theelement.objects.Song song10835 = null;
+        fifthelement.theelement.objects.Author author9995 = null;
+        fifthelement.theelement.objects.Album album4949 = null;
+        fifthelement.theelement.objects.Author author9996 = null;
+        fifthelement.theelement.objects.Song song10836 = null;
+        fifthelement.theelement.objects.Song song10837 = null;
+        fifthelement.theelement.objects.Author author9997 = null;
+        java.util.UUID.fromString("067e6162-3b6f-4ae2-a171-2470b63dff00");
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("123e4567-e89b-12d3-a456-556642440000");
+        java.util.UUID.fromString("54947df8-0e9e-4471-a2f9-9af509fb5889");
+        java.util.UUID.fromString("7dc53df5-703e-49b3-8670-b1c468f47f1f");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.randomUUID();
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("067e6162-3b6f-4ae2-a171-2470b63dff00");
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("123e4567-e89b-12d3-a456-556642440000");
+        java.util.UUID.fromString("54947df8-0e9e-4471-a2f9-9af509fb5889");
+        java.util.UUID.fromString("7dc53df5-703e-49b3-8670-b1c468f47f1f");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.randomUUID();
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("067e6162-3b6f-4ae2-a171-2470b63dff00");
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("123e4567-e89b-12d3-a456-556642440000");
+        java.util.UUID.fromString("54947df8-0e9e-4471-a2f9-9af509fb5889");
+        java.util.UUID.fromString("7dc53df5-703e-49b3-8670-b1c468f47f1f");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.randomUUID();
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("067e6162-3b6f-4ae2-a171-2470b63dff00");
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("123e4567-e89b-12d3-a456-556642440000");
+        java.util.UUID.fromString("54947df8-0e9e-4471-a2f9-9af509fb5889");
+        java.util.UUID.fromString("7dc53df5-703e-49b3-8670-b1c468f47f1f");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.randomUUID();
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("067e6162-3b6f-4ae2-a171-2470b63dff00");
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("123e4567-e89b-12d3-a456-556642440000");
+        java.util.UUID.fromString("54947df8-0e9e-4471-a2f9-9af509fb5889");
+        java.util.UUID.fromString("7dc53df5-703e-49b3-8670-b1c468f47f1f");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.randomUUID();
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID uuid71231 = java.util.UUID.fromString("067e6162-3b6f-4ae2-a171-2470b63dff00");
+        java.util.UUID uuid71232 = java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        author9997 = new fifthelement.theelement.objects.Author(uuid71232, "");
+        song10836 = new fifthelement.theelement.objects.Song(uuid71231, "This Is America", "android.resource://fifthelement.theelement/raw/childish_gambino_this_is_america", author9997, album4949, "Hiphop", 3, 1.5);
+        java.util.UUID uuid71233 = java.util.UUID.fromString("123e4567-e89b-12d3-a456-556642440000");
+        song10835 = new fifthelement.theelement.objects.Song(uuid71233, "Hall of Fame", "android.resource://fifthelement.theelement/raw/hall_of_fame", author9996, album4949, "", 3, 4.5);
+        java.util.UUID uuid71234 = java.util.UUID.fromString("54947df8-0e9e-4471-a2f9-9af509fb5889");
+        song10837 = new fifthelement.theelement.objects.Song(uuid71234, "Classical Music", "android.resource://fifthelement.theelement/raw/classical_music", author9996, album4949, "Classical", 4, 2.0);
+        java.util.UUID.fromString("7dc53df5-703e-49b3-8670-b1c468f47f1f");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.randomUUID();
+        song10836.getAuthor();
+        fifthelement.theelement.objects.Author author9999 = song10836.getAuthor();
+        author9999.getUUID();
+        java.util.UUID uuid71240 = java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        author9995 = new fifthelement.theelement.objects.Author(uuid71240, "Childish Gambino", 3);
+        song10836.setAuthor(author9995);
+        song10836.getAlbum();
+        song10835.getAuthor();
+        song10835.getAlbum();
+        song10837.getAuthor();
+        song10837.getAlbum();
+        song10835.compareTo(song10836);
+        song10837.compareTo(song10835);
+        song10837.getName();
+        song10837.getPath();
+        song10837.getName();
+        song10837.getName();
+        song10837.getPath();
+        song10837.getPath();
+        song10837.getPath();
+        song10837.getPath();
+        song10837.getAuthor();
+        song10837.getAlbum();
+        java.util.UUID uuid71241 = song10837.getUUID();
+        uuid71241.toString();
+        song10837.getName();
+        song10837.getName();
+        song10837.getName();
+        song10837.getPath();
+        song10837.getPath();
+        song10837.getPath();
+        song10837.getPath();
+        song10837.getAuthor();
+        song10837.getAlbum();
+    }
+}

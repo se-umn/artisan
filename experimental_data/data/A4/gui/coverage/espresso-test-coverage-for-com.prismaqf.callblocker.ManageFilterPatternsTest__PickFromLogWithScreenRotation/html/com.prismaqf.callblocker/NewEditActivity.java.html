@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NewEditActivity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker</a> &gt; <span class="el_source">NewEditActivity.java</span></div><h1>NewEditActivity.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.NavUtils;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.widget.EditText;
+
+/**
+ * Abstract base class for rule editing
+ * @author ConteDiMonteCristo
+ */
+<span class="fc" id="L13">public abstract class NewEditActivity extends AppCompatActivity {</span>
+
+    static final String KEY_NEW  = &quot;com.prismaqft.callblocker:keynew&quot;;
+    static final String KEY_ORIG  = &quot;com.prismaqft.callblocker:keyorig&quot;;
+    static final String KEY_ISNAMEVALID  = &quot;com.prismaqft.callblocker:namevalid&quot;;
+    static final String KEY_RULENAMES  = &quot;com.prismaqft.callblocker:rulenames&quot;;
+    static final String KEY_FILTERNAMES  = &quot;com.prismaqft.callblocker:rulenames&quot;;
+    static final String KEY_PTRULE  = &quot;com.prismaqft.callblocker:ptrule&quot;;
+    static final String KEY_RULENAME = &quot;com.prismaqft.callblocker:rulename&quot;;
+    static final String KEY_ACTIONNAME = &quot;com.prismaqft.callblocker:actionname&quot;;
+    static final String KEY_RULEID = &quot;com.prismaqft.callblocker:ruleid&quot;;
+    static final String ACTION_CREATE  = &quot;com.prismaqf.callblocker:create&quot;;
+    static final String ACTION_UPDATE  = &quot;com.prismaqf.callblocker:update&quot;;
+    static final String ACTION_EDIT  = &quot;com.prismaqf.callblocker:edit&quot;;
+    static final String ACTION_DELETE  = &quot;com.prismaqf.callblocker:delete&quot;;
+    static final String CONTEXT_PICK = &quot;com.prismaqf.callblocker:pick&quot;;
+    static final String CONTEXT_EDIT = &quot;com.prismaqf.callblocker:edit&quot;;
+    static final String CONTEXT_SAVE = &quot;com.prismaqf.callblocker:save&quot;;
+    static final String KEY_ACTION = &quot;com.prismaqf.callblocker:action&quot;;
+    static final String KEY_CONTEXT = &quot;com.prismaqf.callblocker:context&quot;;
+    public static final String KEY_NUMBER = &quot;com.prismaqf.callblocker:number&quot;;
+    public static final String KEY_CHECKED = &quot;com.prismaqf.callblocker:checked&quot;;
+
+    MenuItem mi_save;
+    MenuItem mi_delete;
+    MenuItem mi_change;
+    MenuItem mi_undo;
+
+    protected abstract void save();
+    protected abstract void change();
+    protected abstract void undo();
+    protected abstract void delete();
+    protected abstract void help();
+    protected abstract boolean hasChanged();
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        //add text validation
+<span class="fc" id="L51">        getNameEditField().addTextChangedListener(getRuleNameValidator());</span>
+
+<span class="pc bpc" id="L53" title="1 of 2 branches missed.">        if (getSupportActionBar()!= null)</span>
+<span class="fc" id="L54">            getSupportActionBar().setDisplayHomeAsUpEnabled(true);</span>
+        // Inflate the menu; this adds items to the action bar if it is present.
+<span class="fc" id="L56">        getMenuInflater().inflate(R.menu.menu_edit_rules, menu);</span>
+<span class="fc" id="L57">        mi_save = menu.findItem(R.id.action_save);</span>
+<span class="fc" id="L58">        mi_delete = menu.findItem(R.id.action_delete);</span>
+<span class="fc" id="L59">        mi_change = menu.findItem(R.id.action_change);</span>
+<span class="fc" id="L60">        mi_undo = menu.findItem(R.id.action_undo);</span>
+<span class="pc bpc" id="L61" title="1 of 2 branches missed.">        if (getAction().equals(NewEditActivity.ACTION_CREATE)) {</span>
+<span class="fc" id="L62">            mi_delete.setVisible(false);</span>
+<span class="fc" id="L63">            mi_change.setVisible(false);</span>
+<span class="fc" id="L64">            mi_undo.setVisible(false);</span>
+<span class="fc" id="L65">            enableWidgets(true,true);</span>
+        }
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        else if (getAction().equals(NewEditActivity.ACTION_EDIT)) {</span>
+<span class="nc" id="L68">            mi_change.setVisible(false);</span>
+<span class="nc" id="L69">            mi_delete.setVisible(false);</span>
+<span class="nc" id="L70">            enableWidgets(false, true);</span>
+        }
+<span class="nc bnc" id="L72" title="All 2 branches missed.">        else if (getAction().equals(NewEditActivity.ACTION_UPDATE)) {</span>
+<span class="nc" id="L73">            mi_save.setVisible(false);</span>
+<span class="nc" id="L74">            mi_undo.setVisible(false);</span>
+<span class="nc" id="L75">            enableWidgets(false,false);</span>
+        }
+<span class="fc" id="L77">        refreshWidgets(true);</span>
+
+<span class="fc" id="L79">        return true;</span>
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+<span class="nc" id="L84">        int id = item.getItemId();</span>
+
+<span class="nc bnc" id="L86" title="All 7 branches missed.">        switch (id) {</span>
+            case R.id.action_save:
+<span class="nc" id="L88">                save();</span>
+<span class="nc" id="L89">                return true;</span>
+            case R.id.action_change:
+<span class="nc" id="L91">                change();</span>
+<span class="nc" id="L92">                return true;</span>
+            case R.id.action_undo:
+<span class="nc" id="L94">                undo();</span>
+<span class="nc" id="L95">                return true;</span>
+            case R.id.action_delete:
+<span class="nc" id="L97">                delete();</span>
+<span class="nc" id="L98">                return true;</span>
+            case R.id.action_help:
+<span class="nc" id="L100">                help();</span>
+<span class="nc" id="L101">                return true;</span>
+            case android.R.id.home:
+<span class="nc bnc" id="L103" title="All 2 branches missed.">                if (hasChanged()) save();</span>
+<span class="nc" id="L104">                NavUtils.navigateUpFromSameTask(this);</span>
+<span class="nc" id="L105">                return true;</span>
+        }
+<span class="nc" id="L107">        return super.onOptionsItemSelected(item);</span>
+    }
+
+    @Override
+    public void onBackPressed() {
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        if (hasChanged()) save();</span>
+<span class="nc" id="L113">        super.onBackPressed();</span>
+<span class="nc" id="L114">    }</span>
+
+    void refreshWidgets(boolean validate) {
+<span class="pc bpc" id="L117" title="1 of 2 branches missed.">        if (validate) validateActions();</span>
+<span class="fc" id="L118">    }</span>
+
+    protected abstract void validateActions();
+
+    protected abstract RuleNameValidator getRuleNameValidator();
+    protected abstract EditText getNameEditField();
+    protected abstract String getAction();
+    protected abstract void enableWidgets(boolean nameFlag, boolean widgetFlag);
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

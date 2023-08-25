@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SignTrainerPassiveFragment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_trainer</a> &gt; <span class="el_source">SignTrainerPassiveFragment.java</span></div><h1>SignTrainerPassiveFragment.java</h1><pre class="source lang-java linenums">package de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_trainer;
+
+import android.os.Bundle;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+
+import org.apache.commons.lang3.Validate;
+
+import androidx.annotation.Nullable;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.R;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.Sign;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_video_view.VideoSetupException;
+
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_trainer.AbstractSignTrainerFragment.OnToggleLearningModeListener.LearningMode;
+
+/**
+ * Copyright (c) 2016 Matthias Tonhäuser
+ * &lt;p/&gt;
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * &lt;p/&gt;
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * &lt;p/&gt;
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.
+ */
+<span class="fc" id="L35">public class SignTrainerPassiveFragment extends AbstractSignTrainerFragment {</span>
+
+<span class="fc" id="L37">    private static final String TAG = SignTrainerPassiveFragment.class.getSimpleName();</span>
+
+    @Nullable
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+<span class="fc" id="L42">        Log.d(TAG, &quot;onCreateView &quot; + hashCode());</span>
+<span class="fc" id="L43">        final View view = inflater.inflate(R.layout.trainer_passive_fragment, container, false);</span>
+<span class="fc" id="L44">        setHasOptionsMenu(true);</span>
+<span class="fc" id="L45">        initializeQuestionViews(view);</span>
+<span class="fc" id="L46">        initializeExceptionViews(view);</span>
+<span class="fc" id="L47">        initializeAnswerViews(view);</span>
+<span class="fc" id="L48">        initializeVideoViews(view);</span>
+<span class="fc" id="L49">        this.questionViews = new View[]{this.signQuestionText, this.videoView, this.solveQuestionButton};</span>
+<span class="fc" id="L50">        this.answerViews = new View[]{this.signAnswerTextView, this.signMnemonicTextView,</span>
+                this.signLearningProgressTextView, this.signHowHardWasQuestionTextView, this.signTrainerExplanationTextView,
+                this.questionWasEasyButton, this.questionWasFairButton, this.questionWasHardButton};
+<span class="fc" id="L53">        this.exceptionViews = new View[]{this.signTrainerExceptionMessageTextView};</span>
+<span class="fc" id="L54">        setVisibility(this.questionViews, View.VISIBLE);</span>
+<span class="fc" id="L55">        setQuestionTextViews(getString(R.string.signQuestion));</span>
+<span class="fc" id="L56">        setVisibility(this.answerViews, View.GONE);</span>
+<span class="fc" id="L57">        return view;</span>
+    }
+
+    @Override
+    public void onActivityCreated(Bundle savedInstanceState) {
+<span class="fc" id="L62">        Log.d(TAG, &quot;onActivityCreated &quot; + hashCode());</span>
+<span class="fc" id="L63">        super.onActivityCreated(savedInstanceState);</span>
+<span class="fc bfc" id="L64" title="All 2 branches covered.">        if (null != savedInstanceState) {</span>
+<span class="fc" id="L65">            final Sign parcelledSign = savedInstanceState.getParcelable(KEY_CURRENT_SIGN);</span>
+<span class="pc bpc" id="L66" title="1 of 2 branches missed.">            if (null != parcelledSign) {</span>
+<span class="fc" id="L67">                this.currentSign = parcelledSign;</span>
+                try {
+<span class="fc" id="L69">                    setupVideoView(this.currentSign, SOUND.OFF, CONTROLS.SHOW);</span>
+<span class="nc" id="L70">                } catch (VideoSetupException ex) {</span>
+<span class="nc" id="L71">                    handleVideoCouldNotBeLoaded(ex);</span>
+<span class="fc" id="L72">                }</span>
+            }
+<span class="fc" id="L74">            final Boolean answerVisible = savedInstanceState.getBoolean(KEY_ANSWER_VISIBLE);</span>
+<span class="fc" id="L75">            Validate.notNull(answerVisible, &quot;AnswerVisible should always be non-null in savedInstance bundle.&quot;);</span>
+<span class="pc bpc" id="L76" title="3 of 4 branches missed.">            if (answerVisible &amp;&amp; (null != this.currentSign)) {</span>
+<span class="nc" id="L77">                setVisibility(this.questionViews, View.GONE);</span>
+<span class="nc" id="L78">                setVisibility(this.exceptionViews, View.GONE);</span>
+<span class="nc" id="L79">                setVisibility(this.answerViews, View.VISIBLE);</span>
+<span class="nc" id="L80">                setAnswerTextViews();</span>
+            } else {
+<span class="fc" id="L82">                setVisibility(this.questionViews, View.VISIBLE);</span>
+<span class="fc" id="L83">                setVisibility(this.answerViews, View.GONE);</span>
+            }
+<span class="fc" id="L85">        } else {</span>
+<span class="fc" id="L86">            this.loadRandomSignTask = new LoadRandomSignTask(getActivity());</span>
+<span class="fc" id="L87">            this.loadRandomSignTask.execute(this.currentSign);</span>
+        }
+<span class="fc" id="L89">    }</span>
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+<span class="nc" id="L93">        Log.d(TAG, &quot;onOptionsItemSelected &quot; + hashCode());</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">        if (R.id.action_toggle_learning_mode == item.getItemId()) {</span>
+<span class="nc" id="L95">            this.onToggleLearningModeListener.toggleLearningMode(LearningMode.ACTIVE);</span>
+        }
+<span class="nc" id="L97">        return super.onOptionsItemSelected(item);</span>
+    }
+
+    @Override
+    protected void handleClickOnSolveQuestionButton() {
+<span class="nc" id="L102">        Log.d(TAG, &quot;handleClickOnSolveQuestionButton &quot; + hashCode());</span>
+<span class="nc" id="L103">        setVisibility(this.questionViews, View.GONE);</span>
+<span class="nc" id="L104">        setVisibility(this.exceptionViews, View.GONE);</span>
+<span class="nc" id="L105">        setVisibility(this.answerViews, View.VISIBLE);</span>
+<span class="nc" id="L106">        setAnswerTextViews();</span>
+<span class="nc" id="L107">    }</span>
+
+    @Override
+    protected void handleLoadRandomSignTaskOnPostExecute() {
+<span class="fc" id="L111">        setVisibility(SignTrainerPassiveFragment.this.questionViews, View.VISIBLE);</span>
+<span class="fc" id="L112">        setQuestionTextViews(getString(R.string.signQuestion));</span>
+<span class="fc" id="L113">        setVisibility(SignTrainerPassiveFragment.this.answerViews, View.GONE);</span>
+        try {
+<span class="fc" id="L115">            setupVideoView(this.currentSign, SOUND.OFF, CONTROLS.SHOW);</span>
+<span class="nc" id="L116">        } catch (VideoSetupException ex) {</span>
+<span class="nc" id="L117">            handleVideoCouldNotBeLoaded(ex);</span>
+<span class="fc" id="L118">        }</span>
+<span class="fc" id="L119">    }</span>
+
+    @Override
+    protected void handleVideoCouldNotBeLoaded(VideoSetupException videoSetupException) {
+<span class="nc" id="L123">        this.signQuestionText.setText(R.string.videoError);</span>
+<span class="nc" id="L124">        this.signTrainerExceptionMessageTextView.setText(videoSetupException.getMessage());</span>
+<span class="nc" id="L125">        setVisibility(this.questionViews, View.VISIBLE); // also needed for the solve button</span>
+<span class="nc" id="L126">        setVisibility(this.exceptionViews, View.VISIBLE);</span>
+<span class="nc" id="L127">        setVisibility(this.answerViews, View.GONE);</span>
+<span class="nc" id="L128">    }</span>
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AbstractSignVideoFragment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_video_view</a> &gt; <span class="el_source">AbstractSignVideoFragment.java</span></div><h1>AbstractSignVideoFragment.java</h1><pre class="source lang-java linenums">package de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_video_view;
+
+import android.app.Fragment;
+import android.content.res.Configuration;
+import android.media.MediaPlayer;
+import android.net.Uri;
+import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.MediaController;
+import android.widget.ProgressBar;
+import android.widget.VideoView;
+
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.R;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.Sign;
+
+/**
+ * Copyright (c) 2016 Matthias Tonhäuser
+ * &lt;p/&gt;
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * &lt;p/&gt;
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * &lt;p/&gt;
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.
+ */
+<span class="fc" id="L33">public abstract class AbstractSignVideoFragment extends Fragment {</span>
+
+    private static final double MAXMIMUM_VIDEO_HEIGHT_ON_LANDSCAPE = 0.4;
+    private static final double MAXIMUM_VIDEO_WIDTH_ON_PORTRAIT = 0.7;
+<span class="fc" id="L37">    private final static String TAG = AbstractSignVideoFragment.class.getSimpleName();</span>
+    private static final String ANDROID_RESOURCE = &quot;android.resource://&quot;;
+    private static final String SLASH = &quot;/&quot;;
+    private static final String RAW = &quot;raw&quot;;
+
+    protected VideoView videoView;
+    protected ProgressBar progressBar;
+
+    protected void setupVideoView(final Sign sign, final SOUND sound, final CONTROLS controls) {
+<span class="fc" id="L46">        initializeMediaController();</span>
+<span class="fc" id="L47">        final String mainActivityPackageName = getActivity().getPackageName();</span>
+<span class="fc" id="L48">        final int signIdentifier = getActivity().getResources().getIdentifier(sign.getName(), RAW, mainActivityPackageName);</span>
+<span class="pc bpc" id="L49" title="1 of 2 branches missed.">        if (0 == signIdentifier) {</span>
+<span class="nc" id="L50">            throw new VideoSetupException(getActivity().getString(R.string.ASVF_1));</span>
+        }
+<span class="fc" id="L52">        final Uri uri = Uri.parse(ANDROID_RESOURCE + mainActivityPackageName + SLASH + signIdentifier);</span>
+<span class="fc" id="L53">        setVideoViewDimensionToMatchDisplaySize(this.videoView, uri);</span>
+<span class="fc" id="L54">        this.videoView.setVideoURI(uri);</span>
+<span class="fc" id="L55">        this.videoView.requestFocus();</span>
+<span class="fc" id="L56">        this.videoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {</span>
+            public void onPrepared(MediaPlayer mp) {
+<span class="fc" id="L58">                AbstractSignVideoFragment.this.progressBar.setVisibility(View.GONE);</span>
+<span class="pc bpc" id="L59" title="1 of 2 branches missed.">                if (sound.equals(SOUND.OFF)) {</span>
+<span class="fc" id="L60">                    mp.setVolume(0f, 0f);</span>
+                }
+<span class="fc" id="L62">                AbstractSignVideoFragment.this.videoView.start();</span>
+<span class="fc" id="L63">                AbstractSignVideoFragment.this.videoView.setContentDescription(getActivity()</span>
+<span class="fc" id="L64">                        .getString(R.string.videoIsPlaying) + &quot;: &quot; + sign.getName());</span>
+<span class="fc" id="L65">                Log.d(TAG, String.format(&quot;Actual width: %s, Actual height: %s&quot;,</span>
+<span class="fc" id="L66">                        AbstractSignVideoFragment.this.videoView.getWidth(),</span>
+<span class="fc" id="L67">                        AbstractSignVideoFragment.this.videoView.getHeight()));</span>
+                // Set the MediaController to null so the controls are not 'popping up'
+                // when the video plays for the first time.
+<span class="fc" id="L70">                AbstractSignVideoFragment.this.videoView.setMediaController(null);</span>
+<span class="fc" id="L71">            }</span>
+        });
+<span class="fc" id="L73">        this.videoView.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {</span>
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+<span class="nc bnc" id="L76" title="All 2 branches missed.">                if (controls.equals(CONTROLS.SHOW)) {</span>
+<span class="nc" id="L77">                    initializeMediaController();</span>
+                }
+<span class="nc" id="L79">            }</span>
+        });
+<span class="fc" id="L81">    }</span>
+
+    private void initializeMediaController() {
+<span class="fc" id="L84">        final MediaController mediaController = new MediaController(getActivity(), false);</span>
+<span class="fc" id="L85">        mediaController.setAnchorView(this.videoView);</span>
+<span class="fc" id="L86">        this.videoView.setMediaController(mediaController);</span>
+<span class="fc" id="L87">    }</span>
+
+    private void setVideoViewDimensionToMatchDisplaySize(VideoView videoView, Uri uri) {
+<span class="pc bpc" id="L90" title="1 of 2 branches missed.">        boolean isOrientationPortrait = Configuration.ORIENTATION_PORTRAIT == getResources().getConfiguration().orientation;</span>
+<span class="fc" id="L91">        int displayHeight = getResources().getDisplayMetrics().heightPixels;</span>
+<span class="fc" id="L92">        int displayWidth = getResources().getDisplayMetrics().widthPixels;</span>
+<span class="fc" id="L93">        Log.d(TAG, String.format(&quot;Display metrics: displayHeight: %s, displayWidth: %s&quot;, displayHeight, displayWidth));</span>
+        final double desiredVideoWidth, desiredVideoHeight;
+<span class="pc bpc" id="L95" title="1 of 2 branches missed.">        if (isOrientationPortrait) {</span>
+<span class="fc" id="L96">            desiredVideoWidth = displayWidth * MAXIMUM_VIDEO_WIDTH_ON_PORTRAIT;</span>
+<span class="fc" id="L97">            desiredVideoHeight =  desiredVideoWidth;</span>
+<span class="fc" id="L98">            Log.d(TAG, String.format(&quot;Orientation portrait: desiredVideoWidth: %s, desiredVideoHeight: %s&quot;, desiredVideoWidth, desiredVideoHeight));</span>
+        } else { // orientation is landscape
+<span class="nc" id="L100">            desiredVideoHeight = displayHeight * MAXMIMUM_VIDEO_HEIGHT_ON_LANDSCAPE;</span>
+<span class="nc" id="L101">            desiredVideoWidth = desiredVideoHeight;</span>
+<span class="nc" id="L102">            Log.d(TAG, String.format(&quot;Orientation landscape: desiredVideoWidth: %s, desiredVideoHeight: %s&quot;, desiredVideoWidth, desiredVideoHeight));</span>
+        }
+<span class="fc" id="L104">        final ViewGroup.LayoutParams layoutParams = videoView.getLayoutParams();</span>
+<span class="fc" id="L105">        layoutParams.width = (int) desiredVideoWidth;</span>
+<span class="fc" id="L106">        layoutParams.height = (int) desiredVideoHeight;</span>
+<span class="fc" id="L107">    }</span>
+
+<span class="fc" id="L109">    public enum SOUND {ON, OFF}</span>
+
+<span class="fc" id="L111">    public enum CONTROLS {SHOW, HIDE}</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

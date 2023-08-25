@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CallHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker</a> &gt; <span class="el_source">CallHelper.java</span></div><h1>CallHelper.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.net.Uri;
+import android.os.AsyncTask;
+import android.provider.ContactsContract;
+import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyManager;
+import android.util.Log;
+import android.widget.Toast;
+
+import com.prismaqf.callblocker.actions.LogIncoming;
+import com.prismaqf.callblocker.actions.LogInfo;
+import com.prismaqf.callblocker.filters.Filter;
+import com.prismaqf.callblocker.filters.FilterHandle;
+import com.prismaqf.callblocker.sql.DbHelper;
+import com.prismaqf.callblocker.sql.FilterProvider;
+import com.prismaqf.callblocker.sql.ServiceRunProvider;
+import com.prismaqf.callblocker.utils.PreferenceHelper;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * Helper class to detect incoming and outgoing calls
+ * @author Moskvichev Andrey V.
+ * @see 'www.codeproject.com/Articles/548416/Detecting-incoming-and-outgoing-phone-calls-on-And'
+ */
+public class CallHelper {
+
+<span class="nc" id="L37">    private static final String TAG = CallHelper.class.getCanonicalName();</span>
+
+<span class="nc" id="L39">    private static CallHelper theHelper = null;</span>
+<span class="nc" id="L40">    private static boolean isRunning = false;</span>
+
+    private TelephonyManager tm;
+    private CallStateListener callListener;
+    private OutgoingReceiver outgoingReceiver;
+
+    private synchronized void setNumReceived(int numReceived) {
+<span class="nc" id="L47">        this.numReceived = numReceived;</span>
+<span class="nc" id="L48">    }</span>
+
+    private synchronized void setNumTriggered(int numTriggered) {
+<span class="nc" id="L51">        this.numTriggered = numTriggered;</span>
+<span class="nc" id="L52">    }</span>
+
+    int getNumReceived() {
+<span class="nc" id="L55">        return numReceived;</span>
+    }
+
+    int getNumTriggered() {
+<span class="nc" id="L59">        return numTriggered;</span>
+    }
+
+    private int numReceived;
+    private int numTriggered;
+    private long myRunId;
+<span class="nc" id="L65">    private List&lt;Filter&gt; myFilters = new ArrayList&lt;&gt;();</span>
+
+    /**
+     * Method to return the only intance of CallHelper (singleton)
+     * @return the single instance of a CallHelper class
+     */
+    static CallHelper GetHelper() {
+<span class="nc bnc" id="L72" title="All 2 branches missed.">        if (theHelper==null) theHelper = new CallHelper();</span>
+<span class="nc" id="L73">        return theHelper;</span>
+    }
+
+    /**
+     * Check if the serice is running
+     * @return a boolean flag to indicate if the service is running
+     */
+<span class="nc" id="L80">    static boolean IsRunning() { return isRunning;}</span>
+
+
+    /**
+     * Listener to detect incoming calls
+     */
+    private class CallStateListener extends PhoneStateListener {
+
+        private Context ctx;
+
+<span class="nc" id="L90">        CallStateListener(Context context) {</span>
+<span class="nc" id="L91">            super();</span>
+<span class="nc" id="L92">            ctx = context;</span>
+<span class="nc" id="L93">        }</span>
+
+        @Override
+        public void onCallStateChanged(int state, final String incomingNumber) {
+<span class="nc bnc" id="L97" title="All 2 branches missed.">            switch (state) {</span>
+                case TelephonyManager.CALL_STATE_RINGING: //someone is ringing to this phone
+<span class="nc" id="L99">                    LogInfo info = new LogInfo();</span>
+<span class="nc" id="L100">                    info.setAll(myRunId,numReceived+1, numTriggered, null);</span>
+<span class="nc" id="L101">                    boolean logging = false;</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">                    for (Filter f : myFilters) {</span>
+<span class="nc" id="L103">                        f.act(ctx,incomingNumber,info);</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">                        if (f.getAction().getName().equals(LogIncoming.class.getCanonicalName()))</span>
+<span class="nc" id="L105">                            logging = true;</span>
+<span class="nc" id="L106">                    }</span>
+<span class="nc" id="L107">                    setNumReceived(info.getNumReceived());</span>
+<span class="nc" id="L108">                    setNumTriggered(info.getNumTriggered());</span>
+<span class="nc" id="L109">                    Intent intent = new Intent();</span>
+<span class="nc" id="L110">                    intent.setAction(ctx.getString(R.string.ac_call));</span>
+<span class="nc" id="L111">                    intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);</span>
+<span class="nc" id="L112">                    intent.putExtra(ctx.getString(R.string.ky_number_called), incomingNumber);</span>
+<span class="nc" id="L113">                    intent.putExtra(ctx.getString(R.string.ky_received),getNumReceived());</span>
+<span class="nc" id="L114">                    intent.putExtra(ctx.getString(R.string.ky_triggered), getNumTriggered());</span>
+<span class="nc" id="L115">                    ctx.sendBroadcast(intent);</span>
+<span class="nc bnc" id="L116" title="All 2 branches missed.">                    if (PreferenceHelper.GetToastVerbosity(ctx) &gt; 0)</span>
+<span class="nc" id="L117">                        Toast.makeText(ctx, &quot;Incoming: &quot; + incomingNumber, Toast.LENGTH_LONG).show();</span>
+<span class="nc bnc" id="L118" title="All 2 branches missed.">                    if (!logging) {</span>
+<span class="nc" id="L119">                        new LogIncoming().act(ctx,incomingNumber,info);</span>
+                    }
+                    break;
+            }
+<span class="nc" id="L123">        }</span>
+    }
+
+    /**
+     * Broadcast receiver to detect outgoing calls
+     */
+    public class OutgoingReceiver extends BroadcastReceiver {
+
+<span class="nc" id="L131">        public OutgoingReceiver() {}</span>
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+<span class="nc" id="L135">            String number = intent.getStringExtra(Intent.EXTRA_PHONE_NUMBER);</span>
+<span class="nc bnc" id="L136" title="All 2 branches missed.">            if (PreferenceHelper.GetToastVerbosity(context) &gt; 1)</span>
+<span class="nc" id="L137">                Toast.makeText(context, &quot;Outgoing: &quot;+number, Toast.LENGTH_LONG).show();</span>
+<span class="nc" id="L138">        }</span>
+    }
+
+<span class="nc" id="L141">    private class LoadFilters extends AsyncTask&lt;Context, Void, Void&gt; {</span>
+
+        Context myContext;
+<span class="nc" id="L144">        List&lt;Filter&gt; filters = new ArrayList&lt;&gt;();</span>
+
+        List&lt;Filter&gt; getFilters() {
+<span class="nc" id="L147">            return filters;</span>
+        }
+
+        @Override
+        protected Void doInBackground(Context... ctxs) {
+<span class="nc" id="L152">            myContext = ctxs[0];</span>
+<span class="nc" id="L153">            Log.i(TAG,&quot;Loading the filters&quot;);</span>
+<span class="nc" id="L154">            SQLiteDatabase db = null;</span>
+            try {
+<span class="nc" id="L156">                db = new DbHelper(myContext).getReadableDatabase();</span>
+<span class="nc" id="L157">                List&lt;FilterHandle&gt; handles = FilterProvider.LoadFilters(db);</span>
+<span class="nc bnc" id="L158" title="All 2 branches missed.">                for(FilterHandle h : handles)</span>
+<span class="nc" id="L159">                    filters.add(Filter.makeFilter(myContext,h));</span>
+<span class="nc" id="L160">            } catch (Exception e) {</span>
+<span class="nc" id="L161">                Log.e(TAG, e.getMessage());</span>
+            } finally {
+<span class="nc bnc" id="L163" title="All 2 branches missed.">                String msg = filters.size() &gt; 1 ?</span>
+<span class="nc" id="L164">                        String.format(Locale.getDefault(),&quot;%d filters loaded&quot;, filters.size()):</span>
+<span class="nc" id="L165">                        String.format(Locale.getDefault(),&quot;%d filter loaded&quot;, filters.size());</span>
+<span class="nc" id="L166">                Log.i(TAG,msg);</span>
+<span class="nc bnc" id="L167" title="All 2 branches missed.">                if (db != null) db.close();</span>
+            }
+<span class="nc" id="L169">            return null;</span>
+        }
+
+        @Override
+        protected void onPostExecute (Void v) {
+<span class="nc bnc" id="L174" title="All 2 branches missed.">            if (myContext==null) return;</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">            String msg = filters.size() &gt; 1 ?</span>
+<span class="nc" id="L176">                    String.format(Locale.getDefault(),&quot;%d filters loaded&quot;, filters.size()):</span>
+<span class="nc" id="L177">                    String.format(Locale.getDefault(),&quot;%d filter loaded&quot;, filters.size());</span>
+<span class="nc bnc" id="L178" title="All 2 branches missed.">            if (PreferenceHelper.GetToastVerbosity(myContext) &gt; 1)</span>
+<span class="nc" id="L179">                Toast.makeText(myContext, msg, Toast.LENGTH_LONG).show();</span>
+<span class="nc" id="L180">            myFilters = filters;</span>
+<span class="nc" id="L181">        }</span>
+    }
+
+<span class="nc" id="L184">    private class PurgeLogs extends AsyncTask&lt;Context, Void, Integer&gt; {</span>
+
+        Context myContext;
+
+        @Override
+        protected Integer doInBackground(Context... ctxs) {
+<span class="nc" id="L190">            myContext = ctxs[0];</span>
+<span class="nc" id="L191">            Log.i(TAG,&quot;Purging the logs&quot;);</span>
+<span class="nc" id="L192">            SQLiteDatabase db = null;</span>
+<span class="nc" id="L193">            int purged = 0;</span>
+            try {
+<span class="nc" id="L195">                db = new DbHelper(myContext).getWritableDatabase();</span>
+<span class="nc" id="L196">                purged = ServiceRunProvider.PurgeLog(db,myContext,null);</span>
+<span class="nc" id="L197">            } catch (Exception e) {</span>
+<span class="nc" id="L198">                Log.e(TAG, e.getMessage());</span>
+            } finally {
+<span class="nc bnc" id="L200" title="All 2 branches missed.">                String msg = purged &gt; 0  ?</span>
+<span class="nc" id="L201">                        String.format(Locale.getDefault(),&quot;%d service run records purged&quot;, purged):</span>
+                        &quot;No service run records purged&quot;;
+<span class="nc" id="L203">                Log.i(TAG,msg);</span>
+<span class="nc bnc" id="L204" title="All 2 branches missed.">                if (db != null) db.close();</span>
+            }
+<span class="nc" id="L206">            return purged;</span>
+        }
+
+        @Override
+        protected void onPostExecute (Integer purged) {
+<span class="nc bnc" id="L211" title="All 2 branches missed.">            if (myContext==null) return;</span>
+<span class="nc bnc" id="L212" title="All 2 branches missed.">            String msg = purged &gt; 0  ?</span>
+<span class="nc" id="L213">                    String.format(Locale.getDefault(),&quot;%d service run records purged&quot;, purged):</span>
+                    &quot;No service run records purged&quot;;
+<span class="nc bnc" id="L215" title="All 2 branches missed.">            if (PreferenceHelper.GetToastVerbosity(myContext) &gt; 1)</span>
+<span class="nc" id="L216">                Toast.makeText(myContext, msg, Toast.LENGTH_LONG).show();</span>
+<span class="nc" id="L217">        }</span>
+    }
+
+<span class="nc" id="L220">    private CallHelper() {</span>
+<span class="nc" id="L221">        numReceived = 0;</span>
+<span class="nc" id="L222">        numTriggered = 0;</span>
+<span class="nc" id="L223">    }</span>
+
+    /**
+     * Start calls detection
+     * @param ctx the context
+     */
+    public void start(Context ctx) {
+<span class="nc bnc" id="L230" title="All 2 branches missed.">        if (isRunning) {</span>
+<span class="nc" id="L231">            Log.e(TAG,&quot;The service is already running&quot;);</span>
+<span class="nc bnc" id="L232" title="All 2 branches missed.">            if (PreferenceHelper.GetToastVerbosity(ctx) &gt; 0)</span>
+<span class="nc" id="L233">                Toast.makeText(ctx,&quot;The service is already running&quot;,Toast.LENGTH_LONG).show();</span>
+<span class="nc" id="L234">            return;</span>
+        }
+<span class="nc bnc" id="L236" title="All 2 branches missed.">        if (callListener==null)</span>
+<span class="nc" id="L237">            callListener = new CallStateListener(ctx);</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">        if (outgoingReceiver==null)</span>
+<span class="nc" id="L239">            outgoingReceiver = new OutgoingReceiver();</span>
+<span class="nc" id="L240">        purgeLogs(ctx);</span>
+<span class="nc" id="L241">        loadFilters(ctx);</span>
+<span class="nc" id="L242">        Log.i(TAG, &quot;Registering the listeners&quot;);</span>
+<span class="nc" id="L243">        tm = (TelephonyManager) ctx.getSystemService(Context.TELEPHONY_SERVICE);</span>
+<span class="nc" id="L244">        tm.listen(callListener, PhoneStateListener.LISTEN_CALL_STATE);</span>
+
+<span class="nc" id="L246">        IntentFilter intentFilter = new IntentFilter(Intent.ACTION_NEW_OUTGOING_CALL);</span>
+<span class="nc" id="L247">        ctx.registerReceiver(outgoingReceiver, intentFilter);</span>
+<span class="nc" id="L248">        isRunning = true;</span>
+<span class="nc" id="L249">    }</span>
+
+    /**
+     * Open a db connection and insert a record and set the run id
+     * @param ctx the context
+     */
+    void recordServiceStart(Context ctx) {
+<span class="nc" id="L256">        Log.i(TAG, &quot;Opening a DB connection and recording service start&quot;);</span>
+<span class="nc" id="L257">        SQLiteDatabase db = new DbHelper(ctx).getWritableDatabase();</span>
+        try {
+<span class="nc" id="L259">            ServiceRunProvider.ServiceRun lastRun = ServiceRunProvider.LatestRun(db);</span>
+<span class="nc bnc" id="L260" title="All 4 branches missed.">            if (lastRun.getId()==0 || lastRun.getStop() != null) {</span>
+                //new run
+<span class="nc" id="L262">                setNumReceived(0);</span>
+<span class="nc" id="L263">                setNumTriggered(0);</span>
+<span class="nc" id="L264">                myRunId = ServiceRunProvider.InsertAtServiceStart(db);</span>
+            } //otherwise the service was restarted and continue with old run
+            else {
+<span class="nc" id="L267">                setNumReceived(lastRun.getNumReceived());</span>
+<span class="nc" id="L268">                setNumTriggered(lastRun.getNumTriggered());</span>
+<span class="nc" id="L269">                myRunId = lastRun.getId();</span>
+            }
+<span class="nc" id="L271">            ServiceRunProvider.UpdateWhileRunning(db, myRunId, -1, -1);</span>
+        }
+        finally {
+<span class="nc" id="L274">            db.close();</span>
+        }
+<span class="nc" id="L276">    }</span>
+
+    /**
+     * Stop calls detection
+     * @param ctx the context
+     */
+    void stop(Context ctx) {
+<span class="nc" id="L283">        isRunning = false;</span>
+<span class="nc" id="L284">        Log.i(TAG, &quot;Unregistering the listeners&quot;);</span>
+<span class="nc bnc" id="L285" title="All 2 branches missed.">        if (callListener!= null)</span>
+<span class="nc" id="L286">            tm.listen(callListener, PhoneStateListener.LISTEN_NONE);</span>
+<span class="nc bnc" id="L287" title="All 2 branches missed.">        if (outgoingReceiver!=null)</span>
+<span class="nc" id="L288">            ctx.unregisterReceiver(outgoingReceiver);</span>
+<span class="nc" id="L289">        setNumTriggered(0);</span>
+<span class="nc" id="L290">        setNumReceived(0);</span>
+<span class="nc" id="L291">    }</span>
+
+    /**
+     * Closing the DB connection and updating the service run record
+     * @param ctx the context
+     */
+    void recordServiceStop(Context ctx) {
+<span class="nc" id="L298">        Log.i(TAG, &quot;Closing the DB connection and updating the ServiceRunProvider record&quot;);</span>
+<span class="nc" id="L299">        SQLiteDatabase db = new DbHelper(ctx).getWritableDatabase();</span>
+<span class="nc" id="L300">        ServiceRunProvider.ServiceRun lastRun = ServiceRunProvider.LatestCompletedRun(db);</span>
+        try {
+<span class="nc" id="L302">            ServiceRunProvider.UpdateAtServiceStop(db, myRunId,</span>
+<span class="nc" id="L303">                                                   numReceived + lastRun.getNumReceived(),</span>
+<span class="nc" id="L304">                                                   numTriggered + lastRun.getNumTriggered());</span>
+        }
+        finally {
+<span class="nc" id="L307">            db.close();</span>
+        }
+<span class="nc" id="L309">    }</span>
+
+    public static String resolveContactDescription(Context ctx, String incomingNumber) {
+<span class="nc bnc" id="L312" title="All 6 branches missed.">        if (incomingNumber==null || incomingNumber.isEmpty() || incomingNumber.toLowerCase().contains(&quot;private&quot;))</span>
+<span class="nc" id="L313">            return &quot;private number&quot;;</span>
+<span class="nc" id="L314">        String description = &quot;Not found&quot;;</span>
+<span class="nc" id="L315">        Uri uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(incomingNumber));</span>
+<span class="nc" id="L316">        String[] projection = new String[]{ ContactsContract.PhoneLookup.DISPLAY_NAME};</span>
+<span class="nc" id="L317">        Cursor c = ctx.getContentResolver().query(uri, projection, null, null, null);</span>
+<span class="nc bnc" id="L318" title="All 4 branches missed.">        if (c!= null &amp;&amp; c.getCount()&gt;0) {</span>
+<span class="nc" id="L319">            c.moveToFirst();</span>
+<span class="nc" id="L320">            description = c.getString(0);</span>
+        }
+<span class="nc bnc" id="L322" title="All 2 branches missed.">        if (c != null) {</span>
+<span class="nc" id="L323">            c.close();</span>
+        }
+
+<span class="nc" id="L326">        return description;</span>
+    }
+
+    /**
+     * This is an asynchronous loader of filters.
+     * The CallHelper filters are set when the thread terminates (onPostExecute)
+     * @param context the context
+     */
+    void loadFilters(final Context context) {
+<span class="nc" id="L335">        LoadFilters lf = new LoadFilters();</span>
+<span class="nc" id="L336">        lf.execute(context);</span>
+<span class="nc" id="L337">    }</span>
+
+    /**
+     * This is an synchronous getter of filters.
+     * @param context the context
+     * @return the filters
+     */
+    List&lt;Filter&gt; getFilters(final Context context) {
+<span class="nc" id="L345">        List&lt;Filter&gt; filters = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L346">        Log.i(TAG,&quot;Getting the filters&quot;);</span>
+<span class="nc" id="L347">        SQLiteDatabase db = null;</span>
+        try {
+<span class="nc" id="L349">            db = new DbHelper(context).getReadableDatabase();</span>
+<span class="nc" id="L350">            List&lt;FilterHandle&gt; handles = FilterProvider.LoadFilters(db);</span>
+<span class="nc bnc" id="L351" title="All 2 branches missed.">            for(FilterHandle h : handles)</span>
+<span class="nc" id="L352">                filters.add(Filter.makeFilter(context,h));</span>
+<span class="nc" id="L353">        } catch (Exception e) {</span>
+<span class="nc" id="L354">            Log.e(TAG, e.getMessage());</span>
+        } finally {
+<span class="nc bnc" id="L356" title="All 2 branches missed.">            String msg = filters.size() &gt; 1 ?</span>
+<span class="nc" id="L357">                    String.format(Locale.getDefault(),&quot;%d filters loaded&quot;, filters.size()):</span>
+<span class="nc" id="L358">                    String.format(Locale.getDefault(),&quot;%d filter loaded&quot;, filters.size());</span>
+<span class="nc" id="L359">            Log.i(TAG,msg);</span>
+<span class="nc bnc" id="L360" title="All 2 branches missed.">            if (db != null) db.close();</span>
+        }
+<span class="nc" id="L362">        return filters;</span>
+    }
+
+    private void purgeLogs(final Context context) {
+<span class="nc" id="L366">        new PurgeLogs().execute(context);</span>
+<span class="nc" id="L367">    }</span>
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

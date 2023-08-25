@@ -1,0 +1,593 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RecordingActivity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.blabbertabber.blabbertabber</a> &gt; <span class="el_source">RecordingActivity.java</span></div><h1>RecordingActivity.java</h1><pre class="source lang-java linenums">package com.blabbertabber.blabbertabber;
+
+import android.Manifest;
+import android.app.Activity;
+import android.app.DialogFragment;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Bundle;
+import android.os.IBinder;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
+import android.support.v4.content.FileProvider;
+import android.support.v4.content.LocalBroadcastManager;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import android.widget.Toast;
+import android.widget.Toolbar;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.Objects;
+
+/**
+ * Activity to record sound.
+ */
+<span class="fc" id="L43">public class RecordingActivity extends Activity {</span>
+    private static final String TAG = &quot;RecordingActivity&quot;;
+    private static final String PREF_DIARIZER = &quot;com.blabbertabber.blabbertabber.pref_diarizer&quot;;
+    private static final String PREF_RECORDING = &quot;com.blabbertabber.blabbertabber.pref_recording&quot;;
+    private static final String PREF_USE_TEST_SERVER = &quot;com.blabbertabber.blabbertabber.pref_test_server&quot;;
+    private static final String PREF_TRANSCRIBER = &quot;com.blabbertabber.blabbertabber.pref_transcriber&quot;;
+    private static final String DIARIZER_URL = &quot;https://diarizer.com:9443/api/v1/upload&quot;;
+    private static final String TEST_DIARIZER_URL = &quot;http://test.diarizer.com:8080/api/v1/upload&quot;;
+    private static final int BLOCK_SIZE = 32 * 1024;
+    private static final int REQUEST_RECORD_AUDIO = 51;
+    private static final String MULTIPART_BOUNDARY = &quot;--ILoveMyDogCherieSheIsSoWarmAndCuddly&quot;;
+<span class="fc" id="L54">    private boolean mBound = false;</span>
+<span class="fc" id="L55">    protected ServiceConnection mServerConn = new ServiceConnection() {</span>
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder binder) {
+<span class="fc" id="L58">            RecordingService.RecordingBinder recordingBinder = (RecordingService.RecordingBinder) binder;</span>
+<span class="fc" id="L59">            mBound = true;</span>
+<span class="fc" id="L60">            Log.v(TAG, &quot;mServerConn.onServiceConnected()&quot;);</span>
+<span class="fc" id="L61">        }</span>
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+<span class="nc" id="L65">            mBound = false;</span>
+<span class="nc" id="L66">            Log.v(TAG, &quot;mServerConn.onServiceDisconnected()&quot;);</span>
+<span class="nc" id="L67">        }</span>
+    };
+    private BroadcastReceiver mReceiver;
+<span class="fc" id="L70">    private Timer mTimer = new Timer();</span>
+    private Thread mTimerDisplayThread;
+    private ProgressBar uploadProgressBar;
+<span class="fc" id="L73">    private boolean mUseTestServer = false;</span>
+
+    private String mDiarizer;
+    private String mTranscriber;
+
+    /**
+     * Construct a new BroadcastReceiver that listens for Intent RECORD_RESULT and
+     * Intent RECORD_STATUS.
+     * Extracts the volumes and speaker id from the RECORD_RESULT messages.
+     * Gracefully handles any RECORD_STATUS message as a failure.
+     *
+     * @param savedInstanceState Bundle
+     */
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+<span class="fc" id="L88">        super.onCreate(savedInstanceState);</span>
+<span class="fc" id="L89">        Log.i(TAG, &quot;onCreate()&quot;);</span>
+        // If you don't setContentView, you'll get either IllegalArgumentException or NullPointerException
+<span class="fc" id="L91">        setContentView(R.layout.activity_recording);</span>
+        // Toolbar, https://developer.android.com/training/appbar/setting-up.html
+<span class="fc" id="L93">        Toolbar mToolbar = findViewById(R.id.toolbar);</span>
+<span class="fc" id="L94">        setActionBar(mToolbar);</span>
+<span class="fc" id="L95">        uploadProgressBar = findViewById(R.id.determinateBar);</span>
+        // http://developer.android.com/training/basics/data-storage/shared-preferences.html
+<span class="fc" id="L97">        SharedPreferences sharedPref = getPreferences(Context.MODE_PRIVATE);</span>
+<span class="fc" id="L98">        mDiarizer = sharedPref.getString(PREF_DIARIZER, &quot;IBM&quot;);</span>
+<span class="fc" id="L99">        mTranscriber = sharedPref.getString(PREF_TRANSCRIBER, &quot;null&quot;);</span>
+<span class="fc" id="L100">        mUseTestServer = sharedPref.getBoolean(PREF_USE_TEST_SERVER, false);</span>
+
+
+<span class="fc" id="L103">        mReceiver = new BroadcastReceiver() {</span>
+            @Override
+            public void onReceive(Context context, Intent intent) {
+<span class="pc bpc" id="L106" title="1 of 2 branches missed.">                if (intent.getAction().equals(AudioEventProcessor.RECORD_RESULT)) {</span>
+<span class="fc" id="L107">                    displayTimer(mTimer);</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">                } else if (Objects.equals(intent.getAction(), AudioEventProcessor.RECORD_STATUS)) {</span>
+                    // If we start sending statuses other than MICROPHONE_UNAVAILABLE, add logic to check status message returned.
+<span class="nc" id="L110">                    int status = intent.getIntExtra(AudioEventProcessor.RECORD_STATUS_MESSAGE, AudioEventProcessor.UNKNOWN_STATUS);</span>
+<span class="nc" id="L111">                    String statusMsg = &quot;onReceive():  The microphone has a status of &quot; + status;</span>
+<span class="nc" id="L112">                    Log.wtf(TAG, statusMsg);</span>
+                    String toastMessage;
+<span class="nc bnc" id="L114" title="All 3 branches missed.">                    switch (status) {</span>
+                        case AudioEventProcessor.MICROPHONE_UNAVAILABLE:
+<span class="nc" id="L116">                            toastMessage = &quot;Problem accessing microphone. Terminate app using microphone (e.g. Phone, Hangouts) and try again.&quot;;</span>
+<span class="nc" id="L117">                            break;</span>
+                        case AudioEventProcessor.CANT_WRITE_MEETING_FILE:
+<span class="nc" id="L119">                            toastMessage = &quot;Error recording the meeting to disk; make sure you've closed all BlabberTabber instances and try again.&quot;;</span>
+<span class="nc" id="L120">                            break;</span>
+                        case AudioEventProcessor.UNKNOWN_STATUS:
+                        default:
+<span class="nc" id="L123">                            toastMessage = &quot;I have no idea what went wrong; restart BlabberTabber and see if that fixes it&quot;;</span>
+                    }
+<span class="nc" id="L125">                    Toast.makeText(context, toastMessage,</span>
+<span class="nc" id="L126">                            Toast.LENGTH_LONG).show();</span>
+<span class="nc" id="L127">                    finish();</span>
+<span class="nc" id="L128">                } else {</span>
+<span class="nc" id="L129">                    String errorMsg = &quot;onReceive() received an Intent with unknown action &quot; + intent.getAction();</span>
+<span class="nc" id="L130">                    Log.wtf(TAG, errorMsg);</span>
+<span class="nc" id="L131">                    Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show();</span>
+                }
+<span class="fc" id="L133">            }</span>
+        };
+<span class="fc" id="L135">    }</span>
+
+    @Override
+    protected void onStart() {
+<span class="fc" id="L139">        super.onStart();</span>
+<span class="fc" id="L140">        Log.i(TAG, &quot;onStart()&quot;);</span>
+<span class="fc" id="L141">    }</span>
+
+    @Override
+    protected void onResume() {
+<span class="fc" id="L145">        super.onResume();</span>
+<span class="fc" id="L146">        Log.i(TAG, &quot;onResume()&quot;);</span>
+
+        // Let's make sure we have android.permission.RECORD_AUDIO
+<span class="pc bpc" id="L149" title="1 of 2 branches missed.">        if (ContextCompat.checkSelfPermission(this,</span>
+                Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+<span class="fc" id="L151">            registerRecordingServiceReceiver();</span>
+        } else {
+<span class="nc" id="L153">            ActivityCompat.requestPermissions(this,</span>
+                    new String[]{Manifest.permission.RECORD_AUDIO},
+                    REQUEST_RECORD_AUDIO);
+        }
+
+<span class="fc" id="L158">        double meetingInSeconds = Helper.howLongWasMeetingInSeconds(new File(getFilesDir() + &quot;/&quot; + AudioEventProcessor.RECORDER_RAW_FILENAME).length());</span>
+<span class="fc" id="L159">        Log.w(TAG, &quot;onResume   meetingInSeconds: &quot; + meetingInSeconds + &quot;   Timer: &quot; + mTimer.time());</span>
+<span class="fc" id="L160">        mTimer = new Timer((long) (meetingInSeconds * 1000));</span>
+<span class="fc" id="L161">        displayTimer(mTimer);</span>
+
+        // http://developer.android.com/training/basics/data-storage/shared-preferences.html
+<span class="fc" id="L164">        SharedPreferences sharedPref = getPreferences(Context.MODE_PRIVATE);</span>
+<span class="fc bfc" id="L165" title="All 2 branches covered.">        if (sharedPref.getBoolean(PREF_RECORDING, RecordingService.recording)) {</span>
+            // we're recording, not paused; maybe the screen was rotated
+<span class="fc" id="L167">            clickRecord(null);</span>
+        } else {
+<span class="fc" id="L169">            clickPause(null);</span>
+        }
+        // mTimerDisplayThread sends Intents to update the Timer TextView
+<span class="fc" id="L172">        mTimerDisplayThread = new Thread() {</span>
+            @Override
+            public void run() {
+<span class="fc" id="L175">                Log.i(TAG, &quot;run() starting &quot; + Thread.currentThread().getId());</span>
+                try {
+                    while (true) {
+<span class="fc" id="L178">                        sleep(100);</span>
+<span class="fc" id="L179">                        Intent refreshTimerIntent = new Intent(AudioEventProcessor.RECORD_RESULT);</span>
+<span class="fc" id="L180">                        LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(refreshTimerIntent);</span>
+<span class="fc" id="L181">                    }</span>
+<span class="fc" id="L182">                } catch (InterruptedException e) {</span>
+                    // TODO Auto-generated catch block
+<span class="fc" id="L184">                    Log.i(TAG, &quot;run() exiting &quot; + Thread.currentThread().getId());</span>
+                }
+<span class="fc" id="L186">            }</span>
+        };
+<span class="fc" id="L188">        mTimerDisplayThread.start();</span>
+<span class="fc" id="L189">    }</span>
+
+    @Override
+    protected void onPause() {
+<span class="fc" id="L193">        super.onPause();</span>
+<span class="fc" id="L194">        Log.i(TAG, &quot;onPause()&quot;);</span>
+<span class="fc" id="L195">        uploadProgressBar.setVisibility(View.INVISIBLE);</span>
+<span class="fc" id="L196">        mTimerDisplayThread.interrupt();</span>
+        // unregister
+<span class="fc" id="L198">        LocalBroadcastManager.getInstance(this).unregisterReceiver(mReceiver);</span>
+<span class="pc bpc" id="L199" title="2 of 4 branches missed.">        if (mServerConn != null &amp;&amp; mBound) {</span>
+<span class="fc" id="L200">            unbindService(mServerConn);</span>
+        }
+<span class="fc" id="L202">        SharedPreferences sharedPref = getPreferences(Context.MODE_PRIVATE);</span>
+<span class="fc" id="L203">        SharedPreferences.Editor editor = sharedPref.edit();</span>
+<span class="fc" id="L204">        editor.putString(PREF_DIARIZER, mDiarizer);</span>
+<span class="fc" id="L205">        editor.putBoolean(PREF_RECORDING, RecordingService.recording);</span>
+<span class="fc" id="L206">        editor.putBoolean(PREF_USE_TEST_SERVER, mUseTestServer);</span>
+<span class="fc" id="L207">        editor.putString(PREF_TRANSCRIBER, mTranscriber);</span>
+<span class="fc" id="L208">        editor.apply();</span>
+<span class="fc" id="L209">    }</span>
+
+    @Override
+    protected void onStop() {
+<span class="fc" id="L213">        super.onStop();</span>
+<span class="fc" id="L214">        Log.i(TAG, &quot;onStop()&quot;);</span>
+<span class="fc" id="L215">    }</span>
+
+    @Override
+    protected void onDestroy() {
+<span class="fc" id="L219">        super.onDestroy(); // yes, call super first, even with onDestroy()</span>
+<span class="fc" id="L220">        Log.i(TAG, &quot;onDestroy()&quot;);</span>
+<span class="fc" id="L221">    }</span>
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+<span class="fc" id="L225">        Log.e(TAG, &quot;onCreateOptionsMenu&quot;);</span>
+<span class="fc" id="L226">        MenuInflater inflater = getMenuInflater();</span>
+<span class="fc" id="L227">        inflater.inflate(R.menu.drawer, menu);</span>
+<span class="fc" id="L228">        menu.findItem(R.id.use_test_server).setChecked(mUseTestServer);</span>
+<span class="pc bpc" id="L229" title="2 of 3 branches missed.">        switch (mDiarizer) {</span>
+            case &quot;Aalto&quot;:
+<span class="nc" id="L231">                menu.findItem(R.id.diarizer_aalto).setChecked(true);</span>
+<span class="nc" id="L232">                break;</span>
+            case &quot;IBM&quot;:
+<span class="fc" id="L234">                menu.findItem(R.id.diarizer_ibm).setChecked(true);</span>
+<span class="fc" id="L235">                break;</span>
+            default:
+<span class="nc" id="L237">                menu.findItem(R.id.diarizer_aalto).setChecked(true);</span>
+        }
+<span class="pc bpc" id="L239" title="3 of 4 branches missed.">        switch (mTranscriber) {</span>
+            case &quot;null&quot;:
+<span class="fc" id="L241">                menu.findItem(R.id.transcriber_null).setChecked(true);</span>
+<span class="fc" id="L242">                break;</span>
+            case &quot;CMU Sphinx 4&quot;:
+<span class="nc" id="L244">                menu.findItem(R.id.transcriber_cmu).setChecked(true);</span>
+<span class="nc" id="L245">                break;</span>
+            case &quot;IBM&quot;:
+<span class="nc" id="L247">                menu.findItem(R.id.transcriber_ibm).setChecked(true);</span>
+<span class="nc" id="L248">                break;</span>
+            default:
+<span class="nc" id="L250">                menu.findItem(R.id.transcriber_null).setChecked(true);</span>
+        }
+<span class="fc" id="L252">        return true;</span>
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+<span class="nc" id="L257">        Log.e(TAG, &quot;onOptionsItemSelected&quot;);</span>
+<span class="nc bnc" id="L258" title="All 7 branches missed.">        switch (item.getItemId()) {</span>
+            case R.id.use_test_server:
+<span class="nc bnc" id="L260" title="All 2 branches missed.">                if (item.isChecked()) {</span>
+<span class="nc" id="L261">                    item.setChecked(false);</span>
+                } else {
+<span class="nc" id="L263">                    item.setChecked(true);</span>
+                }
+<span class="nc" id="L265">                mUseTestServer = item.isChecked();</span>
+<span class="nc" id="L266">                Log.i(TAG, &quot;Use test server: &quot; + mUseTestServer);</span>
+<span class="nc" id="L267">                return true;</span>
+            case R.id.diarizer_aalto:
+<span class="nc" id="L269">                mDiarizer = &quot;Aalto&quot;;</span>
+<span class="nc" id="L270">                Log.i(TAG, &quot;Diarizer &quot; + mDiarizer);</span>
+<span class="nc" id="L271">                item.setChecked(true);</span>
+<span class="nc" id="L272">                return true;</span>
+            case R.id.diarizer_ibm:
+<span class="nc" id="L274">                mDiarizer = &quot;IBM&quot;;</span>
+<span class="nc" id="L275">                Log.i(TAG, &quot;Diarizer &quot; + mDiarizer);</span>
+<span class="nc" id="L276">                item.setChecked(true);</span>
+<span class="nc" id="L277">                return true;</span>
+            case R.id.transcriber_null:
+<span class="nc" id="L279">                mTranscriber = &quot;null&quot;;</span>
+<span class="nc" id="L280">                Log.i(TAG, &quot;Transcriber &quot; + mTranscriber);</span>
+<span class="nc" id="L281">                item.setChecked(true);</span>
+<span class="nc" id="L282">                return true;</span>
+            case R.id.transcriber_ibm:
+<span class="nc" id="L284">                mTranscriber = &quot;IBM&quot;;</span>
+<span class="nc" id="L285">                Log.i(TAG, &quot;Transcriber &quot; + mTranscriber);</span>
+<span class="nc" id="L286">                item.setChecked(true);</span>
+<span class="nc" id="L287">                return true;</span>
+            case R.id.transcriber_cmu:
+<span class="nc" id="L289">                mTranscriber = &quot;CMU Sphinx 4&quot;;</span>
+<span class="nc" id="L290">                Log.i(TAG, &quot;Transcriber &quot; + mTranscriber);</span>
+<span class="nc" id="L291">                item.setChecked(true);</span>
+<span class="nc" id="L292">                return true;</span>
+            default:
+<span class="nc" id="L294">                mTranscriber = &quot;null&quot;;</span>
+<span class="nc" id="L295">                mDiarizer = &quot;Aalto&quot;;</span>
+<span class="nc" id="L296">                return super.onOptionsItemSelected(item);</span>
+        }
+    }
+
+    private void registerRecordingServiceReceiver() {
+<span class="fc" id="L301">        Intent serviceIntent = new Intent(this, RecordingService.class);</span>
+        // Start service first, then bind to it. Sounds redundant, but we have our reasons
+<span class="fc" id="L303">        startService(serviceIntent);</span>
+<span class="pc bpc" id="L304" title="1 of 2 branches missed.">        if (bindService(serviceIntent, mServerConn, BIND_AUTO_CREATE)) {</span>
+<span class="fc" id="L305">            Log.i(TAG, &quot;bindService() succeeded, mBound: &quot; + mBound);</span>
+        } else {
+<span class="nc" id="L307">            Log.wtf(TAG, &quot;bindService() failed, mBound: &quot; + mBound);</span>
+        }
+<span class="fc" id="L309">        LocalBroadcastManager.getInstance(this).registerReceiver((mReceiver),</span>
+                new IntentFilter(AudioEventProcessor.RECORD_RESULT)
+        );
+<span class="fc" id="L312">        LocalBroadcastManager.getInstance(this).registerReceiver((mReceiver),</span>
+                new IntentFilter(AudioEventProcessor.RECORD_STATUS)
+        );
+<span class="fc" id="L315">    }</span>
+
+    public void clickRecord(View v) {
+<span class="fc" id="L318">        Log.i(TAG, &quot;clickRecord() &quot;);</span>
+        // was paused; need to record
+<span class="fc" id="L320">        record();</span>
+<span class="fc" id="L321">        findViewById(R.id.button_reset).setVisibility(View.INVISIBLE);</span>
+<span class="fc" id="L322">        findViewById(R.id.button_finish).setVisibility(View.INVISIBLE);</span>
+<span class="fc" id="L323">        findViewById(R.id.button_record).setVisibility(View.INVISIBLE);</span>
+<span class="fc" id="L324">        findViewById(R.id.button_record_caption).setVisibility(View.INVISIBLE);</span>
+<span class="fc" id="L325">        findViewById(R.id.button_pause).setVisibility(View.VISIBLE);</span>
+<span class="fc" id="L326">        findViewById(R.id.button_pause_caption).setVisibility(View.VISIBLE);</span>
+<span class="fc" id="L327">    }</span>
+
+    public void clickPause(View v) {
+<span class="fc" id="L330">        Log.i(TAG, &quot;clickPause() &quot;);</span>
+        // was recording; need to pause
+<span class="fc" id="L332">        pause();</span>
+<span class="fc" id="L333">        findViewById(R.id.button_reset).setVisibility(View.VISIBLE);</span>
+<span class="fc" id="L334">        findViewById(R.id.button_finish).setVisibility(View.VISIBLE);</span>
+<span class="fc" id="L335">        findViewById(R.id.button_record).setVisibility(View.VISIBLE);</span>
+<span class="fc" id="L336">        findViewById(R.id.button_record_caption).setVisibility(View.VISIBLE);</span>
+<span class="fc" id="L337">        findViewById(R.id.button_pause).setVisibility(View.INVISIBLE);</span>
+<span class="fc" id="L338">        findViewById(R.id.button_pause_caption).setVisibility(View.INVISIBLE);</span>
+<span class="fc" id="L339">    }</span>
+
+    private void record() {
+<span class="fc" id="L342">        Log.i(TAG, &quot;record()&quot;);</span>
+        // Make sure we have all the necessary permissions, then begin recording:
+<span class="pc bpc" id="L344" title="1 of 2 branches missed.">        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_DENIED) {</span>
+<span class="nc" id="L345">            Toast.makeText(getApplicationContext(), &quot;record() bailing out early, don't have permissions&quot;, Toast.LENGTH_LONG).show();</span>
+<span class="nc" id="L346">            Log.i(TAG, &quot;record() bailing out early, don't have permissions&quot;);</span>
+<span class="nc" id="L347">            return;</span>
+        }
+<span class="fc" id="L349">        mTimer.start();</span>
+<span class="fc" id="L350">        RecordingService.recording = true;</span>
+<span class="fc" id="L351">    }</span>
+
+    private void pause() {
+<span class="fc" id="L354">        Log.i(TAG, &quot;pause()&quot;);</span>
+<span class="fc" id="L355">        mTimer.stop();</span>
+<span class="fc" id="L356">        RecordingService.recording = false;</span>
+<span class="fc" id="L357">    }</span>
+
+    public void reset(View v) {
+<span class="fc" id="L360">        Log.i(TAG, &quot;reset()&quot;);</span>
+<span class="fc" id="L361">        mTimer.reset();</span>
+<span class="fc" id="L362">        displayTimer(mTimer);</span>
+<span class="fc" id="L363">        RecordingService.reset = true;</span>
+<span class="fc" id="L364">        pause();</span>
+<span class="fc" id="L365">    }</span>
+
+    public void summary(View v) {
+<span class="nc" id="L368">        Log.i(TAG, &quot;summary()&quot;);</span>
+<span class="nc" id="L369">        mTimer.stop();</span>
+<span class="nc" id="L370">        pause(); // stop the recording</span>
+
+        // Transform the raw file into a .wav file
+        try {
+<span class="nc" id="L374">            Log.i(TAG, &quot;summary()   AudioRecordWrapper.getRawFilePathName(): &quot; + AudioEventProcessor.getRawFilePathName());</span>
+<span class="nc" id="L375">            WavFile.of(this, new File(AudioEventProcessor.getRawFilePathName()));</span>
+<span class="nc" id="L376">        } catch (IOException e) {</span>
+<span class="nc" id="L377">            String errorTxt = &quot;Whoops! couldn't convert &quot; + AudioEventProcessor.getRawFilePathName()</span>
+<span class="nc" id="L378">                    + &quot;: &quot; + e.getMessage();</span>
+<span class="nc" id="L379">            Log.wtf(TAG, errorTxt);</span>
+<span class="nc" id="L380">            Toast.makeText(getApplicationContext(), errorTxt, Toast.LENGTH_LONG).show();</span>
+<span class="nc" id="L381">            e.printStackTrace();</span>
+<span class="nc" id="L382">        }</span>
+<span class="nc" id="L383">        uploadProgressBar.setVisibility(View.VISIBLE);</span>
+
+<span class="nc" id="L385">        new Thread() {</span>
+            @Override
+            public void run() {
+                // TODO(brian): make async (currently sync)
+<span class="nc" id="L389">                HttpURLConnection diarizer = null;</span>
+<span class="nc" id="L390">                String diarizerUrl = DIARIZER_URL;</span>
+<span class="nc bnc" id="L391" title="All 2 branches missed.">                if (mUseTestServer) {</span>
+<span class="nc" id="L392">                    diarizerUrl = TEST_DIARIZER_URL;</span>
+                }
+                try {
+<span class="nc" id="L395">                    diarizer = (HttpURLConnection) (new URL(diarizerUrl)).openConnection();</span>
+<span class="nc" id="L396">                } catch (java.io.IOException e) {</span>
+<span class="nc" id="L397">                    e.printStackTrace();</span>
+<span class="nc" id="L398">                }</span>
+
+<span class="nc" id="L400">                String soundFilePath = WavFile.convertFilenameFromRawToWav(AudioEventProcessor.getRawFilePathName());</span>
+<span class="nc" id="L401">                File soundFile = new File(soundFilePath);</span>
+<span class="nc" id="L402">                long length = soundFile.length();</span>
+<span class="nc" id="L403">                FileInputStream soundFileStream = null;</span>
+                try {
+<span class="nc" id="L405">                    soundFileStream = new FileInputStream(soundFile);</span>
+<span class="nc" id="L406">                } catch (java.io.IOException e) {</span>
+<span class="nc" id="L407">                    Log.e(TAG, &quot;Unable to open sound file &quot; + soundFilePath + &quot;.  This is catastrophic.&quot;);</span>
+<span class="nc" id="L408">                    e.printStackTrace();</span>
+<span class="nc" id="L409">                }</span>
+
+<span class="nc" id="L411">                String resultsURL = &quot;&quot;;</span>
+                try {
+<span class="nc" id="L413">                    resultsURL = upload(diarizer, soundFileStream, length);</span>
+<span class="nc" id="L414">                } catch (java.io.IOException e) {</span>
+<span class="nc" id="L415">                    e.printStackTrace();</span>
+<span class="nc" id="L416">                }</span>
+<span class="nc" id="L417">                Intent intent = new Intent(Intent.ACTION_VIEW);</span>
+<span class="nc" id="L418">                intent.setData(Uri.parse(resultsURL));</span>
+<span class="nc bnc" id="L419" title="All 2 branches missed.">                if (intent.resolveActivity(getPackageManager()) != null) {</span>
+<span class="nc" id="L420">                    Log.v(TAG, &quot;view_results(): resolved activity&quot;);</span>
+<span class="nc" id="L421">                    startActivity(intent);</span>
+                } else {
+<span class="nc" id="L423">                    Log.v(TAG, &quot;view_results(): couldn't resolve activity&quot;);</span>
+                }
+<span class="nc" id="L425">            }</span>
+<span class="nc" id="L426">        }.start();</span>
+<span class="nc" id="L427">    }</span>
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        // log everything
+<span class="nc" id="L432">        String argumentString = &quot; &quot; + requestCode + &quot; [ &quot;;</span>
+<span class="nc bnc" id="L433" title="All 2 branches missed.">        for (String perm : permissions) {</span>
+<span class="nc" id="L434">            argumentString += perm + &quot;, &quot;;</span>
+        }
+<span class="nc" id="L436">        argumentString += &quot; ], [ &quot;;</span>
+<span class="nc bnc" id="L437" title="All 2 branches missed.">        for (int grantResult : grantResults) {</span>
+<span class="nc" id="L438">            argumentString += grantResult + &quot;, &quot;;</span>
+        }
+<span class="nc" id="L440">        argumentString += &quot; ]&quot;;</span>
+<span class="nc" id="L441">        Log.i(TAG, &quot;onRequestPermissionsResult() &quot; + argumentString);</span>
+
+        // boilerplate from http://developer.android.com/training/permissions/requesting.html
+<span class="nc bnc" id="L444" title="All 2 branches missed.">        switch (requestCode) {</span>
+            case REQUEST_RECORD_AUDIO: {
+                // If request is cancelled, the result arrays are empty.
+<span class="nc bnc" id="L447" title="All 4 branches missed.">                if (grantResults.length &gt; 0</span>
+                        &amp;&amp; grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+                    // permission denied, message &amp; exit gracefully
+<span class="nc" id="L450">                    Toast.makeText(getApplicationContext(), &quot;BlabberTabber exited because it's unable to access the microphone&quot;, Toast.LENGTH_LONG).show();</span>
+<span class="nc" id="L451">                    finish();</span>
+                }
+<span class="nc" id="L453">                return;</span>
+            }
+        }
+<span class="nc" id="L456">        Log.wtf(TAG, &quot;Oops, an unasked-for permission was granted/denied.&quot;);</span>
+<span class="nc" id="L457">    }</span>
+
+    private void displayTimer(Timer t) {
+<span class="fc" id="L460">        ((TextView) findViewById(R.id.meeting_timer))</span>
+<span class="fc" id="L461">                .setText(Helper.timeToHMMSSMinuteMandatory(t.time()));</span>
+<span class="fc" id="L462">    }</span>
+
+    private String upload(HttpURLConnection diarizerConnection, FileInputStream soundFileStream, long soundFileLength) throws IOException {
+        // http://stackoverflow.com/questions/34222980/urlconnection-always-returns-400-bad-request-when-i-try-to-upload-a-wav-file
+        // upload .wav to endpoint and return GUID
+        // TODO: don't load the entire meeting into RAM
+<span class="nc" id="L468">        String resultsURL = &quot;&quot;;</span>
+        try {
+<span class="nc" id="L470">            diarizerConnection.setRequestMethod(&quot;POST&quot;);</span>
+<span class="nc" id="L471">            diarizerConnection.setRequestProperty(&quot;Diarizer&quot;, mDiarizer);</span>
+<span class="nc" id="L472">            diarizerConnection.setRequestProperty(&quot;Transcriber&quot;, mTranscriber);</span>
+<span class="nc" id="L473">            diarizerConnection.setRequestProperty(&quot;AndroidClientVersion&quot;, BuildConfig.VERSION_NAME);</span>
+<span class="nc" id="L474">            diarizerConnection.setDoOutput(true);</span>
+<span class="nc" id="L475">            diarizerConnection.setDoInput(true);</span>
+<span class="nc" id="L476">            diarizerConnection.setChunkedStreamingMode(BLOCK_SIZE); //disable while debugging</span>
+
+            // http://stackoverflow.com/questions/941628/urlconnection-filenotfoundexception-for-non-standard-http-port-sources/2274535#2274535
+<span class="nc" id="L479">            diarizerConnection.setRequestProperty(&quot;User-Agent&quot;, &quot;Mozilla/5.0 ( compatible ) &quot;);</span>
+<span class="nc" id="L480">            diarizerConnection.setRequestProperty(&quot;Accept&quot;, &quot;*/*&quot;);</span>
+
+<span class="nc" id="L482">            diarizerConnection.setRequestProperty(&quot;Connection&quot;, &quot;Keep-Alive&quot;);</span>
+<span class="nc" id="L483">            diarizerConnection.setRequestProperty(&quot;Content-Type&quot;, &quot;multipart/form-data; boundary=&quot; + MULTIPART_BOUNDARY);</span>
+<span class="nc" id="L484">            diarizerConnection.setRequestProperty(&quot;Accept-Encoding&quot;, &quot;identity&quot;); // disable gzip compression for debuggin</span>
+<span class="nc" id="L485">            diarizerConnection.connect();</span>
+
+<span class="nc" id="L487">            OutputStream out = diarizerConnection.getOutputStream();</span>
+<span class="nc" id="L488">            out.write(&quot;Q\r\n&quot;.getBytes());</span>
+
+<span class="nc" id="L490">            addFilePart(soundFileStream, out, &quot;soundFile&quot;, &quot;meeting.wav&quot;, soundFileLength);</span>
+
+<span class="nc" id="L492">            byte[] buffer = new byte[BLOCK_SIZE];</span>
+<span class="nc" id="L493">            int status = diarizerConnection.getResponseCode();</span>
+<span class="nc" id="L494">            Log.i(TAG, &quot;return code: &quot; + status);</span>
+            InputStream in;
+<span class="nc bnc" id="L496" title="All 2 branches missed.">            if (status &gt;= 300) {</span>
+<span class="nc" id="L497">                in = diarizerConnection.getErrorStream();</span>
+            } else {
+<span class="nc" id="L499">                in = diarizerConnection.getInputStream();</span>
+            }
+<span class="nc" id="L501">            int length = in.read(buffer);</span>
+<span class="nc" id="L502">            resultsURL = new String(buffer).substring(0, length);</span>
+<span class="nc" id="L503">            Log.i(TAG, &quot;return data: &quot; + resultsURL);</span>
+<span class="nc" id="L504">        } catch (IOException e) {</span>
+<span class="nc" id="L505">            Log.w(TAG, &quot;Caught IOException: &quot; + e.getMessage());</span>
+<span class="nc" id="L506">            Bundle connErrBundle = new Bundle();</span>
+<span class="nc" id="L507">            connErrBundle.putString(&quot;message&quot;, getString(R.string.cant_reach_server) + &quot;\n\nDetails: &quot; + diarizerConnection.getURL() + &quot;: &quot; + e.getMessage());</span>
+<span class="nc" id="L508">            DialogFragment uhOh = new UnreachableServerDialog();</span>
+<span class="nc" id="L509">            uhOh.setArguments(connErrBundle);</span>
+<span class="nc" id="L510">            uhOh.show(getFragmentManager(), &quot;unreachableTag&quot;);</span>
+        } finally {
+<span class="nc" id="L512">            diarizerConnection.disconnect();</span>
+        }
+<span class="nc" id="L514">        return resultsURL;</span>
+    }
+
+    private void addFilePart(FileInputStream in, OutputStream out, String paramName, String fileName, long soundFileLength) throws IOException {
+<span class="nc" id="L518">        Log.i(TAG, &quot;addFilePart()&quot;);</span>
+<span class="nc" id="L519">        out.write((&quot;--&quot; + MULTIPART_BOUNDARY + &quot;\r\n&quot;).getBytes());</span>
+<span class="nc" id="L520">        out.write((&quot;Content-Disposition: form-data; name=\&quot;&quot; + paramName + &quot;\&quot;; filename=\&quot;&quot; + fileName + &quot;\&quot;\r\n&quot;).getBytes());</span>
+<span class="nc" id="L521">        out.write((&quot;Content-Type: application/octet-stream\r\n&quot;).getBytes());</span>
+<span class="nc" id="L522">        out.write(&quot;\r\n&quot;.getBytes());</span>
+
+<span class="nc" id="L524">        uploadProgressBar.setMax((int) soundFileLength / BLOCK_SIZE);</span>
+<span class="nc" id="L525">        Log.e(TAG, &quot;addFilePart(): soundFileLength &quot; + soundFileLength);</span>
+        //
+<span class="nc" id="L527">        int megabytesUploaded = 0;</span>
+<span class="nc" id="L528">        byte[] buffer = new byte[BLOCK_SIZE];</span>
+        int bytesRead;
+<span class="nc bnc" id="L530" title="All 2 branches missed.">        while ((bytesRead = in.read(buffer)) != -1) {</span>
+<span class="nc" id="L531">            out.write(buffer, 0, bytesRead);</span>
+<span class="nc" id="L532">            uploadProgressBar.setProgress(megabytesUploaded);</span>
+<span class="nc" id="L533">            megabytesUploaded++;</span>
+<span class="nc" id="L534">            Log.e(TAG, &quot;addFilePart(): megabytesUploaded  &quot; + megabytesUploaded);</span>
+        }
+
+<span class="nc" id="L537">        out.write(&quot;\r\n&quot;.getBytes());</span>
+<span class="nc" id="L538">        out.write((&quot;--&quot; + MULTIPART_BOUNDARY + &quot;--&quot; + &quot;\r\n&quot;).getBytes());</span>
+<span class="nc" id="L539">    }</span>
+
+    /**
+     * Replays the most recent meeting.
+     * Called by the navigation drawer.
+     *
+     * @param menuItem Item selected in navigation drawer.  Unused within method.
+     */
+    public void replayMeeting(MenuItem menuItem) {
+<span class="nc" id="L548">        Log.i(TAG, &quot;replayMeeting()&quot;);</span>
+<span class="nc" id="L549">        String rawFilePath = AudioEventProcessor.getRawFilePathName();</span>
+<span class="nc" id="L550">        File rawFile = new File(rawFilePath);</span>
+<span class="nc" id="L551">        WavFile wavFile = null;</span>
+        try {
+<span class="nc" id="L553">            wavFile = WavFile.of(this, rawFile);</span>
+<span class="nc" id="L554">            Log.i(TAG, &quot;replayMeeting(): wavFile &quot; + WavFile.convertFilenameFromRawToWav(rawFilePath) + &quot; exists, playing&quot;);</span>
+<span class="nc" id="L555">            Intent intent = new Intent(Intent.ACTION_VIEW);</span>
+<span class="nc" id="L556">            Log.v(TAG, &quot;delete me&quot;);</span>
+<span class="nc" id="L557">            Uri wavFileURI = FileProvider.getUriForFile(RecordingActivity.this, &quot;com.blabbertabber.blabbertabber.fileprovider&quot;, wavFile);</span>
+<span class="nc" id="L558">            intent.setDataAndType(wavFileURI, &quot;audio/wav&quot;);</span>
+<span class="nc" id="L559">            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);</span>
+<span class="nc" id="L560">            Log.v(TAG, &quot;delete me 2&quot;);</span>
+<span class="nc bnc" id="L561" title="All 2 branches missed.">            if (intent.resolveActivity(getPackageManager()) != null) {</span>
+<span class="nc" id="L562">                Log.v(TAG, &quot;replayMeeting(): resolved activity&quot;);</span>
+                try {
+<span class="nc" id="L564">                    startActivity(intent);</span>
+<span class="nc" id="L565">                } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L566">                    Log.e(TAG, &quot;wavFile (&quot; + AudioEventProcessor.getRawFilePathName() + &quot;) cant't be shared&quot;);</span>
+<span class="nc" id="L567">                }</span>
+
+                //  Caused by: android.os.FileUriExposedException: file:///data/user/0/com.blabbertabber.blabbertabber/files/meeting.wav exposed beyond app through Intent.getData()
+            } else {
+<span class="nc" id="L571">                Log.e(TAG, &quot;replayMeeting(): couldn't resolve activity&quot;);</span>
+            }
+
+<span class="nc" id="L574">        } catch (IOException e) {</span>
+<span class="nc" id="L575">            e.printStackTrace();</span>
+<span class="nc" id="L576">        }</span>
+<span class="nc" id="L577">    }</span>
+
+    public void launchMainActivity(MenuItem menuitem) {
+<span class="nc" id="L580">        Log.i(TAG, &quot;launchMainActivity()&quot;);</span>
+<span class="nc" id="L581">        MainActivity.resetFirstTime = true;</span>
+
+<span class="nc" id="L583">        Intent intent = new Intent(this, MainActivity.class);</span>
+<span class="nc" id="L584">        startActivity(intent);</span>
+<span class="nc" id="L585">    }</span>
+
+    public void launchAboutActivity(MenuItem menuItem) {
+<span class="nc" id="L588">        Log.i(TAG, &quot;launchAboutActivity()&quot;);</span>
+<span class="nc" id="L589">        Intent intent = new Intent(this, AboutActivity.class);</span>
+<span class="nc" id="L590">        startActivity(intent);</span>
+<span class="nc" id="L591">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

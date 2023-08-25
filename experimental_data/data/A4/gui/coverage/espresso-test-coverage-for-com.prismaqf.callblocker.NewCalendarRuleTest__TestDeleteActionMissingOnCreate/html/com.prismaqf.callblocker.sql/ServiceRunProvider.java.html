@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ServiceRunProvider.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker.sql</a> &gt; <span class="el_source">ServiceRunProvider.java</span></div><h1>ServiceRunProvider.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker.sql;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.util.Log;
+
+import com.prismaqf.callblocker.utils.PreferenceHelper;
+
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
+
+/**
+ * @author ConteDiMonteCristo.
+ */
+<span class="nc" id="L23">public class ServiceRunProvider {</span>
+
+    public static class ServiceRun {
+        private final long runId;
+        private final int numTriggered;
+        private final int numReceived;
+        private final Date start;
+        private final Date stop;
+
+<span class="nc" id="L32">        public ServiceRun(long runId, Date start, Date stop, int numReceived, int numTriggered) {</span>
+<span class="nc" id="L33">            this.runId = runId;</span>
+<span class="nc" id="L34">            this.start = start;</span>
+<span class="nc" id="L35">            this.stop = stop;</span>
+<span class="nc" id="L36">            this.numReceived = numReceived;</span>
+<span class="nc" id="L37">            this.numTriggered = numTriggered;</span>
+<span class="nc" id="L38">        }</span>
+<span class="nc" id="L39">        public long getId() {return runId;}</span>
+
+        public int getNumReceived() {
+<span class="nc" id="L42">            return numReceived;</span>
+        }
+
+        public int getNumTriggered() {
+<span class="nc" id="L46">            return numTriggered;</span>
+        }
+
+        public Date getStart() {
+<span class="nc" id="L50">            return start;</span>
+        }
+
+        public Date getStop() {
+<span class="nc" id="L54">            return stop;</span>
+        }
+
+    }
+
+<span class="nc" id="L59">    private static final String TAG = ServiceRunProvider.class.getCanonicalName();</span>
+    private static final String RUNNING = &quot;running&quot;;
+
+
+
+    public static ServiceRun deserialize(Cursor c) {
+<span class="nc" id="L65">        long runId = c.getInt(c.getColumnIndexOrThrow(DbContract.ServiceRuns._ID));</span>
+<span class="nc" id="L66">        int received  = c.getInt(c.getColumnIndexOrThrow(DbContract.ServiceRuns.COLUMN_NAME_TOTAL_RECEIVED));</span>
+<span class="nc" id="L67">        int triggered  = c.getInt(c.getColumnIndexOrThrow(DbContract.ServiceRuns.COLUMN_NAME_TOTAL_TRIGGERED));</span>
+<span class="nc" id="L68">        Date start = null;</span>
+<span class="nc" id="L69">        Date stop = null;</span>
+        try {
+
+<span class="nc" id="L72">            DateFormat format = new SimpleDateFormat(DbContract.DATE_FORMAT, Locale.getDefault());</span>
+<span class="nc" id="L73">            String sstart = c.getString(c.getColumnIndexOrThrow(DbContract.ServiceRuns.COLUMN_NAME_START));</span>
+<span class="nc" id="L74">            String sstop = c.getString(c.getColumnIndexOrThrow(DbContract.ServiceRuns.COLUMN_NAME_STOP));</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">            if (sstart != null) start = format.parse(sstart);</span>
+<span class="nc bnc" id="L76" title="All 4 branches missed.">            if (sstop != null &amp;&amp; !sstop.equals(RUNNING)) stop = format.parse(sstop);</span>
+<span class="nc" id="L77">        } catch (ParseException e) {</span>
+<span class="nc" id="L78">            Log.e(TAG, e.getMessage());</span>
+            //throw new SQLException(e.getMessage());
+<span class="nc" id="L80">        }</span>
+<span class="nc" id="L81">        return new ServiceRun(runId, start,stop,received,triggered);</span>
+    }
+
+    public static void serialize(SQLiteDatabase db, ServiceRun sr) {
+<span class="nc" id="L85">        InsertRow(db,sr);</span>
+<span class="nc" id="L86">    }</span>
+
+
+
+    /**
+     * Find the latest run before the current one
+     * @param db the SQLite connection
+     * @return the new run id
+     */
+    public static synchronized ServiceRun LatestRun(SQLiteDatabase db) {
+<span class="nc" id="L96">        String orderby = String.format(&quot;%s desc&quot;,DbContract.ServiceRuns._ID);</span>
+<span class="nc" id="L97">        String limit = &quot;1&quot;;</span>
+<span class="nc" id="L98">        Cursor c = db.query(DbContract.ServiceRuns.TABLE_NAME, null, null, null, null, null, orderby, limit);</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        if (c.getCount() &gt; 0) {</span>
+<span class="nc" id="L100">            c.moveToFirst();</span>
+<span class="nc" id="L101">            return deserialize(c);</span>
+        }
+<span class="nc" id="L103">        return new ServiceRun(0,null,null,0,0);</span>
+    }
+
+    /**
+     * Find the latest run before the current one
+     * @param db the SQLite connection
+     * @return the new run id
+     */
+    public static synchronized ServiceRun LatestCompletedRun(SQLiteDatabase db) {
+<span class="nc" id="L112">        String orderby = String.format(&quot;%s desc&quot;,DbContract.ServiceRuns._ID);</span>
+<span class="nc" id="L113">        String limit = &quot;1&quot;;</span>
+<span class="nc" id="L114">        String selection = DbContract.ServiceRuns.COLUMN_NAME_STOP + &quot;&lt;&gt; ?&quot;;</span>
+<span class="nc" id="L115">        String[] selectionArgs = { RUNNING };</span>
+<span class="nc" id="L116">        Cursor c = db.query(DbContract.ServiceRuns.TABLE_NAME, null, selection, selectionArgs, null, null, orderby, limit);</span>
+<span class="nc bnc" id="L117" title="All 2 branches missed.">        if (c.getCount() &gt; 0) {</span>
+<span class="nc" id="L118">            c.moveToFirst();</span>
+<span class="nc" id="L119">            return deserialize(c);</span>
+        }
+<span class="nc" id="L121">        return new ServiceRun(0,null,null,0,0);</span>
+    }
+
+    /**
+     * Retrieves the latest service runs
+     * @param db the SQLite connection
+     * @param maxRecords the total number of records returned
+     * @return a cursor
+     */
+    public static synchronized Cursor LatestRuns(SQLiteDatabase db, int maxRecords) {
+<span class="nc" id="L131">        return LatestRuns(db, maxRecords, true);</span>
+    }
+
+    /**
+     * Retrieves the latest service runs
+     * @param db the SQLite connection
+     * @param maxRecords the total number of records returned
+     * @param descending a flag to inicate the sorting order, descending when the flag is true
+     * @return a cursor
+     */
+    public static synchronized Cursor LatestRuns(SQLiteDatabase db, int maxRecords, boolean descending) {
+        String orderby;
+<span class="nc bnc" id="L143" title="All 2 branches missed.">        if (descending)</span>
+<span class="nc" id="L144">            orderby= String.format(&quot;%s desc&quot;,DbContract.ServiceRuns._ID);</span>
+        else
+<span class="nc" id="L146">            orderby= String.format(&quot;%s asc&quot;,DbContract.ServiceRuns._ID);</span>
+
+<span class="nc" id="L148">        String limit = null;</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">        if (maxRecords &gt; 0)</span>
+<span class="nc" id="L150">            limit = String.valueOf(maxRecords);</span>
+
+<span class="nc" id="L152">        return db.query(DbContract.ServiceRuns.TABLE_NAME, null, null, null, null, null, orderby, limit);</span>
+    }
+
+    /**
+     * Insert a row in the serviceruns table
+     * @param db the SQLite connection
+     * @param sr the service run
+     * @return the new run id
+     */
+    public static synchronized long InsertRow(SQLiteDatabase db, ServiceRun sr) {
+<span class="nc" id="L162">        ContentValues vals = new ContentValues();</span>
+<span class="nc" id="L163">        DateFormat format = new SimpleDateFormat(DbContract.DATE_FORMAT, Locale.getDefault());</span>
+<span class="nc bnc" id="L164" title="All 2 branches missed.">        if (sr.getStart() != null)</span>
+<span class="nc" id="L165">            vals.put(DbContract.ServiceRuns.COLUMN_NAME_START,format.format(sr.getStart()));</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">        if (sr.getStop() != null)</span>
+<span class="nc" id="L167">            vals.put(DbContract.ServiceRuns.COLUMN_NAME_STOP,format.format(sr.getStop()));</span>
+<span class="nc" id="L168">        vals.put(DbContract.ServiceRuns.COLUMN_NAME_TOTAL_RECEIVED, sr.getNumReceived());</span>
+<span class="nc" id="L169">        vals.put(DbContract.ServiceRuns.COLUMN_NAME_TOTAL_TRIGGERED, sr.getNumTriggered());</span>
+<span class="nc" id="L170">        return db.insert(DbContract.ServiceRuns.TABLE_NAME, DbContract.ServiceRuns.COLUMN_NAME_STOP, vals);</span>
+    }
+
+    /**
+     * Update a row in the srviceruns table with the stop time and the number of calls and events triggered
+     * @param db db the SQLite connection
+     * @param runid the run id
+     * @param stop the time when the service was stopped
+     * @param numReceived the number of calls received during the service run
+     * @param numTriggered the number of events triggered during the service run
+     * @return the number of rows updated
+     */
+    private static synchronized int UpdateRow(SQLiteDatabase db, long runid, Date stop, int numReceived, int numTriggered) {
+<span class="nc" id="L183">        ContentValues vals = new ContentValues();</span>
+<span class="nc" id="L184">        DateFormat format = new SimpleDateFormat(DbContract.DATE_FORMAT, Locale.getDefault());</span>
+<span class="nc" id="L185">        vals.put(DbContract.ServiceRuns.COLUMN_NAME_STOP,format.format(stop));</span>
+<span class="nc" id="L186">        vals.put(DbContract.ServiceRuns.COLUMN_NAME_TOTAL_RECEIVED, numReceived);</span>
+<span class="nc" id="L187">        vals.put(DbContract.ServiceRuns.COLUMN_NAME_TOTAL_TRIGGERED, numTriggered);</span>
+<span class="nc" id="L188">        String selection = DbContract.ServiceRuns._ID + &quot; = ?&quot;;</span>
+<span class="nc" id="L189">        String[] selectionArgs = { String.valueOf(runid) };</span>
+
+<span class="nc" id="L191">        return db.update(DbContract.ServiceRuns.TABLE_NAME, vals, selection, selectionArgs);</span>
+    }
+
+    /**
+     * Update a row in the srviceruns table while running the service
+     * @param db db the SQLite connection
+     * @param runid the run id
+     * @param numReceived the number of calls received during the service run (negative number to skip this value update)
+     * @param numTriggered the number of events triggered during the service run (negative number to skip this value update)
+     */
+    public static synchronized void UpdateWhileRunning(SQLiteDatabase db, long runid, int numReceived, int numTriggered) {
+<span class="nc" id="L202">        ContentValues vals = new ContentValues();</span>
+<span class="nc" id="L203">        vals.put(DbContract.ServiceRuns.COLUMN_NAME_STOP, RUNNING);</span>
+<span class="nc bnc" id="L204" title="All 2 branches missed.">        if (numReceived &gt;= 0)</span>
+<span class="nc" id="L205">            vals.put(DbContract.ServiceRuns.COLUMN_NAME_TOTAL_RECEIVED, numReceived);</span>
+<span class="nc bnc" id="L206" title="All 2 branches missed.">        if (numTriggered &gt;=0)</span>
+<span class="nc" id="L207">            vals.put(DbContract.ServiceRuns.COLUMN_NAME_TOTAL_TRIGGERED, numTriggered);</span>
+<span class="nc" id="L208">        String selection = DbContract.ServiceRuns._ID + &quot; = ?&quot;;</span>
+<span class="nc" id="L209">        String[] selectionArgs = { String.valueOf(runid) };</span>
+
+<span class="nc" id="L211">        db.update(DbContract.ServiceRuns.TABLE_NAME,vals,selection,selectionArgs);</span>
+<span class="nc" id="L212">    }</span>
+
+    /**
+     * This should be called to initialize the run record on db at service start
+     * @param db the SQLite connection
+     * @return the run id
+     */
+    public static synchronized long InsertAtServiceStart(SQLiteDatabase db) {
+<span class="nc" id="L220">        ServiceRun lrun = LatestRun(db);</span>
+<span class="nc" id="L221">        Calendar cal = Calendar.getInstance(Locale.getDefault());</span>
+<span class="nc" id="L222">        Date start = cal.getTime();</span>
+<span class="nc" id="L223">        return InsertRow(db, new ServiceRun(lrun.getId()+1, start, null, 0, 0));</span>
+    }
+
+    /**
+     * This should be called to complete a service run
+     * @param db the SQLite connection
+     * @param runid the run id
+     * @param numReceived the number of calls received during the service run
+     * @param numTriggered the number of events triggered during the service run
+     */
+    public static synchronized void UpdateAtServiceStop(SQLiteDatabase db, long runid, int numReceived, int numTriggered) {
+<span class="nc" id="L234">        Calendar cal = Calendar.getInstance(Locale.getDefault());</span>
+<span class="nc" id="L235">        Date end = cal.getTime();</span>
+<span class="nc" id="L236">        UpdateRow(db,runid, end,numReceived,numTriggered);</span>
+<span class="nc" id="L237">    }</span>
+
+    private static synchronized void DeleteServiceRun(SQLiteDatabase db, long runid) {
+<span class="nc" id="L240">        String where = DbContract.ServiceRuns._ID + &quot; = ?&quot;;</span>
+<span class="nc" id="L241">        String[] args = {String.valueOf(runid)};</span>
+<span class="nc" id="L242">        db.delete(DbContract.ServiceRuns.TABLE_NAME, where, args);</span>
+<span class="nc" id="L243">    }</span>
+
+    public static synchronized int PurgeLog(SQLiteDatabase db, Context context, String longevity) {
+<span class="nc bnc" id="L246" title="All 2 branches missed.">        String theLongevity = longevity!=null ? longevity : PreferenceHelper.GetLogLongevity(context);</span>
+<span class="nc bnc" id="L247" title="All 2 branches missed.">        if (theLongevity.equals(&quot;no limit&quot;)) return 0;</span>
+<span class="nc" id="L248">        Calendar cal = Calendar.getInstance(Locale.getDefault());</span>
+<span class="nc" id="L249">        cal.setTime(new Date());</span>
+<span class="nc bnc" id="L250" title="All 2 branches missed.">        if (theLongevity.contains(&quot;day&quot;)) cal.add(Calendar.DATE,-1);</span>
+<span class="nc bnc" id="L251" title="All 2 branches missed.">        else if (theLongevity.contains(&quot;week&quot;)) cal.add(Calendar.DATE,-7);</span>
+<span class="nc bnc" id="L252" title="All 2 branches missed.">        else if (theLongevity.contains(&quot;month&quot;)) cal.add(Calendar.MONTH,-1);</span>
+<span class="nc bnc" id="L253" title="All 2 branches missed.">        else if (theLongevity.contains(&quot;year&quot;)) cal.add(Calendar.YEAR,-1);</span>
+        //now delete:
+        //1. first create a map of records to delete
+<span class="nc" id="L256">        Set&lt;Long&gt; candidates = new HashSet&lt;&gt;();</span>
+<span class="nc" id="L257">        Cursor c = LatestRuns(db,-1,false); //everything in ascending order</span>
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        while (c.moveToNext()) {</span>
+<span class="nc" id="L259">            ServiceRun r = deserialize(c);</span>
+<span class="nc bnc" id="L260" title="All 4 branches missed.">            if (r.getStop() != null &amp;&amp; r.getStop().before(cal.getTime()))</span>
+<span class="nc" id="L261">                candidates.add(r.getId());</span>
+<span class="nc" id="L262">        }</span>
+<span class="nc" id="L263">        c.close();</span>
+        //2. now delete service runs and associated calls
+<span class="nc bnc" id="L265" title="All 2 branches missed.">        for (long id : candidates) {</span>
+<span class="nc" id="L266">            DeleteServiceRun(db,id);</span>
+<span class="nc" id="L267">            LoggedCallProvider.DeleteLoggedCallInRun(db,id);</span>
+<span class="nc" id="L268">        }</span>
+<span class="nc" id="L269">        return candidates.size();</span>
+    }
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

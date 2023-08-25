@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LevelOneActivity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">de.lebenshilfe_muenster.uk_gebaerden_muensterland.activities</a> &gt; <span class="el_source">LevelOneActivity.java</span></div><h1>LevelOneActivity.java</h1><pre class="source lang-java linenums">package de.lebenshilfe_muenster.uk_gebaerden_muensterland.activities;
+
+import android.app.Fragment;
+import android.app.FragmentTransaction;
+import android.content.Intent;
+import android.os.Bundle;
+import android.os.Parcelable;
+import android.util.Log;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Validate;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.R;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_browser.video.SignVideoFragment;
+/**
+ * Copyright (c) 2016 Matthias Tonhäuser
+ * &lt;p/&gt;
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * &lt;p/&gt;
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * &lt;p/&gt;
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.
+ */
+<span class="fc" id="L33">public class LevelOneActivity extends AppCompatActivity {</span>
+
+    public static final String FRAGMENT_TO_SHOW = &quot;fragment_to_show&quot;;
+    public static final String EXTRA = &quot;extra&quot;;
+<span class="fc" id="L37">    private static final String TAG = LevelOneActivity.class.getSimpleName();</span>
+    private static final String SIGN_VIDEO_TAG = &quot;sign_video_tag&quot;;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+<span class="fc" id="L42">        Log.d(TAG, &quot;onCreate()&quot;);</span>
+<span class="fc" id="L43">        super.onCreate(savedInstanceState);</span>
+<span class="fc" id="L44">        setupView();</span>
+<span class="fc" id="L45">        setupVideoFragment();</span>
+<span class="fc" id="L46">    }</span>
+
+    private void setupView() {
+<span class="fc" id="L49">        setContentView(R.layout.level_one_activity);</span>
+<span class="fc" id="L50">        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);</span>
+<span class="fc" id="L51">        setSupportActionBar(toolbar);</span>
+<span class="fc" id="L52">        Validate.notNull(getSupportActionBar(), &quot;SupportActionBar is null.&quot;);</span>
+<span class="fc" id="L53">        getSupportActionBar().setDisplayHomeAsUpEnabled(true);</span>
+<span class="fc" id="L54">        getSupportActionBar().setTitle(R.string.sign_viewer);</span>
+<span class="fc" id="L55">    }</span>
+
+    private void setupVideoFragment() {
+<span class="fc" id="L58">        final Intent intent = getIntent();</span>
+<span class="fc" id="L59">        final Bundle bundle = intent.getBundleExtra(EXTRA);</span>
+<span class="fc" id="L60">        Validate.notNull(bundle, &quot;The bundle supplied to the activity is null.&quot;);</span>
+<span class="fc" id="L61">        final String fragmentToShow = bundle.getString(FRAGMENT_TO_SHOW, StringUtils.EMPTY);</span>
+<span class="pc bpc" id="L62" title="1 of 2 branches missed.">        if (SignVideoFragment.class.getSimpleName().equals(fragmentToShow)) {</span>
+<span class="fc" id="L63">            final Parcelable sign = bundle.getParcelable(SignVideoFragment.SIGN_TO_SHOW);</span>
+<span class="fc" id="L64">            SignVideoFragment signVideoFragment = new SignVideoFragment();</span>
+<span class="fc" id="L65">            final Bundle args = new Bundle();</span>
+<span class="fc" id="L66">            args.putParcelable(SignVideoFragment.SIGN_TO_SHOW, sign);</span>
+<span class="fc" id="L67">            signVideoFragment.setArguments(args);</span>
+<span class="fc" id="L68">            setFragment(signVideoFragment, SIGN_VIDEO_TAG);</span>
+<span class="fc" id="L69">        } else {</span>
+<span class="nc" id="L70">            throw new IllegalArgumentException(&quot;Cannot show the fragment with name: &quot; + fragmentToShow);</span>
+        }
+<span class="fc" id="L72">    }</span>
+
+    private void setFragment(Fragment fragment, String fragmentTag) {
+<span class="fc" id="L75">        Log.d(TAG, &quot;setFragment: &quot; + fragmentTag);</span>
+<span class="fc" id="L76">        final FragmentTransaction transaction = getFragmentManager().beginTransaction();</span>
+<span class="fc" id="L77">        transaction.replace(R.id.content_frame_level_one, fragment, fragmentTag);</span>
+<span class="fc" id="L78">        transaction.addToBackStack(null);</span>
+<span class="fc" id="L79">        transaction.commit();</span>
+<span class="fc" id="L80">    }</span>
+
+    @Override
+    public void onBackPressed() {
+<span class="fc" id="L84">        Log.d(TAG, &quot;onBackPressed() &quot; + this.hashCode());</span>
+<span class="fc" id="L85">        finish();</span>
+<span class="fc" id="L86">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

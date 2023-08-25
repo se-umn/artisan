@@ -1,0 +1,412 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NewEditFilterRule.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker</a> &gt; <span class="el_source">NewEditFilterRule.java</span></div><h1>NewEditFilterRule.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker;
+
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.backup.BackupManager;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.database.sqlite.SQLiteDatabase;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.os.Parcelable;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
+import android.webkit.WebView;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import com.prismaqf.callblocker.rules.FilterRule;
+import com.prismaqf.callblocker.sql.DbHelper;
+import com.prismaqf.callblocker.sql.FilterProvider;
+import com.prismaqf.callblocker.sql.FilterRuleProvider;
+
+import java.util.ArrayList;
+import java.util.Locale;
+
+/**
+ * Class to create and edit a filter rule
+ * Created by ConteDiMonteCristo.
+ */
+<span class="fc" id="L36">public class NewEditFilterRule extends NewEditActivity {</span>
+
+
+    private static final int EDIT_PATTERNS = 1001;
+
+    private class DbOperation extends AsyncTask&lt;FilterRule, Void, FilterRule&gt; {
+
+        private final String action;
+        private final long ruleid;
+<span class="nc" id="L45">        private boolean cantDelete = false;</span>
+
+<span class="nc" id="L47">        DbOperation(String action, long ruleid) {</span>
+<span class="nc" id="L48">            this.action = action;</span>
+<span class="nc" id="L49">            this.ruleid = ruleid;</span>
+<span class="nc" id="L50">        }</span>
+        @Override
+        protected FilterRule doInBackground(FilterRule... rules) {
+<span class="nc" id="L53">            SQLiteDatabase db = new DbHelper(NewEditFilterRule.this).getWritableDatabase();</span>
+<span class="nc" id="L54">            FilterRule rule = rules[0];</span>
+            try {
+<span class="nc bnc" id="L56" title="All 3 branches missed.">                switch (action) {</span>
+                    case NewEditActivity.ACTION_CREATE:
+<span class="nc" id="L58">                        FilterRuleProvider.InsertRow(db, rule);</span>
+<span class="nc" id="L59">                        break;</span>
+                    case NewEditActivity.ACTION_EDIT:
+<span class="nc" id="L61">                        FilterRuleProvider.UpdateFilterRule(db, ruleid, rule);</span>
+<span class="nc bnc" id="L62" title="All 4 branches missed.">                        if (CallHelper.IsRunning() &amp;&amp; FilterProvider.HasFilterRule(db,rule.getName()))</span>
+<span class="nc" id="L63">                            CallHelper.GetHelper().loadFilters(NewEditFilterRule.this);</span>
+                        break;
+                    default:
+<span class="nc bnc" id="L66" title="All 2 branches missed.">                        if (FilterProvider.HasFilterRule(db,rule.getName())) {</span>
+<span class="nc" id="L67">                            cantDelete = true;</span>
+                        } else
+<span class="nc" id="L69">                            FilterRuleProvider.DeleteFilterRule(db, ruleid);</span>
+                        break;
+                }
+            }
+            finally {
+<span class="nc" id="L74">                db.close();</span>
+<span class="nc" id="L75">                BackupManager.dataChanged(NewEditFilterRule.this.getPackageName());</span>
+            }
+<span class="nc" id="L77">            return rule;</span>
+        }
+
+        @Override
+        protected void onPostExecute (FilterRule rule) {
+<span class="nc bnc" id="L82" title="All 2 branches missed.">            if (cantDelete) {</span>
+<span class="nc" id="L83">                Toast.makeText(getBaseContext(), getString(R.string.msg_can_not_delete_rule), Toast.LENGTH_LONG).show();</span>
+            }
+<span class="nc bnc" id="L85" title="All 2 branches missed.">            else if (myContext.equals(CONTEXT_PICK)) {</span>
+<span class="nc" id="L86">                Intent resultIntent = new Intent();</span>
+<span class="nc" id="L87">                resultIntent.putExtra(KEY_RULENAME,rule.getName());</span>
+<span class="nc" id="L88">                setResult(Activity.RESULT_OK,resultIntent);</span>
+<span class="nc" id="L89">                finish();</span>
+<span class="nc" id="L90">            }</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">            else if (myContext.equals(CONTEXT_EDIT)) {</span>
+<span class="nc" id="L92">                Intent resultIntent = new Intent();</span>
+<span class="nc" id="L93">                setResult(Activity.RESULT_OK,resultIntent);</span>
+<span class="nc" id="L94">                finish();</span>
+<span class="nc" id="L95">            }</span>
+<span class="nc bnc" id="L96" title="All 2 branches missed.">            else if (myContext.equals(CONTEXT_SAVE)) {</span>
+<span class="nc" id="L97">                myContext = CONTEXT_EDIT;</span>
+<span class="nc" id="L98">                Intent intent = new Intent(NewEditFilterRule.this, NewEditFilterRule.class);</span>
+<span class="nc" id="L99">                intent.putExtra(NewEditActivity.KEY_NEW, (Parcelable)myNewRule);</span>
+<span class="nc" id="L100">                intent.putExtra(NewEditActivity.KEY_ORIG, (Parcelable)myOrigRule);</span>
+<span class="nc" id="L101">                intent.putExtra(NewEditActivity.KEY_ACTION, ACTION_EDIT);</span>
+<span class="nc" id="L102">                intent.putExtra(NewEditActivity.KEY_ISNAMEVALID, isNameValid);</span>
+<span class="nc" id="L103">                intent.putExtra(NewEditActivity.KEY_RULENAMES, myRuleNames);</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">                intent.putExtra(NewEditActivity.KEY_PTRULE, ptRule == myOrigRule ? &quot;Original&quot; : &quot;New&quot;);</span>
+<span class="nc" id="L105">                startActivity(intent);</span>
+<span class="nc" id="L106">            }</span>
+            else {
+<span class="nc" id="L108">                Intent intent = new Intent(NewEditFilterRule.this, EditFilterRules.class);</span>
+<span class="nc" id="L109">                startActivity(intent);</span>
+            }
+<span class="nc" id="L111">        }</span>
+    }
+<span class="fc" id="L113">    private static final String TAG = NewEditFilterRule.class.getCanonicalName();</span>
+
+    private EditText ed_name, ed_description;
+    private Button bn_managePatterns;
+    private TextView tv_patterns, tv_validation;
+    private ArrayList&lt;String&gt; myRuleNames;
+    private String myAction, myContext;
+    private FilterRule myNewRule, myOrigRule, ptRule;  //ptRule is an alias to the active rule
+<span class="fc" id="L121">    private boolean isNameValid = true;</span>
+<span class="fc" id="L122">    private long myRuleId=0;</span>
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+<span class="fc" id="L126">        super.onCreate(savedInstanceState);</span>
+<span class="fc" id="L127">        setContentView(R.layout.filter_rule_edit);</span>
+
+<span class="fc" id="L129">        ed_name = (EditText) findViewById(R.id.edit_filter_rule_name);</span>
+<span class="pc bpc" id="L130" title="1 of 2 branches missed.">        if (ed_name != null) ed_name.clearFocus();</span>
+<span class="fc" id="L131">        ed_description = (EditText) findViewById(R.id.edit_filter_rule_description);</span>
+<span class="fc" id="L132">        bn_managePatterns = (Button) findViewById(R.id.bt_filter_rule_patterns);</span>
+<span class="fc" id="L133">        tv_patterns = (TextView) findViewById(R.id.tx_rule_description);</span>
+<span class="fc" id="L134">        tv_validation = (TextView) findViewById(R.id.tx_filter_rule_validation);</span>
+
+<span class="fc" id="L136">        Intent intent = getIntent();</span>
+<span class="fc" id="L137">        myRuleNames = intent.getStringArrayListExtra(KEY_RULENAMES);</span>
+        //ACTION UPDATE
+<span class="pc bpc" id="L139" title="1 of 2 branches missed.">        if (intent.hasExtra(NewEditActivity.KEY_ACTION) &amp;&amp;</span>
+<span class="nc bnc" id="L140" title="All 2 branches missed.">            intent.getStringExtra(NewEditActivity.KEY_ACTION).equals(NewEditActivity.ACTION_UPDATE)) {</span>
+<span class="nc" id="L141">            myOrigRule = intent.getParcelableExtra(NewEditActivity.KEY_ORIG);</span>
+            try {
+<span class="nc" id="L143">                myNewRule  = (FilterRule)myOrigRule.clone();</span>
+<span class="nc" id="L144">            } catch (CloneNotSupportedException e) {</span>
+<span class="nc" id="L145">                Log.e(TAG, &quot;Could not clone original rule&quot;);</span>
+<span class="nc" id="L146">                myNewRule =  intent.getParcelableExtra(NewEditActivity.KEY_ORIG);</span>
+<span class="nc" id="L147">            }</span>
+<span class="nc" id="L148">            myRuleId = intent.getLongExtra(NewEditActivity.KEY_RULEID,0);</span>
+<span class="nc" id="L149">            ptRule = myOrigRule;</span>
+<span class="nc" id="L150">            myAction = NewEditActivity.ACTION_UPDATE;</span>
+
+<span class="nc" id="L152">            enableWidgets(false,false);</span>
+
+        }
+        //ACTION_EDIT
+<span class="pc bpc" id="L156" title="1 of 2 branches missed.">        else if (intent.hasExtra(NewEditActivity.KEY_ACTION) &amp;&amp;</span>
+<span class="nc bnc" id="L157" title="All 2 branches missed.">                 intent.getStringExtra(NewEditActivity.KEY_ACTION).equals(NewEditActivity.ACTION_EDIT)) {</span>
+<span class="nc" id="L158">            myOrigRule = intent.getParcelableExtra(NewEditActivity.KEY_ORIG);</span>
+<span class="nc" id="L159">            myNewRule = intent.getParcelableExtra(NewEditActivity.KEY_NEW);</span>
+<span class="nc" id="L160">            myRuleId = intent.getLongExtra(NewEditActivity.KEY_RULEID,0);</span>
+<span class="nc" id="L161">            ptRule = myNewRule;</span>
+<span class="nc" id="L162">            myAction = NewEditActivity.ACTION_EDIT;</span>
+
+<span class="nc" id="L164">            enableWidgets(false,true);</span>
+        }
+        //ACTION_CREATE
+        else {
+<span class="fc" id="L168">            myNewRule = new FilterRule(&quot;dummy&quot;,&quot;change me&quot;);</span>
+<span class="fc" id="L169">            myOrigRule = null;</span>
+<span class="fc" id="L170">            ptRule = myNewRule;</span>
+<span class="fc" id="L171">            myAction = NewEditActivity.ACTION_CREATE;</span>
+
+<span class="fc" id="L173">            enableWidgets(true,true);</span>
+        }
+<span class="fc" id="L175">        tv_patterns.setText(makeRuleDescription());</span>
+
+<span class="fc" id="L177">        ed_description.addTextChangedListener(new TextWatcher() {</span>
+            @Override
+<span class="fc" id="L179">            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}</span>
+
+            @Override
+<span class="fc" id="L182">            public void onTextChanged(CharSequence s, int start, int before, int count) {}</span>
+
+            @Override
+            public void afterTextChanged(Editable s) {
+<span class="pc bpc" id="L186" title="1 of 2 branches missed.">                if (ptRule != null)</span>
+<span class="fc" id="L187">                    ptRule.setDescription(ed_description.getText().toString());</span>
+<span class="fc" id="L188">                    validateActions();</span>
+<span class="fc" id="L189">            }</span>
+        });
+
+<span class="pc bpc" id="L192" title="1 of 2 branches missed.">        myContext = intent.hasExtra(KEY_CONTEXT)? intent.getStringExtra(KEY_CONTEXT): &quot;none&quot;;</span>
+
+<span class="pc bpc" id="L194" title="1 of 2 branches missed.">        if (getSupportActionBar()!=null)</span>
+<span class="fc" id="L195">            getSupportActionBar().setDisplayHomeAsUpEnabled(true);</span>
+<span class="fc" id="L196">    }</span>
+
+    private String makeRuleDescription() {
+<span class="fc" id="L199">        StringBuilder builder = new StringBuilder(&quot;Patterns in rule. &quot;);</span>
+<span class="pc bpc" id="L200" title="1 of 2 branches missed.">        if (ptRule!=null) {</span>
+<span class="fc" id="L201">            builder.append(String.format(Locale.getDefault(),&quot;Total of %d\n&quot;,ptRule.getPatternKeys().size()));</span>
+<span class="fc" id="L202">            int i=0;</span>
+<span class="fc bfc" id="L203" title="All 2 branches covered.">            for (String p : ptRule.getPatternKeys()){</span>
+<span class="fc" id="L204">                builder.append(p);</span>
+<span class="fc" id="L205">                builder.append(&quot;  &quot;);</span>
+<span class="fc" id="L206">                i++;</span>
+<span class="pc bpc" id="L207" title="1 of 2 branches missed.">                if (i&gt;10) {</span>
+<span class="nc" id="L208">                    builder.append(&quot;...&quot;);</span>
+<span class="nc" id="L209">                    break;</span>
+                }
+<span class="fc" id="L211">            }</span>
+        }
+<span class="fc" id="L213">        return builder.toString();</span>
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+<span class="fc" id="L218">        savedInstanceState.putParcelable(NewEditActivity.KEY_NEW, myNewRule);</span>
+<span class="fc" id="L219">        savedInstanceState.putParcelable(NewEditActivity.KEY_ORIG, myOrigRule);</span>
+<span class="fc" id="L220">        savedInstanceState.putString(NewEditActivity.KEY_ACTION, myAction);</span>
+<span class="fc" id="L221">        savedInstanceState.putBoolean(NewEditActivity.KEY_ISNAMEVALID, isNameValid);</span>
+<span class="fc" id="L222">        savedInstanceState.putStringArrayList(NewEditActivity.KEY_RULENAMES, myRuleNames);</span>
+<span class="pc bpc" id="L223" title="1 of 2 branches missed.">        savedInstanceState.putString(NewEditActivity.KEY_PTRULE, ptRule == myOrigRule ? &quot;Original&quot; : &quot;New&quot;);</span>
+
+<span class="fc" id="L225">        super.onSaveInstanceState(savedInstanceState);</span>
+<span class="fc" id="L226">    }</span>
+
+    @Override
+    public void onRestoreInstanceState(Bundle savedInstanceState) {
+<span class="nc" id="L230">        super.onRestoreInstanceState(savedInstanceState);</span>
+<span class="nc" id="L231">        myNewRule = savedInstanceState.getParcelable(NewEditActivity.KEY_NEW);</span>
+<span class="nc" id="L232">        myOrigRule = savedInstanceState.getParcelable(NewEditActivity.KEY_ORIG);</span>
+<span class="nc" id="L233">        myAction = savedInstanceState.getString(NewEditActivity.KEY_ACTION);</span>
+<span class="nc" id="L234">        isNameValid = savedInstanceState.getBoolean(NewEditActivity.KEY_ISNAMEVALID);</span>
+<span class="nc" id="L235">        myRuleNames = savedInstanceState.getStringArrayList(NewEditActivity.KEY_RULENAMES);</span>
+<span class="nc" id="L236">        String rule = savedInstanceState.getString(NewEditActivity.KEY_PTRULE,&quot;&quot;);</span>
+<span class="nc bnc" id="L237" title="All 2 branches missed.">        if (rule.equals(&quot;Original&quot;))</span>
+<span class="nc" id="L238">            ptRule = myOrigRule;</span>
+        else
+<span class="nc" id="L240">            ptRule = myNewRule;</span>
+<span class="nc" id="L241">    }</span>
+
+    @Override
+    protected void save() {
+<span class="nc" id="L245">        new DbOperation(myAction,myRuleId).execute(ptRule);</span>
+<span class="nc" id="L246">    }</span>
+
+    @Override
+    protected void change() {
+<span class="nc" id="L250">        myAction = NewEditActivity.ACTION_EDIT;</span>
+<span class="nc" id="L251">        ptRule = myNewRule;</span>
+<span class="nc" id="L252">        enableWidgets(false, true);</span>
+<span class="nc" id="L253">        validateActions();</span>
+<span class="nc" id="L254">    }</span>
+
+    @Override
+    protected void undo() {
+<span class="nc" id="L258">        myAction = NewEditActivity.ACTION_UPDATE;</span>
+<span class="nc" id="L259">        ptRule = myOrigRule;</span>
+        try {
+<span class="nc" id="L261">            myNewRule  = (FilterRule)myOrigRule.clone();</span>
+<span class="nc" id="L262">        } catch (CloneNotSupportedException e) {</span>
+<span class="nc" id="L263">            Log.e(TAG, &quot;Could not clone original rule&quot;);</span>
+<span class="nc" id="L264">        }</span>
+<span class="nc" id="L265">        refreshWidgets(true);</span>
+<span class="nc" id="L266">        enableWidgets(false, false);</span>
+<span class="nc" id="L267">    }</span>
+
+    @Override
+    protected void delete() {
+<span class="nc" id="L271">        new AlertDialog.Builder(this)</span>
+<span class="nc" id="L272">                .setMessage(R.string.tx_rule_delete_confirm)</span>
+<span class="nc" id="L273">                .setCancelable(false)</span>
+<span class="nc" id="L274">                .setPositiveButton(R.string.bt_yes_delete, new DialogInterface.OnClickListener() {</span>
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+<span class="nc" id="L277">                        new DbOperation(NewEditActivity.ACTION_DELETE, myRuleId).execute(ptRule);</span>
+<span class="nc" id="L278">                    }</span>
+                })
+<span class="nc" id="L280">                .setNegativeButton(R.string.bt_no_keep,null)</span>
+<span class="nc" id="L281">                .show();</span>
+<span class="nc" id="L282">    }</span>
+
+    @Override
+    protected void help() {
+<span class="nc" id="L286">        AlertDialog.Builder alert = new AlertDialog.Builder(this);</span>
+<span class="nc" id="L287">        alert.setTitle(R.string.tx_filter_rule_help_title);</span>
+
+<span class="nc" id="L289">        WebView wv = new WebView(this);</span>
+<span class="nc" id="L290">        wv.loadUrl(&quot;file:///android_asset/html/filter_rule_edit.html&quot;);</span>
+<span class="nc" id="L291">        ScrollView scroll = new ScrollView(this);</span>
+<span class="nc" id="L292">        scroll.setVerticalScrollBarEnabled(true);</span>
+<span class="nc" id="L293">        scroll.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,</span>
+                ViewGroup.LayoutParams.MATCH_PARENT));
+<span class="nc" id="L295">        scroll.addView(wv);</span>
+
+<span class="nc" id="L297">        alert.setView(scroll);</span>
+<span class="nc" id="L298">        alert.setNegativeButton(&quot;Close&quot;, new DialogInterface.OnClickListener() {</span>
+            @Override
+            public void onClick(DialogInterface dialog, int id) {
+<span class="nc" id="L301">                dialog.dismiss();</span>
+<span class="nc" id="L302">            }</span>
+        });
+<span class="nc" id="L304">        alert.show();</span>
+<span class="nc" id="L305">    }</span>
+
+    @Override
+    protected boolean hasChanged() {
+<span class="nc bnc" id="L309" title="All 4 branches missed.">        return ptRule!=null &amp;&amp; !ptRule.equals(myOrigRule);</span>
+    }
+
+    @Override
+    protected RuleNameValidator getRuleNameValidator() {
+<span class="fc" id="L314">        return new RuleNameValidator(ed_name, tv_validation, myRuleNames) {</span>
+            @Override
+            public void validate(TextView source, TextView target, ArrayList&lt;String&gt; names, String text) {
+<span class="fc" id="L317">                ptRule.setName(text);</span>
+<span class="pc bpc" id="L318" title="1 of 2 branches missed.">                if (source.getText().toString().equals(&quot;&quot;)) {</span>
+<span class="nc" id="L319">                    target.setText(R.string.tx_validation_rule_name_empty);</span>
+<span class="nc" id="L320">                    mi_save.setVisible(false);</span>
+<span class="nc" id="L321">                    isNameValid = false;</span>
+<span class="nc" id="L322">                    return;</span>
+                }
+<span class="pc bpc" id="L324" title="3 of 4 branches missed.">                if (names!= null &amp;&amp; names.contains(source.getText().toString())) {</span>
+<span class="nc" id="L325">                    target.setText(R.string.tx_validation_rule_name_used);</span>
+<span class="nc" id="L326">                    mi_save.setVisible(false);</span>
+<span class="nc" id="L327">                    isNameValid = false;</span>
+<span class="nc" id="L328">                    return;</span>
+                }
+<span class="fc" id="L330">                mi_save.setVisible(true);</span>
+<span class="fc" id="L331">                target.setText(R.string.tx_validation_rule_valid);</span>
+<span class="fc" id="L332">                isNameValid = true;</span>
+<span class="fc" id="L333">            }</span>
+        };
+    }
+
+    @Override
+    protected EditText getNameEditField() {
+<span class="fc" id="L339">        return ed_name;</span>
+    }
+
+    @Override
+    protected String getAction() {
+<span class="fc" id="L344">        return myAction;</span>
+    }
+
+    @Override
+    protected void validateActions() {
+<span class="pc bpc" id="L349" title="4 of 8 branches missed.">        if (mi_save==null || mi_delete ==null || mi_change == null || mi_undo == null) return;</span>
+        //Save only valie in EDIT or CREATE mode, when the data has change and the name is valid
+<span class="pc bpc" id="L351" title="1 of 2 branches missed.">        mi_save.setVisible((myAction.equals(NewEditActivity.ACTION_EDIT) ||</span>
+<span class="pc bpc" id="L352" title="1 of 2 branches missed.">                myAction.equals(NewEditActivity.ACTION_CREATE)) &amp;&amp;</span>
+<span class="pc bpc" id="L353" title="2 of 4 branches missed.">                !myNewRule.equals(myOrigRule) &amp;&amp; isNameValid);</span>
+        //Delete only valid in UPDATE mode
+<span class="pc bpc" id="L355" title="3 of 4 branches missed.">        mi_delete.setVisible(myAction.equals(NewEditActivity.ACTION_UPDATE) &amp;&amp; ptRule == myOrigRule);</span>
+        //Change only valid in UPDATE mode
+<span class="pc bpc" id="L357" title="3 of 4 branches missed.">        mi_change.setVisible(myAction.equals(NewEditActivity.ACTION_UPDATE) &amp;&amp; ptRule == myOrigRule);</span>
+<span class="pc bpc" id="L358" title="3 of 4 branches missed.">        mi_change.setVisible(myAction.equals(NewEditActivity.ACTION_UPDATE) &amp;&amp; ptRule == myOrigRule);</span>
+        //Undo only valid in EDIT mode where there have been changes
+<span class="pc bpc" id="L360" title="3 of 4 branches missed.">        mi_undo.setVisible(myAction.equals(NewEditActivity.ACTION_EDIT) &amp;&amp;</span>
+                ptRule == myNewRule &amp;&amp;
+<span class="pc bnc" id="L362" title="All 4 branches missed.">                !myNewRule.equals(myOrigRule) &amp;&amp;</span>
+                isNameValid);
+<span class="pc bpc" id="L364" title="1 of 2 branches missed.">        if (myAction.equals(NewEditActivity.ACTION_EDIT)) {</span>
+<span class="nc bnc" id="L365" title="All 2 branches missed.">            if (myNewRule.equals(myOrigRule))</span>
+<span class="nc" id="L366">                tv_validation.setText(R.string.tx_validation_rule_no_changes);</span>
+            else
+<span class="nc" id="L368">                tv_validation.setText(R.string.tx_validation_rule_has_changed);</span>
+        }
+<span class="fc" id="L370">    }</span>
+
+    @Override
+    protected void enableWidgets(boolean nameFlag, boolean widgetFlag) {
+<span class="fc" id="L374">        ed_name.setEnabled(nameFlag);</span>
+<span class="fc" id="L375">        ed_description.setEnabled(widgetFlag);</span>
+<span class="fc" id="L376">        bn_managePatterns.setEnabled(widgetFlag);</span>
+<span class="fc" id="L377">        tv_patterns.setEnabled(widgetFlag);</span>
+<span class="fc" id="L378">        tv_validation.setEnabled(widgetFlag);</span>
+<span class="fc" id="L379">    }</span>
+
+    @Override
+    void refreshWidgets(boolean validate) {
+<span class="fc" id="L383">        ed_name.setText(ptRule.getName());</span>
+<span class="fc" id="L384">        ed_description.setText(ptRule.getDescription());</span>
+<span class="fc" id="L385">        tv_patterns.setText(makeRuleDescription());</span>
+<span class="fc" id="L386">        super.refreshWidgets(validate);</span>
+<span class="fc" id="L387">    }</span>
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+<span class="pc bpc" id="L391" title="2 of 4 branches missed.">        if (resultCode == Activity.RESULT_OK &amp;&amp; requestCode == EDIT_PATTERNS) {</span>
+<span class="fc" id="L392">            FilterRule updatedRule = data.getParcelableExtra(KEY_PTRULE);</span>
+<span class="fc" id="L393">            ptRule.clearPatterns();</span>
+<span class="fc bfc" id="L394" title="All 2 branches covered.">            for(String pattern: updatedRule.getPatternKeys())</span>
+<span class="fc" id="L395">                ptRule.addPattern(pattern);</span>
+<span class="fc" id="L396">            refreshWidgets(true);</span>
+<span class="pc bpc" id="L397" title="5 of 6 branches missed.">            if (!myAction.equals(ACTION_CREATE) &amp;&amp; mi_save != null &amp;&amp; mi_save.isVisible()) {</span>
+<span class="nc" id="L398">                myContext = CONTEXT_SAVE;</span>
+<span class="nc" id="L399">                save();</span>
+            }
+
+        }
+<span class="fc" id="L403">    }</span>
+
+    public void onManagePatterns(View view) {
+<span class="fc" id="L406">        Intent intent = new Intent(this, EditFilterPatterns.class);</span>
+<span class="fc" id="L407">        intent.putExtra(KEY_PTRULE,(Parcelable)ptRule);</span>
+<span class="fc" id="L408">        intent.putExtra(KEY_ORIG,(Parcelable)ptRule);</span>
+<span class="fc" id="L409">        startActivityForResult(intent,EDIT_PATTERNS);</span>
+<span class="fc" id="L410">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

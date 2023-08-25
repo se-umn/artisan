@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SongPersistenceHSQLDB.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.persistence.hsqldb</a> &gt; <span class="el_source">SongPersistenceHSQLDB.java</span></div><h1>SongPersistenceHSQLDB.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.persistence.hsqldb;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+import fifthelement.theelement.objects.Album;
+import fifthelement.theelement.objects.Author;
+import fifthelement.theelement.objects.Song;
+import fifthelement.theelement.persistence.SongPersistence;
+
+public class SongPersistenceHSQLDB implements SongPersistence {
+
+    private Connection c;
+
+<span class="fc" id="L22">    public SongPersistenceHSQLDB(final String dbPath) {</span>
+        try {
+<span class="fc" id="L24">            this.c = DriverManager.getConnection(&quot;jdbc:hsqldb:file:&quot; + dbPath, &quot;SA&quot;, &quot;&quot;);</span>
+<span class="nc" id="L25">        } catch (final SQLException e) {</span>
+<span class="nc" id="L26">            throw new PersistenceException(e);</span>
+<span class="fc" id="L27">        }</span>
+
+<span class="fc" id="L29">    }</span>
+
+    private Song fromResultSet(final ResultSet rs) throws SQLException {
+<span class="fc" id="L32">        final UUID songUUID = UUID.fromString(rs.getString(&quot;songUUID&quot;));</span>
+<span class="fc" id="L33">        final String songName = rs.getString(&quot;songName&quot;);</span>
+<span class="fc" id="L34">        final String songPath = rs.getString(&quot;songPath&quot;);</span>
+<span class="fc" id="L35">        final String authorUUID = rs.getString(&quot;authorUUID&quot;);</span>
+<span class="fc" id="L36">        final String albumUUID = rs.getString(&quot;albumUUID&quot;);</span>
+<span class="fc" id="L37">        Author songAuthor = null;</span>
+<span class="fc" id="L38">        Album songAlbum = null;</span>
+<span class="pc bpc" id="L39" title="1 of 4 branches missed.">        if(authorUUID != null &amp;&amp; authorUUID.length() == 36)</span>
+<span class="fc" id="L40">            songAuthor = new Author(UUID.fromString(authorUUID), &quot;&quot;);</span>
+<span class="pc bpc" id="L41" title="1 of 4 branches missed.">        if(albumUUID != null &amp;&amp; albumUUID.length() == 36)</span>
+<span class="fc" id="L42">            songAlbum = new Album(UUID.fromString(albumUUID), &quot;&quot;);</span>
+<span class="fc" id="L43">        final String songGenre = rs.getString(&quot;songGenre&quot;);</span>
+<span class="fc" id="L44">        final int numPlayed = rs.getInt(&quot;numPlayed&quot;);</span>
+<span class="fc" id="L45">        final double songRating = rs.getDouble(&quot;songRating&quot;);</span>
+<span class="fc" id="L46">        return new Song(songUUID, songName, songPath, songAuthor, songAlbum, songGenre, numPlayed, songRating);</span>
+    }
+
+
+    @Override
+    public List&lt;Song&gt; getAllSongs() {
+
+<span class="fc" id="L53">        final List&lt;Song&gt; songs = new ArrayList&lt;&gt;();</span>
+
+        try
+        {
+<span class="fc" id="L57">            final Statement st = c.createStatement();</span>
+<span class="fc" id="L58">            final ResultSet rs = st.executeQuery(&quot;SELECT * FROM songs&quot;);</span>
+<span class="fc bfc" id="L59" title="All 2 branches covered.">            while (rs.next())</span>
+            {
+<span class="fc" id="L61">                final Song song = fromResultSet(rs);</span>
+<span class="fc" id="L62">                songs.add(song);</span>
+<span class="fc" id="L63">            }</span>
+
+<span class="fc" id="L65">            rs.close();</span>
+<span class="fc" id="L66">            st.close();</span>
+
+<span class="fc" id="L68">            return songs;</span>
+        }
+<span class="nc" id="L70">        catch (final SQLException e)</span>
+        {
+<span class="nc" id="L72">            throw new PersistenceException(e);</span>
+        }
+
+    }
+
+    @Override
+    public Song getSongByUUID(final UUID uuid) {
+        try {
+<span class="fc" id="L80">            final PreparedStatement st = c.prepareStatement(&quot;SELECT * FROM songs WHERE songUUID = ?&quot;);</span>
+<span class="fc" id="L81">            st.setString(1, uuid.toString());</span>
+
+<span class="fc" id="L83">            Song song = null;</span>
+<span class="fc" id="L84">            final ResultSet rs = st.executeQuery();</span>
+<span class="pc bpc" id="L85" title="1 of 2 branches missed.">            if(rs.next()) {</span>
+<span class="fc" id="L86">                song = fromResultSet(rs);</span>
+            }
+<span class="fc" id="L88">            rs.close();</span>
+<span class="fc" id="L89">            st.close();</span>
+
+<span class="fc" id="L91">            return song;</span>
+<span class="nc" id="L92">        } catch (final SQLException e) {</span>
+<span class="nc" id="L93">            throw new PersistenceException(e);</span>
+        }
+
+    }
+
+    @Override
+    public List&lt;Song&gt; getSongsByAuthorUUID(final UUID uuid) {
+
+<span class="nc" id="L101">        final List&lt;Song&gt; songs = new ArrayList&lt;&gt;();</span>
+
+        try
+        {
+<span class="nc" id="L105">            final PreparedStatement st = c.prepareStatement(&quot;SELECT * FROM songs WHERE albumUUID = ?&quot;);</span>
+<span class="nc" id="L106">            st.setString(1, uuid.toString());</span>
+<span class="nc" id="L107">            final ResultSet rs = st.executeQuery();</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">            while (rs.next())</span>
+            {
+<span class="nc" id="L110">                final Song song = fromResultSet(rs);</span>
+<span class="nc" id="L111">                songs.add(song);</span>
+<span class="nc" id="L112">            }</span>
+
+<span class="nc" id="L114">            rs.close();</span>
+<span class="nc" id="L115">            st.close();</span>
+
+<span class="nc" id="L117">            return songs;</span>
+        }
+<span class="nc" id="L119">        catch (final SQLException e)</span>
+        {
+<span class="nc" id="L121">            throw new PersistenceException(e);</span>
+        }
+
+    }
+
+    @Override
+    public List&lt;Song&gt; getSongsByAlbumUUID(final UUID uuid) {
+
+<span class="fc" id="L129">        final List&lt;Song&gt; songs = new ArrayList&lt;&gt;();</span>
+
+        try
+        {
+<span class="fc" id="L133">            final PreparedStatement st = c.prepareStatement(&quot;SELECT * FROM songs WHERE authorUUID = ?&quot;);</span>
+<span class="fc" id="L134">            st.setString(1, uuid.toString());</span>
+<span class="fc" id="L135">            final ResultSet rs = st.executeQuery();</span>
+<span class="pc bpc" id="L136" title="1 of 2 branches missed.">            while (rs.next())</span>
+            {
+<span class="nc" id="L138">                final Song song = fromResultSet(rs);</span>
+<span class="nc" id="L139">                songs.add(song);</span>
+<span class="nc" id="L140">            }</span>
+
+<span class="fc" id="L142">            rs.close();</span>
+<span class="fc" id="L143">            st.close();</span>
+
+<span class="fc" id="L145">            return songs;</span>
+        }
+<span class="nc" id="L147">        catch (final SQLException e)</span>
+        {
+<span class="nc" id="L149">            throw new PersistenceException(e);</span>
+        }
+
+    }
+
+    @Override
+    public boolean storeSong(Song song) throws PersistenceException {
+        try {
+<span class="nc" id="L157">            final PreparedStatement st = c.prepareStatement(&quot;INSERT INTO songs VALUES(?, ?, ?, ?, ?, ?, ?, ?)&quot;);</span>
+<span class="nc" id="L158">            st.setString(1, song.getUUID().toString());</span>
+<span class="nc" id="L159">            st.setString(2, song.getName());</span>
+<span class="nc" id="L160">            st.setString(3, song.getPath());</span>
+<span class="nc bnc" id="L161" title="All 2 branches missed.">            if(song.getAuthor() != null)</span>
+<span class="nc" id="L162">                st.setString(4, song.getAuthor().getUUID().toString());</span>
+            else
+<span class="nc" id="L164">                st.setString(4, null);</span>
+<span class="nc bnc" id="L165" title="All 2 branches missed.">            if(song.getAlbum() != null)</span>
+<span class="nc" id="L166">                st.setString(5, song.getAlbum().getUUID().toString());</span>
+            else
+<span class="nc" id="L168">                st.setString(5, null);</span>
+<span class="nc" id="L169">            st.setString(6, song.getGenre());</span>
+<span class="nc" id="L170">            st.setInt(7, song.getNumPlayed());</span>
+<span class="nc" id="L171">            st.setDouble(8, song.getRating());</span>
+
+<span class="nc" id="L173">            st.executeUpdate();</span>
+
+<span class="nc" id="L175">            return true;</span>
+<span class="nc" id="L176">        } catch (final SQLException e) {</span>
+<span class="nc" id="L177">            throw new PersistenceException(e);</span>
+        }
+
+    }
+
+    @Override
+    public boolean updateSong(Song song) throws IllegalArgumentException {
+        try {
+<span class="pc bpc" id="L185" title="1 of 2 branches missed.">            if(songExists(song)) {</span>
+<span class="fc" id="L186">                final PreparedStatement st = c.prepareStatement(&quot;UPDATE songs SET songName = ?, songPath = ?, authorUUID = ?, albumUUID = ?, songGenre = ?, numPlayed = ?, songRating = ? WHERE songUUID = ?&quot;);</span>
+<span class="fc" id="L187">                st.setString(1, song.getName());</span>
+<span class="fc" id="L188">                st.setString(2, song.getPath());</span>
+<span class="pc bpc" id="L189" title="1 of 2 branches missed.">                if (song.getAuthor() != null) {</span>
+<span class="fc" id="L190">                    st.setString(3, song.getAuthor().getUUID().toString());</span>
+                } else {
+<span class="nc" id="L192">                    st.setString(3, null);</span>
+                }
+
+<span class="pc bpc" id="L195" title="1 of 2 branches missed.">                if (song.getAlbum() != null) {</span>
+<span class="fc" id="L196">                    st.setString(4, song.getAlbum().getUUID().toString());</span>
+                } else {
+<span class="nc" id="L198">                    st.setString(4, null);</span>
+                }
+
+<span class="fc" id="L201">                st.setString(5, song.getGenre());</span>
+<span class="fc" id="L202">                st.setInt(6, song.getNumPlayed());</span>
+<span class="fc" id="L203">                st.setDouble(7, song.getRating());</span>
+<span class="fc" id="L204">                st.setString(8, song.getUUID().toString());</span>
+
+<span class="fc" id="L206">                st.executeUpdate();</span>
+
+<span class="fc" id="L208">                return true;</span>
+            }
+<span class="nc" id="L210">            return false;</span>
+<span class="nc" id="L211">        } catch (final SQLException e) {</span>
+<span class="nc" id="L212">            throw new PersistenceException(e);</span>
+        }
+
+    }
+
+    @Override
+    public boolean deleteSong(Song song) throws IllegalArgumentException {
+<span class="nc bnc" id="L219" title="All 2 branches missed.">        if(song == null)</span>
+<span class="nc" id="L220">            throw new IllegalArgumentException();</span>
+<span class="nc" id="L221">        return deleteSong(song.getUUID());</span>
+    }
+
+    @Override
+    public boolean deleteSong(UUID uuid) throws IllegalArgumentException {
+<span class="nc" id="L226">        boolean removed = false;</span>
+<span class="nc bnc" id="L227" title="All 2 branches missed.">        if(uuid == null)</span>
+<span class="nc" id="L228">            throw new IllegalArgumentException(&quot;Cannot delete with a null UUID&quot;);</span>
+        try {
+<span class="nc" id="L230">            final PreparedStatement st = c.prepareStatement(&quot;DELETE FROM songs WHERE songUUID = ?&quot;);</span>
+<span class="nc" id="L231">            st.setString(1, uuid.toString());</span>
+<span class="nc" id="L232">            st.executeUpdate();</span>
+<span class="nc" id="L233">            removed = true;</span>
+<span class="nc" id="L234">        } catch (final SQLException e) {</span>
+<span class="nc" id="L235">            throw new PersistenceException(e);</span>
+<span class="nc" id="L236">        }</span>
+
+<span class="nc" id="L238">        return removed;</span>
+    }
+
+    @Override
+    public boolean songExists(Song song) {
+<span class="fc" id="L243">        return songExists(song.getUUID());</span>
+    }
+
+    @Override
+    public boolean songExists(UUID uuid) {
+<span class="fc" id="L248">        Song song = getSongByUUID(uuid);</span>
+<span class="pc bpc" id="L249" title="1 of 2 branches missed.">        return song != null;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

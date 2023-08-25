@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FilterRule.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker.rules</a> &gt; <span class="el_source">FilterRule.java</span></div><h1>FilterRule.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker.rules;
+
+import android.os.Parcel;
+import android.os.Parcelable;
+
+import java.io.Serializable;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.regex.Pattern;
+
+/**
+ * A class to represent a Filter to match a number against a set of pattern
+ * @author ConteDiMonteCristo
+ */
+public class FilterRule implements IFilterRule, Cloneable, Parcelable, Serializable{
+
+    private final static long serialVersionUID = 1L; //for serialization consistency
+    private String name;
+    private String description;
+    private Map&lt;String,Pattern&gt; patterns;
+    //characters not allowed in a patter: non digits and everything else apart from *
+<span class="fc" id="L24">    private static final Pattern NOT_ALLOWED = Pattern.compile(&quot;[^\\d*]&quot;);</span>
+<span class="fc" id="L25">    private static final Pattern LEFT_TRIM = Pattern.compile(&quot;^\\*+&quot;);</span>
+<span class="fc" id="L26">    private static final Pattern RIGHT_TRIM = Pattern.compile(&quot;\\*+$&quot;);</span>
+<span class="fc" id="L27">    private static final Pattern SEPARATOR = Pattern.compile(&quot;\\*+&quot;);</span>
+<span class="fc" id="L28">    private static final StringBuilder sbuilder = new StringBuilder();</span>
+
+    /**
+     * Constructor
+     * @param name the name of the filter (e.g. blacklist)
+     * @param description a description of the purpouse of this filter
+     */
+<span class="fc" id="L35">    public FilterRule(String name, String description) {</span>
+<span class="fc" id="L36">        this.name = name;</span>
+<span class="fc" id="L37">        this.description = description;</span>
+<span class="fc" id="L38">        patterns = new TreeMap&lt;&gt;();</span>
+<span class="fc" id="L39">    }</span>
+
+<span class="fc" id="L41">    private FilterRule(Parcel in) {</span>
+<span class="fc" id="L42">        name = in.readString();</span>
+<span class="fc" id="L43">        description = in.readString();</span>
+<span class="fc" id="L44">        patterns = new TreeMap&lt;&gt;();</span>
+<span class="fc" id="L45">        int size = in.readInt();</span>
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        for (int i=0; i&lt;size; i++)</span>
+<span class="fc" id="L47">            addPattern(in.readString());</span>
+<span class="fc" id="L48">    }</span>
+
+    public String getName() {
+<span class="fc" id="L51">        return name;</span>
+    }
+
+    public void setName(String name) {
+<span class="fc" id="L55">        this.name = name;</span>
+<span class="fc" id="L56">    }</span>
+
+    public String getDescription() {
+<span class="fc" id="L59">        return description;</span>
+    }
+
+    public void setDescription(String description) {
+<span class="fc" id="L63">        this.description = description;</span>
+<span class="fc" id="L64">    }</span>
+
+    //managing patterns (adding, getting removing
+
+    /**
+     * @return the set of keys associated with patterns
+     */
+    public synchronized Set&lt;String&gt; getPatternKeys() {
+<span class="fc" id="L72">        return patterns.keySet();</span>
+    }
+
+    /**
+     * Accesse a Regex pattern by its key
+     * @param key the string that maps to a regex expression
+     * @return a compiled regex pattern
+     */
+    public synchronized Pattern getPattern(String key) {
+<span class="nc" id="L81">        return patterns.get(key);</span>
+    }
+
+    /**
+     * Add a new regex and stores it as a compiled Pattern
+     * @param key the string that maps to a regex expression
+     */
+    public synchronized void addPattern(String key) {
+<span class="pc bpc" id="L89" title="1 of 2 branches missed.">        if (patterns.containsKey(key)) return;</span>
+<span class="fc" id="L90">        key = filterUnwanted(key);</span>
+<span class="fc" id="L91">        patterns.put(key, makeRegex(key));</span>
+<span class="fc" id="L92">    }</span>
+
+
+    /**
+     * Remove a pattern from the map
+     * @param key the string that maps to a regex expressionif
+     */
+    public synchronized void removePattern(String key) {
+<span class="nc" id="L100">        patterns.remove(key);</span>
+<span class="nc" id="L101">    }</span>
+
+    /**
+     * Clear all patterns
+     */
+    public synchronized void clearPatterns() {
+<span class="fc" id="L107">        patterns.clear();</span>
+<span class="fc" id="L108">    }</span>
+
+    /**
+     * Create a regex Pattern based on the client defined pattern,
+     * transforming the client pattern into a proper regex. The syntax
+     * allowed is very simple: groups of numbers separated by '*'.
+     * '*' at the beginning and end are removed
+     * @param key the client key
+     * @return a regex Pattern
+     */
+    static Pattern makeRegex(String key) {
+
+<span class="fc" id="L120">        String[] tokens = SEPARATOR.split(key);</span>
+<span class="pc bpc" id="L121" title="2 of 4 branches missed.">        if (tokens.length==0 || tokens[0].isEmpty()) return Pattern.compile(&quot;\\d*&quot;); //always matching any digit</span>
+<span class="fc" id="L122">        sbuilder.setLength(0);</span>
+<span class="fc" id="L123">        sbuilder.append(tokens[0]);</span>
+<span class="pc bpc" id="L124" title="1 of 2 branches missed.">        for (int i=1;i&lt;tokens.length;i++) {</span>
+<span class="nc" id="L125">            sbuilder.append(&quot;\\d+&quot;);</span>
+<span class="nc" id="L126">            sbuilder.append(tokens[i]);</span>
+        }
+<span class="fc" id="L128">        return Pattern.compile(sbuilder.toString());</span>
+    }
+
+    static String filterUnwanted(String key) {
+        //first clean up everything that is not a digit or a * sign
+<span class="pc bpc" id="L133" title="1 of 2 branches missed.">        if (NOT_ALLOWED.matcher(key).find())</span>
+<span class="nc" id="L134">            key = NOT_ALLOWED.matcher(key).replaceAll(&quot;&quot;);</span>
+<span class="pc bpc" id="L135" title="1 of 2 branches missed.">        if (LEFT_TRIM.matcher(key).find())</span>
+<span class="nc" id="L136">            key = LEFT_TRIM.matcher(key).replaceFirst(&quot;&quot;);</span>
+<span class="pc bpc" id="L137" title="1 of 2 branches missed.">        if (RIGHT_TRIM.matcher(key).find())</span>
+<span class="nc" id="L138">            key = RIGHT_TRIM.matcher(key).replaceFirst(&quot;&quot;);</span>
+<span class="fc" id="L139">        return key;</span>
+    }
+
+    @Override
+    public synchronized boolean Matches(String number) {
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        if (number == null) return false;</span>
+        //purify the number
+<span class="nc" id="L146">        number = filterUnwanted(number);</span>
+        //check first if the number is one of the patterns
+<span class="nc bnc" id="L148" title="All 2 branches missed.">        if (patterns.containsKey(number)) return true;</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">        for(Pattern p:patterns.values())</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">            if (p.matcher(number).find()) return true;</span>
+<span class="nc" id="L151">        return false;</span>
+    }
+
+    //override some Object methods
+
+    @Override
+    public String toString() {
+<span class="nc" id="L158">        return String.format(Locale.getDefault(),&quot;Rule %s [description = %s, total number of patterns = %d]&quot;,name,description,patterns.size());</span>
+    }
+
+    @Override
+    public boolean equals(Object o) {
+<span class="pc bpc" id="L163" title="1 of 2 branches missed.">        if (o == this) return true;</span>
+<span class="fc bfc" id="L164" title="All 2 branches covered.">        if (!(o instanceof FilterRule)) return false;</span>
+<span class="fc" id="L165">        FilterRule other = (FilterRule)o;</span>
+<span class="pc bpc" id="L166" title="2 of 4 branches missed.">        if (!name.equals(other.name) || !description.equals(other.description)) return false;</span>
+        //now compare the map keys (the values are derived from the keys so no need to compare)
+<span class="fc bfc" id="L168" title="All 2 branches covered.">        if (patterns.size()!=other.patterns.size()) return false;</span>
+        //if same size check that each key in this is contained in other
+<span class="pc bpc" id="L170" title="1 of 2 branches missed.">        for (String key: patterns.keySet())</span>
+<span class="nc bnc" id="L171" title="All 2 branches missed.">            if (!other.patterns.containsKey(key)) return false;</span>
+        //if we get here then everything should be the same
+<span class="fc" id="L173">        return true;</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="nc" id="L178">        final int prime = 31;</span>
+<span class="nc" id="L179">        int result = 1;</span>
+<span class="nc" id="L180">        result = prime * result + name.hashCode();</span>
+<span class="nc" id="L181">        result = prime * result + description.hashCode();</span>
+<span class="nc bnc" id="L182" title="All 2 branches missed.">        for (String key: patterns.keySet())</span>
+<span class="nc" id="L183">            result = prime * result + key.hashCode();</span>
+<span class="nc" id="L184">        return result;</span>
+    }
+
+    @Override
+    public Object clone() throws CloneNotSupportedException {
+<span class="fc" id="L189">        FilterRule other = (FilterRule) super.clone();</span>
+<span class="fc" id="L190">        other.patterns = new TreeMap&lt;&gt;();</span>
+<span class="fc bfc" id="L191" title="All 2 branches covered.">        for (String key: patterns.keySet())</span>
+<span class="fc" id="L192">            other.addPattern(key);</span>
+<span class="fc" id="L193">        return other;</span>
+    }
+
+    @Override
+    public int describeContents() {
+<span class="nc" id="L198">        return 0;</span>
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+<span class="fc" id="L203">        dest.writeString(name);</span>
+<span class="fc" id="L204">        dest.writeString(description);</span>
+<span class="fc" id="L205">        dest.writeInt(patterns.size());</span>
+<span class="fc bfc" id="L206" title="All 2 branches covered.">        for(String key:patterns.keySet())</span>
+<span class="fc" id="L207">            dest.writeString(key);</span>
+<span class="fc" id="L208">    }</span>
+
+<span class="fc" id="L210">    public static final Parcelable.Creator&lt;FilterRule&gt; CREATOR</span>
+<span class="fc" id="L211">            = new Parcelable.Creator&lt;FilterRule&gt;() {</span>
+        public FilterRule createFromParcel(Parcel in) {
+<span class="fc" id="L213">            return new FilterRule(in);</span>
+        }
+
+        public FilterRule[] newArray(int size) {
+<span class="nc" id="L217">            return new FilterRule[size];</span>
+        }
+    };
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

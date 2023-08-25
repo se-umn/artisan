@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SongInfoFragment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.presentation.fragments</a> &gt; <span class="el_source">SongInfoFragment.java</span></div><h1>SongInfoFragment.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.presentation.fragments;
+
+import android.os.Bundle;
+import android.support.design.widget.FloatingActionButton;
+import android.support.v4.app.Fragment;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.RatingBar;
+import android.widget.TextView;
+
+import fifthelement.theelement.R;
+import fifthelement.theelement.application.Helpers;
+import fifthelement.theelement.objects.Song;
+import fifthelement.theelement.presentation.activities.MainActivity;
+import fifthelement.theelement.presentation.util.SongUtil;
+
+
+<span class="nc" id="L22">public class SongInfoFragment extends Fragment {</span>
+    private static final String LOG_TAG = &quot;SongsInfoFragment&quot;;
+    private Song song;
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+        // Inflate the layout for this fragment
+<span class="nc" id="L30">        View view = inflater.inflate(R.layout.fragment_song_info, container, false);</span>
+
+<span class="nc" id="L32">        ImageView albumArt = (ImageView) view.findViewById(R.id.song_info_albumArt);</span>
+<span class="nc" id="L33">        albumArt.setImageBitmap(SongUtil.getSongAlbumArt(getContext(), song));</span>
+<span class="nc" id="L34">        TextView songName = (TextView) view.findViewById(R.id.song_info_name);</span>
+<span class="nc" id="L35">        songName.setText(song.getName());</span>
+
+<span class="nc" id="L37">        TextView artistName = (TextView) view.findViewById(R.id.song_info_artist);</span>
+<span class="nc bnc" id="L38" title="All 2 branches missed.">        if(song.getAuthor() != null) {</span>
+<span class="nc" id="L39">            artistName.setText(song.getAuthor().getName());</span>
+        } else {
+<span class="nc" id="L41">            artistName.setText(&quot;&quot;);</span>
+        }
+
+<span class="nc" id="L44">        TextView albumName = (TextView) view.findViewById(R.id.song_info_album);</span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">        if(song.getAlbum() != null) {</span>
+<span class="nc" id="L46">            albumName.setText(song.getAlbum().getName());</span>
+        } else {
+<span class="nc" id="L48">            albumName.setText(&quot;&quot;);</span>
+        }
+
+<span class="nc" id="L51">        TextView genre = (TextView) view.findViewById(R.id.song_info_genre);</span>
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        if(song.getGenre() != null) {</span>
+<span class="nc" id="L53">            genre.setText(song.getGenre());</span>
+        } else {
+<span class="nc" id="L55">            genre.setText(&quot;&quot;);</span>
+        }
+
+<span class="nc" id="L58">        RatingBar rating = (RatingBar) view.findViewById(R.id.song_info_rating);</span>
+<span class="nc" id="L59">        rating.setRating((float)song.getRating());</span>
+<span class="nc" id="L60">        rating.setOnRatingBarChangeListener(new RatingBar.OnRatingBarChangeListener() {</span>
+            @Override
+            public void onRatingChanged(RatingBar ratingBar, float rating, boolean fromUser) {
+<span class="nc" id="L63">                ((MainActivity)getActivity()).getSongService().updateSongWithRating(song, ratingBar.getRating());</span>
+<span class="nc" id="L64">            }</span>
+        });
+
+<span class="nc" id="L67">        FloatingActionButton editButton = view.findViewById(R.id.song_info_edit_btn);</span>
+<span class="nc" id="L68">        editButton.setOnClickListener(new View.OnClickListener() {</span>
+            @Override
+            public void onClick(View v) {
+<span class="nc" id="L71">                Fragment fragment = null;</span>
+                try{
+<span class="nc" id="L73">                    EditSongInfoFragment editSongInfoFragment = EditSongInfoFragment.newInstance();</span>
+<span class="nc" id="L74">                    editSongInfoFragment.setSong(song);</span>
+<span class="nc" id="L75">                    fragment = (Fragment) editSongInfoFragment;</span>
+                }
+<span class="nc" id="L77">                catch (Exception e){</span>
+<span class="nc" id="L78">                    Log.e(LOG_TAG, e.getMessage());</span>
+<span class="nc" id="L79">                }</span>
+<span class="nc" id="L80">                Helpers.getFragmentHelper((MainActivity)getActivity()).createFragment(R.id.flContent, fragment);</span>
+<span class="nc" id="L81">            }</span>
+        });
+
+<span class="nc" id="L84">        Button backButton = view.findViewById(R.id.song_info_back_btn);</span>
+<span class="nc" id="L85">        backButton.setOnClickListener(new View.OnClickListener() {</span>
+            @Override
+            public void onClick(View v) {
+<span class="nc" id="L88">                Fragment fragment = null;</span>
+<span class="nc" id="L89">                Class fragmentClass = SongListFragment.class;</span>
+                try{
+<span class="nc" id="L91">                    fragment = (Fragment) fragmentClass.newInstance();</span>
+                }
+<span class="nc" id="L93">                catch (Exception e){</span>
+<span class="nc" id="L94">                    Log.e(LOG_TAG, e.getMessage());</span>
+<span class="nc" id="L95">                }</span>
+<span class="nc" id="L96">                Helpers.getFragmentHelper((MainActivity)getActivity()).createFragment(R.id.flContent, fragment);</span>
+<span class="nc" id="L97">            }</span>
+        });
+
+<span class="nc" id="L100">        return view;</span>
+    }
+
+
+    public static SongInfoFragment newInstance(){
+<span class="nc" id="L105">        return new SongInfoFragment();</span>
+    }
+
+    public void setSong(Song newSong) {
+<span class="nc" id="L109">        song = newSong;</span>
+<span class="nc" id="L110">    }</span>
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

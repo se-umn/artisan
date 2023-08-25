@@ -1,0 +1,83 @@
+<resources>
+    <string name="app_name">BlabberTabber</string>
+
+    <string name="welcome_text" formatted="false">Recording conversations without consent
+        is illegal in many states. Do the right thing: get consent before using BlabberTabber.\n
+        \nBlabberTabber uploads your sound file to a server for processing; don\'t use
+        BlabberTabber if that\'s unacceptable.\n
+        \nYour cell provider may charge you for
+        data usage when uploading, as much as a dollar or more for a one-hour meeting.\n
+        \nBlabberTabber records conversations and calculates how much each
+        person spoke.\n
+        \nTo pause, press "PAUSE", to resume, press
+        "RECORD", and to reset the tally, press "RESET".\n
+        \nWhen the meeting is over, press "FINISH" to see the final tally.\n
+    </string>
+    <string name="first_time">display splash screen</string>
+    <string name="got_it">Got it!</string>
+
+    <string name="action_settings">Settings</string>
+    <string name="button_finish">finish</string>
+    <string name="button_pause">PAUSE</string>
+    <string name="button_record">RECORD</string>
+    <string name="button_reset">reset</string>
+    <string name="uploading_wav_file">Analyzing Meeting</string>
+
+    <string name="button_new_meeting">New Meeting</string>
+    <string name="button_share">Share</string>
+    <string name="button_exit">Exit</string>
+    <string name="text_duration_header">Duration</string>
+    <string name="hmmss">(H:MM:SS)</string>
+    <string name="hmmsss">(H:MM:SS.s)</string>
+    <string name="text_max_header">Max</string>
+    <string name="text_min_header">Min</string>
+    <string name="text_average_header">Average</string>
+    <string name="speaker_name_title">Speaker</string>
+    <string name="speaker_barchart_title">Duration</string>
+    <string name="speaker_time_title">H:MM:SS</string>
+    <string name="play_meeting_wav">Replay Meeting</string>
+    <string name="use_test_server">Use Test Server</string>
+    <string name="diarizer_menu_label">Diarizers:</string>
+    <string name="diarizer_aalto">Aalto</string>
+    <string name="ibm">IBM</string>
+    <string name="transcriber_menu_label">Transcribers:</string>
+    <string name="transcriber_cmu">CMU Sphinx 4</string>
+    <string name="transcriber_null">No transcription</string>
+    <string name="use_ibm_backend">Use IBM Diarizer $$</string>
+    <string name="launch_main_activity">Show Splash Screen</string>
+    <string name="launch_speakerstats_activity">Speaker Statistics</string>
+    <string name="show_raw_file">Show .raw File</string>
+    <string name="show_wav_file">Show .wav File</string>
+    <string name="show_mfc_file">Show .mfc File</string>
+    <string name="show_uem_seg_file">Show .uem.seg File</string>
+    <string name="show_s_seg_file">Show .s.seg File</string>
+    <string name="show_l_seg_file">Show .l.seg File</string>
+    <string name="launch_about_activity">About</string>
+    <string name="launch_packed_circles_activity">Circles!</string>
+    <string name="drawer_open">Open Sesame!</string>
+    <string name="drawer_close">Close Sesame!</string>
+    <string name="drawer_description">Beautiful Drawers!</string>
+    <string name="drawer_title">Advanced</string>
+    <string name="title_activity_about">AboutActivity</string>
+
+    <string name="recording_service">Recording</string>
+
+    <string name="about_version">version</string>
+    <string name="about_text" formatted="false">
+        Charlotte Cunningham designed BlabberTabber and created many of the graphics.\n
+        \nBrendan Cunnie and Brian Cunnie coded BlabberTabber.\n
+        \nAalto Speech Group of Aalto University provided the
+        diarization back-end; Antonio Macías Ojeda was especially helpful.\n
+        \nDaniel Di Matteo wrote the first android diarization program.\n
+        \nGerald Friedland, Ph.D. and Ekaterina Gonina, Ph.D. advised us and
+        published the research papers which inspired us to write BlabberTabber.
+        </string>
+
+    <string name="speaker">Speaker</string>
+    <string name="average">Average</string>
+    <string name="duration">Duration</string>
+    <string name="all_speakers">All Speakers</string>
+    <string name="total">Total</string>
+
+    <string name="cant_reach_server">I couldn\'t reach the server, couldn\'t upload sound file for processing. Try clicking \"Finish\" again in a couple of minutes and maybe it\'ll work.</string>
+</resources>

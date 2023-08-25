@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DbHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker.sql</a> &gt; <span class="el_source">DbHelper.java</span></div><h1>DbHelper.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker.sql;
+
+import android.content.Context;
+import android.database.Cursor;
+import android.database.SQLException;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+import android.util.Log;
+
+import com.prismaqf.callblocker.R;
+import com.prismaqf.callblocker.filters.FilterHandle;
+import com.prismaqf.callblocker.rules.CalendarRule;
+import com.prismaqf.callblocker.rules.FilterRule;
+import com.prismaqf.callblocker.utils.DebugKey;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * Helper class extending SQLiteOpenHelper to manage the DB in Android fashion
+ * @author ConteDiMonteCristo
+ */
+public class DbHelper extends SQLiteOpenHelper{
+
+    /**
+     * When changing the DB schema, one should up the version number.
+     * At this stage it is important to properly implement onUpgrade and
+     * and onDowngrade which otherwise might be called. In the current
+     * implementation they throw an exception becase a single version is
+     * assumed. The proper implentation should try to preserve the data
+     */
+    private static final int DATABASE_VERSION = 14;
+<span class="fc" id="L34">    private static final String TAG = DbHelper.class.getCanonicalName();</span>
+
+<span class="fc" id="L36">    private static String debugDb = null;</span>
+<span class="fc" id="L37">    private static final Object lock = new Object();</span>
+
+    /**
+     * To force locking write operation from outside
+     * @return the lock object
+     */
+<span class="nc" id="L43">    public static Object getDbHelperLock() {return lock;}</span>
+
+    public DbHelper(Context context) {
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        super(context, debugDb==null? context.getString(R.string.db_file_name) : debugDb, null, DATABASE_VERSION);</span>
+<span class="fc" id="L47">    }</span>
+
+    public DbHelper(Context context, String dbname) {
+<span class="nc" id="L50">        super(context, dbname, null, DATABASE_VERSION);</span>
+<span class="nc" id="L51">    }</span>
+
+    public synchronized static void SetDebugDb(DebugKey.DbKey key, String dbname) {
+<span class="fc" id="L54">        debugDb = dbname;</span>
+<span class="fc" id="L55">    }</span>
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+<span class="fc" id="L59">        synchronized (lock) {</span>
+<span class="fc" id="L60">            db.execSQL(DbContract.ServiceRuns.SQL_CREATE_TABLE);</span>
+<span class="fc" id="L61">            db.execSQL(DbContract.LoggedCalls.SQL_CREATE_TABLE);</span>
+<span class="fc" id="L62">            db.execSQL(DbContract.CalendarRules.SQL_CREATE_TABLE);</span>
+<span class="fc" id="L63">            db.execSQL(DbContract.FilterRules.SQL_CREATE_TABLE);</span>
+<span class="fc" id="L64">            db.execSQL(DbContract.FilterPatterns.SQL_CREATE_TABLE);</span>
+<span class="fc" id="L65">            db.execSQL(DbContract.Filters.SQL_CREATE_TABLE);</span>
+<span class="fc" id="L66">        }</span>
+<span class="fc" id="L67">    }</span>
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+<span class="nc" id="L71">        synchronized (lock) {</span>
+<span class="nc" id="L72">            String msg = String.format(Locale.getDefault(),&quot;The DB version has changed from v.%d to v.%d and a destructive upgrade (drop/recreate) is performed&quot;,oldVersion,newVersion);</span>
+<span class="nc" id="L73">            Log.w(TAG, msg);</span>
+
+<span class="nc" id="L75">            Cursor c = ServiceRunProvider.LatestRuns(db, -1, false);</span>
+<span class="nc" id="L76">            List&lt;ServiceRunProvider.ServiceRun&gt; serviceRuns = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L77" title="All 2 branches missed.">            while (c.moveToNext())</span>
+<span class="nc" id="L78">                serviceRuns.add(ServiceRunProvider.deserialize(c));</span>
+
+<span class="nc" id="L80">            c = LoggedCallProvider.LatestCalls(db, -1, false);</span>
+<span class="nc" id="L81">            List&lt;LoggedCallProvider.LoggedCall&gt; loggedCalls = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L82" title="All 2 branches missed.">            while (c.moveToNext())</span>
+<span class="nc" id="L83">                loggedCalls.add(LoggedCallProvider.deserialize(c));</span>
+
+
+<span class="nc" id="L86">            c = CalendarRuleProvider.AllCalendarRules(db);</span>
+<span class="nc" id="L87">            List&lt;CalendarRule&gt; calendarRules= new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L88" title="All 2 branches missed.">            while (c.moveToNext())</span>
+<span class="nc" id="L89">                calendarRules.add(CalendarRuleProvider.deserialize(c));</span>
+
+<span class="nc" id="L91">            List&lt;FilterRule&gt; filterRules = FilterRuleProvider.AllFilterRules(db);</span>
+
+<span class="nc" id="L93">            List&lt;FilterHandle&gt; filters = FilterProvider.AllFilters(db);</span>
+
+<span class="nc" id="L95">            dropAllTables(db);</span>
+<span class="nc" id="L96">            onCreate(db);</span>
+
+            //and now reserialize
+<span class="nc bnc" id="L99" title="All 2 branches missed.">            for (ServiceRunProvider.ServiceRun run : serviceRuns)</span>
+<span class="nc" id="L100">                ServiceRunProvider.serialize(db, run);</span>
+<span class="nc bnc" id="L101" title="All 2 branches missed.">            for (LoggedCallProvider.LoggedCall lc : loggedCalls)</span>
+<span class="nc" id="L102">                LoggedCallProvider.serialize(db, lc);</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">            for (CalendarRule cr : calendarRules)</span>
+<span class="nc" id="L104">                CalendarRuleProvider.serialize(db, cr);</span>
+<span class="nc bnc" id="L105" title="All 2 branches missed.">            for (FilterRule fr : filterRules)</span>
+<span class="nc" id="L106">                FilterRuleProvider.InsertRow(db, fr);</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">            for (FilterHandle fh : filters)</span>
+<span class="nc" id="L108">                FilterProvider.InsertRow(db, fh);</span>
+<span class="nc" id="L109">        }</span>
+<span class="nc" id="L110">    }</span>
+
+    @Override
+    public void onDowngrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+<span class="nc" id="L114">        String msg = &quot;The version has changed and no implentation was found for a downgrade policy&quot;;</span>
+<span class="nc" id="L115">        Log.e(TAG, msg);</span>
+<span class="nc" id="L116">        throw new SQLException(msg);</span>
+    }
+
+    private void dropAllTables(SQLiteDatabase db) {
+<span class="nc" id="L120">        String msg = String.format(&quot;Dropping all tables from DB %s&quot;,db.getPath());</span>
+<span class="nc" id="L121">        Log.w(TAG, msg);</span>
+
+<span class="nc" id="L123">        synchronized (lock) {</span>
+<span class="nc" id="L124">            db.execSQL(DbContract.Filters.SQL_DROP_TABLE);</span>
+<span class="nc" id="L125">            db.execSQL(DbContract.FilterPatterns.SQL_DROP_TABLE);</span>
+<span class="nc" id="L126">            db.execSQL(DbContract.FilterRules.SQL_DROP_TABLE);</span>
+<span class="nc" id="L127">            db.execSQL(DbContract.CalendarRules.SQL_DROP_TABLE);</span>
+<span class="nc" id="L128">            db.execSQL(DbContract.LoggedCalls.SQL_DROP_TABLE);</span>
+<span class="nc" id="L129">            db.execSQL(DbContract.ServiceRuns.SQL_DROP_TABLE);</span>
+<span class="nc" id="L130">        }</span>
+
+<span class="nc" id="L132">    }</span>
+
+    @Override
+    public SQLiteDatabase getWritableDatabase() {
+        //so that if the program acquires the lock
+        //when doing backup, the DB can not be written
+<span class="fc" id="L138">        synchronized (lock) {</span>
+<span class="fc" id="L139">            return super.getWritableDatabase();</span>
+        }
+    }
+
+    @Override
+    public SQLiteDatabase getReadableDatabase() {
+        //so that if the program acquires the lock
+        //when doing backup, the DB can not be written
+<span class="fc" id="L147">        synchronized (lock) {</span>
+<span class="nc" id="L148">            return super.getReadableDatabase();</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

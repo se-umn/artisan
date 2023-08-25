@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TelephonyStateReceiver.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker</a> &gt; <span class="el_source">TelephonyStateReceiver.java</span></div><h1>TelephonyStateReceiver.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.Build;
+import android.telephony.TelephonyManager;
+import android.util.Log;
+
+/**
+ * Receiver to detect the state of the telephone ringing and ensure
+ * the service is running
+ * @author ConteDiMonteCristo
+ */
+
+<span class="nc" id="L17">public class TelephonyStateReceiver extends BroadcastReceiver {</span>
+
+<span class="nc" id="L19">    private static final String TAG = TelephonyStateReceiver.class.getCanonicalName();</span>
+
+    @Override
+    public void onReceive(Context context, Intent intent) {
+<span class="nc" id="L23">        Log.i(TAG, &quot;Phone state changed&quot;);</span>
+<span class="nc bnc" id="L24" title="All 2 branches missed.">        if (TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(intent.getAction())) {</span>
+<span class="nc" id="L25">            SharedPreferences prefs = context.getSharedPreferences(</span>
+<span class="nc" id="L26">                    context.getString(R.string.file_shared_prefs_name),</span>
+                    Context.MODE_PRIVATE);
+<span class="nc" id="L28">            String state = prefs.getString(context.getString(R.string.pk_state), &quot;not found&quot;);</span>
+<span class="nc bnc" id="L29" title="All 2 branches missed.">            if (state.equals(context.getString(R.string.tx_state_running)) &amp;&amp;</span>
+<span class="nc bnc" id="L30" title="All 2 branches missed.">                !CallBlockerManager.isServiceRunning(context)) {</span>
+<span class="nc" id="L31">                Intent serviceIntent = new Intent(context, CallDetectService.class);</span>
+<span class="nc bnc" id="L32" title="All 2 branches missed.">                if (Build.VERSION.SDK_INT &lt; 26)</span>
+<span class="nc" id="L33">                    context.startService(serviceIntent);</span>
+                else //changes with Android Oreo that otherwise throw and IllegalStateException
+<span class="nc" id="L35">                    context.startForegroundService(serviceIntent);</span>
+<span class="nc" id="L36">                Log.i(TAG, &quot;Starting CallDetectService after dozing&quot;);</span>
+            }
+        }
+
+<span class="nc" id="L40">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

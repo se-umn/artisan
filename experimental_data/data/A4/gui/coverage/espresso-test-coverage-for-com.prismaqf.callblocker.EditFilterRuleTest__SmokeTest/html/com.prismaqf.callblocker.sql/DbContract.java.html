@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DbContract.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker.sql</a> &gt; <span class="el_source">DbContract.java</span></div><h1>DbContract.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker.sql;
+
+import android.provider.BaseColumns;
+
+/**
+ * DB Contract class for schema in DB interaction
+ * @author ConteDiMonteCristo
+ */
+public class DbContract {
+    private DbContract() {}
+
+    //general purpose tokens
+    private static final String COMMA_SEP = &quot;, &quot;;
+    private static final String OPEN_BRAC = &quot; (&quot;;
+    private static final String CLOSE_BRAC = &quot;) &quot;;
+    private static final String IPK = &quot; INTEGER PRIMARY KEY NOT NULL, &quot;;
+    private static final String UNIQUE = &quot; UNIQUE NOT NULL, &quot;;
+    private static final String TYPE_TEXT = &quot; TEXT&quot;;
+    private static final String TYPE_INT = &quot; INTEGER&quot;;
+    private static final String NOT_NULL = &quot; NOT NULL&quot;;
+    public static final String DATE_FORMAT = &quot;d MMM yyyy 'at' HH:mm:ss z&quot;;
+    private static final String DEF_TIMESTAMP = &quot; DEFAULT (DATETIME('now','localtime'))&quot;;
+
+    /**
+     * Schema for a table on service runs: a service run contains the
+     * stats for a run since the service was started until it was
+     * stopped. The time of start and stop should be reported
+     * together with the total number of calls received and events
+     * triggered including those in the current run
+     */
+<span class="nc" id="L31">    public static abstract class ServiceRuns implements BaseColumns {</span>
+        public static final String TABLE_NAME = &quot;serviceruns&quot;;
+        public static final String COLUMN_NAME_START = &quot;start&quot;;
+        public static final String COLUMN_NAME_STOP = &quot;stop&quot;;
+        public static final String COLUMN_NAME_TOTAL_RECEIVED = &quot;totaldreceived&quot;;
+        public static final String COLUMN_NAME_TOTAL_TRIGGERED = &quot;totaltriggered&quot;;
+        //sql table creation and deletion
+        public static final String SQL_CREATE_TABLE = &quot;CREATE TABLE &quot; + TABLE_NAME + OPEN_BRAC +
+                _ID + IPK +
+                COLUMN_NAME_START + TYPE_TEXT + NOT_NULL + COMMA_SEP +
+                COLUMN_NAME_STOP + TYPE_TEXT + COMMA_SEP +
+                COLUMN_NAME_TOTAL_RECEIVED + TYPE_INT + COMMA_SEP +
+                COLUMN_NAME_TOTAL_TRIGGERED + TYPE_INT +
+                CLOSE_BRAC;
+        public static final String SQL_DROP_TABLE = &quot;DROP TABLE IF EXISTS &quot; + TABLE_NAME;
+    }
+
+    /**
+     * Schema for a table for looging calls. It contains the run id of the
+     * service session, the time-stamp when the call was received, the calling number,
+     * an optional descriotion (contact name from contacts) and an optional
+     * rule id if the number has triggered any rule
+     */
+<span class="nc" id="L54">    public static abstract class LoggedCalls implements BaseColumns {</span>
+        public static final String TABLE_NAME = &quot;loggedcalls&quot;;
+        public static final String COLUMN_NAME_RUNID = &quot;runid&quot;;
+        public static final String COLUMN_NAME_TIMESTAMP = &quot;timestamp&quot;;
+        public static final String COLUMN_NAME_NUMBER = &quot;number&quot;;
+        public static final String COLUMN_NAME_DESCRIPTION = &quot;description&quot;;
+        public static final String COLUMN_NAME_ACTION = &quot;action&quot;;
+        //sql table creation and deletion
+        public static final String SQL_CREATE_TABLE = &quot;CREATE TABLE &quot; + TABLE_NAME + OPEN_BRAC +
+                _ID + IPK +
+                COLUMN_NAME_RUNID + TYPE_INT + NOT_NULL + COMMA_SEP +
+                COLUMN_NAME_TIMESTAMP + TYPE_TEXT + DEF_TIMESTAMP + COMMA_SEP +
+                COLUMN_NAME_NUMBER + TYPE_TEXT + NOT_NULL + COMMA_SEP +
+                COLUMN_NAME_DESCRIPTION + TYPE_TEXT + COMMA_SEP +
+                COLUMN_NAME_ACTION + TYPE_TEXT +
+                CLOSE_BRAC;
+        public static final String SQL_DROP_TABLE = &quot;DROP TABLE IF EXISTS &quot; + TABLE_NAME;
+
+    }
+
+<span class="nc" id="L74">    public static abstract class CalendarRules implements BaseColumns {</span>
+        public static final String TABLE_NAME = &quot;calendarrules&quot;;
+        public static final String COLUMN_NAME_RULENAME = &quot;name&quot;;
+        public static final String COLUMN_NAME_DAYMASK = &quot;daymask&quot;;
+        public static final String COLUMN_NAME_FROM = &quot;fromTime&quot;;
+        public static final String COLUMN_NAME_TO = &quot;toTime&quot;;
+        public static final String COLUMN_NAME_FORMAT = &quot;format&quot;;
+        public static final String COLUMN_NAME_TIMESTAMP = &quot;timestamp&quot;;
+        //sql table creation and deletion
+        public static final String SQL_CREATE_TABLE = &quot;CREATE TABLE &quot; + TABLE_NAME + OPEN_BRAC +
+                _ID + IPK +
+                COLUMN_NAME_RULENAME + TYPE_TEXT + UNIQUE +
+                COLUMN_NAME_DAYMASK + TYPE_INT + NOT_NULL + COMMA_SEP +
+                COLUMN_NAME_FROM + TYPE_TEXT + NOT_NULL + COMMA_SEP +
+                COLUMN_NAME_TO + TYPE_TEXT + NOT_NULL + COMMA_SEP +
+                COLUMN_NAME_FORMAT + TYPE_TEXT + NOT_NULL + COMMA_SEP +
+                COLUMN_NAME_TIMESTAMP + TYPE_TEXT + DEF_TIMESTAMP +
+                CLOSE_BRAC;
+        public static final String SQL_DROP_TABLE = &quot;DROP TABLE IF EXISTS &quot; + TABLE_NAME;
+    }
+
+<span class="nc" id="L95">    public static abstract class FilterRules  implements BaseColumns {</span>
+        public static final String TABLE_NAME = &quot;filterrules&quot;;
+        public static final String COLUMN_NAME_RULENAME = &quot;name&quot;;
+        public static final String COLUMN_NAME_DESCRIPTION = &quot;description&quot;;
+        public static final String COLUMN_NAME_TIMESTAMP = &quot;timestamp&quot;;
+
+        //sql table creation and deletion
+        public static final String SQL_CREATE_TABLE = &quot;CREATE TABLE &quot; + TABLE_NAME + OPEN_BRAC +
+                _ID + IPK +
+                COLUMN_NAME_RULENAME + TYPE_TEXT + UNIQUE +
+                COLUMN_NAME_DESCRIPTION + TYPE_TEXT + COMMA_SEP +
+                COLUMN_NAME_TIMESTAMP + TYPE_TEXT + DEF_TIMESTAMP +
+                CLOSE_BRAC;
+        public static final String SQL_DROP_TABLE = &quot;DROP TABLE IF EXISTS &quot; + TABLE_NAME;
+    }
+
+<span class="nc" id="L111">    public static abstract class FilterPatterns implements BaseColumns {</span>
+        public static final String TABLE_NAME = &quot;filterpatterns&quot;;
+        public static final String COLUMN_NAME_RULEID = &quot;ruleid&quot;;
+        public static final String COLUMN_NAME_PATTERN = &quot;pattern&quot;;
+        public static final String COLUMN_NAME_TIMESTAMP = &quot;timestamp&quot;;
+        //sql table creation and deletion
+        public static final String SQL_CREATE_TABLE = &quot;CREATE TABLE &quot; + TABLE_NAME + OPEN_BRAC +
+                _ID + IPK +
+                COLUMN_NAME_RULEID + TYPE_INT + NOT_NULL + COMMA_SEP +
+                COLUMN_NAME_PATTERN + TYPE_TEXT + NOT_NULL + COMMA_SEP +
+                COLUMN_NAME_TIMESTAMP + TYPE_TEXT + DEF_TIMESTAMP +
+                CLOSE_BRAC;
+        public static final String SQL_DROP_TABLE = &quot;DROP TABLE IF EXISTS &quot; + TABLE_NAME;
+    }
+
+<span class="nc" id="L126">    public static abstract class Filters implements BaseColumns {</span>
+        public static final String TABLE_NAME = &quot;filters&quot;;
+        public static final String COLUMN_NAME_FILTERNAME = &quot;name&quot;;
+        public static final String COLUMN_NAME_CALENDARRULENAME = &quot;calendarrulename&quot;;
+        public static final String COLUMN_NAME_FILTERRULENAME = &quot;filterrulename&quot;;
+        public static final String COLUMN_NAME_ACTIONNAME = &quot;actionname&quot;;
+        public static final String COLUMN_NAME_TIMESTAMP = &quot;timestamp&quot;;
+        //sql table creation and deletion
+        public static final String SQL_CREATE_TABLE = &quot;CREATE TABLE &quot; + TABLE_NAME + OPEN_BRAC +
+                _ID + IPK +
+                COLUMN_NAME_FILTERNAME + TYPE_TEXT + UNIQUE +
+                COLUMN_NAME_CALENDARRULENAME + TYPE_TEXT + COMMA_SEP +
+                COLUMN_NAME_FILTERRULENAME + TYPE_TEXT + COMMA_SEP +
+                COLUMN_NAME_ACTIONNAME + TYPE_TEXT + COMMA_SEP +
+                COLUMN_NAME_TIMESTAMP + TYPE_TEXT + DEF_TIMESTAMP +
+                CLOSE_BRAC;
+        public static final String SQL_DROP_TABLE = &quot;DROP TABLE IF EXISTS &quot; + TABLE_NAME;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

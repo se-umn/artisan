@@ -1,0 +1,30 @@
+package com.prismaqf.callblocker;
+
+import org.junit.Before;
+import androidx.test.core.app.ApplicationProvider;
+import org.robolectric.RobolectricTestRunner;
+import org.junit.runner.RunWith;
+import org.junit.Test;
+
+@RunWith(RobolectricTestRunner.class)
+public class Test269 {
+
+    @Before()
+    public void setup() {
+        org.robolectric.shadows.ShadowSQLiteConnection.reset();
+    }
+
+    /**
+     * Generated from /Users/mattia/Faculty/Research/2020_android_test_carving/repositories/action-based-test-carving/apps-src/PrismaCallBlocker/traces/com.prismaqf.callblocker.NewFilterRuleTest#AfterUpdatingTheRulePatternsTheRuleShouldSaveWhenActivityIsLeft/Trace-1651091712732.txt
+     * Method invocation under test: <com.prismaqf.callblocker.EditFilterRules: void onCreate(android.os.Bundle)>_631_1262
+     */
+    @Test(timeout = 4000)
+    public void test_com_prismaqf_callblocker_EditFilterRules_onCreate_001() throws Exception {
+        android.content.Intent intent20 = null;
+        android.content.Context context21 = ApplicationProvider.getApplicationContext();
+        intent20 = new android.content.Intent(context21, com.prismaqf.callblocker.EditFilterRules.class);
+        org.robolectric.android.controller.ActivityController activitycontroller34 = org.robolectric.Robolectric.buildActivity(com.prismaqf.callblocker.EditFilterRules.class, intent20);
+        activitycontroller34.get();
+        activitycontroller34.create();
+    }
+}

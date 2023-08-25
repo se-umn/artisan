@@ -1,0 +1,499 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NewEditFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker</a> &gt; <span class="el_source">NewEditFilter.java</span></div><h1>NewEditFilter.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker;
+
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.backup.BackupManager;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.database.sqlite.SQLiteDatabase;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.os.Parcelable;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.ViewGroup;
+import android.webkit.WebView;
+import android.widget.EditText;
+import android.widget.ScrollView;
+import android.widget.TextView;
+
+import com.prismaqf.callblocker.filters.FilterHandle;
+import com.prismaqf.callblocker.rules.CalendarRule;
+import com.prismaqf.callblocker.rules.FilterRule;
+import com.prismaqf.callblocker.sql.CalendarRuleProvider;
+import com.prismaqf.callblocker.sql.DbHelper;
+import com.prismaqf.callblocker.sql.FilterProvider;
+import com.prismaqf.callblocker.sql.FilterRuleProvider;
+
+import java.util.ArrayList;
+
+/**
+ * Class to create and edit a filter
+ * Created by ConteDiMonteCristo.
+ */
+<span class="fc" id="L35">public class NewEditFilter extends NewEditActivity{</span>
+
+    private class DbOperation extends AsyncTask&lt;FilterHandle, Void, Void&gt; {
+
+        private final String action;
+        private final long filterid;
+
+<span class="nc" id="L42">        DbOperation(String action, long filterid) {</span>
+<span class="nc" id="L43">            this.action = action;</span>
+<span class="nc" id="L44">            this.filterid = filterid;</span>
+<span class="nc" id="L45">        }</span>
+        @Override
+        protected Void doInBackground(FilterHandle... filters) {
+<span class="nc" id="L48">            SQLiteDatabase db = new DbHelper(NewEditFilter.this).getWritableDatabase();</span>
+<span class="nc" id="L49">            FilterHandle filter = filters[0];</span>
+            try {
+<span class="nc bnc" id="L51" title="All 3 branches missed.">                switch (action) {</span>
+                    case NewEditActivity.ACTION_CREATE:
+<span class="nc" id="L53">                        FilterProvider.InsertRow(db, filter);</span>
+<span class="nc" id="L54">                        break;</span>
+                    case NewEditActivity.ACTION_EDIT:
+<span class="nc" id="L56">                        FilterProvider.UpdateFilter(db, filterid, filter);</span>
+<span class="nc" id="L57">                        break;</span>
+                    default:
+<span class="nc" id="L59">                        FilterProvider.DeleteFilter(db, filterid);</span>
+                        break;
+                }
+<span class="nc bnc" id="L62" title="All 2 branches missed.">                if (CallHelper.IsRunning())</span>
+<span class="nc" id="L63">                    CallHelper.GetHelper().loadFilters(NewEditFilter.this);</span>
+            }
+            finally {
+<span class="nc" id="L66">                db.close();</span>
+<span class="nc" id="L67">                BackupManager.dataChanged(NewEditFilter.this.getPackageName());</span>
+            }
+<span class="nc" id="L69">            return null;</span>
+        }
+
+        @Override
+        protected void onPostExecute (Void v) {
+<span class="nc" id="L74">            Intent intent = new Intent(NewEditFilter.this, EditFilters.class);</span>
+<span class="nc" id="L75">            startActivity(intent);</span>
+<span class="nc" id="L76">        }</span>
+    }
+
+<span class="fc" id="L79">    private class DbCalendar extends AsyncTask&lt;String, Void, CalendarRule&gt; {</span>
+
+        private String myRuleName;
+<span class="fc" id="L82">        private long myRuleId = 0;</span>
+
+        @Override
+        protected CalendarRule doInBackground(String... names) {
+<span class="fc" id="L86">            SQLiteDatabase db = new DbHelper(NewEditFilter.this).getReadableDatabase();</span>
+<span class="fc" id="L87">            myRuleName = names[0];</span>
+            try {
+<span class="fc" id="L89">                myRuleId = CalendarRuleProvider.FindCalendarRuleId(db,myRuleName);</span>
+<span class="fc" id="L90">                return CalendarRuleProvider.FindCalendarRule(db, myRuleName);</span>
+
+<span class="nc" id="L92">            } catch (Exception e) {</span>
+<span class="nc" id="L93">                Log.e(TAG, e.getMessage());</span>
+            }
+            finally {
+<span class="fc" id="L96">                db.close();</span>
+            }
+<span class="nc" id="L98">            return null;</span>
+        }
+
+        @Override
+        protected void onPostExecute (CalendarRule rule) {
+<span class="fc" id="L103">            Intent intent = new Intent(NewEditFilter.this,NewEditCalendarRule.class);</span>
+<span class="fc" id="L104">            intent.putExtra(NewEditActivity.KEY_ACTION, NewEditActivity.ACTION_UPDATE);</span>
+<span class="fc" id="L105">            intent.putExtra(NewEditActivity.KEY_CONTEXT, NewEditActivity.CONTEXT_EDIT);</span>
+<span class="fc" id="L106">            intent.putExtra(NewEditActivity.KEY_ORIG,(Parcelable)rule);</span>
+<span class="fc" id="L107">            intent.putExtra(NewEditActivity.KEY_RULEID,myRuleId);</span>
+<span class="fc" id="L108">            startActivityForResult(intent, EDIT_CAL);</span>
+<span class="fc" id="L109">        }</span>
+    }
+
+<span class="fc" id="L112">    private class DbPatterns extends AsyncTask&lt;String, Void, FilterRule&gt; {</span>
+
+        private String myRuleName;
+<span class="fc" id="L115">        private long myRuleId = 0;</span>
+
+        @Override
+        protected FilterRule doInBackground(String... names) {
+<span class="fc" id="L119">            SQLiteDatabase db = new DbHelper(NewEditFilter.this).getReadableDatabase();</span>
+<span class="fc" id="L120">            myRuleName = names[0];</span>
+            try {
+<span class="fc" id="L122">                myRuleId = FilterRuleProvider.FindFilterRuleId(db, myRuleName);</span>
+<span class="fc" id="L123">                return FilterRuleProvider.FindFilterRule(db, myRuleName);</span>
+
+<span class="nc" id="L125">            } catch (Exception e) {</span>
+<span class="nc" id="L126">                Log.e(TAG, e.getMessage());</span>
+            }
+            finally {
+<span class="fc" id="L129">                db.close();</span>
+            }
+<span class="nc" id="L131">            return null;</span>
+        }
+
+        @Override
+        protected void onPostExecute (FilterRule rule) {
+<span class="fc" id="L136">            Intent intent = new Intent(NewEditFilter.this,NewEditFilterRule.class);</span>
+<span class="fc" id="L137">            intent.putExtra(NewEditActivity.KEY_ACTION, NewEditActivity.ACTION_UPDATE);</span>
+<span class="fc" id="L138">            intent.putExtra(NewEditActivity.KEY_CONTEXT, NewEditActivity.CONTEXT_EDIT);</span>
+<span class="fc" id="L139">            intent.putExtra(NewEditActivity.KEY_ORIG,(Parcelable)rule);</span>
+<span class="fc" id="L140">            intent.putExtra(NewEditActivity.KEY_RULEID,myRuleId);</span>
+<span class="fc" id="L141">            startActivityForResult(intent, EDIT_PAT);</span>
+<span class="fc" id="L142">        }</span>
+    }
+
+<span class="fc" id="L145">    private static final String TAG = NewEditFilter.class.getCanonicalName();</span>
+    private static final int PICK_CAL = 1001;
+    private static final int PICK_PAT = 1002;
+    private static final int PICK_ACT = 1003;
+    private static final int EDIT_CAL = 1004;
+    private static final int EDIT_PAT = 1005;
+    private EditText ed_name;
+    private TextView tv_calendar_name, tv_paterns_name, tv_action_name, tv_validation;
+    private MenuItem mi_pickCalendar, mi_pickPatterns, mi_pickAction, mi_editCalendar, mi_editPatterns;
+    private ArrayList&lt;String&gt; filterNames;
+    private String myAction;
+    private FilterHandle myNewFilter, myOrigFilter, ptFilter;  //ptFilter is an alias to the active filter
+<span class="fc" id="L157">    private boolean isNameValid = true;</span>
+<span class="fc" id="L158">    private long myFilterId=0;</span>
+
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+<span class="fc" id="L163">        super.onCreate(savedInstanceState);</span>
+<span class="fc" id="L164">        setContentView(R.layout.filter_edit);</span>
+
+<span class="fc" id="L166">        ed_name = (EditText) findViewById(R.id.edit_filter_name);</span>
+<span class="pc bpc" id="L167" title="1 of 2 branches missed.">        if (ed_name != null) ed_name.clearFocus();</span>
+<span class="fc" id="L168">        tv_calendar_name = (TextView) findViewById(R.id.text_calendar_name);</span>
+<span class="fc" id="L169">        tv_paterns_name = (TextView) findViewById(R.id.text_filter_rule_name);</span>
+<span class="fc" id="L170">        tv_action_name = (TextView) findViewById(R.id.text_action_name);</span>
+<span class="fc" id="L171">        tv_validation = (TextView) findViewById(R.id.tx_filter_rule_validation);</span>
+
+<span class="fc" id="L173">        Intent intent = getIntent();</span>
+<span class="fc" id="L174">        filterNames = intent.getStringArrayListExtra(KEY_FILTERNAMES);</span>
+        //ACTION UPDATE
+<span class="pc bpc" id="L176" title="1 of 2 branches missed.">        if (intent.hasExtra(NewEditActivity.KEY_ACTION) &amp;&amp;</span>
+<span class="fc bfc" id="L177" title="All 2 branches covered.">                intent.getStringExtra(NewEditActivity.KEY_ACTION).equals(NewEditActivity.ACTION_UPDATE)) {</span>
+<span class="fc" id="L178">            myOrigFilter = intent.getParcelableExtra(NewEditActivity.KEY_ORIG);</span>
+            try {
+<span class="fc" id="L180">                myNewFilter  = (FilterHandle)myOrigFilter.clone();</span>
+<span class="nc" id="L181">            } catch (CloneNotSupportedException e) {</span>
+<span class="nc" id="L182">                Log.e(TAG, &quot;Could not clone original filter&quot;);</span>
+<span class="nc" id="L183">                myNewFilter =  intent.getParcelableExtra(NewEditActivity.KEY_ORIG);</span>
+<span class="fc" id="L184">            }</span>
+<span class="fc" id="L185">            myFilterId = intent.getLongExtra(NewEditActivity.KEY_RULEID,0);</span>
+<span class="fc" id="L186">            ptFilter = myOrigFilter;</span>
+<span class="fc" id="L187">            myAction = NewEditActivity.ACTION_UPDATE;</span>
+
+<span class="fc" id="L189">            enableWidgets(false,false);</span>
+
+        }
+        //ACTION_EDIT
+<span class="pc bpc" id="L193" title="1 of 2 branches missed.">        else if (intent.hasExtra(NewEditActivity.KEY_ACTION) &amp;&amp;</span>
+<span class="pc bpc" id="L194" title="1 of 2 branches missed.">                intent.getStringExtra(NewEditActivity.KEY_ACTION).equals(NewEditActivity.ACTION_EDIT)) {</span>
+<span class="nc" id="L195">            myOrigFilter = intent.getParcelableExtra(NewEditActivity.KEY_ORIG);</span>
+<span class="nc" id="L196">            myNewFilter = intent.getParcelableExtra(NewEditActivity.KEY_NEW);</span>
+<span class="nc" id="L197">            myFilterId = intent.getLongExtra(NewEditActivity.KEY_RULEID,0);</span>
+<span class="nc" id="L198">            ptFilter = myNewFilter;</span>
+<span class="nc" id="L199">            myAction = NewEditActivity.ACTION_EDIT;</span>
+
+<span class="nc" id="L201">            enableWidgets(false,true);</span>
+        }
+        //ACTION_CREATE
+        else {
+<span class="fc" id="L205">            myNewFilter = new FilterHandle(&quot;dummy&quot;,null,null,null);</span>
+<span class="fc" id="L206">            myOrigFilter = null;</span>
+<span class="fc" id="L207">            ptFilter = myNewFilter;</span>
+<span class="fc" id="L208">            myAction = NewEditActivity.ACTION_CREATE;</span>
+
+<span class="fc" id="L210">            enableWidgets(true,true);</span>
+        }
+
+<span class="pc bpc" id="L213" title="1 of 2 branches missed.">        if (getSupportActionBar()!=null)</span>
+<span class="fc" id="L214">            getSupportActionBar().setDisplayHomeAsUpEnabled(true);</span>
+<span class="fc" id="L215">    }</span>
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+<span class="fc" id="L219">        boolean flag = super.onCreateOptionsMenu(menu);</span>
+<span class="fc" id="L220">        mi_pickCalendar = menu.findItem(R.id.action_pick_calendar);</span>
+<span class="fc" id="L221">        mi_pickPatterns = menu.findItem(R.id.action_pick_patterns);</span>
+<span class="fc" id="L222">        mi_pickAction = menu.findItem(R.id.action_pick_action);</span>
+<span class="fc" id="L223">        mi_editCalendar = menu.findItem(R.id.action_edit_calendar);</span>
+<span class="fc" id="L224">        mi_editPatterns = menu.findItem(R.id.action_edit_patterns);</span>
+<span class="fc bfc" id="L225" title="All 2 branches covered.">        if (myAction.equals(ACTION_CREATE)) {</span>
+<span class="fc" id="L226">            mi_pickCalendar.setVisible(true);</span>
+<span class="fc" id="L227">            mi_pickPatterns.setVisible(true);</span>
+<span class="fc" id="L228">            mi_pickAction.setVisible(true);</span>
+        }
+<span class="pc bpc" id="L230" title="1 of 2 branches missed.">        else if (myAction.equals(ACTION_EDIT)) {</span>
+<span class="nc" id="L231">            mi_pickCalendar.setVisible(true);</span>
+<span class="nc" id="L232">            mi_pickPatterns.setVisible(true);</span>
+<span class="nc" id="L233">            mi_pickAction.setVisible(true);</span>
+<span class="nc" id="L234">            mi_editCalendar.setVisible(true);</span>
+<span class="nc" id="L235">            mi_editPatterns.setVisible(true);</span>
+        }
+
+<span class="fc" id="L238">        return flag;</span>
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+<span class="fc" id="L243">        int id = item.getItemId();</span>
+
+<span class="pc bpc" id="L245" title="2 of 6 branches missed.">        switch (id) {</span>
+            case R.id.action_pick_calendar:
+<span class="fc" id="L247">                pickCalendar();</span>
+<span class="fc" id="L248">                return true;</span>
+            case R.id.action_pick_patterns:
+<span class="nc" id="L250">                pickPatterns();</span>
+<span class="nc" id="L251">                return true;</span>
+            case R.id.action_pick_action:
+<span class="nc" id="L253">                pickAction();</span>
+<span class="nc" id="L254">                return true;</span>
+            case R.id.action_edit_calendar:
+<span class="fc" id="L256">                editCalendar();</span>
+<span class="fc" id="L257">                return true;</span>
+            case R.id.action_edit_patterns:
+<span class="fc" id="L259">                editPatterns();</span>
+<span class="fc" id="L260">                return true;</span>
+        }
+<span class="fc" id="L262">        return super.onOptionsItemSelected(item);</span>
+    }
+
+
+    @Override
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+<span class="nc" id="L268">        savedInstanceState.putParcelable(NewEditActivity.KEY_NEW, myNewFilter);</span>
+<span class="nc" id="L269">        savedInstanceState.putParcelable(NewEditActivity.KEY_ORIG, myOrigFilter);</span>
+<span class="nc" id="L270">        savedInstanceState.putString(NewEditActivity.KEY_ACTION, myAction);</span>
+<span class="nc" id="L271">        savedInstanceState.putBoolean(NewEditActivity.KEY_ISNAMEVALID, isNameValid);</span>
+<span class="nc" id="L272">        savedInstanceState.putStringArrayList(NewEditActivity.KEY_RULENAMES, filterNames);</span>
+<span class="nc bnc" id="L273" title="All 2 branches missed.">        savedInstanceState.putString(NewEditActivity.KEY_PTRULE, ptFilter == myOrigFilter ? &quot;Original&quot; : &quot;New&quot;);</span>
+
+<span class="nc" id="L275">        super.onSaveInstanceState(savedInstanceState);</span>
+<span class="nc" id="L276">    }</span>
+
+    @Override
+    public void onRestoreInstanceState(Bundle savedInstanceState) {
+<span class="nc" id="L280">        super.onRestoreInstanceState(savedInstanceState);</span>
+<span class="nc" id="L281">        myNewFilter = savedInstanceState.getParcelable(NewEditActivity.KEY_NEW);</span>
+<span class="nc" id="L282">        myOrigFilter = savedInstanceState.getParcelable(NewEditActivity.KEY_ORIG);</span>
+<span class="nc" id="L283">        myAction = savedInstanceState.getString(NewEditActivity.KEY_ACTION);</span>
+<span class="nc" id="L284">        isNameValid = savedInstanceState.getBoolean(NewEditActivity.KEY_ISNAMEVALID);</span>
+<span class="nc" id="L285">        filterNames = savedInstanceState.getStringArrayList(NewEditActivity.KEY_RULENAMES);</span>
+<span class="nc" id="L286">        String rule = savedInstanceState.getString(NewEditActivity.KEY_PTRULE,&quot;&quot;);</span>
+<span class="nc bnc" id="L287" title="All 2 branches missed.">        if (rule.equals(&quot;Original&quot;))</span>
+<span class="nc" id="L288">            ptFilter = myOrigFilter;</span>
+        else
+<span class="nc" id="L290">            ptFilter = myNewFilter;</span>
+<span class="nc" id="L291">    }</span>
+
+    @Override
+    protected void save() {
+<span class="nc" id="L295">        new DbOperation(myAction,myFilterId).execute(ptFilter);</span>
+<span class="nc" id="L296">    }</span>
+
+    @Override
+    protected void change() {
+<span class="fc" id="L300">        myAction = NewEditActivity.ACTION_EDIT;</span>
+<span class="fc" id="L301">        ptFilter = myNewFilter;</span>
+<span class="fc" id="L302">        enableWidgets(false,true);</span>
+<span class="fc" id="L303">        validateActions();</span>
+<span class="fc" id="L304">    }</span>
+
+    @Override
+    protected void undo() {
+<span class="nc" id="L308">        myAction = NewEditActivity.ACTION_UPDATE;</span>
+<span class="nc" id="L309">        ptFilter = myOrigFilter;</span>
+        try {
+<span class="nc" id="L311">            myNewFilter  = (FilterHandle)myOrigFilter.clone();</span>
+<span class="nc" id="L312">        } catch (CloneNotSupportedException e) {</span>
+<span class="nc" id="L313">            Log.e(TAG, &quot;Could not clone original rule&quot;);</span>
+<span class="nc" id="L314">        }</span>
+<span class="nc" id="L315">        refreshWidgets(true);</span>
+<span class="nc" id="L316">        enableWidgets(false, false);</span>
+<span class="nc" id="L317">    }</span>
+
+    @Override
+    protected void delete() {
+<span class="fc" id="L321">        new AlertDialog.Builder(this)</span>
+<span class="fc" id="L322">                .setMessage(R.string.tx_filter_delete_confirm)</span>
+<span class="fc" id="L323">                .setCancelable(false)</span>
+<span class="fc" id="L324">                .setPositiveButton(R.string.bt_yes_delete, new DialogInterface.OnClickListener() {</span>
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+<span class="nc" id="L327">                        new DbOperation(NewEditActivity.ACTION_DELETE, myFilterId).execute(ptFilter);</span>
+<span class="nc" id="L328">                    }</span>
+                })
+<span class="fc" id="L330">                .setNegativeButton(R.string.bt_no_keep,null)</span>
+<span class="fc" id="L331">                .show();</span>
+<span class="fc" id="L332">    }</span>
+
+    @Override
+    protected void help() {
+<span class="nc" id="L336">        AlertDialog.Builder alert = new AlertDialog.Builder(this);</span>
+<span class="nc" id="L337">        alert.setTitle(R.string.tx_filter_help_title);</span>
+
+<span class="nc" id="L339">        WebView wv = new WebView(this);</span>
+<span class="nc" id="L340">        wv.loadUrl(&quot;file:///android_asset/html/filter_edit.html&quot;);</span>
+<span class="nc" id="L341">        ScrollView scroll = new ScrollView(this);</span>
+<span class="nc" id="L342">        scroll.setVerticalScrollBarEnabled(true);</span>
+<span class="nc" id="L343">        scroll.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,</span>
+                ViewGroup.LayoutParams.MATCH_PARENT));
+<span class="nc" id="L345">        scroll.addView(wv);</span>
+
+<span class="nc" id="L347">        alert.setView(scroll);</span>
+<span class="nc" id="L348">        alert.setNegativeButton(&quot;Close&quot;, new DialogInterface.OnClickListener() {</span>
+            @Override
+            public void onClick(DialogInterface dialog, int id) {
+<span class="nc" id="L351">                dialog.dismiss();</span>
+<span class="nc" id="L352">            }</span>
+        });
+<span class="nc" id="L354">        alert.show();</span>
+<span class="nc" id="L355">    }</span>
+
+    @Override
+    protected boolean hasChanged() {
+<span class="nc bnc" id="L359" title="All 4 branches missed.">        return ptFilter!=null &amp;&amp; !ptFilter.equals(myOrigFilter);</span>
+    }
+
+    @Override
+    protected void validateActions() {
+<span class="pc bpc" id="L364" title="4 of 8 branches missed.">        if (mi_save==null || mi_delete ==null || mi_change == null || mi_undo == null) return;</span>
+        //Save only valie in EDIT or CREATE mode, when the data has change and the name is valid
+<span class="fc bfc" id="L366" title="All 2 branches covered.">        mi_save.setVisible((myAction.equals(NewEditActivity.ACTION_EDIT) ||</span>
+<span class="fc bfc" id="L367" title="All 2 branches covered.">                myAction.equals(NewEditActivity.ACTION_CREATE)) &amp;&amp;</span>
+<span class="pc bpc" id="L368" title="2 of 4 branches missed.">                !myNewFilter.equals(myOrigFilter) &amp;&amp; isNameValid);</span>
+        //Delete only valid in UPDATE mode
+<span class="pc bpc" id="L370" title="1 of 4 branches missed.">        mi_delete.setVisible(myAction.equals(NewEditActivity.ACTION_UPDATE) &amp;&amp; ptFilter == myOrigFilter);</span>
+        //Change only valid in UPDATE mode
+<span class="pc bpc" id="L372" title="1 of 4 branches missed.">        mi_change.setVisible(myAction.equals(NewEditActivity.ACTION_UPDATE) &amp;&amp; ptFilter == myOrigFilter);</span>
+<span class="pc bpc" id="L373" title="1 of 4 branches missed.">        mi_change.setVisible(myAction.equals(NewEditActivity.ACTION_UPDATE) &amp;&amp; ptFilter == myOrigFilter);</span>
+        //Undo only valid in EDIT mode where there have been changes
+<span class="pc bpc" id="L375" title="1 of 4 branches missed.">        mi_undo.setVisible(myAction.equals(NewEditActivity.ACTION_EDIT) &amp;&amp;</span>
+                ptFilter == myNewFilter &amp;&amp;
+<span class="pc bpc" id="L377" title="2 of 4 branches missed.">                !myNewFilter.equals(myOrigFilter) &amp;&amp;</span>
+                isNameValid);
+<span class="fc bfc" id="L379" title="All 2 branches covered.">        if (myAction.equals(NewEditActivity.ACTION_EDIT)) {</span>
+<span class="pc bpc" id="L380" title="1 of 2 branches missed.">            if (myNewFilter.equals(myOrigFilter))</span>
+<span class="nc" id="L381">                tv_validation.setText(R.string.tx_validation_rule_no_changes);</span>
+            else
+<span class="fc" id="L383">                tv_validation.setText(R.string.tx_validation_rule_has_changed);</span>
+        }
+<span class="pc bpc" id="L385" title="1 of 6 branches missed.">        boolean canChangeFilter = ((myAction.equals(NewEditActivity.ACTION_EDIT) || myAction.equals(NewEditActivity.ACTION_CREATE)) &amp;&amp;</span>
+                                   ptFilter == myNewFilter);
+<span class="fc bfc" id="L387" title="All 2 branches covered.">        if (mi_pickCalendar != null) mi_pickCalendar.setVisible(canChangeFilter);</span>
+<span class="fc bfc" id="L388" title="All 2 branches covered.">        if (mi_pickPatterns != null) mi_pickPatterns.setVisible(canChangeFilter);</span>
+<span class="fc bfc" id="L389" title="All 2 branches covered.">        if (mi_pickAction != null) mi_pickAction.setVisible(canChangeFilter);</span>
+<span class="fc bfc" id="L390" title="All 2 branches covered.">        if (mi_editCalendar != null) mi_editCalendar.setVisible(canChangeFilter);</span>
+<span class="fc bfc" id="L391" title="All 2 branches covered.">        if (mi_editPatterns != null) mi_editPatterns.setVisible(canChangeFilter);</span>
+<span class="fc" id="L392">    }</span>
+
+    @Override
+    protected RuleNameValidator getRuleNameValidator() {
+<span class="fc" id="L396">        return new RuleNameValidator(ed_name, tv_validation, filterNames) {</span>
+            @Override
+            public void validate(TextView source, TextView target, ArrayList&lt;String&gt; names, String text) {
+<span class="fc" id="L399">                ptFilter.setName(text);</span>
+<span class="pc bpc" id="L400" title="1 of 2 branches missed.">                if (source.getText().toString().equals(&quot;&quot;)) {</span>
+<span class="nc" id="L401">                    target.setText(R.string.tx_validation_filter_name_empty);</span>
+<span class="nc" id="L402">                    mi_save.setVisible(false);</span>
+<span class="nc" id="L403">                    isNameValid = false;</span>
+<span class="nc" id="L404">                    return;</span>
+                }
+<span class="pc bpc" id="L406" title="1 of 4 branches missed.">                if (names!= null &amp;&amp; names.contains(source.getText().toString())) {</span>
+<span class="nc" id="L407">                    target.setText(R.string.tx_validation_filter_name_used);</span>
+<span class="nc" id="L408">                    mi_save.setVisible(false);</span>
+<span class="nc" id="L409">                    isNameValid = false;</span>
+<span class="nc" id="L410">                    return;</span>
+                }
+<span class="fc" id="L412">                mi_save.setVisible(true);</span>
+<span class="fc" id="L413">                target.setText(R.string.tx_validation_filter_valid);</span>
+<span class="fc" id="L414">                isNameValid = true;</span>
+<span class="fc" id="L415">            }</span>
+        };
+    }
+
+    @Override
+    protected EditText getNameEditField() {
+<span class="fc" id="L421">        return ed_name;</span>
+    }
+
+    @Override
+    protected String getAction() {
+<span class="fc" id="L426">        return myAction;</span>
+    }
+
+    @Override
+    protected void enableWidgets(boolean nameFlag, boolean widgetFlag) {
+<span class="fc" id="L431">        ed_name.setEnabled(nameFlag);</span>
+<span class="fc" id="L432">        tv_calendar_name.setEnabled(widgetFlag);</span>
+<span class="fc" id="L433">        tv_paterns_name.setEnabled(widgetFlag);</span>
+<span class="fc" id="L434">        tv_action_name.setEnabled(widgetFlag);</span>
+<span class="fc" id="L435">        tv_validation.setEnabled(widgetFlag);</span>
+<span class="fc" id="L436">    }</span>
+
+    @Override
+    void refreshWidgets(boolean validate) {
+<span class="fc" id="L440">        ed_name.setText(ptFilter.getName());</span>
+<span class="fc" id="L441">        tv_calendar_name.setText(String.format(&quot;%s %s&quot;, getString(R.string.tx_calendar_rule_name), ptFilter.getCalendarRuleName()));</span>
+<span class="fc" id="L442">        tv_paterns_name.setText(String.format(&quot;%s %s&quot;, getString(R.string.tx_filter_rule_name), ptFilter.getFilterRuleName()));</span>
+<span class="fc" id="L443">        tv_action_name.setText(String.format(&quot;%s %s&quot;, getString(R.string.tx_action_name), ptFilter.getActionSimpleName()));</span>
+<span class="fc" id="L444">        super.refreshWidgets(validate);</span>
+<span class="fc" id="L445">    }</span>
+
+    private void pickCalendar() {
+<span class="fc" id="L448">        Intent intent = new Intent(this,EditCalendarRules.class);</span>
+<span class="fc" id="L449">        intent.putExtra(NewEditActivity.KEY_CONTEXT, NewEditActivity.CONTEXT_PICK);</span>
+<span class="fc" id="L450">        startActivityForResult(intent, PICK_CAL);</span>
+<span class="fc" id="L451">    }</span>
+
+    private void pickPatterns() {
+<span class="nc" id="L454">        Intent intent = new Intent(this,EditFilterRules.class);</span>
+<span class="nc" id="L455">        intent.putExtra(NewEditActivity.KEY_CONTEXT, NewEditActivity.CONTEXT_PICK);</span>
+<span class="nc" id="L456">        startActivityForResult(intent, PICK_PAT);</span>
+<span class="nc" id="L457">    }</span>
+
+    private void pickAction() {
+<span class="nc" id="L460">        Intent intent = new Intent(this,PickAction.class);</span>
+<span class="nc" id="L461">        startActivityForResult(intent, PICK_ACT);</span>
+<span class="nc" id="L462">    }</span>
+
+    private void editCalendar() {
+<span class="fc" id="L465">        new DbCalendar().execute(ptFilter.getCalendarRuleName());</span>
+<span class="fc" id="L466">    }</span>
+
+    private void editPatterns() {
+<span class="fc" id="L469">        new DbPatterns().execute(ptFilter.getFilterRuleName());</span>
+<span class="fc" id="L470">    }</span>
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+<span class="pc bpc" id="L474" title="1 of 4 branches missed.">        if (resultCode == Activity.RESULT_OK &amp;&amp; requestCode == PICK_CAL) {</span>
+<span class="nc" id="L475">            ptFilter.setCalendarRuleName(data.getStringExtra(KEY_RULENAME));</span>
+<span class="nc" id="L476">            refreshWidgets(true);</span>
+<span class="nc" id="L477">            return;</span>
+        }
+<span class="pc bpc" id="L479" title="1 of 4 branches missed.">        if (resultCode == Activity.RESULT_OK &amp;&amp; requestCode == PICK_PAT) {</span>
+<span class="nc" id="L480">            ptFilter.setFilterRuleName(data.getStringExtra(KEY_RULENAME));</span>
+<span class="nc" id="L481">            refreshWidgets(true);</span>
+<span class="nc" id="L482">            return;</span>
+        }
+<span class="pc bpc" id="L484" title="1 of 4 branches missed.">        if (resultCode == Activity.RESULT_OK &amp;&amp; requestCode == PICK_ACT) {</span>
+<span class="nc" id="L485">            ptFilter.setActionName(data.getStringExtra(KEY_ACTIONNAME));</span>
+<span class="nc" id="L486">            refreshWidgets(true);</span>
+<span class="nc" id="L487">            return;</span>
+        }
+<span class="fc bfc" id="L489" title="All 4 branches covered.">        if (resultCode == Activity.RESULT_OK &amp;&amp; requestCode == EDIT_CAL) {</span>
+<span class="fc" id="L490">            refreshWidgets(true);</span>
+<span class="fc" id="L491">            return;</span>
+        }
+<span class="pc bpc" id="L493" title="1 of 4 branches missed.">        if (resultCode == Activity.RESULT_OK &amp;&amp; requestCode == EDIT_PAT) {</span>
+<span class="fc" id="L494">            refreshWidgets(true);</span>
+        }
+<span class="fc" id="L496">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

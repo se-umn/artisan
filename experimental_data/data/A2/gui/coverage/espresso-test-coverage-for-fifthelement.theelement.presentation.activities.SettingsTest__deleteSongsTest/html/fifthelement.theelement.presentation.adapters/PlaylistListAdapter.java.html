@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PlaylistListAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.presentation.adapters</a> &gt; <span class="el_source">PlaylistListAdapter.java</span></div><h1>PlaylistListAdapter.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.presentation.adapters;
+
+import android.app.Activity;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.support.v7.app.AlertDialog;
+import android.support.v7.widget.AppCompatImageButton;
+import android.support.v7.widget.PopupMenu;
+import android.util.Log;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+
+import java.util.List;
+
+import fifthelement.theelement.R;
+import fifthelement.theelement.application.Helpers;
+import fifthelement.theelement.application.Services;
+import fifthelement.theelement.business.services.PlaylistService;
+import fifthelement.theelement.business.services.SongListService;
+import fifthelement.theelement.business.util.SongMetaUtil;
+import fifthelement.theelement.objects.Playlist;
+import fifthelement.theelement.persistence.hsqldb.PersistenceException;
+import fifthelement.theelement.presentation.activities.MainActivity;
+
+import static fifthelement.theelement.application.Services.getMusicService;
+
+public class PlaylistListAdapter extends BaseAdapter {
+    Context context;
+    List&lt;Playlist&gt; playlists;
+    LayoutInflater inflater;
+    PlaylistService playlistService;
+    SongListService songListService;
+    private static final String LOG_TAG = &quot;SongsListAdapter&quot;;
+
+<span class="nc" id="L42">    public PlaylistListAdapter(Context context, List&lt;Playlist&gt; playlists) {</span>
+<span class="nc" id="L43">        this.context = context;</span>
+<span class="nc" id="L44">        this.playlists = playlists;</span>
+<span class="nc" id="L45">        this.playlistService = Services.getPlaylistService();</span>
+<span class="nc" id="L46">        this.songListService = Services.getSongListService();</span>
+<span class="nc" id="L47">        inflater = (LayoutInflater.from(context));</span>
+<span class="nc" id="L48">    }</span>
+
+    @Override
+    public int getCount() {
+<span class="nc" id="L52">        return playlists.size();</span>
+    }
+
+    @Override
+    public Object getItem(int position) {
+<span class="nc" id="L57">        return playlists.get(position);</span>
+    }
+
+    @Override
+    public long getItemId(int position) {
+<span class="nc" id="L62">        return (long) getItem(position).hashCode();</span>
+    }
+
+    @Override
+    public View getView(int i, View view, ViewGroup viewGroup) {
+<span class="nc" id="L67">        final MainActivity activity = (MainActivity)context;</span>
+<span class="nc" id="L68">        view = inflater.inflate(R.layout.fragment_list_item, null);</span>
+
+<span class="nc" id="L70">        TextView songName = (TextView) view.findViewById(R.id.primary_string);</span>
+<span class="nc" id="L71">        TextView songCount = (TextView) view.findViewById(R.id.secondary_string);</span>
+
+<span class="nc" id="L73">        final Playlist playlist = playlists.get(i);</span>
+<span class="nc" id="L74">        songName.setText(playlist.getName());</span>
+<span class="nc" id="L75">        songCount.setText((playlist.getSongs().size())+&quot; Songs&quot;);</span>
+
+<span class="nc" id="L77">        AppCompatImageButton button = view.findViewById(R.id.popup_button);</span>
+
+<span class="nc" id="L79">        playlistOptions(activity, playlist, button);</span>
+<span class="nc" id="L80">        return view;</span>
+    }
+
+    private void playlistOptions(final MainActivity activity, final Playlist playlist, AppCompatImageButton button) {
+<span class="nc" id="L84">        button.setOnClickListener(new View.OnClickListener() {</span>
+            @Override
+            public void onClick(View v) {
+<span class="nc" id="L87">                PopupMenu popup = new PopupMenu(context, v, Gravity.LEFT);</span>
+<span class="nc" id="L88">                Activity act = (MainActivity)context;</span>
+<span class="nc" id="L89">                activity.getMenuInflater().inflate(R.menu.playlist_item_menu, popup.getMenu());</span>
+<span class="nc" id="L90">                popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {</span>
+                    public boolean onMenuItemClick(MenuItem item) {
+<span class="nc bnc" id="L92" title="All 4 branches missed.">                        switch(item.getItemId()) {</span>
+                            case R.id.delete_playlist:
+<span class="nc" id="L94">                                deletePlaylist(playlist, activity);</span>
+<span class="nc" id="L95">                                break;</span>
+                            case R.id.play_playlist:
+<span class="nc" id="L97">                                playPlaylist(playlist, activity);</span>
+<span class="nc" id="L98">                                break;</span>
+                            case R.id.rename_playlist:
+<span class="nc" id="L100">                                renamePlaylist(playlist);</span>
+<span class="nc" id="L101">                                break;</span>
+                            default:
+                                break;
+                        }
+<span class="nc" id="L105">                        return true;</span>
+                    }
+                });
+<span class="nc" id="L108">                popup.show();</span>
+<span class="nc" id="L109">            }</span>
+        });
+<span class="nc" id="L111">    }</span>
+
+    private void renamePlaylist(final Playlist playlist){
+<span class="nc" id="L114">        final AlertDialog.Builder builderSingle = new AlertDialog.Builder(this.context);</span>
+<span class="nc" id="L115">        builderSingle.setIcon(R.drawable.ic_edit);</span>
+<span class="nc" id="L116">        builderSingle.setTitle(&quot;Rename &quot;+playlist.getName()+&quot; to:&quot;);</span>
+<span class="nc" id="L117">        final EditText newNameInput = new EditText(context);</span>
+<span class="nc" id="L118">        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,</span>
+                LinearLayout.LayoutParams.MATCH_PARENT);
+<span class="nc" id="L120">        newNameInput.setLayoutParams(lp);</span>
+<span class="nc" id="L121">        builderSingle.setView(newNameInput);</span>
+
+<span class="nc" id="L123">        builderSingle.setPositiveButton(&quot;Done&quot;, new DialogInterface.OnClickListener() {</span>
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                //take the text and change the name of the playlist
+<span class="nc" id="L127">                String newName = newNameInput.getText().toString();</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">                if ( SongMetaUtil.validName(newName)){</span>
+<span class="nc" id="L129">                    playlist.setName(newName);</span>
+<span class="nc" id="L130">                    playlistService.updatePlaylist(playlist, newName);</span>
+                }
+                else{
+<span class="nc" id="L133">                    Helpers.getToastHelper(context).sendToast(newName+&quot; is an invalid name, try again&quot;);</span>
+                }
+<span class="nc" id="L135">                dialog.dismiss();</span>
+<span class="nc" id="L136">            }</span>
+        });
+
+<span class="nc" id="L139">        builderSingle.setNegativeButton(&quot;cancel&quot;, new DialogInterface.OnClickListener() {</span>
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+<span class="nc" id="L142">                dialog.dismiss();</span>
+<span class="nc" id="L143">            }</span>
+        });
+
+<span class="nc" id="L146">        builderSingle.show();</span>
+<span class="nc" id="L147">    }</span>
+
+    private void deletePlaylist(Playlist playlist, MainActivity activity) {
+        try {
+<span class="nc" id="L151">            Helpers.getToastHelper(context).sendToast(&quot;Deleted &quot; + playlist.getName());</span>
+<span class="nc" id="L152">            activity.deletePlaylist(playlist);</span>
+<span class="nc" id="L153">            notifyDataSetChanged();</span>
+<span class="nc" id="L154">        } catch(PersistenceException p) {</span>
+<span class="nc" id="L155">            Helpers.getToastHelper(context).sendToast(&quot;Could not delete &quot; + playlist.getName());</span>
+<span class="nc" id="L156">            Log.e(LOG_TAG, p.getMessage());</span>
+<span class="nc" id="L157">        }</span>
+<span class="nc" id="L158">    }</span>
+
+    private void playPlaylist(Playlist playlist, MainActivity activity) {
+        try {
+<span class="nc bnc" id="L162" title="All 2 branches missed.">            if (playlist.getSongs().size() == 0)</span>
+<span class="nc" id="L163">                Helpers.getToastHelper(context).sendToast(&quot;No songs in &quot; + playlist.getName());</span>
+            else{
+<span class="nc" id="L165">                songListService.setPlayerCurrentSongs(playlist);</span>
+<span class="nc" id="L166">                Helpers.getToastHelper(context).sendToast(&quot;Playing &quot; + playlist.getName());</span>
+<span class="nc" id="L167">                getMusicService().playSongAsync();</span>
+            }
+<span class="nc" id="L169">        } catch(PersistenceException p) {</span>
+<span class="nc" id="L170">            Helpers.getToastHelper(context).sendToast(&quot;Could not play &quot; + playlist.getName());</span>
+<span class="nc" id="L171">            Log.e(LOG_TAG, p.getMessage());</span>
+<span class="nc" id="L172">        }</span>
+<span class="nc" id="L173">    }</span>
+
+    public void notifyDataSetChanged() {
+<span class="nc" id="L176">        super.notifyDataSetChanged();</span>
+<span class="nc" id="L177">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

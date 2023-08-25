@@ -1,0 +1,509 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CallBlockerManager.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker</a> &gt; <span class="el_source">CallBlockerManager.java</span></div><h1>CallBlockerManager.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker;
+
+import android.app.ActivityManager;
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
+import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.IBinder;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.webkit.WebView;
+import android.widget.Button;
+import android.widget.CompoundButton;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.ToggleButton;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatCheckBox;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.List;
+import java.util.Locale;
+
+<span class="nc" id="L44">public class CallBlockerManager extends AppCompatActivity {</span>
+
+<span class="nc" id="L46">    private static final String TAG = CallBlockerManager.class.getCanonicalName();</span>
+
+    private TextView textDetectState;
+    private CallEventReceiver callEventReceiver;
+    private Button buttonReceived;
+    private Button buttonTriggered;
+    private boolean isBound;
+    private Dialog aboutDlg;
+
+<span class="nc" id="L55">    private final ServiceConnection myConnection = new ServiceConnection() {</span>
+
+        @Override
+        public void onServiceConnected(ComponentName className, IBinder service) {
+<span class="nc" id="L59">            CallDetectService.LocalBinder binder = (CallDetectService.LocalBinder) service;</span>
+<span class="nc" id="L60">            CallDetectService myService = binder.getService();</span>
+<span class="nc" id="L61">            isBound = true;</span>
+<span class="nc" id="L62">            buttonReceived.setText(String.valueOf(myService.getNumReceived()));</span>
+<span class="nc" id="L63">            buttonReceived.invalidate();</span>
+<span class="nc" id="L64">            buttonTriggered.setText(String.valueOf(myService.getNumTriggered()));</span>
+<span class="nc" id="L65">            buttonTriggered.invalidate();</span>
+<span class="nc" id="L66">        }</span>
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+<span class="nc" id="L70">            isBound = false;</span>
+<span class="nc" id="L71">        }</span>
+    };
+
+    /**
+     * Broadcast receiver to receive intents when a call is detected
+     */
+<span class="nc" id="L77">    private class CallEventReceiver extends BroadcastReceiver {</span>
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+<span class="nc" id="L81">            String number = intent.getStringExtra(context.getString(R.string.ky_number_called));</span>
+<span class="nc" id="L82">            int numReceived = intent.getIntExtra(context.getString(R.string.ky_received), 0);</span>
+<span class="nc" id="L83">            int numTriggered = intent.getIntExtra(context.getString(R.string.ky_triggered), 0);</span>
+<span class="nc" id="L84">            String message = String.format(Locale.getDefault(),</span>
+                                           &quot;Incoming: %s, Num received: %d, Num triggered: %d&quot;,
+<span class="nc" id="L86">                                           number, numReceived, numTriggered);</span>
+<span class="nc" id="L87">            Log.i(TAG,message);</span>
+
+<span class="nc bnc" id="L89" title="All 2 branches missed.">            if (buttonReceived == null)</span>
+<span class="nc" id="L90">                buttonReceived = (Button) findViewById(R.id.button_received);</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">            if (buttonTriggered == null)</span>
+<span class="nc" id="L92">                buttonTriggered = (Button) findViewById(R.id.button_triggered);</span>
+
+<span class="nc" id="L94">            buttonReceived.setText(String.valueOf(numReceived));</span>
+<span class="nc" id="L95">            buttonReceived.invalidate();</span>
+<span class="nc" id="L96">            buttonTriggered.setText(String.valueOf(numTriggered));</span>
+<span class="nc" id="L97">            buttonTriggered.invalidate();</span>
+<span class="nc" id="L98">        }</span>
+    }
+
+    private void createNotificationChannel() {
+        // Create the NotificationChannel, but only on API 26+ because
+        // the NotificationChannel class is new and not in the support library
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.O) {</span>
+<span class="nc" id="L105">            int importance = NotificationManager.IMPORTANCE_DEFAULT;</span>
+<span class="nc" id="L106">            NotificationChannel channel = new NotificationChannel(&quot;mychannel&quot;, &quot;channelname&quot;, importance);</span>
+<span class="nc" id="L107">            channel.setDescription(&quot;Description&quot;);</span>
+            // Register the channel with the system; you can't change the importance
+            // or other notification behaviors after this
+<span class="nc" id="L110">            NotificationManager notificationManager = getSystemService(NotificationManager.class);</span>
+<span class="nc" id="L111">            notificationManager.createNotificationChannel(channel);</span>
+        }
+<span class="nc" id="L113">    }</span>
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+<span class="nc" id="L117">        super.onCreate(savedInstanceState);</span>
+<span class="nc" id="L118">        setContentView(R.layout.call_blocker_manager);</span>
+<span class="nc" id="L119">        createNotificationChannel();</span>
+<span class="nc" id="L120">        textDetectState = (TextView) findViewById(R.id.textDetectState);</span>
+<span class="nc" id="L121">        ToggleButton buttonToggleDetect = (ToggleButton) findViewById(R.id.buttonDetectToggle);</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (isServiceRunning(this)) {</span>
+<span class="nc" id="L123">            textDetectState.setText(R.string.tx_detect);</span>
+<span class="nc bnc" id="L124" title="All 2 branches missed.">            if (buttonToggleDetect!=null) buttonToggleDetect.setChecked(true);</span>
+        } else {  //service not running but check the state in SharedPreference
+<span class="nc" id="L126">            SharedPreferences prefs = getSharedPreferences(getString(R.string.file_shared_prefs_name),</span>
+                                                           Context.MODE_PRIVATE);
+<span class="nc" id="L128">            String state = prefs.getString(getString(R.string.pk_state), &quot;not found&quot;);</span>
+<span class="nc bnc" id="L129" title="All 2 branches missed.">            if (state.equals(getString(R.string.tx_state_running))) {</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">                if (buttonToggleDetect != null) buttonToggleDetect.setChecked(true);</span>
+<span class="nc" id="L131">                startService();</span>
+            }
+        }
+<span class="nc" id="L134">        Button buttonExit = (Button) findViewById(R.id.buttonExit);</span>
+
+<span class="nc bnc" id="L136" title="All 2 branches missed.">        if (buttonToggleDetect != null) {</span>
+<span class="nc" id="L137">            buttonToggleDetect.setOnClickListener(new Button.OnClickListener() {</span>
+                @Override
+                public void onClick(View view) {
+<span class="nc" id="L140">                    setDetectEnabled();</span>
+<span class="nc" id="L141">                }</span>
+            });
+        }
+
+<span class="nc bnc" id="L145" title="All 2 branches missed.">        if (buttonExit != null) {</span>
+<span class="nc" id="L146">            buttonExit.setOnClickListener(new Button.OnClickListener() {</span>
+                @Override
+                public void onClick(View view) {
+<span class="nc" id="L149">                    finish();</span>
+<span class="nc" id="L150">                }</span>
+            });
+        }
+
+
+        //call receiver
+<span class="nc" id="L156">        callEventReceiver = new CallEventReceiver();</span>
+<span class="nc" id="L157">        IntentFilter filter = new IntentFilter(getString(R.string.ac_call));</span>
+<span class="nc" id="L158">        registerReceiver(callEventReceiver,filter);</span>
+
+        //call stats buttons
+<span class="nc" id="L161">        buttonReceived = (Button) findViewById(R.id.button_received);</span>
+<span class="nc" id="L162">        buttonTriggered = (Button) findViewById(R.id.button_triggered);</span>
+
+        //register button events
+<span class="nc" id="L165">        buttonReceived.setOnClickListener(new Button.OnClickListener() {</span>
+            @Override
+            public void onClick(View v) {
+<span class="nc" id="L168">                showCalls();</span>
+<span class="nc" id="L169">            }</span>
+        });
+<span class="nc" id="L171">        buttonTriggered.setOnClickListener(new Button.OnClickListener() {</span>
+            @Override
+            public void onClick(View v) {
+<span class="nc" id="L174">                showTriggers();</span>
+<span class="nc" id="L175">            }</span>
+        });
+
+        //grant permission to detect phone state chenges and read contacts
+<span class="nc" id="L179">        PermissionHelper.checkPermissions(this);</span>
+
+        //check protected apps for Huawei devices
+        //http://stackoverflow.com/questions/31638986/protected-apps-setting-on-huawei-phones-and-how-to-handle-it
+<span class="nc bnc" id="L183" title="All 2 branches missed.">        if (isHuawei(this))</span>
+<span class="nc" id="L184">            HuaweiAlert(this,false);</span>
+<span class="nc" id="L185">    }</span>
+
+    @Override
+    protected void onStart() {
+<span class="nc" id="L189">        super.onStart();</span>
+<span class="nc bnc" id="L190" title="All 2 branches missed.">        if (isServiceRunning(this)) {</span>
+<span class="nc" id="L191">            Intent intent = new Intent(this, CallDetectService.class);</span>
+<span class="nc" id="L192">            bindService(intent, myConnection, Context.BIND_ABOVE_CLIENT);</span>
+        }
+<span class="nc" id="L194">    }</span>
+
+    @Override
+    protected void onStop() {
+<span class="nc" id="L198">        super.onStop();</span>
+<span class="nc bnc" id="L199" title="All 4 branches missed.">        if (aboutDlg!=null &amp;&amp; aboutDlg.isShowing())</span>
+<span class="nc" id="L200">            aboutDlg.dismiss();</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">        if (isBound){</span>
+<span class="nc" id="L202">            unbindService(myConnection);</span>
+<span class="nc" id="L203">            isBound = false;</span>
+        }
+<span class="nc" id="L205">    }</span>
+
+    @Override
+    protected void onDestroy(){
+<span class="nc" id="L209">        unregisterReceiver(callEventReceiver);</span>
+<span class="nc" id="L210">        super.onDestroy();</span>
+<span class="nc" id="L211">    }</span>
+
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+<span class="nc" id="L217">        getMenuInflater().inflate(R.menu.menu_call_blocker_manager, menu);</span>
+<span class="nc" id="L218">        return true;</span>
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+<span class="nc" id="L226">        int id = item.getItemId();</span>
+
+<span class="nc bnc" id="L228" title="All 10 branches missed.">        switch(id) {</span>
+            case R.id.action_settings:
+<span class="nc" id="L230">                showSettings();</span>
+<span class="nc" id="L231">                return true;</span>
+            case R.id.action_show_runs:
+<span class="nc" id="L233">                showRuns();</span>
+<span class="nc" id="L234">                return true;</span>
+            case R.id.action_show_calls:
+<span class="nc" id="L236">                showCalls();</span>
+<span class="nc" id="L237">                return true;</span>
+            case R.id.action_show_calendar_rules:
+<span class="nc" id="L239">                showCalendarRules();</span>
+<span class="nc" id="L240">                return true;</span>
+            case R.id.action_show_filter_rules:
+<span class="nc" id="L242">                showFilterRules();</span>
+<span class="nc" id="L243">                return true;</span>
+            case R.id.action_show_filters:
+<span class="nc" id="L245">                showFilters();</span>
+<span class="nc" id="L246">                return true;</span>
+            case R.id.action_help:
+<span class="nc" id="L248">                showHelp();</span>
+<span class="nc" id="L249">                return true;</span>
+            case R.id.action_about:
+<span class="nc" id="L251">                showAbout();</span>
+<span class="nc" id="L252">                return true;</span>
+            case R.id.action_faq:
+<span class="nc" id="L254">                showFAQ();</span>
+<span class="nc" id="L255">                return true;</span>
+        }
+
+<span class="nc" id="L258">        return super.onOptionsItemSelected(item);</span>
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], int[] grantResults) {
+<span class="nc bnc" id="L263" title="All 2 branches missed.">        switch (requestCode) {</span>
+            case PermissionHelper.REQUEST_CODE_PERMISSION_TELEPHONY_STATE: {
+                // If request is cancelled, the result arrays are empty.
+<span class="nc bnc" id="L266" title="All 4 branches missed.">                if (grantResults.length &gt; 0 &amp;&amp; grantResults[0] == PackageManager.PERMISSION_GRANTED) {</span>
+
+<span class="nc" id="L268">                    Log.i(TAG,&quot;Telephone state permission granted&quot;);</span>
+                } else {
+<span class="nc" id="L270">                    Log.w(TAG,&quot;Telephone state permission denied&quot;);</span>
+                }
+            }
+
+        }
+<span class="nc" id="L275">    }</span>
+    private void setDetectEnabled() {
+
+<span class="nc bnc" id="L278" title="All 2 branches missed.">        if (!isServiceRunning(this)) {</span>
+<span class="nc" id="L279">            startService();</span>
+            //save the running state in a shared preference file
+<span class="nc" id="L281">            Context ctx = getApplicationContext();</span>
+<span class="nc" id="L282">            SharedPreferences prefs = ctx.getSharedPreferences(</span>
+<span class="nc" id="L283">                    getString(R.string.file_shared_prefs_name),</span>
+                    Context.MODE_PRIVATE);
+<span class="nc" id="L285">            SharedPreferences.Editor editor = prefs.edit();</span>
+<span class="nc" id="L286">            editor.putString(getString(R.string.pk_state),</span>
+<span class="nc" id="L287">                    getString(R.string.tx_state_running));</span>
+<span class="nc" id="L288">            editor.apply();</span>
+<span class="nc" id="L289">        } else {</span>
+<span class="nc" id="L290">            stopService();</span>
+            //save the idle state in a shared preference file
+<span class="nc" id="L292">            Context ctx = getApplicationContext();</span>
+<span class="nc" id="L293">            SharedPreferences prefs = ctx.getSharedPreferences(</span>
+<span class="nc" id="L294">                    getString(R.string.file_shared_prefs_name),</span>
+                    Context.MODE_PRIVATE);
+<span class="nc" id="L296">            SharedPreferences.Editor editor = prefs.edit();</span>
+<span class="nc" id="L297">            editor.putString(getString(R.string.pk_state),</span>
+<span class="nc" id="L298">                    getString(R.string.tx_state_idle));</span>
+<span class="nc" id="L299">            editor.apply();</span>
+        }
+<span class="nc" id="L301">    }</span>
+
+    private void stopService() {
+<span class="nc bnc" id="L304" title="All 2 branches missed.">        if (isBound) {</span>
+<span class="nc" id="L305">            unbindService(myConnection);</span>
+<span class="nc" id="L306">            isBound = false;</span>
+        }
+<span class="nc" id="L308">        Log.i(TAG, &quot;Stopping the service&quot;);</span>
+<span class="nc" id="L309">        Intent intent = new Intent(this, CallDetectService.class);</span>
+<span class="nc" id="L310">        stopService(intent);</span>
+<span class="nc" id="L311">        textDetectState.setText(R.string.tx_no_detect);</span>
+
+<span class="nc" id="L313">    }</span>
+
+    private void startService() {
+<span class="nc" id="L316">        Log.i(TAG, &quot;Starting the service&quot;);</span>
+<span class="nc" id="L317">        Intent intent = new Intent(this, CallDetectService.class);</span>
+
+
+<span class="nc" id="L320">        startService(intent);</span>
+<span class="nc" id="L321">        textDetectState.setText((R.string.tx_detect));</span>
+
+<span class="nc" id="L323">    }</span>
+
+
+    public static boolean isServiceRunning(Context context){
+<span class="nc" id="L327">        ActivityManager manager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);</span>
+<span class="nc bnc" id="L328" title="All 2 branches missed.">        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {</span>
+<span class="nc bnc" id="L329" title="All 2 branches missed.">            if (service.service.getClassName().equals(CallDetectService.class.getName())) {</span>
+<span class="nc" id="L330">                return true;</span>
+            }
+<span class="nc" id="L332">        }</span>
+<span class="nc" id="L333">        return false;</span>
+    }
+
+    private void showRuns() {
+<span class="nc" id="L337">        Intent intent = new Intent(this,ShowServiceRuns.class);</span>
+<span class="nc" id="L338">        startActivity(intent);</span>
+<span class="nc" id="L339">    }</span>
+
+    private void showCalls() {
+<span class="nc" id="L342">        Intent intent = new Intent(this,ShowLoggedCalls.class);</span>
+<span class="nc" id="L343">        startActivity(intent);</span>
+<span class="nc" id="L344">    }</span>
+
+    private void showTriggers() {
+<span class="nc" id="L347">        Intent intent = new Intent(this,ShowTriggerEvents.class);</span>
+<span class="nc" id="L348">        startActivity(intent);</span>
+<span class="nc" id="L349">    }</span>
+
+    private void showCalendarRules() {
+<span class="nc" id="L352">        Intent intent = new Intent(this,EditCalendarRules.class);</span>
+<span class="nc" id="L353">        startActivity(intent);</span>
+<span class="nc" id="L354">    }</span>
+
+    private void showFilterRules() {
+<span class="nc" id="L357">        Intent intent = new Intent(this,EditFilterRules.class);</span>
+<span class="nc" id="L358">        startActivity(intent);</span>
+<span class="nc" id="L359">    }</span>
+
+
+    private void showSettings() {
+<span class="nc" id="L363">        Intent intent = new Intent(this,SettingActivity.class);</span>
+<span class="nc" id="L364">        startActivity(intent);</span>
+<span class="nc" id="L365">    }</span>
+
+    private void showFilters() {
+<span class="nc" id="L368">        Intent intent = new Intent(this,EditFilters.class);</span>
+<span class="nc" id="L369">        startActivity(intent);</span>
+<span class="nc" id="L370">    }</span>
+    private void showHelp() {
+<span class="nc" id="L372">        AlertDialog.Builder alert = new AlertDialog.Builder(this);</span>
+<span class="nc" id="L373">        alert.setTitle(R.string.tx_main_help_title);</span>
+
+<span class="nc" id="L375">        WebView wv = new WebView(this);</span>
+<span class="nc" id="L376">        wv.loadUrl(&quot;file:///android_asset/html/main.html&quot;);</span>
+<span class="nc" id="L377">        ScrollView scroll = new ScrollView(this);</span>
+<span class="nc" id="L378">        scroll.setVerticalScrollBarEnabled(true);</span>
+<span class="nc" id="L379">        scroll.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,</span>
+                ViewGroup.LayoutParams.MATCH_PARENT));
+<span class="nc" id="L381">        scroll.addView(wv);</span>
+
+<span class="nc" id="L383">        alert.setView(scroll);</span>
+<span class="nc" id="L384">        alert.setNegativeButton(&quot;Close&quot;, new DialogInterface.OnClickListener() {</span>
+            @Override
+            public void onClick(DialogInterface dialog, int id) {
+<span class="nc" id="L387">                dialog.dismiss();</span>
+<span class="nc" id="L388">            }</span>
+        });
+<span class="nc" id="L390">        alert.show();</span>
+<span class="nc" id="L391">    }</span>
+
+    private void showFAQ() {
+<span class="nc" id="L394">        Uri uri = Uri.parse(getString(R.string.uri_faq));</span>
+<span class="nc" id="L395">        Intent intent = new Intent(Intent.ACTION_VIEW, uri);</span>
+<span class="nc" id="L396">        startActivity(intent);</span>
+<span class="nc" id="L397">    }</span>
+
+    private void showAbout() {
+<span class="nc" id="L400">        String version = &quot;Unknown&quot;;</span>
+        try {
+<span class="nc" id="L402">            PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);</span>
+<span class="nc" id="L403">            version = pInfo.versionName;</span>
+<span class="nc" id="L404">        } catch (PackageManager.NameNotFoundException e) {</span>
+<span class="nc" id="L405">            Log.w(TAG,&quot;Could not get package info&quot;);</span>
+<span class="nc" id="L406">        }</span>
+<span class="nc" id="L407">        View messageView = getLayoutInflater().inflate(R.layout.about, null, false);</span>
+
+<span class="nc" id="L409">        TextView versionView = (TextView) messageView.findViewById(R.id.about_version);</span>
+<span class="nc" id="L410">        versionView.setText(String.format(Locale.getDefault(),&quot;Version: %s&quot;,version));</span>
+
+<span class="nc" id="L412">        AlertDialog.Builder builder = new AlertDialog.Builder(this);</span>
+<span class="nc" id="L413">        builder.setIcon(R.mipmap.police_launcher);</span>
+<span class="nc" id="L414">        builder.setTitle(R.string.app_name);</span>
+<span class="nc" id="L415">        builder.setView(messageView);</span>
+<span class="nc" id="L416">        builder.create();</span>
+<span class="nc" id="L417">        builder.setPositiveButton(&quot;OK&quot;, new DialogInterface.OnClickListener() {</span>
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+<span class="nc" id="L420">                dialog.dismiss();</span>
+<span class="nc" id="L421">            }</span>
+        });
+<span class="nc" id="L423">        aboutDlg = builder.create();</span>
+<span class="nc" id="L424">        aboutDlg.show();</span>
+<span class="nc" id="L425">    }</span>
+
+    static boolean isHuawei(Context ctx) {
+<span class="nc" id="L428">        Intent intent = new Intent();</span>
+<span class="nc" id="L429">        intent.setClassName(&quot;com.huawei.systemmanager&quot;, &quot;com.huawei.systemmanager.optimize.process.ProtectActivity&quot;);</span>
+<span class="nc" id="L430">        List&lt;ResolveInfo&gt; list = ctx.getPackageManager().queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY);</span>
+<span class="nc bnc" id="L431" title="All 2 branches missed.">        return list.size() &gt; 0;</span>
+    }
+
+    static void HuaweiAlert(final Context ctx, boolean alwaysShow) {
+<span class="nc" id="L435">        final SharedPreferences settings = ctx.getSharedPreferences(ctx.getString(R.string.file_shared_prefs_name),</span>
+                                                                Context.MODE_PRIVATE);
+<span class="nc" id="L437">        final String saveIfSkip = ctx.getString(R.string.pk_skip_protected);</span>
+<span class="nc" id="L438">        boolean skipMessage = settings.getBoolean(saveIfSkip, false);</span>
+<span class="nc bnc" id="L439" title="All 4 branches missed.">        if (!skipMessage || alwaysShow) {</span>
+<span class="nc" id="L440">            final SharedPreferences.Editor editor = settings.edit();</span>
+
+<span class="nc" id="L442">            final AppCompatCheckBox dontShowAgain = new AppCompatCheckBox(ctx);</span>
+<span class="nc" id="L443">            dontShowAgain.setText(R.string.tx_dont_show);</span>
+<span class="nc" id="L444">            dontShowAgain.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {</span>
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+<span class="nc" id="L447">                    editor.putBoolean(saveIfSkip, isChecked);</span>
+<span class="nc" id="L448">                    editor.apply();</span>
+<span class="nc" id="L449">                }</span>
+            });
+
+<span class="nc" id="L452">            new AlertDialog.Builder(ctx)</span>
+<span class="nc" id="L453">                    .setIcon(android.R.drawable.ic_dialog_alert)</span>
+<span class="nc" id="L454">                    .setTitle(R.string.tx_huawei_protected)</span>
+<span class="nc" id="L455">                    .setMessage(String.format(&quot;%s requires to be enabled in 'Protected Apps' to function properly.%n&quot;, ctx.getString(R.string.app_name)))</span>
+<span class="nc" id="L456">                    .setView(dontShowAgain)</span>
+<span class="nc" id="L457">                    .setPositiveButton(R.string.tx_list_protected, new DialogInterface.OnClickListener() {</span>
+                        public void onClick(DialogInterface dialog, int which) {
+<span class="nc" id="L459">                            huaweiProtectedApps(ctx);</span>
+<span class="nc" id="L460">                            editor.putBoolean(saveIfSkip,dontShowAgain.isChecked());</span>
+<span class="nc" id="L461">                            editor.apply();</span>
+<span class="nc" id="L462">                        }</span>
+                    })
+<span class="nc" id="L464">                    .setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {</span>
+                        public void onClick(DialogInterface dialog, int which) {
+<span class="nc" id="L466">                            editor.putBoolean(saveIfSkip,dontShowAgain.isChecked());</span>
+<span class="nc" id="L467">                            editor.apply();</span>
+<span class="nc" id="L468">                        }</span>
+                    })
+<span class="nc" id="L470">                    .show();</span>
+
+        }
+<span class="nc" id="L473">    }</span>
+
+
+    private static void huaweiProtectedApps(Context ctx) {
+        try {
+<span class="nc" id="L478">            String cmd = &quot;am start -n com.huawei.systemmanager/.optimize.process.ProtectActivity&quot;;</span>
+<span class="nc bnc" id="L479" title="All 2 branches missed.">            if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.JELLY_BEAN_MR1) {</span>
+<span class="nc" id="L480">                cmd += &quot; --user &quot; + getUserSerial(ctx);</span>
+            }
+<span class="nc" id="L482">            Runtime.getRuntime().exec(cmd);</span>
+<span class="nc" id="L483">        } catch (IOException ignored) {</span>
+<span class="nc" id="L484">        }</span>
+<span class="nc" id="L485">    }</span>
+
+    private static String getUserSerial(Context ctx) {
+        //noinspection ResourceType
+<span class="nc" id="L489">        Object userManager = ctx.getSystemService(&quot;user&quot;);</span>
+<span class="nc bnc" id="L490" title="All 2 branches missed.">        if (null == userManager) return &quot;&quot;;</span>
+
+        try {
+<span class="nc" id="L493">            Method myUserHandleMethod = android.os.Process.class.getMethod(&quot;myUserHandle&quot;, (Class&lt;?&gt;[]) null);</span>
+<span class="nc" id="L494">            Object myUserHandle = myUserHandleMethod.invoke(android.os.Process.class, (Object[]) null);</span>
+<span class="nc" id="L495">            Method getSerialNumberForUser = userManager.getClass().getMethod(&quot;getSerialNumberForUser&quot;, myUserHandle.getClass());</span>
+<span class="nc" id="L496">            Long userSerial = (Long) getSerialNumberForUser.invoke(userManager, myUserHandle);</span>
+<span class="nc bnc" id="L497" title="All 2 branches missed.">            if (userSerial != null) {</span>
+<span class="nc" id="L498">                return String.valueOf(userSerial);</span>
+            } else {
+<span class="nc" id="L500">                return &quot;&quot;;</span>
+            }
+<span class="nc" id="L502">        } catch (NoSuchMethodException | IllegalArgumentException | InvocationTargetException | IllegalAccessException ignored) {</span>
+        }
+<span class="nc" id="L504">        return &quot;&quot;;</span>
+    }
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

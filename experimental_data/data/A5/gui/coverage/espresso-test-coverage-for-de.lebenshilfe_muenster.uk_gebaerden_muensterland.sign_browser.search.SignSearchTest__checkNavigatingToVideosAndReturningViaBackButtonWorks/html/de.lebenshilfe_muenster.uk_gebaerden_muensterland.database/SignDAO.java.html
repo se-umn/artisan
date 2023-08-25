@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SignDAO.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">de.lebenshilfe_muenster.uk_gebaerden_muensterland.database</a> &gt; <span class="el_source">SignDAO.java</span></div><h1>SignDAO.java</h1><pre class="source lang-java linenums">package de.lebenshilfe_muenster.uk_gebaerden_muensterland.database;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.SQLException;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+import android.util.Log;
+
+import org.apache.commons.lang3.StringUtils;
+
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Queue;
+import java.util.Random;
+import java.util.concurrent.ArrayBlockingQueue;
+
+import androidx.annotation.NonNull;
+
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.BOOLEAN_TRUE;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.EQUAL_SIGN;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.LIKE;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.OR;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.QUESTION_MARK;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable.ALL_COLUMNS;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable.COLUMN_NAME_LEARNING_PROGRESS;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable.COLUMN_NAME_MNEMONIC;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable.COLUMN_NAME_SIGN_NAME;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable.COLUMN_NAME_SIGN_NAME_DE;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable.COLUMN_NAME_STARRED;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable.COLUMN_NAME_TAG1;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable.COLUMN_NAME_TAG2;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable.COLUMN_NAME_TAG3;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable.IS_STARRED;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable.NAME_LOCALE_DE_LIKE;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable.ORDER_BY_LEARNING_PROGRESS_ASC;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable.ORDER_BY_NAME_DE_ASC;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable.TABLE_NAME;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable.TAG1_LOCALE_DE_LIKE;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable.TAG2_LOCALE_DE_LIKE;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable.TAG3_LOCALE_DE_LIKE;
+import static de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.DbContract.SignTable._ID;
+
+/**
+ * Copyright (c) 2016 Matthias Tonhäuser
+ * &lt;p/&gt;
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * &lt;p/&gt;
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * &lt;p/&gt;
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.
+ */
+public class SignDAO {
+
+    private static final int RANDOM_SIGNS_QUEUE_MAX_SIZE = 5;
+<span class="fc" id="L65">    private static final String TAG = SignDAO.class.getSimpleName();</span>
+    private static final boolean FIFO_ORDER = true;
+    private static SignDAO instance;
+    private final SQLiteOpenHelper openHelper;
+<span class="fc" id="L69">    private final Queue&lt;Sign&gt; randomSignsQueue = new ArrayBlockingQueue&lt;&gt;(RANDOM_SIGNS_QUEUE_MAX_SIZE, FIFO_ORDER);</span>
+    private SQLiteDatabase database;
+
+    /**
+     * Private constructor
+     */
+<span class="fc" id="L75">    private SignDAO(Context context) {</span>
+<span class="fc" id="L76">        this.openHelper = new DbHelper(context);</span>
+<span class="fc" id="L77">    }</span>
+
+    /**
+     * Singleton instance of the SignDAO
+     */
+    public static synchronized SignDAO getInstance(Context context) {
+<span class="fc bfc" id="L83" title="All 2 branches covered.">        if (null == instance) {</span>
+<span class="fc" id="L84">            instance = new SignDAO(context);</span>
+        }
+<span class="fc" id="L86">        return instance;</span>
+    }
+
+    public void open() throws SQLException {
+<span class="fc" id="L90">        Log.d(TAG, &quot;Opening database.&quot;);</span>
+<span class="fc" id="L91">        this.database = openHelper.getWritableDatabase();</span>
+<span class="fc" id="L92">    }</span>
+
+    public void close() {
+<span class="fc" id="L95">        Log.d(TAG, &quot;Closing database.&quot;);</span>
+<span class="pc bpc" id="L96" title="1 of 2 branches missed.">        if (null != this.database) {</span>
+<span class="fc" id="L97">            this.openHelper.close();</span>
+        }
+<span class="fc" id="L99">    }</span>
+
+    /**
+     * Persist a list of signs. For &lt;strong&gt;testing&lt;/strong&gt; purposes only.
+     *
+     * @param signs a list of signs, which hast not been persisted yet.
+     * @return a list of persisted signs.
+     */
+    @SuppressWarnings(&quot;UnusedReturnValue&quot;)
+    List&lt;Sign&gt; create(List&lt;Sign&gt; signs) {
+<span class="nc" id="L109">        final List&lt;Sign&gt; createdSigns = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L110" title="All 2 branches missed.">        for (Sign sign : signs) {</span>
+<span class="nc" id="L111">            createdSigns.add(create(sign));</span>
+<span class="nc" id="L112">        }</span>
+<span class="nc" id="L113">        return createdSigns;</span>
+    }
+
+    /**
+     * Persist a sign. For &lt;strong&gt;testing&lt;/strong&gt; purposes only.
+     *
+     * @param sign a Sign, which has not been persisted yet.
+     * @return the persisted sign, &lt;code&gt;null&lt;/code&gt; if persisting failed.
+     */
+    Sign create(Sign sign) {
+<span class="nc" id="L123">        Log.d(TAG, &quot;Creating sign: &quot; + sign);</span>
+<span class="nc" id="L124">        this.database.beginTransaction();</span>
+        Sign createdSign;
+        try {
+<span class="nc" id="L127">            final ContentValues values = new ContentValues();</span>
+<span class="nc" id="L128">            values.put(COLUMN_NAME_SIGN_NAME, sign.getName());</span>
+<span class="nc" id="L129">            values.put(COLUMN_NAME_SIGN_NAME_DE, sign.getNameLocaleDe());</span>
+<span class="nc" id="L130">            values.put(COLUMN_NAME_MNEMONIC, sign.getMnemonic());</span>
+            // For testing purposes, the tags are saved in a single column here
+<span class="nc" id="L132">            values.put(COLUMN_NAME_TAG1, sign.getTags());</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">            if (sign.isStarred()) {</span>
+<span class="nc" id="L134">                values.put(COLUMN_NAME_STARRED, 1);</span>
+            } else {
+<span class="nc" id="L136">                values.put(COLUMN_NAME_STARRED, 0);</span>
+            }
+<span class="nc" id="L138">            values.put(COLUMN_NAME_LEARNING_PROGRESS, sign.getLearningProgress());</span>
+<span class="nc" id="L139">            final long insertId = this.database.insert(TABLE_NAME, null,</span>
+                    values);
+<span class="nc bnc" id="L141" title="All 2 branches missed.">            if (-1 == insertId) {</span>
+<span class="nc" id="L142">                throw new IllegalStateException(MessageFormat.format(&quot;Inserting sign: {0} failed due to&quot; +</span>
+                        &quot; a database error!&quot;, sign));
+            }
+<span class="nc" id="L145">            createdSign = readSingleSign(insertId);</span>
+<span class="nc" id="L146">            this.database.setTransactionSuccessful();</span>
+<span class="nc" id="L147">            Log.d(TAG, &quot;Created sign: &quot; + createdSign);</span>
+        } finally {
+<span class="nc" id="L149">            this.database.endTransaction();</span>
+        }
+<span class="nc" id="L151">        return createdSign;</span>
+    }
+
+    /**
+     * Read all signs.
+     *
+     * @return a list of signs, may be empty but not null.
+     */
+    public List&lt;Sign&gt; read() {
+<span class="fc" id="L160">        return readInternal(StringUtils.EMPTY, false, false);</span>
+    }
+
+    /**
+     * Read the signs where the name_locale_de or the tags matches the parameter.
+     *
+     * @param whereSignNameLocaleDeOrTagsLike the sign name or the tags with locale de to look for.
+     * @return a list of signs, may be empty but not null.
+     */
+    public List&lt;Sign&gt; read(String whereSignNameLocaleDeOrTagsLike) {
+<span class="fc" id="L170">        return readInternal(whereSignNameLocaleDeOrTagsLike, false, false);</span>
+    }
+
+    /**
+     * Read the signs which have been starred by the user.
+     *
+     * @return all the signs, which have been starred by the user.
+     */
+    public List&lt;Sign&gt; readStarredSignsOnly() {
+<span class="nc" id="L179">        return readInternal(StringUtils.EMPTY, true, false);</span>
+    }
+
+    /**
+     * From the signs with the least learning progress a random sign will be returned.
+     * The random sign will never be the same as the last five non-null signs provided via the
+     * currentSign parameter before.
+     *
+     * @param currentSign the current sign shown to the user. Can be &lt;code&gt;null&lt;/code&gt;.
+     * @return a random sign, null if no or less than seven signs exists in the database.
+     */
+    public Sign readRandomSign(Sign currentSign) {
+<span class="nc" id="L191">        final List&lt;Sign&gt; signsOrderedByLearningProgress = readInternal(StringUtils.EMPTY, false, true);</span>
+<span class="nc bnc" id="L192" title="All 2 branches missed.">        if (signsOrderedByLearningProgress.size() &lt; 7) {</span>
+<span class="nc" id="L193">            return null;</span>
+        }
+<span class="nc bnc" id="L195" title="All 2 branches missed.">        if (RANDOM_SIGNS_QUEUE_MAX_SIZE == this.randomSignsQueue.size()) {</span>
+<span class="nc" id="L196">            this.randomSignsQueue.poll();</span>
+        }
+<span class="nc bnc" id="L198" title="All 2 branches missed.">        if (null != currentSign) {</span>
+<span class="nc" id="L199">            this.randomSignsQueue.offer(currentSign);</span>
+        }
+<span class="nc" id="L201">        final Sign[] upToTheLastFiveRandomSigns = this.randomSignsQueue.toArray(new Sign[0]);</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">        for (Sign upToTheLastFiveRandomSign : upToTheLastFiveRandomSigns) {</span>
+<span class="nc" id="L203">            signsOrderedByLearningProgress.remove(upToTheLastFiveRandomSign);</span>
+        }
+<span class="nc" id="L205">        final Sign signWithLeastLearningProgress = signsOrderedByLearningProgress.get(0);</span>
+<span class="nc" id="L206">        signsOrderedByLearningProgress.remove(signWithLeastLearningProgress);</span>
+<span class="nc" id="L207">        final List&lt;Sign&gt; signsWithLeastLearningProgress = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L208" title="All 2 branches missed.">        for (int i = 0; i &lt; signsOrderedByLearningProgress.size(); i++) {</span>
+<span class="nc" id="L209">            if (signWithLeastLearningProgress.getLearningProgress()</span>
+<span class="nc bnc" id="L210" title="All 2 branches missed.">                    == signsOrderedByLearningProgress.get(i).getLearningProgress()) {</span>
+<span class="nc" id="L211">                signsWithLeastLearningProgress.add(signsOrderedByLearningProgress.get(i));</span>
+            } else {
+                break;
+            }
+        }
+<span class="nc" id="L216">        signsWithLeastLearningProgress.add(signWithLeastLearningProgress);</span>
+<span class="nc" id="L217">        final int randomInt = new Random().nextInt(signsWithLeastLearningProgress.size());</span>
+<span class="nc" id="L218">        return signsWithLeastLearningProgress.get(randomInt);</span>
+    }
+
+    @NonNull
+    private List&lt;Sign&gt; readInternal(String signNameLocaleDeOrTagsLike, boolean readStarredSignsOnly, boolean readOrderedByLearningProgress) {
+<span class="fc" id="L223">        final List&lt;Sign&gt; signs = new ArrayList&lt;&gt;();</span>
+        Cursor cursor;
+<span class="fc bfc" id="L225" title="All 2 branches covered.">        if (StringUtils.isNotEmpty(signNameLocaleDeOrTagsLike)) {</span>
+<span class="fc" id="L226">            Log.d(TAG, MessageFormat.format(&quot;Reading signs with name_locale_de like: {0}&quot;, signNameLocaleDeOrTagsLike));</span>
+<span class="fc" id="L227">            String selectionArgument = &quot;%&quot; + signNameLocaleDeOrTagsLike + &quot;%&quot;;</span>
+<span class="fc" id="L228">            String[] selectionArgs = {selectionArgument, selectionArgument, selectionArgument, selectionArgument};</span>
+<span class="fc" id="L229">            cursor = database.query(TABLE_NAME,</span>
+                    ALL_COLUMNS, NAME_LOCALE_DE_LIKE + OR + TAG1_LOCALE_DE_LIKE + OR + TAG2_LOCALE_DE_LIKE + OR + TAG3_LOCALE_DE_LIKE,
+                    selectionArgs, null, null, ORDER_BY_NAME_DE_ASC);
+<span class="pc bpc" id="L232" title="1 of 2 branches missed.">        } else if (readStarredSignsOnly) {</span>
+<span class="nc" id="L233">            Log.d(TAG, &quot;Reading starred signs only&quot;);</span>
+<span class="nc" id="L234">            cursor = database.query(TABLE_NAME,</span>
+                    ALL_COLUMNS, IS_STARRED,
+                    new String[]{BOOLEAN_TRUE}, null, null, ORDER_BY_NAME_DE_ASC);
+<span class="pc bpc" id="L237" title="1 of 2 branches missed.">        } else if (readOrderedByLearningProgress) {</span>
+<span class="nc" id="L238">            Log.d(TAG, &quot;Reading signs ordered by learning progress ascending&quot;);</span>
+<span class="nc" id="L239">            cursor = database.query(TABLE_NAME,</span>
+                    ALL_COLUMNS, null,
+                    null, null, null, ORDER_BY_LEARNING_PROGRESS_ASC);
+        } else {
+<span class="fc" id="L243">            Log.d(TAG, &quot;Reading all signs&quot;);</span>
+<span class="fc" id="L244">            cursor = database.query(TABLE_NAME,</span>
+                    ALL_COLUMNS, null, null, null, null, ORDER_BY_NAME_DE_ASC);
+        }
+<span class="fc" id="L247">        cursor.moveToFirst();</span>
+<span class="fc bfc" id="L248" title="All 2 branches covered.">        while (!cursor.isAfterLast()) {</span>
+<span class="fc" id="L249">            final Sign sign = cursorToSign(cursor);</span>
+<span class="fc" id="L250">            signs.add(sign);</span>
+<span class="fc" id="L251">            cursor.moveToNext();</span>
+<span class="fc" id="L252">        }</span>
+<span class="fc" id="L253">        cursor.close();</span>
+<span class="fc" id="L254">        return signs;</span>
+    }
+
+    public Sign update(Sign sign) {
+<span class="nc" id="L258">        Log.d(TAG, &quot;Updating sign: &quot; + sign);</span>
+<span class="nc" id="L259">        this.database.beginTransaction();</span>
+        Sign updatedSign;
+        try {
+<span class="nc" id="L262">            final ContentValues values = new ContentValues();</span>
+<span class="nc" id="L263">            values.put(COLUMN_NAME_LEARNING_PROGRESS, sign.getLearningProgress());</span>
+<span class="nc" id="L264">            values.put(COLUMN_NAME_STARRED, sign.isStarred());</span>
+<span class="nc" id="L265">            final String selection = _ID + LIKE;</span>
+<span class="nc" id="L266">            final String[] selectionArgs = {String.valueOf(sign.getId())};</span>
+<span class="nc" id="L267">            int rowsUpdated = this.database.update(</span>
+                    TABLE_NAME,
+                    values,
+                    selection,
+                    selectionArgs);
+<span class="nc bnc" id="L272" title="All 2 branches missed.">            if (0 == rowsUpdated) {</span>
+<span class="nc" id="L273">                throw new IllegalStateException(MessageFormat.format(&quot;Updating sign {0} updated no rows!&quot;, sign));</span>
+            }
+<span class="nc bnc" id="L275" title="All 2 branches missed.">            if (1 &gt; rowsUpdated) {</span>
+<span class="nc" id="L276">                throw new IllegalStateException(MessageFormat.format(&quot;Updating sign {0} updated more than &quot; +</span>
+<span class="nc" id="L277">                        &quot;one row. {1} rows were updated.&quot;, sign, rowsUpdated));</span>
+            }
+<span class="nc" id="L279">            updatedSign = readSingleSign(sign.getId());</span>
+<span class="nc" id="L280">            this.database.setTransactionSuccessful();</span>
+        } finally {
+<span class="nc" id="L282">            this.database.endTransaction();</span>
+        }
+<span class="nc" id="L284">        return updatedSign;</span>
+    }
+
+    /**
+     * For &lt;strong&gt;testing&lt;/strong&gt; purposes only!
+     */
+    void delete(List&lt;Sign&gt; signs) {
+<span class="nc bnc" id="L291" title="All 2 branches missed.">        for (Sign sign : signs) {</span>
+<span class="nc" id="L292">            delete(sign);</span>
+<span class="nc" id="L293">        }</span>
+<span class="nc" id="L294">    }</span>
+
+    /**
+     * For &lt;strong&gt;testing&lt;/strong&gt; purposes only!
+     */
+    void delete(Sign sign) {
+<span class="nc" id="L300">        Log.d(TAG, MessageFormat.format(&quot;Deleting sign {0}&quot;, sign));</span>
+<span class="nc" id="L301">        this.database.beginTransaction();</span>
+        try {
+<span class="nc" id="L303">            this.database.delete(TABLE_NAME,</span>
+                    COLUMN_NAME_SIGN_NAME + EQUAL_SIGN + QUESTION_MARK,
+<span class="nc" id="L305">                    new String[]{sign.getName()});</span>
+<span class="nc" id="L306">            this.database.setTransactionSuccessful();</span>
+        } finally {
+<span class="nc" id="L308">            this.database.endTransaction();</span>
+        }
+<span class="nc" id="L310">    }</span>
+
+    private Sign readSingleSign(long id) {
+        final Sign createdSign;
+<span class="nc" id="L314">        final Cursor cursor = this.database.query(TABLE_NAME,</span>
+                ALL_COLUMNS, _ID + EQUAL_SIGN + id, null,
+                null, null, null);
+<span class="nc bnc" id="L317" title="All 2 branches missed.">        if (0 == cursor.getCount()) {</span>
+<span class="nc" id="L318">            throw new IllegalStateException(MessageFormat.format(&quot;Querying for sign with id: {1} &quot; +</span>
+<span class="nc" id="L319">                    &quot;yielded no results!&quot;, id));</span>
+        }
+<span class="nc" id="L321">        cursor.moveToFirst();</span>
+<span class="nc" id="L322">        createdSign = cursorToSign(cursor);</span>
+<span class="nc" id="L323">        cursor.close();</span>
+<span class="nc" id="L324">        return createdSign;</span>
+    }
+
+    private Sign cursorToSign(Cursor cursor) {
+<span class="fc" id="L328">        final Sign.Builder signBuilder = new Sign.Builder();</span>
+<span class="fc" id="L329">        signBuilder.setId(cursor.getInt(cursor.getColumnIndex(_ID)));</span>
+<span class="fc" id="L330">        signBuilder.setName(cursor.getString(cursor.getColumnIndex(COLUMN_NAME_SIGN_NAME)));</span>
+<span class="fc" id="L331">        signBuilder.setNameLocaleDe(cursor.getString(cursor.getColumnIndex(COLUMN_NAME_SIGN_NAME_DE)));</span>
+<span class="fc" id="L332">        signBuilder.setMnemonic(cursor.getString(cursor.getColumnIndex(COLUMN_NAME_MNEMONIC)));</span>
+<span class="fc" id="L333">        signBuilder.setTags(getTagsText(cursor));</span>
+<span class="fc" id="L334">        signBuilder.setLearningProgress(cursor.getInt(cursor.getColumnIndex(COLUMN_NAME_LEARNING_PROGRESS)));</span>
+<span class="fc" id="L335">        final int starred = cursor.getInt(cursor.getColumnIndex(COLUMN_NAME_STARRED));</span>
+<span class="pc bpc" id="L336" title="1 of 2 branches missed.">        if (1 == starred) {</span>
+<span class="nc" id="L337">            signBuilder.setStarred(true);</span>
+        } else {
+<span class="fc" id="L339">            signBuilder.setStarred(false);</span>
+        }
+<span class="fc" id="L341">        return signBuilder.create();</span>
+    }
+
+    private String getTagsText(Cursor cursor) {
+
+<span class="fc" id="L346">        final List&lt;String&gt; tagColumns = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L347">        tagColumns.add(COLUMN_NAME_TAG1);</span>
+<span class="fc" id="L348">        tagColumns.add(COLUMN_NAME_TAG2);</span>
+<span class="fc" id="L349">        tagColumns.add(COLUMN_NAME_TAG3);</span>
+
+<span class="fc" id="L351">        final StringBuilder tags = new StringBuilder();</span>
+<span class="fc" id="L352">        final String separator = &quot;, &quot;;</span>
+<span class="fc bfc" id="L353" title="All 2 branches covered.">        for (String tagColumn : tagColumns) {</span>
+<span class="fc" id="L354">            final String tagColumnValue = cursor.getString(cursor.getColumnIndex(tagColumn));</span>
+<span class="fc bfc" id="L355" title="All 2 branches covered.">            if (StringUtils.isNotEmpty(tagColumnValue)) {</span>
+<span class="fc" id="L356">                tags.append(tagColumnValue);</span>
+<span class="fc" id="L357">                tags.append(separator);</span>
+            }
+<span class="fc" id="L359">        }</span>
+<span class="fc" id="L360">        final String tag = tags.toString();</span>
+<span class="fc" id="L361">        return StringUtils.removeEnd(tag, separator);</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

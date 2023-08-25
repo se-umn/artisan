@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EditPatternsFragment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker</a> &gt; <span class="el_source">EditPatternsFragment.java</span></div><h1>EditPatternsFragment.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker;
+
+import android.app.ListFragment;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+
+import com.prismaqf.callblocker.rules.FilterRule;
+import com.prismaqf.callblocker.utils.PatternAdapter;
+
+import java.util.ArrayList;
+
+/**
+ * @author ConteDiMonteCristo
+ */
+<span class="fc" id="L18">public class EditPatternsFragment extends ListFragment {</span>
+
+<span class="fc" id="L20">    private final String TAG = EditPatternsFragment.class.getCanonicalName();</span>
+    private PatternAdapter myAdapter;
+
+<span class="nc" id="L23">    public PatternAdapter getAdapter() {return myAdapter;}</span>
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState){
+
+<span class="fc" id="L28">        return inflater.inflate(R.layout.data_bound_list_activity,container,false);</span>
+    }
+
+    @Override
+    public void onStart() {
+<span class="nc" id="L33">        super.onStart();</span>
+<span class="nc" id="L34">        Bundle args = getArguments();</span>
+<span class="nc" id="L35">        FilterRule rule = args.getParcelable(NewEditActivity.KEY_PTRULE);</span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        if (rule==null)</span>
+<span class="nc" id="L37">            Log.e(TAG,&quot;Missing FilterRule in the bundle when starting the fragment&quot;);</span>
+<span class="nc" id="L38">        ArrayList&lt;String&gt; checked = args.getStringArrayList(NewEditActivity.KEY_CHECKED);</span>
+<span class="nc" id="L39">        myAdapter = new PatternAdapter(getActivity(),rule, checked);</span>
+<span class="nc" id="L40">        setListAdapter(myAdapter);</span>
+<span class="nc" id="L41">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

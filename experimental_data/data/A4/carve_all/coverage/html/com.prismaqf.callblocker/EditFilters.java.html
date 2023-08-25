@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EditFilters.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker</a> &gt; <span class="el_source">EditFilters.java</span></div><h1>EditFilters.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker;
+
+import android.app.FragmentTransaction;
+import android.content.Intent;
+import android.database.sqlite.SQLiteDatabase;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.NavUtils;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+
+import com.prismaqf.callblocker.sql.DbHelper;
+import com.prismaqf.callblocker.sql.FilterProvider;
+
+import java.util.ArrayList;
+
+/**
+ * Activity for editing (creating, updating and deleting) a filter
+ * @author ConteDiMonteCristo
+ */
+<span class="fc" id="L23">public class EditFilters extends AppCompatActivity {</span>
+<span class="fc" id="L24">    private class DbOperation extends AsyncTask&lt;SQLiteDatabase, Void ,ArrayList&lt;String&gt;&gt; {</span>
+
+
+        @Override
+        protected ArrayList&lt;String&gt; doInBackground(SQLiteDatabase... dbs) {
+            try {
+<span class="fc" id="L30">                return FilterProvider.AllFilterNames(dbs[0]);</span>
+            }
+            finally {
+<span class="fc" id="L33">                dbs[0].close();</span>
+            }
+        }
+
+        @Override
+        protected void onPostExecute (ArrayList&lt;String&gt; names) {
+<span class="fc" id="L39">            Intent intent = new Intent(EditFilters.this, NewEditFilter.class);</span>
+<span class="fc" id="L40">            intent.putExtra(NewEditActivity.KEY_ACTION, NewEditActivity.ACTION_CREATE);</span>
+<span class="fc" id="L41">            intent.putStringArrayListExtra(NewEditActivity.KEY_FILTERNAMES, names);</span>
+<span class="fc" id="L42">            startActivity(intent);</span>
+<span class="fc" id="L43">        }</span>
+
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+<span class="fc" id="L49">        super.onCreate(savedInstanceState);</span>
+
+<span class="fc" id="L51">        setContentView(R.layout.data_bound_edit_activity);</span>
+
+
+<span class="fc" id="L54">        String FRAGMENT = &quot;EditFilterFragment&quot;;</span>
+<span class="fc" id="L55">        getFragmentManager().</span>
+<span class="fc" id="L56">                beginTransaction().</span>
+<span class="fc" id="L57">                setTransition(FragmentTransaction.TRANSIT_NONE).</span>
+<span class="fc" id="L58">                replace(R.id.list_fragment_holder, new FilterFragment(), FRAGMENT).</span>
+<span class="fc" id="L59">                commit();</span>
+<span class="pc bpc" id="L60" title="1 of 2 branches missed.">        if (getSupportActionBar()!= null)</span>
+<span class="fc" id="L61">            getSupportActionBar().setDisplayHomeAsUpEnabled(true);</span>
+
+<span class="fc" id="L63">    }</span>
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu items for use in the action bar
+<span class="fc" id="L68">        MenuInflater inflater = getMenuInflater();</span>
+<span class="fc" id="L69">        inflater.inflate(R.menu.menu_edit_list, menu);</span>
+<span class="fc" id="L70">        menu.findItem(R.id.action_new_item).setTitle(R.string.mn_new_filter);</span>
+<span class="fc" id="L71">        return super.onCreateOptionsMenu(menu);</span>
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+<span class="fc" id="L76">        int id = item.getItemId();</span>
+
+<span class="pc bpc" id="L78" title="2 of 3 branches missed.">        switch (id) {</span>
+            case R.id.action_new_item:
+<span class="fc" id="L80">                newFilter();</span>
+<span class="fc" id="L81">                return true;</span>
+            case android.R.id.home:
+<span class="nc" id="L83">                NavUtils.navigateUpFromSameTask(this);</span>
+<span class="nc" id="L84">                return true;</span>
+        }
+<span class="nc" id="L86">        return super.onOptionsItemSelected(item);</span>
+    }
+
+    private void newFilter() {
+<span class="fc" id="L90">        SQLiteDatabase db = new DbHelper(this).getReadableDatabase();</span>
+<span class="fc" id="L91">        (new DbOperation()).execute(db);</span>
+<span class="fc" id="L92">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

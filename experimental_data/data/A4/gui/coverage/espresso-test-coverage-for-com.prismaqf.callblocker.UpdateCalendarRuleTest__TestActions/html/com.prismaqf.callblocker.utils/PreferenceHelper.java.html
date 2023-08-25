@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PreferenceHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker.utils</a> &gt; <span class="el_source">PreferenceHelper.java</span></div><h1>PreferenceHelper.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker.utils;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
+
+import com.prismaqf.callblocker.R;
+
+/**
+ * Created by ConteDiMonteCristo.
+ */
+<span class="nc" id="L12">public class PreferenceHelper {</span>
+
+    public static int GetToastVerbosity(Context context) {
+<span class="nc" id="L15">        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);</span>
+<span class="nc" id="L16">        String key = context.getString(R.string.pk_toast_verbosity);</span>
+<span class="nc" id="L17">        String verbosity = prefs.getString(key, &quot;medium verbosity&quot;);</span>
+<span class="nc bnc" id="L18" title="All 3 branches missed.">        switch (verbosity){</span>
+            case &quot;no toast messages&quot;:
+<span class="nc" id="L20">                return 0;</span>
+            case &quot;medium verbosity&quot;:
+<span class="nc" id="L22">                return 1;</span>
+            default:
+<span class="nc" id="L24">                return 2;</span>
+        }
+    }
+
+    public static int GetSqlQueryLimit(Context context) {
+<span class="nc" id="L29">        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);</span>
+<span class="nc" id="L30">        String key = context.getString(R.string.pk_sql_limit);</span>
+<span class="nc" id="L31">        return Integer.parseInt(prefs.getString(key,&quot;10&quot;));</span>
+    }
+
+    public static String GetLogLongevity(Context context) {
+<span class="nc" id="L35">        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);</span>
+<span class="nc" id="L36">        String key = context.getString(R.string.pk_log_longevity);</span>
+<span class="nc" id="L37">        return prefs.getString(key, &quot;no limit&quot;);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

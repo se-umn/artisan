@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CardFragment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.dcfportfolio.owlflashcardsen_cnlevel1</a> &gt; <span class="el_source">CardFragment.java</span></div><h1>CardFragment.java</h1><pre class="source lang-java linenums">package com.dcfportfolio.owlflashcardsen_cnlevel1;
+
+
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ObjectAnimator;
+import android.content.SharedPreferences;
+import android.media.AudioAttributes;
+import android.media.AudioManager;
+import android.media.SoundPool;
+import android.os.Build;
+import android.os.Bundle;
+import android.support.annotation.Nullable;
+import android.support.v4.app.Fragment;
+import android.support.v7.preference.PreferenceManager;
+import android.support.v7.widget.CardView;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.DecelerateInterpolator;
+import android.widget.Button;
+import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import com.dcfportfolio.owlflashcardsen_cnlevel1.roomDataBase.Card;
+
+import static android.content.Context.AUDIO_SERVICE;
+
+
+/**
+ * A simple {@link Fragment} subclass.
+ */
+public class CardFragment extends Fragment {
+<span class="fc" id="L39">    private boolean isChinese = false;</span>
+    private static final String ARG_SECTION_ENGLISH_NAME = &quot;english_name&quot;;
+    private static final String ARG_SECTION_CHINESE_NAME = &quot;chinese_name&quot;;
+    private static final String ARG_SECTION_CHINESE_ENGLISH_NAME = &quot;chinese_english_name&quot;;
+    private static final String ARG_SECTION_SOUND_ENGLISH = &quot;english_sound&quot;;
+    private static final String ARG_SECTION_SOUND_CHINESE = &quot;chinese_sound&quot;;
+    private SharedPreferences mPreferences;
+
+    //Media Section
+    AudioManager audioManager;
+    private float volume;
+    private SoundPool soundPool;
+    private int soundEnglish;
+    private int soundChinese;
+
+    //Debugging tools
+    private static final String LOG_TAG = &quot;CardFragment_DEBUG&quot;;
+<span class="fc" id="L56">    private static boolean DEBUG_MODE = false;</span>
+
+    /**
+     * Empty constructor for init the fragment
+     */
+<span class="fc" id="L61">    public CardFragment() {</span>
+        // Required empty public constructor
+<span class="fc" id="L63">    }</span>
+
+    /**
+     * Creates a new Instance of the Fragment and converts the param into Strings for bundle args.
+     * @param card
+     * @return
+     */
+    public static CardFragment newInstance(Card card){
+<span class="fc" id="L71">        CardFragment cardFragment = new CardFragment();</span>
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">        if (card != null) {</span>
+<span class="fc" id="L73">            Bundle args = new Bundle();</span>
+<span class="fc" id="L74">            args.putString(ARG_SECTION_ENGLISH_NAME, card.getEnglish());</span>
+<span class="fc" id="L75">            args.putString(ARG_SECTION_CHINESE_NAME, card.getChinese());</span>
+<span class="fc" id="L76">            args.putString(ARG_SECTION_CHINESE_ENGLISH_NAME, card.getChineseEnglish());</span>
+<span class="fc" id="L77">            args.putInt(ARG_SECTION_SOUND_ENGLISH, card.getSoundEn());</span>
+<span class="fc" id="L78">            args.putInt(ARG_SECTION_SOUND_CHINESE, card.getSoundCn());</span>
+<span class="fc" id="L79">            cardFragment.setArguments(args);</span>
+        }
+<span class="fc" id="L81">        return cardFragment;</span>
+    }
+
+    /**
+     * Release soundpool resources
+     */
+    @Override
+    public void onDestroyView() {
+<span class="fc" id="L89">        super.onDestroyView();</span>
+<span class="nc" id="L90">        soundPool.release();</span>
+<span class="nc" id="L91">        soundPool = null;</span>
+<span class="nc" id="L92">    }</span>
+
+    /**
+     * Creates the fragment view
+     * handles flipping the card to English or Chinese version
+     * handles button clicks for playing sound
+     * @param inflater
+     * @param container
+     * @param savedInstanceState
+     * @return
+     */
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+
+        try {
+<span class="fc" id="L108">            mPreferences = PreferenceManager.getDefaultSharedPreferences(getActivity());</span>
+
+<span class="fc" id="L110">            String langChoice = mPreferences.getString(SettingsActivity.KEY_PREF_SET_CARD_LANGUAGE, getString(R.string.language_choice_default_value));</span>
+<span class="pc bpc" id="L111" title="1 of 2 branches missed.">            if (langChoice.equals(getString(R.string.language_choice_default_value))) {</span>
+<span class="fc" id="L112">                isChinese = false;</span>
+            } else {
+<span class="nc" id="L114">                isChinese = true;</span>
+            }
+<span class="nc" id="L116">        } catch (Exception e){</span>
+<span class="nc bnc" id="L117" title="All 2 branches missed.">            if (DEBUG_MODE) {</span>
+<span class="nc" id="L118">                Log.e(LOG_TAG, Log.getStackTraceString(e));</span>
+            }
+<span class="fc" id="L120">        }</span>
+
+<span class="fc" id="L122">        setAudioControls();</span>
+
+<span class="pc bpc" id="L124" title="1 of 2 branches missed.">        if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.LOLLIPOP){</span>
+<span class="fc" id="L125">            AudioAttributes attr = new AudioAttributes.Builder()</span>
+<span class="fc" id="L126">                    .setUsage(AudioAttributes.USAGE_MEDIA)</span>
+<span class="fc" id="L127">                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)</span>
+<span class="fc" id="L128">                    .build();</span>
+
+<span class="fc" id="L130">            soundPool = new SoundPool.Builder().setAudioAttributes(attr).setMaxStreams(2).build();</span>
+<span class="fc" id="L131">        } else {</span>
+<span class="nc" id="L132">            soundPool = new SoundPool(2, AudioManager.STREAM_MUSIC, 0);</span>
+        }
+
+<span class="fc" id="L135">        Bundle arguments = getArguments();</span>
+<span class="fc" id="L136">        int soundE = 0;</span>
+<span class="fc" id="L137">        int soundC = 0;</span>
+<span class="fc" id="L138">        soundE = arguments.getInt(ARG_SECTION_SOUND_ENGLISH, 0);</span>
+<span class="fc" id="L139">        soundC = arguments.getInt(ARG_SECTION_SOUND_CHINESE, 0);</span>
+
+<span class="pc bpc" id="L141" title="1 of 2 branches missed.">        if (soundE != 0) {</span>
+<span class="fc" id="L142">            soundEnglish = soundPool.load(getContext(), soundE, 1);</span>
+        }
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">        if (soundC != 0) {</span>
+<span class="fc" id="L145">            soundChinese = soundPool.load(getContext(), soundC, 1);</span>
+        }
+
+        // Inflate the layout for this fragment
+<span class="fc" id="L149">        final View rootView = inflater.inflate(R.layout.fragment_card, container, false);</span>
+<span class="fc" id="L150">        final ImageButton playSoundButton = rootView.findViewById(R.id.play_sound);</span>
+<span class="fc" id="L151">        final ImageView centerImage = rootView.findViewById(R.id.cardCenterImage);</span>
+<span class="pc bpc" id="L152" title="1 of 2 branches missed.">        if (isChinese){</span>
+<span class="nc" id="L153">            centerImage.setImageResource(R.drawable.high_earth);</span>
+<span class="nc bnc" id="L154" title="All 2 branches missed.">            if (getArguments().getInt(ARG_SECTION_SOUND_ENGLISH, 0) != 0){</span>
+<span class="nc" id="L155">                playSoundButton.setOnClickListener((View v)-&gt; {</span>
+<span class="nc" id="L156">                        soundPool.play(soundChinese, volume,volume,0,0, 1f);</span>
+<span class="nc" id="L157">                });</span>
+            } else {
+<span class="nc" id="L159">                playSoundButton.setVisibility(View.GONE);</span>
+            }
+<span class="nc" id="L161">            isChinese=false;</span>
+<span class="nc" id="L162">            TextView nameView = rootView.findViewById(R.id.primary_textview);</span>
+<span class="nc" id="L163">            nameView.setText(getArguments().getString(ARG_SECTION_CHINESE_NAME));</span>
+<span class="nc" id="L164">            TextView secondaryView = rootView.findViewById(R.id.secondary_textview);</span>
+<span class="nc" id="L165">            secondaryView.setVisibility(View.VISIBLE);</span>
+<span class="nc" id="L166">            secondaryView.setText(getArguments().getString(ARG_SECTION_CHINESE_ENGLISH_NAME));</span>
+<span class="nc" id="L167">        } else {</span>
+<span class="fc" id="L168">            centerImage.setImageResource(R.drawable.high_little_owl);</span>
+<span class="pc bpc" id="L169" title="1 of 2 branches missed.">            if (getArguments().getInt(ARG_SECTION_SOUND_ENGLISH, 0) != 0){</span>
+<span class="fc" id="L170">                playSoundButton.setOnClickListener((View v) -&gt;{</span>
+<span class="nc" id="L171">                    soundPool.play(soundEnglish, volume,volume,0,0, 1f);</span>
+<span class="nc" id="L172">                });</span>
+            } else {
+<span class="nc" id="L174">                playSoundButton.setVisibility(View.GONE);</span>
+            }
+
+<span class="fc" id="L177">            isChinese=true;</span>
+<span class="fc" id="L178">            TextView nameView = rootView.findViewById(R.id.primary_textview);</span>
+<span class="fc" id="L179">            nameView.setText(getArguments().getString(ARG_SECTION_ENGLISH_NAME));</span>
+<span class="fc" id="L180">            TextView secondaryView = rootView.findViewById(R.id.secondary_textview);</span>
+<span class="fc" id="L181">            secondaryView.setVisibility(View.GONE);</span>
+        }
+
+
+<span class="fc" id="L185">        final CardView flipCard = rootView.findViewById(R.id.cardViewFlippale);</span>
+<span class="fc" id="L186">        final LinearLayout bgSquare = rootView.findViewById(R.id.card_linear_layout);</span>
+<span class="fc" id="L187">        bgSquare.setBackgroundResource(R.drawable.square);</span>
+
+<span class="fc" id="L189">        flipCard.setOnClickListener(new View.OnClickListener() {</span>
+            @Override
+            public void onClick(View v) {
+                //set up card flip animation
+<span class="nc" id="L193">                final ObjectAnimator oa1 = ObjectAnimator.ofFloat(flipCard, &quot;scaleX&quot;, 1f, 0f);</span>
+<span class="nc" id="L194">                final ObjectAnimator oa2 = ObjectAnimator.ofFloat(flipCard, &quot;scaleX&quot;, 0f, 1f);</span>
+<span class="nc" id="L195">                oa1.setDuration(150);</span>
+<span class="nc" id="L196">                oa2.setDuration(150);</span>
+<span class="nc" id="L197">                oa1.setInterpolator(new DecelerateInterpolator());</span>
+<span class="nc" id="L198">                oa2.setInterpolator(new AccelerateDecelerateInterpolator());</span>
+
+<span class="nc" id="L200">                oa1.addListener(new AnimatorListenerAdapter() {</span>
+                    @Override
+                    public void onAnimationEnd(Animator animation) {
+<span class="nc" id="L203">                        super.onAnimationEnd(animation);</span>
+<span class="nc" id="L204">                        bgSquare.setBackgroundResource(R.drawable.square);</span>
+
+<span class="nc bnc" id="L206" title="All 2 branches missed.">                        if (isChinese){</span>
+<span class="nc" id="L207">                            centerImage.setImageResource(R.drawable.high_earth);</span>
+<span class="nc bnc" id="L208" title="All 2 branches missed.">                            if (getArguments().getInt(ARG_SECTION_SOUND_ENGLISH, 0) != 0){</span>
+<span class="nc" id="L209">                                playSoundButton.setOnClickListener((View v) -&gt; {</span>
+<span class="nc" id="L210">                                        soundPool.play(soundChinese, volume,volume,0,0, 1f);</span>
+<span class="nc" id="L211">                                });</span>
+                            } else {
+<span class="nc" id="L213">                                playSoundButton.setVisibility(View.GONE);</span>
+                            }
+
+<span class="nc" id="L216">                            isChinese=false;</span>
+<span class="nc" id="L217">                            TextView nameView = rootView.findViewById(R.id.primary_textview);</span>
+<span class="nc" id="L218">                            nameView.setText(getArguments().getString(ARG_SECTION_CHINESE_NAME));</span>
+<span class="nc" id="L219">                            TextView secondaryView = rootView.findViewById(R.id.secondary_textview);</span>
+<span class="nc" id="L220">                            secondaryView.setVisibility(View.VISIBLE);</span>
+<span class="nc" id="L221">                            secondaryView.setText(getArguments().getString(ARG_SECTION_CHINESE_ENGLISH_NAME));</span>
+<span class="nc" id="L222">                        } else {</span>
+<span class="nc" id="L223">                            centerImage.setImageResource(R.drawable.high_little_owl);</span>
+<span class="nc bnc" id="L224" title="All 2 branches missed.">                            if (getArguments().getInt(ARG_SECTION_SOUND_ENGLISH, 0) != 0){</span>
+<span class="nc" id="L225">                                playSoundButton.setOnClickListener((View v) -&gt; {</span>
+<span class="nc" id="L226">                                        soundPool.play(soundEnglish, volume,volume,0,0, 1f);</span>
+
+<span class="nc" id="L228">                                });</span>
+                            } else {
+<span class="nc" id="L230">                                playSoundButton.setVisibility(View.GONE);</span>
+                            }
+
+<span class="nc" id="L233">                            isChinese=true;</span>
+<span class="nc" id="L234">                            TextView nameView = rootView.findViewById(R.id.primary_textview);</span>
+<span class="nc" id="L235">                            nameView.setText(getArguments().getString(ARG_SECTION_ENGLISH_NAME));</span>
+<span class="nc" id="L236">                            TextView secondaryView = rootView.findViewById(R.id.secondary_textview);</span>
+<span class="nc" id="L237">                            secondaryView.setVisibility(View.GONE);</span>
+                        }
+
+<span class="nc" id="L240">                        oa2.start();</span>
+<span class="nc" id="L241">                    }</span>
+                });
+<span class="nc" id="L243">                oa1.start();</span>
+<span class="nc" id="L244">            }</span>
+        });
+
+<span class="fc" id="L247">        return rootView;</span>
+    }
+
+    /**
+     * Gets the AudioManager for controlling volume through phone buttons.
+     */
+    public void setAudioControls(){
+        //audio manager for volume
+        try {
+<span class="fc" id="L256">            audioManager = (AudioManager) getContext().getSystemService(AUDIO_SERVICE);</span>
+            float actVolume, maxVolume;
+<span class="fc" id="L258">            actVolume = (float) audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);</span>
+<span class="fc" id="L259">            maxVolume = (float) audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);</span>
+<span class="fc" id="L260">            volume = actVolume / maxVolume;</span>
+<span class="nc" id="L261">        } catch (Exception e){</span>
+<span class="nc" id="L262">            volume = 1;</span>
+<span class="nc bnc" id="L263" title="All 2 branches missed.">            if (DEBUG_MODE) {</span>
+<span class="nc" id="L264">                Log.e(LOG_TAG, Log.getStackTraceString(e));</span>
+            }
+<span class="fc" id="L266">        }</span>
+
+<span class="fc" id="L268">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

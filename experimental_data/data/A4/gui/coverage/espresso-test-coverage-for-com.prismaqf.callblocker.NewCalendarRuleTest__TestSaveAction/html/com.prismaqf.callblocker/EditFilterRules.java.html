@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EditFilterRules.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker</a> &gt; <span class="el_source">EditFilterRules.java</span></div><h1>EditFilterRules.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker;
+
+import android.app.Activity;
+import android.app.FragmentTransaction;
+import android.content.Intent;
+import android.database.sqlite.SQLiteDatabase;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.NavUtils;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+
+import com.prismaqf.callblocker.sql.DbHelper;
+import com.prismaqf.callblocker.sql.FilterRuleProvider;
+
+import java.util.ArrayList;
+
+/**
+ * Base activity for editable list with action bar
+ * @author ConteDiMonteCristo
+ */
+<span class="nc" id="L24">public class EditFilterRules extends AppCompatActivity {</span>
+
+    private static final int PICK = 1002;
+
+    private class DbOperation extends AsyncTask&lt;SQLiteDatabase, Void ,ArrayList&lt;String&gt;&gt; {
+
+        private final String myContext;
+
+<span class="nc" id="L32">        public DbOperation(String context) {</span>
+<span class="nc" id="L33">            myContext = context;</span>
+<span class="nc" id="L34">        }</span>
+
+        @Override
+        protected ArrayList&lt;String&gt; doInBackground(SQLiteDatabase... dbs) {
+            try {
+<span class="nc" id="L39">                return FilterRuleProvider.AllRuleNames(dbs[0]);</span>
+            }
+            finally {
+<span class="nc" id="L42">                dbs[0].close();</span>
+            }
+        }
+
+        @Override
+        protected void onPostExecute (ArrayList&lt;String&gt; names) {
+<span class="nc" id="L48">            Intent intent = new Intent(EditFilterRules.this, NewEditFilterRule.class);</span>
+<span class="nc" id="L49">            intent.putExtra(NewEditActivity.KEY_ACTION, NewEditActivity.ACTION_CREATE);</span>
+<span class="nc" id="L50">            intent.putStringArrayListExtra(NewEditActivity.KEY_RULENAMES, names);</span>
+<span class="nc bnc" id="L51" title="All 4 branches missed.">            if (myContext !=null &amp;&amp; myContext.equals(NewEditActivity.CONTEXT_PICK)) {</span>
+<span class="nc" id="L52">                intent.putExtra(NewEditActivity.KEY_CONTEXT, myContext);</span>
+<span class="nc" id="L53">                startActivityForResult(intent,PICK);</span>
+            } else
+<span class="nc" id="L55">                startActivity(intent);</span>
+<span class="nc" id="L56">        }</span>
+
+    }
+
+    private String myContext;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+<span class="nc" id="L64">        super.onCreate(savedInstanceState);</span>
+
+<span class="nc" id="L66">        FilterRulesFragment fragment = new FilterRulesFragment();</span>
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        if (savedInstanceState == null) {</span>
+<span class="nc" id="L68">            Bundle b = getIntent().getExtras();</span>
+<span class="nc" id="L69">            fragment.setArguments(b);</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">            if (b!= null)</span>
+<span class="nc" id="L71">                myContext = b.getString(NewEditActivity.KEY_CONTEXT,&quot;none&quot;);</span>
+            else
+<span class="nc" id="L73">                myContext = &quot;none&quot;;</span>
+<span class="nc" id="L74">        }</span>
+        else {
+<span class="nc" id="L76">            fragment.setArguments(savedInstanceState);</span>
+<span class="nc" id="L77">            myContext = savedInstanceState.getString(NewEditActivity.KEY_CONTEXT,&quot;none&quot;);</span>
+        }
+
+<span class="nc" id="L80">        setContentView(R.layout.data_bound_edit_activity);</span>
+
+
+<span class="nc" id="L83">        String FRAGMENT = &quot;EditFilterRulesFragment&quot;;</span>
+<span class="nc" id="L84">        getFragmentManager().</span>
+<span class="nc" id="L85">                beginTransaction().</span>
+<span class="nc" id="L86">                setTransition(FragmentTransaction.TRANSIT_NONE).</span>
+<span class="nc" id="L87">                replace(R.id.list_fragment_holder, fragment, FRAGMENT).</span>
+<span class="nc" id="L88">                commit();</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        if (getSupportActionBar()!= null)</span>
+<span class="nc" id="L90">            getSupportActionBar().setDisplayHomeAsUpEnabled(true);</span>
+
+<span class="nc" id="L92">    }</span>
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu items for use in the action bar
+<span class="nc" id="L97">        MenuInflater inflater = getMenuInflater();</span>
+<span class="nc" id="L98">        inflater.inflate(R.menu.menu_edit_list, menu);</span>
+<span class="nc" id="L99">        menu.findItem(R.id.action_new_item).setTitle(R.string.mn_new_filter_rule);</span>
+<span class="nc" id="L100">        return super.onCreateOptionsMenu(menu);</span>
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+<span class="nc" id="L105">        int id = item.getItemId();</span>
+
+<span class="nc bnc" id="L107" title="All 3 branches missed.">        switch (id) {</span>
+            case R.id.action_new_item:
+<span class="nc" id="L109">                newFilterRule();</span>
+<span class="nc" id="L110">                return true;</span>
+            case android.R.id.home:
+<span class="nc bnc" id="L112" title="All 2 branches missed.">                if (myContext.equals(NewEditActivity.CONTEXT_PICK)) {</span>
+<span class="nc" id="L113">                    onBackPressed();</span>
+<span class="nc" id="L114">                    return true;</span>
+                } else {
+<span class="nc" id="L116">                    NavUtils.navigateUpFromSameTask(this);</span>
+                }
+<span class="nc" id="L118">                return true;</span>
+        }
+<span class="nc" id="L120">        return super.onOptionsItemSelected(item);</span>
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+<span class="nc bnc" id="L125" title="All 6 branches missed.">        if (resultCode == Activity.RESULT_OK &amp;&amp; requestCode == PICK &amp;&amp; data.hasExtra(NewEditActivity.KEY_RULENAME)) {</span>
+<span class="nc" id="L126">            Intent returnIntent = new Intent();</span>
+<span class="nc" id="L127">            returnIntent.putExtra(NewEditActivity.KEY_RULENAME, data.getStringExtra(NewEditActivity.KEY_RULENAME));</span>
+<span class="nc" id="L128">            setResult(Activity.RESULT_OK, returnIntent);</span>
+<span class="nc" id="L129">            finish();</span>
+        }
+<span class="nc" id="L131">    }</span>
+
+    private void newFilterRule() {
+<span class="nc" id="L134">        SQLiteDatabase db = new DbHelper(this).getReadableDatabase();</span>
+<span class="nc" id="L135">        (new DbOperation(myContext)).execute(db);</span>
+<span class="nc" id="L136">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ShowLoggedCalls.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker</a> &gt; <span class="el_source">ShowLoggedCalls.java</span></div><h1>ShowLoggedCalls.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker;
+
+import android.app.Activity;
+import android.content.CursorLoader;
+import android.content.Intent;
+import android.content.Loader;
+import android.database.Cursor;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.ListView;
+import android.widget.SimpleCursorAdapter;
+
+import com.prismaqf.callblocker.sql.DbContract;
+import com.prismaqf.callblocker.sql.LoggedCallProvider;
+import com.prismaqf.callblocker.utils.PreferenceHelper;
+
+/**
+ * Activity to show a list of recent logged calls with
+ * timestamp, calling number, description
+ * and name of the action matched (if any)
+ * @author ConteDiMonteCristo
+ */
+<span class="fc" id="L23">public class ShowLoggedCalls extends ShowListActivity {</span>
+
+<span class="fc" id="L25">    private final String TAG = ShowLoggedCalls.class.getCanonicalName();</span>
+    private static final int URL_LOADER = 1; // Identifies a particular Loader being used in this component
+
+    @Override
+    public Loader&lt;Cursor&gt; onCreateLoader(int loaderID, Bundle args) {
+<span class="pc bpc" id="L30" title="1 of 2 branches missed.">        switch (loaderID) {</span>
+            case URL_LOADER:
+                // Returns a new CursorLoader
+<span class="fc" id="L33">                return new CursorLoader(this,   // Parent activity context</span>
+                        null,   // All the following params
+                        null,   // are null
+                        null,   // because the Cursor is created
+                        null,   // below
+                        null)
+<span class="fc" id="L39">                {</span>
+                    @Override
+                    public Cursor loadInBackground() {
+<span class="fc" id="L42">                        int limit = PreferenceHelper.GetSqlQueryLimit(getContext());</span>
+<span class="fc" id="L43">                        return LoggedCallProvider.LatestCalls(myDbConnection, limit);</span>
+                    }
+                };
+            default:
+<span class="nc" id="L47">                return null;</span>
+        }
+    }
+
+    @Override
+    public SimpleCursorAdapter getAdapter() {
+<span class="fc" id="L53">        return new SimpleCursorAdapter(this,</span>
+                R.layout.logged_call_record,
+                null,  //no cursor yet
+                new String[] {DbContract.LoggedCalls.COLUMN_NAME_TIMESTAMP,
+                        DbContract.LoggedCalls.COLUMN_NAME_NUMBER,
+                        DbContract.LoggedCalls.COLUMN_NAME_DESCRIPTION,
+                        DbContract.LoggedCalls.COLUMN_NAME_ACTION},
+                new int[] {R.id.text_timestamp,
+                        R.id.text_calling_number,
+                        R.id.text_description,
+                        R.id.text_action_matched}, 0);
+    }
+
+    @Override
+    public void initLoader() {
+<span class="fc" id="L68">        getLoaderManager().initLoader(URL_LOADER, null, this);</span>
+<span class="fc" id="L69">    }</span>
+
+    @Override
+    public void onListItemClick(ListView l, View v, int position, long id) {
+<span class="fc" id="L73">        super.onListItemClick(l, v, position, id);</span>
+<span class="pc bpc" id="L74" title="2 of 4 branches missed.">        if (myContext !=null &amp;&amp; myContext.equals(NewEditActivity.CONTEXT_PICK)) {</span>
+<span class="fc" id="L75">            Cursor c = (Cursor) myAdapter.getItem(position);</span>
+<span class="fc" id="L76">            String number = c.getString(c.getColumnIndexOrThrow(DbContract.LoggedCalls.COLUMN_NAME_NUMBER));</span>
+<span class="fc" id="L77">            Intent returnIntent = new Intent();</span>
+<span class="fc" id="L78">            returnIntent.putExtra(NewEditActivity.KEY_NUMBER,number);</span>
+<span class="fc" id="L79">            setResult(Activity.RESULT_OK,returnIntent);</span>
+<span class="fc" id="L80">            finish();</span>
+        }
+<span class="fc" id="L82">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

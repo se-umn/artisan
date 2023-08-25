@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CalendarRule.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker.rules</a> &gt; <span class="el_source">CalendarRule.java</span></div><h1>CalendarRule.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker.rules;
+
+import android.os.Parcel;
+import android.os.Parcelable;
+
+import java.io.Serializable;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.EnumSet;
+import java.util.Locale;
+
+/**
+ * Custom calendar rule, with days of week and start stop times
+ * @author ConteDiMonteCristo.
+ */
+public class CalendarRule implements ICalendarRule, Cloneable, Parcelable, Serializable{
+
+    private final static long serialVersionUID = 1L; //for serialization consistency
+    private String name;
+    private EnumSet&lt;DayOfWeek&gt; dayMask;
+    private int startHour;
+    private int startMin;
+    private int endHour;
+    private int endMin;
+
+    public String getName() {
+<span class="fc" id="L27">        return name;</span>
+    }
+
+    public void setName(String name) {
+<span class="nc" id="L31">        this.name = name;</span>
+<span class="nc" id="L32">    }</span>
+
+    public EnumSet&lt;DayOfWeek&gt; getDayMask() {
+<span class="nc" id="L35">        return dayMask;</span>
+    }
+
+    public void setDayMask(EnumSet&lt;DayOfWeek&gt; dayMask) {
+<span class="nc" id="L39">        this.dayMask = dayMask;</span>
+<span class="nc" id="L40">    }</span>
+
+    public int getStartHour() {
+<span class="nc" id="L43">        return startHour;</span>
+    }
+
+    public void setStartHour(int startHour) {
+<span class="nc" id="L47">        this.startHour = startHour;</span>
+<span class="nc" id="L48">    }</span>
+
+    public int getStartMin() {
+<span class="nc" id="L51">        return startMin;</span>
+    }
+
+    public void setStartMin(int startMin) {
+<span class="nc" id="L55">        this.startMin = startMin;</span>
+<span class="nc" id="L56">    }</span>
+
+    public int getEndHour() {
+<span class="nc" id="L59">        return endHour;</span>
+    }
+
+    public void setEndHour(int endHour) {
+<span class="nc" id="L63">        this.endHour = endHour;</span>
+<span class="nc" id="L64">    }</span>
+
+    public int getEndMin() {
+<span class="nc" id="L67">        return endMin;</span>
+    }
+
+    public void setEndMin(int endMin) {
+<span class="nc" id="L71">        this.endMin = endMin;</span>
+<span class="nc" id="L72">    }</span>
+
+<span class="nc" id="L74">    public String getStartTime() { return String.format(Locale.getDefault(),&quot;From %02d:%02d&quot;,startHour, startMin);}</span>
+
+<span class="fc" id="L76">    public String getBareStartTime() { return String.format(Locale.getDefault(),&quot;%02d:%02d&quot;,startHour, startMin);}</span>
+
+<span class="nc" id="L78">    public String getEndTime() { return String.format(Locale.getDefault(),&quot;To %02d:%02d&quot;,endHour, endMin);}</span>
+
+<span class="fc" id="L80">    public String getBareEndTime() { return String.format(Locale.getDefault(),&quot;%02d:%02d&quot;,endHour, endMin);}</span>
+
+    /**
+     * A calendar rule based on a mask for the days of the week when the rule should be active
+     * and a start stop time given in hour,minute
+     * @param name the rule name
+     * @param dayMask a set of days of the week for which this rule applies
+     * @param startHour the starting hour [0-23]
+     * @param startMin the starting minute [0-59]
+     * @param endHour the ending hour [0-23]
+     * @param endMin the ending minute [0-59]
+     */
+<span class="fc" id="L92">    public CalendarRule(String name, EnumSet&lt;DayOfWeek&gt; dayMask, int startHour, int startMin, int endHour, int endMin) {</span>
+<span class="fc" id="L93">        this.name = name;</span>
+<span class="fc" id="L94">        this.dayMask = dayMask;</span>
+<span class="fc" id="L95">        this.startHour = startHour;</span>
+<span class="fc" id="L96">        this.startMin = startMin;</span>
+<span class="fc" id="L97">        this.endHour = endHour;</span>
+<span class="fc" id="L98">        this.endMin = endMin;</span>
+<span class="fc" id="L99">    }</span>
+
+    /**
+     A calendar rule based on a mask for the days of the week when the rule should be active
+     * with no filtering on start and stop time
+     * @param name the rule name
+     * @param dayMask a set of days of the week for which this rule applies
+     */
+<span class="nc" id="L107">    public CalendarRule(String name, EnumSet&lt;DayOfWeek&gt; dayMask) {</span>
+<span class="nc" id="L108">        this.name = name;</span>
+<span class="nc" id="L109">        this.dayMask = dayMask;</span>
+<span class="nc" id="L110">        this.startHour = 0;</span>
+<span class="nc" id="L111">        this.startMin = 0;</span>
+<span class="nc" id="L112">        this.endHour = 23;</span>
+<span class="nc" id="L113">        this.endMin = 59;</span>
+<span class="nc" id="L114">    }</span>
+
+    /**
+     A Default calendar rule: no filtering
+     */
+<span class="nc" id="L119">    public CalendarRule() {</span>
+<span class="nc" id="L120">        name = &quot;always&quot;;</span>
+<span class="nc" id="L121">        dayMask = EnumSet.allOf(DayOfWeek.class);</span>
+<span class="nc" id="L122">        this.startHour = 0;</span>
+<span class="nc" id="L123">        this.startMin = 0;</span>
+<span class="nc" id="L124">        this.endHour = 23;</span>
+<span class="nc" id="L125">        this.endMin = 59;</span>
+<span class="nc" id="L126">    }</span>
+
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+<span class="nc" id="L130">    private CalendarRule(Parcel in) {</span>
+<span class="nc" id="L131">        name = in.readString();</span>
+<span class="nc" id="L132">        dayMask = (EnumSet&lt;DayOfWeek&gt;)in.readSerializable();</span>
+<span class="nc" id="L133">        startHour = in.readInt();</span>
+<span class="nc" id="L134">        startMin = in.readInt();</span>
+<span class="nc" id="L135">        endHour = in.readInt();</span>
+<span class="nc" id="L136">        endMin = in.readInt();</span>
+<span class="nc" id="L137">    }</span>
+
+    public static CalendarRule makeRule(String name, int dayMask, String from, String to) {
+<span class="nc" id="L140">        CalendarRule rule = new CalendarRule();</span>
+<span class="nc" id="L141">        rule.setName(name);</span>
+<span class="nc" id="L142">        rule.setDayMask(makeMask(dayMask));</span>
+<span class="nc" id="L143">        String[] start = from.split(&quot;:&quot;);</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        if (start.length==2) {</span>
+<span class="nc" id="L145">            rule.setStartHour(Integer.valueOf(start[0]));</span>
+<span class="nc" id="L146">            rule.setStartMin(Integer.valueOf(start[1]));</span>
+        }
+<span class="nc" id="L148">        String[] end = to.split(&quot;:&quot;);</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">        if (end.length==2) {</span>
+<span class="nc" id="L150">            rule.setEndHour(Integer.valueOf(end[0]));</span>
+<span class="nc" id="L151">            rule.setEndMin(Integer.valueOf(end[1]));</span>
+        }
+<span class="nc" id="L153">        return rule;</span>
+    }
+
+    @Override
+    public int describeContents() {
+<span class="nc" id="L158">        return 0;</span>
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+<span class="nc" id="L163">        dest.writeString(name);</span>
+<span class="nc" id="L164">        dest.writeSerializable(dayMask);</span>
+<span class="nc" id="L165">        dest.writeInt(startHour);</span>
+<span class="nc" id="L166">        dest.writeInt(startMin);</span>
+<span class="nc" id="L167">        dest.writeInt(endHour);</span>
+<span class="nc" id="L168">        dest.writeInt(endMin);</span>
+<span class="nc" id="L169">    }</span>
+
+<span class="fc" id="L171">    public static final Parcelable.Creator&lt;CalendarRule&gt; CREATOR</span>
+<span class="fc" id="L172">            = new Parcelable.Creator&lt;CalendarRule&gt;() {</span>
+        public CalendarRule createFromParcel(Parcel in) {
+<span class="nc" id="L174">            return new CalendarRule(in);</span>
+        }
+
+        public CalendarRule[] newArray(int size) {
+<span class="nc" id="L178">            return new CalendarRule[size];</span>
+        }
+    };
+
+
+    /**
+         * Binary mask for day of the week
+         */
+<span class="fc" id="L186">    public enum DayOfWeek {</span>
+<span class="fc" id="L187">            NONE(0),</span>
+<span class="fc" id="L188">            MONDAY (1),</span>
+<span class="fc" id="L189">            TUESDAY(2),</span>
+<span class="fc" id="L190">            WEDNESDAY(3),</span>
+<span class="fc" id="L191">            THURSDAY(4),</span>
+<span class="fc" id="L192">            FRIDAY(5),</span>
+<span class="fc" id="L193">            SATURDAY(6),</span>
+<span class="fc" id="L194">            SUNDAY(7);</span>
+
+        private final int value;
+<span class="fc" id="L197">        DayOfWeek(int value) {</span>
+<span class="fc" id="L198">            this.value = value;</span>
+<span class="fc" id="L199">        }</span>
+        int getValue() {
+<span class="nc" id="L201">            return value;</span>
+        }
+
+
+        /**
+         * Return day of the week based on the Calendar day of the week
+         * @param calDow the java Calendar day of the week
+         * @return inttere representation
+         */
+        static DayOfWeek getDayFromCalDay(final int calDow) {
+<span class="nc bnc" id="L211" title="All 8 branches missed.">            switch (calDow) {</span>
+                case Calendar.MONDAY:
+<span class="nc" id="L213">                    return DayOfWeek.MONDAY;</span>
+                case Calendar.TUESDAY:
+<span class="nc" id="L215">                    return DayOfWeek.TUESDAY;</span>
+                case Calendar.WEDNESDAY:
+<span class="nc" id="L217">                    return DayOfWeek.WEDNESDAY;</span>
+                case Calendar.THURSDAY:
+<span class="nc" id="L219">                    return DayOfWeek.THURSDAY;</span>
+                case Calendar.FRIDAY:
+<span class="nc" id="L221">                    return DayOfWeek.FRIDAY;</span>
+                case Calendar.SATURDAY:
+<span class="nc" id="L223">                    return DayOfWeek.SATURDAY;</span>
+                case Calendar.SUNDAY:
+<span class="nc" id="L225">                    return DayOfWeek.SUNDAY;</span>
+            }
+<span class="nc" id="L227">            return DayOfWeek.NONE;</span>
+        }
+    }
+
+
+    @Override
+    public boolean IsActive(Date currentTime) {
+<span class="nc" id="L234">        Calendar cal = Calendar.getInstance(Locale.getDefault());</span>
+<span class="nc" id="L235">        cal.setTime(currentTime);</span>
+<span class="nc" id="L236">        DayOfWeek dow = DayOfWeek.getDayFromCalDay(cal.get(Calendar.DAY_OF_WEEK));</span>
+<span class="nc" id="L237">        int hour = cal.get(Calendar.HOUR_OF_DAY);</span>
+<span class="nc" id="L238">        int min = cal.get(Calendar.MINUTE);</span>
+
+<span class="nc" id="L240">        int numMins = hour*60 + min;</span>
+<span class="nc" id="L241">        int starTotMins = startHour*60 + startMin;</span>
+<span class="nc" id="L242">        int endTotMins = endHour*60 + endMin;</span>
+
+<span class="nc bnc" id="L244" title="All 6 branches missed.">        return dayMask.contains(dow) &amp;&amp;</span>
+                numMins &gt;= starTotMins &amp;&amp;
+                numMins &lt;= endTotMins;
+    }
+
+    @Override
+    public boolean IsActive() {
+<span class="nc" id="L251">        Calendar cal = Calendar.getInstance(Locale.getDefault());</span>
+<span class="nc" id="L252">        return IsActive(cal.getTime());</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="nc" id="L257">        StringBuilder buffer = new StringBuilder(&quot;Name = &quot;);</span>
+<span class="nc" id="L258">        buffer.append(name);</span>
+<span class="nc" id="L259">        buffer.append(&quot; [Days=&quot;);</span>
+<span class="nc bnc" id="L260" title="All 2 branches missed.">        if (dayMask.contains(DayOfWeek.MONDAY)) buffer.append('M');</span>
+<span class="nc" id="L261">        else buffer.append('-');</span>
+<span class="nc bnc" id="L262" title="All 2 branches missed.">        if (dayMask.contains(DayOfWeek.TUESDAY)) buffer.append('T');</span>
+<span class="nc" id="L263">        else buffer.append('-');</span>
+<span class="nc bnc" id="L264" title="All 2 branches missed.">        if (dayMask.contains(DayOfWeek.WEDNESDAY)) buffer.append('W');</span>
+<span class="nc" id="L265">        else buffer.append('-');</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">        if (dayMask.contains(DayOfWeek.THURSDAY)) buffer.append('T');</span>
+<span class="nc" id="L267">        else buffer.append('-');</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">        if (dayMask.contains(DayOfWeek.FRIDAY)) buffer.append('F');</span>
+<span class="nc" id="L269">        else buffer.append('-');</span>
+<span class="nc bnc" id="L270" title="All 2 branches missed.">        if (dayMask.contains(DayOfWeek.SATURDAY)) buffer.append('S');</span>
+<span class="nc" id="L271">        else buffer.append('-');</span>
+<span class="nc bnc" id="L272" title="All 2 branches missed.">        if (dayMask.contains(DayOfWeek.SUNDAY)) buffer.append('S');</span>
+<span class="nc" id="L273">        else buffer.append('-');</span>
+<span class="nc" id="L274">        buffer.append(String.format(Locale.getDefault(),&quot;, from %02d:%02d to %02d:%02d]&quot;,startHour,startMin,endHour,endMin));</span>
+<span class="nc" id="L275">        return buffer.toString();</span>
+    }
+
+    public static EnumSet&lt;DayOfWeek&gt; makeMask(int dm) {
+<span class="fc" id="L279">        EnumSet&lt;DayOfWeek&gt; mask = EnumSet.noneOf(DayOfWeek.class);</span>
+<span class="pc bpc" id="L280" title="1 of 2 branches missed.">        if ((dm &amp; 1) == 1) mask.add(DayOfWeek.MONDAY);</span>
+<span class="pc bpc" id="L281" title="1 of 2 branches missed.">        if ((dm &amp; 2) == 2) mask.add(DayOfWeek.TUESDAY);</span>
+<span class="pc bpc" id="L282" title="1 of 2 branches missed.">        if ((dm &amp; 4) == 4) mask.add(DayOfWeek.WEDNESDAY);</span>
+<span class="pc bpc" id="L283" title="1 of 2 branches missed.">        if ((dm &amp; 8) == 8) mask.add(DayOfWeek.THURSDAY);</span>
+<span class="pc bpc" id="L284" title="1 of 2 branches missed.">        if ((dm &amp; 16) == 16) mask.add(DayOfWeek.FRIDAY);</span>
+<span class="pc bpc" id="L285" title="1 of 2 branches missed.">        if ((dm &amp; 32) == 32) mask.add(DayOfWeek.SATURDAY);</span>
+<span class="pc bpc" id="L286" title="1 of 2 branches missed.">        if ((dm &amp; 64) == 64) mask.add(DayOfWeek.SUNDAY);</span>
+<span class="fc" id="L287">        return mask;</span>
+    }
+
+    public int getBinaryMask() {
+<span class="fc" id="L291">        int bm = 0;</span>
+<span class="pc bpc" id="L292" title="1 of 2 branches missed.">        if (dayMask.contains(DayOfWeek.MONDAY)) bm+=1;</span>
+<span class="pc bpc" id="L293" title="1 of 2 branches missed.">        if (dayMask.contains(DayOfWeek.TUESDAY)) bm+=2;</span>
+<span class="pc bpc" id="L294" title="1 of 2 branches missed.">        if (dayMask.contains(DayOfWeek.WEDNESDAY)) bm+=4;</span>
+<span class="pc bpc" id="L295" title="1 of 2 branches missed.">        if (dayMask.contains(DayOfWeek.THURSDAY)) bm+=8;</span>
+<span class="pc bpc" id="L296" title="1 of 2 branches missed.">        if (dayMask.contains(DayOfWeek.FRIDAY)) bm+=16;</span>
+<span class="pc bpc" id="L297" title="1 of 2 branches missed.">        if (dayMask.contains(DayOfWeek.SATURDAY)) bm+=32;</span>
+<span class="pc bpc" id="L298" title="1 of 2 branches missed.">        if (dayMask.contains(DayOfWeek.SUNDAY)) bm+=64;</span>
+<span class="fc" id="L299">        return bm;</span>
+    }
+
+    @Override
+    public boolean equals(Object o) {
+<span class="nc bnc" id="L304" title="All 2 branches missed.">        if (o == this) return true;</span>
+<span class="nc bnc" id="L305" title="All 2 branches missed.">        if (!(o instanceof CalendarRule)) return false;</span>
+<span class="nc" id="L306">        CalendarRule other = (CalendarRule)o;</span>
+<span class="nc bnc" id="L307" title="All 2 branches missed.">        return  name.equals(other.name) &amp;&amp;</span>
+<span class="nc bnc" id="L308" title="All 10 branches missed.">                dayMask.equals(other.dayMask) &amp;&amp;</span>
+                startHour == other.startHour &amp;&amp;
+                startMin == other.startMin &amp;&amp;
+                endHour == other.endHour &amp;&amp;
+                endMin == other.endMin;
+    }
+
+    @Override
+    public int hashCode() {
+<span class="nc" id="L317">        final int prime = 31;</span>
+<span class="nc" id="L318">        int result = 1;</span>
+<span class="nc" id="L319">        result = prime * result + name.hashCode();</span>
+<span class="nc" id="L320">        result = prime * result + dayMask.hashCode();</span>
+<span class="nc" id="L321">        result = prime * result + startHour;</span>
+<span class="nc" id="L322">        result = prime * result + startMin;</span>
+<span class="nc" id="L323">        result = prime * result + endHour;</span>
+<span class="nc" id="L324">        result = prime * result + endMin;</span>
+<span class="nc" id="L325">        return result;</span>
+    }
+
+    @Override
+    public Object clone() throws CloneNotSupportedException {
+<span class="nc" id="L330">        CalendarRule other = (CalendarRule) super.clone();</span>
+<span class="nc" id="L331">        other.setDayMask(EnumSet.copyOf(getDayMask()));</span>
+<span class="nc" id="L332">        return other;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ShowServiceRuns.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker</a> &gt; <span class="el_source">ShowServiceRuns.java</span></div><h1>ShowServiceRuns.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker;
+
+import android.content.CursorLoader;
+import android.content.Loader;
+import android.database.Cursor;
+import android.os.Bundle;
+import android.widget.SimpleCursorAdapter;
+
+import com.prismaqf.callblocker.sql.DbContract;
+import com.prismaqf.callblocker.sql.ServiceRunProvider;
+import com.prismaqf.callblocker.utils.PreferenceHelper;
+
+/**
+ * Activity to show a list of recent service runs with
+ * start time, end time and total number of call received
+ * and event triggered
+ * @author ConteDiMonteCristo
+ */
+<span class="nc" id="L19">public class ShowServiceRuns extends ShowListActivity {</span>
+
+<span class="nc" id="L21">    private final String TAG = ShowServiceRuns.class.getCanonicalName();</span>
+    private static final int URL_LOADER = 0; // Identifies a particular Loader being used in this component
+
+
+    @Override
+    public Loader&lt;Cursor&gt; onCreateLoader(int loaderID, Bundle args) {
+<span class="nc bnc" id="L27" title="All 2 branches missed.">        switch (loaderID) {</span>
+            case URL_LOADER:
+                // Returns a new CursorLoader
+<span class="nc" id="L30">                return new CursorLoader(this,   // Parent activity context</span>
+                                        null,   // All the following params
+                                        null,   // are null
+                                        null,   // because the Cursor is created
+                                        null,   // below
+                                        null)
+<span class="nc" id="L36">                {</span>
+                    @Override
+                    public Cursor loadInBackground() {
+<span class="nc" id="L39">                        int limit = PreferenceHelper.GetSqlQueryLimit(getContext());</span>
+<span class="nc" id="L40">                        return ServiceRunProvider.LatestRuns(myDbConnection, limit);</span>
+                    }
+                };
+            default:
+<span class="nc" id="L44">                return null;</span>
+        }
+    }
+
+
+    @Override
+    public SimpleCursorAdapter getAdapter() {
+<span class="nc" id="L51">        return new SimpleCursorAdapter(this,</span>
+                R.layout.service_run_record,
+                null,  //no cursor yet
+                new String[] {DbContract.ServiceRuns.COLUMN_NAME_START,
+                        DbContract.ServiceRuns.COLUMN_NAME_STOP,
+                        DbContract.ServiceRuns.COLUMN_NAME_TOTAL_RECEIVED,
+                        DbContract.ServiceRuns.COLUMN_NAME_TOTAL_TRIGGERED},
+                new int[] {R.id.text_start_time,
+                        R.id.text_end_time,
+                        R.id.text_num_received,
+                        R.id.text_num_triggered}, 0);
+    }
+
+    @Override
+    public void initLoader() {
+<span class="nc" id="L66">        getLoaderManager().initLoader(URL_LOADER, null, this);</span>
+<span class="nc" id="L67">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

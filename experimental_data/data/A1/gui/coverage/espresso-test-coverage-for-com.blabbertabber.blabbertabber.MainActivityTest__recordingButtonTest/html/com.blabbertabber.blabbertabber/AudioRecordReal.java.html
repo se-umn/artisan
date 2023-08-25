@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AudioRecordReal.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.blabbertabber.blabbertabber</a> &gt; <span class="el_source">AudioRecordReal.java</span></div><h1>AudioRecordReal.java</h1><pre class="source lang-java linenums">package com.blabbertabber.blabbertabber;
+
+import android.media.AudioRecord;
+import android.util.Log;
+
+/**
+ * AudioRecord for recording (and testing on emulators with hardware sound (e.g. on a MacBook Pro emulator))
+ */
+public class AudioRecordReal extends AudioRecordAbstract {
+    private static final String TAG = &quot;AudioRecordReal&quot;;
+    private static AudioRecord audioRecord;
+    private static AudioRecordReal theAudioRecordReal;
+    private static int recorderAudioSource;
+    private static int recorderSampleRateInHz;
+    private static int recorderChannelConfig;
+    private static int recorderAudioFormat;
+    private static int recorderBufferSizeInBytes;
+
+    private AudioRecordReal() {
+    }
+
+    public static synchronized AudioRecordReal getInstance(int recorderAudioSource, int recorderSampleRateInHz, int recorderChannelConfig, int recorderAudioFormat, int recorderBufferSizeInBytes) {
+<span class="nc" id="L23">        AudioRecordReal.recorderAudioSource = recorderAudioSource;</span>
+<span class="nc" id="L24">        AudioRecordReal.recorderSampleRateInHz = recorderSampleRateInHz;</span>
+<span class="nc" id="L25">        AudioRecordReal.recorderChannelConfig = recorderChannelConfig;</span>
+<span class="nc" id="L26">        AudioRecordReal.recorderAudioFormat = recorderAudioFormat;</span>
+<span class="nc" id="L27">        AudioRecordReal.recorderBufferSizeInBytes = recorderBufferSizeInBytes;</span>
+<span class="nc bnc" id="L28" title="All 2 branches missed.">        if (audioRecord == null) {</span>
+<span class="nc" id="L29">            audioRecord = new AudioRecord(recorderAudioSource, recorderSampleRateInHz, recorderChannelConfig, recorderAudioFormat, recorderBufferSizeInBytes);</span>
+        }
+<span class="nc bnc" id="L31" title="All 2 branches missed.">        if (theAudioRecordReal == null) {</span>
+<span class="nc" id="L32">            theAudioRecordReal = new AudioRecordReal();</span>
+        }
+<span class="nc" id="L34">        return theAudioRecordReal;</span>
+    }
+
+    @Override
+    public synchronized void stopAndRelease() {
+<span class="nc" id="L39">        audioRecord.stop();</span>
+<span class="nc" id="L40">        audioRecord.release();</span>
+<span class="nc" id="L41">        audioRecord = new AudioRecord(recorderAudioSource, recorderSampleRateInHz, recorderChannelConfig, recorderAudioFormat, recorderBufferSizeInBytes);</span>
+<span class="nc" id="L42">        Log.i(TAG, &quot;stopAndRelease() audioRecord: &quot; + audioRecord);</span>
+<span class="nc" id="L43">    }</span>
+
+    @Override
+    public void startRecording() {
+<span class="nc" id="L47">        Log.i(TAG, &quot;startRecording() audioRecord: &quot; + audioRecord + &quot; state: &quot;</span>
+<span class="nc" id="L48">                + audioRecord.getState() + &quot; recordingState: &quot; + audioRecord.getRecordingState());</span>
+        // TODO get rid of this! this masks a bug
+        try {
+<span class="nc" id="L51">            audioRecord.startRecording();</span>
+<span class="nc" id="L52">        } catch (IllegalStateException e) {</span>
+<span class="nc" id="L53">            Log.wtf(TAG, &quot;startRecording() &quot; + e.getClass().getName() + &quot;: &quot; + e.getMessage());</span>
+<span class="nc" id="L54">        }</span>
+<span class="nc" id="L55">    }</span>
+
+    @Override
+    public int read(short[] audioData, int offsetInShorts, int sizeInShorts) {
+<span class="nc" id="L59">        return audioRecord.read(audioData, offsetInShorts, sizeInShorts);</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

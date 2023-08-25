@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ToastHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.presentation.helpers</a> &gt; <span class="el_source">ToastHelper.java</span></div><h1>ToastHelper.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.presentation.helpers;
+
+import android.content.Context;
+import android.graphics.Color;
+import android.graphics.PorterDuff;
+import android.view.View;
+import android.widget.Toast;
+
+public class ToastHelper {
+    Context context;
+    private static Toast toast;
+
+<span class="nc" id="L13">    public ToastHelper(Context context) {</span>
+<span class="nc" id="L14">        this.context = context;</span>
+<span class="nc" id="L15">    }</span>
+
+    public void sendToast(String message, String colour) {
+<span class="nc bnc" id="L18" title="All 2 branches missed.">        if (toast != null) toast.cancel();</span>
+<span class="nc" id="L19">        int chosenColor = getColour(colour);</span>
+<span class="nc" id="L20">        toast = Toast.makeText(context, message, Toast.LENGTH_LONG);</span>
+<span class="nc" id="L21">        View view = toast.getView();</span>
+<span class="nc" id="L22">        view.getBackground().setColorFilter(chosenColor, PorterDuff.Mode.SRC_IN);</span>
+<span class="nc" id="L23">        toast.show();</span>
+<span class="nc" id="L24">    }</span>
+
+    public void sendToast(String message) {
+<span class="nc bnc" id="L27" title="All 2 branches missed.">        if (toast != null) toast.cancel();</span>
+<span class="nc" id="L28">        toast = Toast.makeText(context, message, Toast.LENGTH_LONG);</span>
+<span class="nc" id="L29">        toast.show();</span>
+<span class="nc" id="L30">    }</span>
+
+    private int getColour(String colour) {
+<span class="nc bnc" id="L33" title="All 5 branches missed.">        switch(colour) {</span>
+            case &quot;RED&quot;:
+<span class="nc" id="L35">                return Color.RED;</span>
+            case &quot;BLUE&quot;:
+<span class="nc" id="L37">                return Color.BLUE;</span>
+            case &quot;BLACK&quot;:
+<span class="nc" id="L39">                return Color.BLACK;</span>
+            case &quot;GREEN&quot;:
+<span class="nc" id="L41">                return Color.parseColor(&quot;#009f00&quot;);</span>
+             default:
+<span class="nc" id="L43">                return Color.LTGRAY;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

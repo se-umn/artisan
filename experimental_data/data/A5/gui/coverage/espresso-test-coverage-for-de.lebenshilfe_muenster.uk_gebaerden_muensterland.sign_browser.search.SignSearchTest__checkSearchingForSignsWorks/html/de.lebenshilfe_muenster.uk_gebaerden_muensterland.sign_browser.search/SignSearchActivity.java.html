@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SignSearchActivity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_browser.search</a> &gt; <span class="el_source">SignSearchActivity.java</span></div><h1>SignSearchActivity.java</h1><pre class="source lang-java linenums">package de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_browser.search;
+
+import android.app.SearchManager;
+import android.content.Context;
+import android.content.Intent;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Validate;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SearchView;
+import androidx.core.view.MenuItemCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.R;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.Sign;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.SignDAO;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_browser.SignBrowserAdapter;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_browser.search.video.SignSearchVideoActivity;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_browser.video.SignVideoFragment;
+/**
+ * Copyright (c) 2016 Matthias Tonhäuser
+ * &lt;p/&gt;
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * &lt;p/&gt;
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * &lt;p/&gt;
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.
+ */
+<span class="fc" id="L47">public class SignSearchActivity extends AppCompatActivity implements SignBrowserAdapter.OnSignBrowserAdapterSignClickedListener {</span>
+
+    public static final String QUERY = &quot;sign_browser_search_query&quot;;
+<span class="fc" id="L50">    private static final String TAG = SignSearchActivity.class.getSimpleName();</span>
+    private static final boolean INTERRUPT_IF_RUNNING = true;
+<span class="fc" id="L52">    private String query = StringUtils.EMPTY;</span>
+    private SearchSignsTask signSearchTask;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+<span class="fc" id="L57">        Log.d(TAG, &quot;onCreate() &quot; + this.hashCode());</span>
+<span class="fc" id="L58">        super.onCreate(savedInstanceState);</span>
+<span class="fc" id="L59">        setContentView(R.layout.search_activity);</span>
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        if (null != savedInstanceState) {</span>
+<span class="fc" id="L61">            this.query = savedInstanceState.getString(QUERY);</span>
+        } else {
+<span class="fc" id="L63">            final Intent intent = getIntent();</span>
+<span class="fc" id="L64">            this.query = StringUtils.trimToEmpty(StringUtils.stripToEmpty(intent.getStringExtra(SearchManager.QUERY)));</span>
+<span class="fc" id="L65">            Validate.notNull(this.query, &quot;The query supplied to this activity is null!&quot;);</span>
+        }
+<span class="fc" id="L67">        setupRecyclerView();</span>
+<span class="fc" id="L68">        setupSupportActionBar();</span>
+<span class="fc" id="L69">        this.signSearchTask = new SearchSignsTask(this);</span>
+<span class="fc" id="L70">        this.signSearchTask.execute(this.query);</span>
+<span class="fc" id="L71">    }</span>
+
+    private void setupRecyclerView() {
+<span class="fc" id="L74">        final RecyclerView recyclerView = (RecyclerView) this.findViewById(R.id.signRecyclerView);</span>
+<span class="fc" id="L75">        Validate.notNull(recyclerView);</span>
+<span class="fc" id="L76">        recyclerView.setHasFixedSize(true); // performance fix</span>
+<span class="fc" id="L77">        recyclerView.setLayoutManager(new LinearLayoutManager(this));</span>
+<span class="fc" id="L78">        recyclerView.setAdapter(new SignBrowserAdapter(this, this, new ArrayList&lt;Sign&gt;()));</span>
+<span class="fc" id="L79">    }</span>
+
+    private void setupSupportActionBar() {
+<span class="fc" id="L82">        final ActionBar supportActionBar = getSupportActionBar();</span>
+<span class="fc" id="L83">        Validate.notNull(supportActionBar, &quot;SupportActionBar is null. Should have been set in onCreate().&quot;);</span>
+<span class="fc" id="L84">        supportActionBar.setTitle(getResources().getString(R.string.search_results) + StringUtils.SPACE + this.query);</span>
+<span class="fc" id="L85">        supportActionBar.setDisplayHomeAsUpEnabled(true);</span>
+<span class="fc" id="L86">    }</span>
+
+    @Override
+    public void onStart() {
+<span class="fc" id="L90">        Log.d(TAG, &quot;onStart() &quot; + this.hashCode());</span>
+<span class="fc" id="L91">        super.onStart();</span>
+<span class="fc" id="L92">    }</span>
+
+    @Override
+    protected void onPause() {
+<span class="fc" id="L96">        Log.d(TAG, &quot;onPause()&quot; + this.hashCode());</span>
+<span class="fc" id="L97">        super.onPause();</span>
+<span class="pc bpc" id="L98" title="1 of 2 branches missed.">        if (null != this.signSearchTask) {</span>
+<span class="fc" id="L99">            final AsyncTask.Status status = this.signSearchTask.getStatus();</span>
+<span class="pc bpc" id="L100" title="1 of 4 branches missed.">            if (status.equals(AsyncTask.Status.PENDING)|| status.equals(AsyncTask.Status.RUNNING)) {</span>
+<span class="fc" id="L101">                this.signSearchTask.cancel(INTERRUPT_IF_RUNNING);</span>
+            }
+        }
+<span class="fc" id="L104">        super.onPause();</span>
+<span class="fc" id="L105">    }</span>
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+<span class="fc" id="L109">        Log.d(TAG, &quot;onCreateOptionsMenu()&quot; + this.hashCode());</span>
+<span class="fc" id="L110">        super.onCreateOptionsMenu(menu);</span>
+<span class="fc" id="L111">        final MenuInflater inflater = getMenuInflater();</span>
+<span class="fc" id="L112">        inflater.inflate(R.menu.options_sign_browser_search, menu);</span>
+<span class="fc" id="L113">        final SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);</span>
+<span class="fc" id="L114">        final MenuItem searchItem = menu.findItem(R.id.action_search);</span>
+<span class="fc" id="L115">        final SearchView searchView = (SearchView) MenuItemCompat.getActionView(searchItem);</span>
+<span class="fc" id="L116">        searchView.setSearchableInfo(searchManager.getSearchableInfo(getComponentName()));</span>
+<span class="fc" id="L117">        return true;</span>
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+<span class="fc" id="L122">        Log.d(TAG, &quot;onSaveInstanceState() &quot; + this.hashCode());</span>
+<span class="fc" id="L123">        super.onSaveInstanceState(outState);</span>
+<span class="fc" id="L124">        outState.putString(QUERY, this.query);</span>
+<span class="fc" id="L125">    }</span>
+
+    @Override
+    public void onSignBrowserAdapterSignClicked(Sign sign) {
+<span class="nc" id="L129">        Log.d(TAG, &quot;onSignBrowserAdapterSignClicked() &quot; + this.hashCode());</span>
+<span class="nc" id="L130">        final Intent intent = new Intent(this, SignSearchVideoActivity.class);</span>
+<span class="nc" id="L131">        final Bundle bundle = new Bundle();</span>
+<span class="nc" id="L132">        bundle.putString(SignSearchActivity.QUERY, this.query);</span>
+<span class="nc" id="L133">        bundle.putParcelable(SignVideoFragment.SIGN_TO_SHOW, sign);</span>
+<span class="nc" id="L134">        intent.putExtra(SignSearchVideoActivity.EXTRA, bundle);</span>
+<span class="nc" id="L135">        startActivity(intent);</span>
+<span class="nc" id="L136">    }</span>
+
+    /**
+     * The first string parameter is the query to search in the name_locale_de for.
+     */
+    private class SearchSignsTask extends AsyncTask&lt;String, Void, List&lt;Sign&gt;&gt; {
+
+        private final Context context;
+
+<span class="fc" id="L145">        public SearchSignsTask(Context context) {</span>
+<span class="fc" id="L146">            this.context = context;</span>
+<span class="fc" id="L147">        }</span>
+
+
+        @Override
+        protected List&lt;Sign&gt; doInBackground(String... params) {
+<span class="fc" id="L152">            Log.d(SignSearchActivity.class.getSimpleName(), &quot;doInBackground &quot; + this.hashCode());</span>
+<span class="fc" id="L153">            Validate.exclusiveBetween(0, 2, params.length, &quot;Exactly one string as a parameter allowed.&quot;);</span>
+<span class="fc" id="L154">            final List&lt;Sign&gt; signs = new ArrayList&lt;&gt;();</span>
+<span class="pc bpc" id="L155" title="1 of 2 branches missed.">            if (isCancelled()) {</span>
+<span class="nc" id="L156">                return signs;</span>
+            }
+<span class="fc" id="L158">            final SignDAO signDAO = SignDAO.getInstance(this.context);</span>
+<span class="fc" id="L159">            signDAO.open();</span>
+<span class="fc" id="L160">            signs.addAll(signDAO.read(params[0]));</span>
+<span class="fc" id="L161">            signDAO.close();</span>
+<span class="fc" id="L162">            return signs;</span>
+        }
+
+        @Override
+        protected void onPostExecute(List&lt;Sign&gt; result) {
+<span class="fc" id="L167">            Log.d(TAG, &quot;onPostExecute &quot; + this.hashCode());</span>
+<span class="fc" id="L168">            final RecyclerView mRecyclerView = (RecyclerView) SignSearchActivity.this.findViewById(R.id.signRecyclerView);</span>
+<span class="fc" id="L169">            Validate.notNull(mRecyclerView, &quot;RecyclerView is null.&quot;);</span>
+<span class="fc" id="L170">            mRecyclerView.swapAdapter(new SignBrowserAdapter(SignSearchActivity.this, SignSearchActivity.this, result), false);</span>
+<span class="fc" id="L171">        }</span>
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

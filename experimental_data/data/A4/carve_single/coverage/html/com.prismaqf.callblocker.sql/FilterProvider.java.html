@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FilterProvider.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker.sql</a> &gt; <span class="el_source">FilterProvider.java</span></div><h1>FilterProvider.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker.sql;
+
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.util.Log;
+
+import com.prismaqf.callblocker.filters.Filter;
+import com.prismaqf.callblocker.filters.FilterHandle;
+import com.prismaqf.callblocker.rules.CalendarRule;
+import com.prismaqf.callblocker.rules.FilterRule;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * @author ConteDiMonteCristo
+ */
+<span class="nc" id="L19">public class FilterProvider {</span>
+<span class="fc" id="L20">    private final static String TAG = FilterProvider.class.getCanonicalName();</span>
+
+    /**
+     * Insert a Filter record (a filter handle actually)
+     * @param db the SQLite db connection
+     * @param fh the handle with the relevant info
+     * @return the id of the filter or -1 if there is a problem
+     */
+    public static synchronized long InsertRow(SQLiteDatabase db, FilterHandle fh) {
+<span class="nc bnc" id="L29" title="All 4 branches missed.">        if (fh.getName()==null || fh.getName().isEmpty()) {</span>
+<span class="nc" id="L30">            Log.e(TAG,&quot;The filter name is null or empty&quot; );</span>
+<span class="nc" id="L31">            return -1;</span>
+        }
+<span class="nc" id="L33">        ContentValues vals = new ContentValues();</span>
+<span class="nc" id="L34">        vals.put(DbContract.Filters.COLUMN_NAME_FILTERNAME,fh.getName());</span>
+<span class="nc bnc" id="L35" title="All 2 branches missed.">        if (fh.getCalendarRuleName()!=null)</span>
+<span class="nc" id="L36">            vals.put(DbContract.Filters.COLUMN_NAME_CALENDARRULENAME,fh.getCalendarRuleName());</span>
+<span class="nc bnc" id="L37" title="All 2 branches missed.">        if (fh.getFilterRuleName() != null)</span>
+<span class="nc" id="L38">            vals.put(DbContract.Filters.COLUMN_NAME_FILTERRULENAME,fh.getFilterRuleName());</span>
+<span class="nc bnc" id="L39" title="All 2 branches missed.">        if (fh.getActionName() != null)</span>
+<span class="nc" id="L40">            vals.put(DbContract.Filters.COLUMN_NAME_ACTIONNAME,fh.getActionName());</span>
+<span class="nc" id="L41">        return db.insert(DbContract.Filters.TABLE_NAME, DbContract.Filters.COLUMN_NAME_ACTIONNAME, vals);</span>
+    }
+
+    /**
+     * Save a Filter from its binary representation
+     * @param db the SQLite db connection
+     * @param f the filter object
+     * @return the id of the filter or -1 if there is a problem
+     */
+    public static synchronized long SaveFilter(SQLiteDatabase db, Filter f) {
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        if (HasFilter(db,f)) return -1L;</span>
+<span class="nc" id="L52">        String fname = f.getName();</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">        if (FindFilter(db,fname) != null)</span>
+<span class="nc" id="L54">            fname = String.format(&quot;%s_#&quot;,fname);</span>
+
+        //Save the content here
+        //for calendar rules we try to find an equivalent rule so we don't save
+        //if no equivalent we save.
+        //In any case we resolve name ambiguity when we save
+<span class="nc" id="L60">        CalendarRule cr = (CalendarRule) f.getCalendarRule();</span>
+<span class="nc" id="L61">        String cname = f.getCalendarRule().getName();</span>
+<span class="nc bnc" id="L62" title="All 2 branches missed.">        if (cr != null) { //ICalendarRule is a CalendarRule</span>
+<span class="nc" id="L63">            String oldName = CalendarRuleProvider.FindCalendarRule(db, cr);</span>
+<span class="nc bnc" id="L64" title="All 2 branches missed.">            if (oldName == null) //an equivalent rule does not exist</span>
+            {
+<span class="nc bnc" id="L66" title="All 2 branches missed.">                if (CalendarRuleProvider.FindCalendarRule(db,cname)!=null) //the name is already used</span>
+                {
+<span class="nc" id="L68">                    cname = String.format(&quot;%s_#&quot;,cname);</span>
+<span class="nc" id="L69">                    cr.setName(cname);</span>
+                }
+<span class="nc" id="L71">                CalendarRuleProvider.InsertRow(db, cr);</span>
+            }
+            else
+<span class="nc" id="L74">                cname = oldName;</span>
+        }
+        //for filter rules we always save and
+        //we resolve name ambiguity when we save
+<span class="nc" id="L78">        FilterRule fr = (FilterRule)f.getFilterRule();</span>
+<span class="nc" id="L79">        String frname = f.getFilterRule().getName();</span>
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (fr != null) { //IFilterRule is a FilterRule</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">            if (FilterRuleProvider.FindFilterRule(db,frname) != null) //the name is already used</span>
+            {
+<span class="nc" id="L83">                frname = String.format(&quot;%s_#&quot;,frname);</span>
+<span class="nc" id="L84">                fr.setName(frname);</span>
+            }
+<span class="nc" id="L86">            FilterRuleProvider.InsertRow(db, fr);</span>
+        }
+        //for actions instead there is nothing that need to be saved
+
+        //Save the filter handle here
+<span class="nc" id="L91">        FilterHandle fh = new FilterHandle(fname,cname,frname,f.getAction().getName());</span>
+<span class="nc" id="L92">        return InsertRow(db,fh);</span>
+    }
+
+    /**
+     * Return all the filters from DB
+     * @param db the SQLite db connection
+     * @return the entire collection of filters
+     */
+    public static synchronized ArrayList&lt;FilterHandle&gt; AllFilters(SQLiteDatabase db) {
+<span class="nc" id="L101">        ArrayList&lt;FilterHandle&gt; filters = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L102">        Cursor c = db.query(DbContract.Filters.TABLE_NAME, null, null, null, null, null, null, null);</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        while (c.moveToNext()) {</span>
+<span class="nc" id="L104">            String name = c.getString(c.getColumnIndexOrThrow(DbContract.Filters.COLUMN_NAME_FILTERNAME));</span>
+<span class="nc" id="L105">            String calendar = c.getString(c.getColumnIndexOrThrow(DbContract.Filters.COLUMN_NAME_CALENDARRULENAME));</span>
+<span class="nc" id="L106">            String patterns = c.getString(c.getColumnIndexOrThrow(DbContract.Filters.COLUMN_NAME_FILTERRULENAME));</span>
+<span class="nc" id="L107">            String action = c.getString(c.getColumnIndexOrThrow(DbContract.Filters.COLUMN_NAME_ACTIONNAME));</span>
+<span class="nc" id="L108">            filters.add(new FilterHandle(name,calendar,patterns,action));</span>
+<span class="nc" id="L109">        }</span>
+<span class="nc" id="L110">        c.close();</span>
+<span class="nc" id="L111">        return filters;</span>
+    }
+
+    /**
+     * Return all names of the filters to prevent re-inserting a filter with an existing name
+     * @param db the SQLite connection
+     * @return a list of names
+     */
+    public static synchronized ArrayList&lt;String&gt; AllFilterNames(SQLiteDatabase db) {
+<span class="fc" id="L120">        Cursor c = db.query(DbContract.Filters.TABLE_NAME, null, null, null, null, null, null, null);</span>
+<span class="fc" id="L121">        ArrayList&lt;String&gt; names = new ArrayList&lt;&gt;();</span>
+<span class="pc bpc" id="L122" title="1 of 2 branches missed.">        while (c.moveToNext()) {</span>
+<span class="nc" id="L123">            String name = c.getString(c.getColumnIndexOrThrow(DbContract.Filters.COLUMN_NAME_FILTERNAME));</span>
+<span class="nc" id="L124">            names.add(name);</span>
+<span class="nc" id="L125">        }</span>
+<span class="fc" id="L126">        c.close();</span>
+<span class="fc" id="L127">        return names;</span>
+    }
+
+    /**
+     * Update a filter
+     * @param db the SQLite connection
+     * @param filterId the id of the filter
+     * @param fh the filter handle
+     */
+    public static synchronized void UpdateFilter(SQLiteDatabase db, long filterId, FilterHandle fh) {
+<span class="nc" id="L137">        ContentValues vals = new ContentValues();</span>
+<span class="nc bnc" id="L138" title="All 2 branches missed.">        if (fh.getCalendarRuleName()!=null)</span>
+<span class="nc" id="L139">            vals.put(DbContract.Filters.COLUMN_NAME_CALENDARRULENAME,fh.getCalendarRuleName());</span>
+<span class="nc bnc" id="L140" title="All 2 branches missed.">        if (fh.getFilterRuleName() != null)</span>
+<span class="nc" id="L141">            vals.put(DbContract.Filters.COLUMN_NAME_FILTERRULENAME,fh.getFilterRuleName());</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">        if (fh.getActionName() != null)</span>
+<span class="nc" id="L143">            vals.put(DbContract.Filters.COLUMN_NAME_ACTIONNAME,fh.getActionName());</span>
+<span class="nc" id="L144">        String selection = DbContract.Filters._ID + &quot; = ?&quot;;</span>
+<span class="nc" id="L145">        String[] selectionArgs = { String.valueOf(filterId) };</span>
+<span class="nc" id="L146">        db.update(DbContract.Filters.TABLE_NAME, vals, selection, selectionArgs);</span>
+<span class="nc" id="L147">    }</span>
+
+    /**
+     * Delete a filter by id
+     * @param db the SQlite connection
+     * @param filterId the filter id
+     */
+    public static synchronized void DeleteFilter(SQLiteDatabase db, long filterId) {
+<span class="nc" id="L155">        String where = DbContract.Filters._ID + &quot; = ?&quot;;</span>
+<span class="nc" id="L156">        String[] args = {String.valueOf(filterId)};</span>
+<span class="nc" id="L157">        db.delete(DbContract.Filters.TABLE_NAME, where, args);</span>
+<span class="nc" id="L158">        where = DbContract.FilterPatterns.COLUMN_NAME_RULEID + &quot; = ?&quot;;</span>
+<span class="nc" id="L159">        db.delete(DbContract.FilterPatterns.TABLE_NAME, where, args);</span>
+<span class="nc" id="L160">    }</span>
+
+    /**
+     * Delete a filter by name
+     * @param db the SQlite connection
+     * @param name the filter name
+     */
+    public static synchronized void DeleteFilter(SQLiteDatabase db, String name) {
+        //find the filter id
+<span class="nc" id="L169">        String where = DbContract.Filters.COLUMN_NAME_FILTERNAME + &quot; = ?&quot;;</span>
+<span class="nc" id="L170">        String[] args = {name};</span>
+<span class="nc" id="L171">        String[] cols = {DbContract.Filters._ID};</span>
+<span class="nc" id="L172">        Cursor c = db.query(DbContract.Filters.TABLE_NAME,cols,where,args,null,null,null,null);</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">        if (c.getCount()&gt;0) {</span>
+<span class="nc" id="L174">            c.moveToFirst();</span>
+<span class="nc" id="L175">            long filterId = c.getLong(c.getColumnIndexOrThrow(DbContract.Filters._ID));</span>
+<span class="nc" id="L176">            DeleteFilter(db, filterId);</span>
+        }
+<span class="nc" id="L178">        c.close();</span>
+<span class="nc" id="L179">    }</span>
+
+    /**
+     * Retrieve a filter handle by id
+     * @param db the SQlite connection
+     * @param filterId the filter id
+     * @return the handle to the filter
+     */
+    public static synchronized FilterHandle FindFilter(SQLiteDatabase db, long filterId) {
+<span class="nc" id="L188">        String selection = DbContract.Filters._ID + &quot; = ?&quot;;</span>
+<span class="nc" id="L189">        String[] selectionArgs = { String.valueOf(filterId) };</span>
+<span class="nc" id="L190">        Cursor c = db.query(DbContract.Filters.TABLE_NAME,null,selection,selectionArgs,null,null,null,null);</span>
+<span class="nc bnc" id="L191" title="All 2 branches missed.">        if (c.moveToFirst()) {</span>
+<span class="nc" id="L192">            String name = c.getString(c.getColumnIndexOrThrow(DbContract.Filters.COLUMN_NAME_FILTERNAME));</span>
+<span class="nc" id="L193">            String calendar = c.getString(c.getColumnIndexOrThrow(DbContract.Filters.COLUMN_NAME_CALENDARRULENAME));</span>
+<span class="nc" id="L194">            String patterns = c.getString(c.getColumnIndexOrThrow(DbContract.Filters.COLUMN_NAME_FILTERRULENAME));</span>
+<span class="nc" id="L195">            String action = c.getString(c.getColumnIndexOrThrow(DbContract.Filters.COLUMN_NAME_ACTIONNAME));</span>
+<span class="nc" id="L196">            c.close();</span>
+<span class="nc" id="L197">            return new FilterHandle(name,calendar,patterns,action);</span>
+        }
+<span class="nc" id="L199">        c.close();</span>
+<span class="nc" id="L200">        return null;</span>
+    }
+
+    /**
+     * Return a filter by name
+     * @param db the SQLite connection
+     * @param name the filter name
+     * @return a handle to the filter
+     */
+    public static synchronized FilterHandle FindFilter(SQLiteDatabase db, String name) {
+<span class="nc" id="L210">        String where = DbContract.Filters.COLUMN_NAME_FILTERNAME + &quot; = ?&quot;;</span>
+<span class="nc" id="L211">        String[] args = {name};</span>
+<span class="nc" id="L212">        String[] cols = {DbContract.Filters._ID};</span>
+<span class="nc" id="L213">        Cursor c = db.query(DbContract.Filters.TABLE_NAME, cols, where, args, null, null, null, null);</span>
+<span class="nc bnc" id="L214" title="All 2 branches missed.">        if (c.moveToLast()) {</span>
+<span class="nc" id="L215">            long filterId = c.getLong(c.getColumnIndexOrThrow(DbContract.Filters._ID));</span>
+<span class="nc" id="L216">            c.close();</span>
+<span class="nc" id="L217">            return FindFilter(db,filterId);</span>
+        }
+<span class="nc" id="L219">        c.close();</span>
+<span class="nc" id="L220">        return null;</span>
+    }
+
+    /**
+     * Checks if the given calendar rule name is used in a filter
+     * @param db the SQLite connection
+     * @param ruleName the rule name
+     * @return a flag indicating if the rule exixts or not
+     */
+    public static synchronized boolean HasCalendarRule(SQLiteDatabase db, String ruleName) {
+<span class="nc" id="L230">        String where = DbContract.Filters.COLUMN_NAME_CALENDARRULENAME + &quot; = ?&quot;;</span>
+<span class="nc" id="L231">        String[] args = {ruleName};</span>
+<span class="nc" id="L232">        Cursor c = db.query(DbContract.Filters.TABLE_NAME, null, where, args, null, null, null, null);</span>
+<span class="nc" id="L233">        boolean flag = false;</span>
+<span class="nc bnc" id="L234" title="All 2 branches missed.">        if (c.getCount() &gt; 0) flag = true;</span>
+<span class="nc" id="L235">        c.close();</span>
+<span class="nc" id="L236">        return flag;</span>
+    }
+
+    /**
+     * Checks if the given filter rule name is used in a filter
+     * @param db the SQLite connection
+     * @param ruleName the rule name
+     * @return a flag indicating if the rule exixts or not
+     */
+    public static synchronized boolean HasFilterRule(SQLiteDatabase db, String ruleName) {
+<span class="nc" id="L246">        String where = DbContract.Filters.COLUMN_NAME_FILTERRULENAME + &quot; = ?&quot;;</span>
+<span class="nc" id="L247">        String[] args = {ruleName};</span>
+<span class="nc" id="L248">        Cursor c = db.query(DbContract.Filters.TABLE_NAME, null, where, args, null, null, null, null);</span>
+<span class="nc" id="L249">        boolean flag = false;</span>
+<span class="nc bnc" id="L250" title="All 2 branches missed.">        if (c.getCount() &gt; 0) flag = true;</span>
+<span class="nc" id="L251">        c.close();</span>
+<span class="nc" id="L252">        return flag;</span>
+    }
+
+    /**
+     * Check if a filter with the same rules already exists
+     * @param db the SQLite connection
+     * @param filter the filter object
+     * @return a flag indicating if the rule exixts or not
+     */
+    public static synchronized boolean HasFilter (SQLiteDatabase db, Filter filter) {
+<span class="nc" id="L262">        String where = DbContract.Filters.COLUMN_NAME_FILTERRULENAME + &quot; = ? AND &quot; +</span>
+                       DbContract.Filters.COLUMN_NAME_CALENDARRULENAME + &quot; = ? AND &quot; +
+                       DbContract.Filters.COLUMN_NAME_ACTIONNAME + &quot; = ?&quot;;
+<span class="nc" id="L265">        String[] args = {filter.getFilterRule().getName(),</span>
+<span class="nc" id="L266">                         filter.getCalendarRule().getName(),</span>
+<span class="nc" id="L267">                         filter.getAction().getName()};</span>
+<span class="nc" id="L268">        Cursor c = db.query(DbContract.Filters.TABLE_NAME, null, where, args, null, null, null, null);</span>
+<span class="nc" id="L269">        boolean flag = false;</span>
+<span class="nc bnc" id="L270" title="All 2 branches missed.">        if (c.getCount() &gt; 0) flag = true;</span>
+<span class="nc" id="L271">        c.close();</span>
+<span class="nc" id="L272">        return flag;</span>
+    }
+
+    /**
+     * Returns a collection of all existing filter handles
+     * @param db the SQLite db connection
+     * @return a list of filter handles
+     */
+    public static synchronized List&lt;FilterHandle&gt; LoadFilters(SQLiteDatabase db) {
+<span class="fc" id="L281">        List&lt;FilterHandle&gt; handles = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L282">        Cursor c = db.query(DbContract.Filters.TABLE_NAME, null, null, null, null, null, null, null);</span>
+<span class="pc bpc" id="L283" title="1 of 2 branches missed.">        while (c.moveToNext()) {</span>
+<span class="nc" id="L284">            String name = c.getString(c.getColumnIndexOrThrow(DbContract.Filters.COLUMN_NAME_FILTERNAME));</span>
+<span class="nc" id="L285">            String calendar = c.getString(c.getColumnIndexOrThrow(DbContract.Filters.COLUMN_NAME_CALENDARRULENAME));</span>
+<span class="nc" id="L286">            String patterns = c.getString(c.getColumnIndexOrThrow(DbContract.Filters.COLUMN_NAME_FILTERRULENAME));</span>
+<span class="nc" id="L287">            String action = c.getString(c.getColumnIndexOrThrow(DbContract.Filters.COLUMN_NAME_ACTIONNAME));</span>
+<span class="nc" id="L288">            handles.add(new FilterHandle(name,calendar,patterns,action));</span>
+<span class="nc" id="L289">        }</span>
+<span class="fc" id="L290">        c.close();</span>
+<span class="fc" id="L291">        return handles;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

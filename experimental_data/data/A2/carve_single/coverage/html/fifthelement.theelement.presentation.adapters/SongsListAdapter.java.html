@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SongsListAdapter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.presentation.adapters</a> &gt; <span class="el_source">SongsListAdapter.java</span></div><h1>SongsListAdapter.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.presentation.adapters;
+
+import android.app.Activity;
+import android.content.Context;
+import android.support.v4.app.Fragment;
+import android.support.v7.widget.PopupMenu;
+import android.util.Log;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+import android.widget.ImageButton;
+import android.widget.TextView;
+
+import java.util.List;
+
+import fifthelement.theelement.R;
+import fifthelement.theelement.application.Helpers;
+import fifthelement.theelement.application.Services;
+import fifthelement.theelement.objects.Author;
+import fifthelement.theelement.objects.Song;
+import fifthelement.theelement.persistence.hsqldb.PersistenceException;
+import fifthelement.theelement.presentation.activities.MainActivity;
+import fifthelement.theelement.presentation.fragments.SongInfoFragment;
+
+public class SongsListAdapter extends BaseAdapter {
+    Context context;
+    List&lt;Song&gt; songs;
+    LayoutInflater inflater;
+    private static final String LOG_TAG = &quot;SongsListAdapter&quot;;
+
+<span class="fc" id="L34">    public SongsListAdapter(Context context, List&lt;Song&gt; songs) {</span>
+<span class="fc" id="L35">        this.context = context;</span>
+<span class="fc" id="L36">        this.songs = songs;</span>
+<span class="fc" id="L37">        inflater = (LayoutInflater.from(context));</span>
+<span class="fc" id="L38">    }</span>
+
+    @Override
+    public int getCount() {
+<span class="fc" id="L42">        return songs.size();</span>
+    }
+
+    @Override
+    public Object getItem(int position) {
+<span class="nc" id="L47">        return songs.get(position);</span>
+    }
+
+    @Override
+    public long getItemId(int position) {
+<span class="nc" id="L52">        return (long) getItem(position).hashCode();</span>
+    }
+
+    @Override
+    public View getView(int i, View view, ViewGroup viewGroup) {
+<span class="nc" id="L57">        final MainActivity activity = (MainActivity)context;</span>
+<span class="nc" id="L58">        view = inflater.inflate(R.layout.fragment_list_item, null);</span>
+<span class="nc" id="L59">        TextView songName = (TextView) view.findViewById(R.id.primary_string);</span>
+<span class="nc" id="L60">        songName.setSelected(true);</span>
+<span class="nc" id="L61">        TextView authorName = (TextView) view.findViewById(R.id.secondary_string);</span>
+<span class="nc" id="L62">        final Song printSong = songs.get(i);</span>
+<span class="nc" id="L63">        Author author = printSong.getAuthor();</span>
+<span class="nc" id="L64">        String authors = &quot;&quot;;</span>
+<span class="nc bnc" id="L65" title="All 2 branches missed.">        if(author != null) {</span>
+<span class="nc" id="L66">            authors += author.getName();</span>
+        }
+<span class="nc" id="L68">        songName.setText(printSong.getName());</span>
+<span class="nc" id="L69">        authorName.setText(authors);</span>
+<span class="nc" id="L70">        ImageButton button = view.findViewById(R.id.popup_button);</span>
+<span class="nc" id="L71">        songOptions(activity, printSong, button);</span>
+<span class="nc" id="L72">        return view;</span>
+    }
+
+    private void songOptions(final MainActivity activity, final Song song, ImageButton button) {
+<span class="nc" id="L76">        button.setOnClickListener(new View.OnClickListener() {</span>
+            @Override
+            public void onClick(View v) {
+<span class="nc" id="L79">                PopupMenu popup = new PopupMenu(context, v, Gravity.LEFT);</span>
+<span class="nc" id="L80">                Activity act = (MainActivity)context;</span>
+<span class="nc" id="L81">                activity.getMenuInflater().inflate(R.menu.song_list_item_menu, popup.getMenu());</span>
+<span class="nc" id="L82">                popup.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {</span>
+                    public boolean onMenuItemClick(MenuItem item) {
+<span class="nc bnc" id="L84" title="All 4 branches missed.">                        switch(item.getItemId()) {</span>
+                            case R.id.delete_song:
+<span class="nc" id="L86">                                deleteSong(song, activity);</span>
+<span class="nc" id="L87">                                break;</span>
+                            case R.id.song_info:
+<span class="nc" id="L89">                                Fragment fragment = null;</span>
+                                try{
+<span class="nc" id="L91">                                    SongInfoFragment songInfoFragment = SongInfoFragment.newInstance();</span>
+<span class="nc" id="L92">                                    songInfoFragment.setSong(song);</span>
+<span class="nc" id="L93">                                    fragment = (Fragment) songInfoFragment;</span>
+                                }
+<span class="nc" id="L95">                                catch (Exception e){</span>
+<span class="nc" id="L96">                                    Log.e(LOG_TAG, e.getMessage());</span>
+<span class="nc" id="L97">                                }</span>
+<span class="nc" id="L98">                                Helpers.getFragmentHelper(activity).createFragment(R.id.flContent, fragment);</span>
+<span class="nc" id="L99">                                break;</span>
+                            // pass the song to the main activity, to find out
+                            // which playlist it needs to be added too
+                            case R.id.add_to_playlist:
+<span class="nc" id="L103">                                activity.addSongsToPlaylist(song);</span>
+                                break;
+                        }
+<span class="nc" id="L106">                        return true;</span>
+                    }
+                });
+<span class="nc" id="L109">                popup.show();</span>
+<span class="nc" id="L110">            }</span>
+        });
+<span class="nc" id="L112">    }</span>
+
+    private void deleteSong(Song song, MainActivity activity) {
+        try {
+<span class="nc" id="L116">            Helpers.getToastHelper(context).sendToast(&quot;Deleted &quot; + song.getName());</span>
+<span class="nc bnc" id="L117" title="All 2 branches missed.">            if(Services.getMusicService().getCurrentSongPlaying() != null</span>
+<span class="nc bnc" id="L118" title="All 2 branches missed.">                    &amp;&amp; Services.getMusicService().getCurrentSongPlaying().getUUID().equals(song.getUUID())) {</span>
+<span class="nc" id="L119">                Services.getMusicService().reset();</span>
+
+            }
+<span class="nc" id="L122">            activity.getSongService().deleteSong(song);</span>
+<span class="nc" id="L123">            songs.remove(song);</span>
+<span class="nc" id="L124">            Services.getSongListService().removeSongFromList(song);</span>
+<span class="nc" id="L125">            notifyDataSetChanged();</span>
+<span class="nc" id="L126">        } catch(PersistenceException p) {</span>
+<span class="nc" id="L127">            Helpers.getToastHelper(context).sendToast(&quot;Could not delete &quot; + song.getName());</span>
+<span class="nc" id="L128">            Log.e(LOG_TAG, p.getMessage());</span>
+<span class="nc" id="L129">        }</span>
+<span class="nc" id="L130">    }</span>
+
+    public void notifyDataSetChanged() {
+<span class="fc" id="L133">        super.notifyDataSetChanged();</span>
+<span class="fc" id="L134">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

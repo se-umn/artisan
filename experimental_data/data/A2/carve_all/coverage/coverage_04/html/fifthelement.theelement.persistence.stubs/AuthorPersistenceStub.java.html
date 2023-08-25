@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthorPersistenceStub.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.persistence.stubs</a> &gt; <span class="el_source">AuthorPersistenceStub.java</span></div><h1>AuthorPersistenceStub.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.persistence.stubs;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+import fifthelement.theelement.objects.Author;
+import fifthelement.theelement.persistence.AuthorPersistence;
+
+public class AuthorPersistenceStub implements AuthorPersistence {
+
+    private List&lt;Author&gt; authorList;
+
+<span class="nc" id="L14">    public AuthorPersistenceStub() {</span>
+<span class="nc" id="L15">        this.authorList = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L17">        this.authorList.add(new Author(&quot;Bob Marley&quot;));</span>
+<span class="nc" id="L18">        this.authorList.add(new Author(&quot;Led Zepplin&quot;));</span>
+<span class="nc" id="L19">        this.authorList.add(new Author(&quot;Justin Bieber&quot;));</span>
+<span class="nc" id="L20">        this.authorList.add(new Author(&quot;Jeremy The Goat&quot;));</span>
+
+<span class="nc" id="L22">    }</span>
+
+
+    @Override
+    public List&lt;Author&gt; getAllAuthors() {
+<span class="nc" id="L27">        return authorList;</span>
+    }
+
+    @Override
+    public Author getAuthorByUUID(UUID uuid) throws IllegalArgumentException {
+<span class="nc bnc" id="L32" title="All 2 branches missed.">        if(uuid == null)</span>
+<span class="nc" id="L33">            throw new IllegalArgumentException(&quot;Cannot get author with a null UUID&quot;);</span>
+<span class="nc bnc" id="L34" title="All 2 branches missed.">        for(Author a : this.authorList)</span>
+<span class="nc bnc" id="L35" title="All 2 branches missed.">            if(a.getUUID().compareTo(uuid) == 0)</span>
+<span class="nc" id="L36">                return a;</span>
+<span class="nc" id="L37">        return null;</span>
+    }
+
+    @Override
+    public boolean storeAuthor(Author author) throws IllegalArgumentException {
+<span class="nc bnc" id="L42" title="All 2 branches missed.">        if(author == null)</span>
+<span class="nc" id="L43">            throw new IllegalArgumentException(&quot;Cannot insert a null author&quot;);</span>
+<span class="nc bnc" id="L44" title="All 2 branches missed.">        if(authorExists(author.getUUID()))</span>
+<span class="nc" id="L45">            throw new IllegalArgumentException(&quot;Cant store an author with existing UUID&quot;);</span>
+<span class="nc" id="L46">        this.authorList.add(author);</span>
+<span class="nc" id="L47">        return true;</span>
+    }
+
+    @Override
+    public boolean updateAuthor(Author author) throws IllegalArgumentException {
+<span class="nc" id="L52">        boolean removed = false;</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">        if(author == null)</span>
+<span class="nc" id="L54">            throw new IllegalArgumentException(&quot;Cannot update a null author&quot;);</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        for(int index = 0; index &lt; authorList.size(); index++) {</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">            if(authorList.get(index).getUUID().compareTo(author.getUUID()) == 0) {</span>
+<span class="nc" id="L57">                this.authorList.set(index, author);</span>
+<span class="nc" id="L58">                removed = true;</span>
+<span class="nc" id="L59">                break;</span>
+            }
+        }
+<span class="nc" id="L62">        return removed;</span>
+    }
+
+    @Override
+    public boolean deleteAuthor(Author author) throws IllegalArgumentException {
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        if (author == null)</span>
+<span class="nc" id="L68">            throw new IllegalArgumentException(&quot;Cannot delete an author with a null author&quot;);</span>
+<span class="nc" id="L69">        return this.deleteAuthor(author.getUUID());</span>
+    }
+
+    @Override
+    public boolean deleteAuthor(UUID uuid) throws IllegalArgumentException {
+<span class="nc" id="L74">        boolean removed = false;</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        if(uuid == null)</span>
+<span class="nc" id="L76">            throw new IllegalArgumentException(&quot;Cannot delete an author with a null UUID&quot;);</span>
+<span class="nc bnc" id="L77" title="All 2 branches missed.">        for(int index = 0; index &lt; authorList.size(); index++) {</span>
+<span class="nc bnc" id="L78" title="All 2 branches missed.">            if(authorList.get(index).getUUID().compareTo(uuid) == 0) {</span>
+<span class="nc" id="L79">                this.authorList.remove(index);</span>
+<span class="nc" id="L80">                removed = true;</span>
+            }
+        }
+<span class="nc" id="L83">        return removed;</span>
+    }
+
+    @Override
+    public boolean authorExists(Author author) {
+<span class="nc bnc" id="L88" title="All 2 branches missed.">        if(author == null)</span>
+<span class="nc" id="L89">            throw new IllegalArgumentException(&quot;Cannot check exists with a null Author&quot;);</span>
+<span class="nc" id="L90">        return this.authorExists(author.getUUID());</span>
+    }
+
+    @Override
+    public boolean authorExists(UUID uuid) {
+<span class="nc bnc" id="L95" title="All 2 branches missed.">        if(uuid == null)</span>
+<span class="nc" id="L96">            throw new IllegalArgumentException(&quot;Cannot check exists with a null UUID&quot;);</span>
+<span class="nc" id="L97">        boolean exists = false;</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        for(Author a : this.authorList)</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">            if(a.getUUID().compareTo(uuid) == 0) {</span>
+<span class="nc" id="L100">                exists = true;</span>
+<span class="nc" id="L101">                break;</span>
+            }
+<span class="nc" id="L103">        return exists;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

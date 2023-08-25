@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AudioEventProcessor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.blabbertabber.blabbertabber</a> &gt; <span class="el_source">AudioEventProcessor.java</span></div><h1>AudioEventProcessor.java</h1><pre class="source lang-java linenums">package com.blabbertabber.blabbertabber;
+
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.TaskStackBuilder;
+import android.content.Context;
+import android.content.Intent;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.os.Build;
+import android.util.Log;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.OutputStream;
+
+/**
+ * Records audio to a file; is meant to run as a thread, call by RecordingService
+ * uses AudioEventProcessor to handle the audio.
+ */
+public class AudioEventProcessor implements Runnable {
+    public static final String RECORD_STATUS = &quot;com.blabbertabber.blabbertabber.AudioEventProcessor.RECORD_STATUS&quot;;
+    public static final String RECORD_RESULT = &quot;com.blabbertabber.blabbertabber.AudioEventProcessor.RECORD_RESULT&quot;;
+    public static final String RECORD_STATUS_MESSAGE = &quot;com.blabbertabber.blabbertabber.AudioEventProcessor.RECORD_STATUS_MESSAGE&quot;;
+    public static final int UNKNOWN_STATUS = -1;
+    public static final int MICROPHONE_UNAVAILABLE = -2;
+    public static final int CANT_WRITE_MEETING_FILE = -3;
+    public static final String RECORDER_FILENAME_NO_EXTENSION = &quot;meeting&quot;;
+    public static final String RECORDER_RAW_FILENAME = RECORDER_FILENAME_NO_EXTENSION + &quot;.raw&quot;;
+    // http://developer.android.com/reference/android/media/AudioRecord.html
+    // &quot;44100Hz is currently the only rate that is guaranteed to work on all devices&quot;
+    // 16k samples/sec * 2 bytes/sample = 32kB/sec == 115.2 MB/hour
+    public static final int RECORDER_SAMPLE_RATE_IN_HZ = 16_000;
+    public static final int UPDATES_PER_SECOND = 5;
+    public static final int NUM_FRAMES = RECORDER_SAMPLE_RATE_IN_HZ / UPDATES_PER_SECOND;
+    private static final String TAG = &quot;AudioEventProcessor&quot;;
+<span class="fc" id="L39">    private static final int RECORDER_AUDIO_SOURCE = BestMicrophone.getBestMicrophone();</span>
+    private static final int RECORDER_CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO;
+    private static final int RECORDER_AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
+    // size of the buffer array needs to be NUM_FRAMES * 2;
+    // 1 channel (mono), 2 bytes per sample (PCM 16-bit)
+    private static final int RECORDER_BUFFER_SIZE_IN_BYTES = NUM_FRAMES * 2;
+    private static final int RECORDER_NOTIFICATION_ID = 19937;   // Unique id for notifications
+    private static AudioRecordAbstract audioRecordWrapper;
+    private static String rawFilePathName;
+    NotificationManager mNotificationManager;
+    private Context context;
+    private OutputStream rawFileOutputStream;
+
+<span class="fc" id="L52">    public AudioEventProcessor(Context context) {</span>
+<span class="fc" id="L53">        Log.i(TAG, &quot;AudioEventProcessor(Context context)   context: &quot; + context);</span>
+<span class="fc" id="L54">        this.context = context;</span>
+<span class="fc" id="L55">        File sharedDir = context.getFilesDir();</span>
+<span class="fc" id="L56">        rawFilePathName = sharedDir.getAbsolutePath() + &quot;/&quot; + &quot;meeting.raw&quot;;</span>
+        try {
+<span class="fc" id="L58">            rawFileOutputStream = context.openFileOutput(&quot;meeting.raw&quot;, Context.MODE_PRIVATE);</span>
+<span class="nc" id="L59">        } catch (FileNotFoundException e) {</span>
+<span class="nc" id="L60">            Log.wtf(TAG, &quot;AudioEventProcessor()   context.openFileOutput(\&quot;meeting.raw\&quot;, Context.MODE_WORLD_WRITEABLE) threw FileNotFoundException.&quot;);</span>
+<span class="nc" id="L61">            e.printStackTrace();</span>
+<span class="fc" id="L62">        }</span>
+<span class="fc" id="L63">        mNotificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);</span>
+<span class="fc" id="L64">    }</span>
+
+    public static String getRawFilePathName() {
+<span class="nc" id="L67">        return rawFilePathName;</span>
+    }
+
+    public synchronized static void newMeetingFile() {
+<span class="nc" id="L71">        Log.i(TAG, &quot;newMeetingFile()&quot;);</span>
+<span class="nc" id="L72">        File rawFile = new File(getRawFilePathName());</span>
+<span class="nc bnc" id="L73" title="All 2 branches missed.">        if (rawFile.exists()) {</span>
+<span class="nc bnc" id="L74" title="All 2 branches missed.">            if (!rawFile.delete()) {</span>
+<span class="nc" id="L75">                Log.e(TAG, &quot;newMeetingFile() failed to delete &quot; + rawFile.getAbsolutePath());</span>
+            }
+        }
+<span class="nc" id="L78">    }</span>
+
+    private OutputStream getRawFileOutputStream() {
+<span class="pc bpc" id="L81" title="1 of 2 branches missed.">        if (rawFileOutputStream == null) {</span>
+            // open rawFileOutputStream
+            try {
+<span class="fc" id="L84">                rawFileOutputStream = context.openFileOutput(&quot;meeting.raw&quot;, Context.MODE_PRIVATE);</span>
+<span class="nc" id="L85">            } catch (FileNotFoundException e) {</span>
+<span class="nc" id="L86">                Log.wtf(TAG, &quot;AudioEventProcessor()   context.openFileOutput(\&quot;meeting.raw\&quot;, Context.MODE_WORLD_WRITEABLE) threw FileNotFoundException.&quot;);</span>
+<span class="nc" id="L87">                e.printStackTrace();</span>
+<span class="fc" id="L88">            }</span>
+        }
+<span class="fc" id="L90">        return rawFileOutputStream;</span>
+    }
+
+    private void writeRaw(short[] buffer) {
+<span class="nc" id="L94">        byte[] rawAudio = new byte[buffer.length * 2];</span>
+        // Performance: we must copy the PCM data into an array of bytes so that
+        // we can write the RawDataOutputStream in one shot; otherwise it can take
+        // 2x longer than the sample time to write (i.e. we drop 1/2 the sound)
+        // if we foolishly use writeShort() instead
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        for (int i = 0; i &lt; buffer.length; ++i) {</span>
+            // http://developer.android.com/reference/android/media/AudioFormat.html
+            // &quot;...when the short is stored in a ByteBuffer, it is native endian (as compared to the default Java big endian).&quot;
+            // However the following lines seem to work both on ARM (big endian) and x86_64 emulator (little endian)
+<span class="nc" id="L103">            rawAudio[i * 2] = (byte) (buffer[i] &gt;&gt; 8);</span>
+<span class="nc" id="L104">            rawAudio[i * 2 + 1] = (byte) buffer[i];</span>
+        }
+        // write data out to raw file
+        try {
+<span class="nc" id="L108">            getRawFileOutputStream().write(rawAudio, 0, buffer.length * 2);</span>
+<span class="nc" id="L109">        } catch (IOException e) {</span>
+<span class="nc" id="L110">            e.printStackTrace();</span>
+<span class="nc" id="L111">        }</span>
+<span class="nc" id="L112">    }</span>
+
+    private AudioRecordAbstract createAudioRecord(int recorderAudioSource, int recorderSampleRateInHz, int recorderChannelConfig, int recorderAudioFormat, int recorderBufferSizeInBytes) {
+<span class="fc" id="L115">        Log.i(TAG, &quot;createAudioRecord()&quot;);</span>
+        // emulator crashes if attempts to use the actual microphone, so we simulate microphone in EmulatorRecorder
+<span class="pc bpc" id="L117" title="2 of 4 branches missed.">        return (&quot;goldfish&quot;.equals(Build.HARDWARE) || &quot;ranchu&quot;.equals(Build.HARDWARE)) ?</span>
+                new AudioRecordEmulator(recorderAudioSource, recorderSampleRateInHz, recorderChannelConfig, recorderAudioFormat, recorderBufferSizeInBytes) :
+<span class="nc" id="L119">                AudioRecordReal.getInstance(recorderAudioSource, recorderSampleRateInHz, recorderChannelConfig, recorderAudioFormat, recorderBufferSizeInBytes);</span>
+    }
+
+    @Override
+    public void run() {
+<span class="fc" id="L124">        Log.i(TAG, &quot;run() STARTING Thread ID &quot; + Thread.currentThread().getId());</span>
+
+<span class="pc bpc" id="L126" title="1 of 2 branches missed.">        if (audioRecordWrapper != null) {</span>
+<span class="nc" id="L127">            audioRecordWrapper.stopAndRelease();</span>
+<span class="nc" id="L128">            audioRecordWrapper = null;</span>
+        }
+
+<span class="fc" id="L131">        audioRecordWrapper = createAudioRecord(RECORDER_AUDIO_SOURCE, RECORDER_SAMPLE_RATE_IN_HZ,</span>
+                RECORDER_CHANNEL_CONFIG, RECORDER_AUDIO_FORMAT, RECORDER_BUFFER_SIZE_IN_BYTES);
+<span class="fc" id="L133">        Log.i(TAG, &quot;run() audioRecordWrapper: &quot; + audioRecordWrapper);</span>
+<span class="fc" id="L134">        audioRecordWrapper.startRecording();</span>
+<span class="fc" id="L135">        notificationBar(true);</span>
+
+<span class="fc" id="L137">        boolean oldRecordingServiceRecording = RecordingService.recording;</span>
+<span class="fc" id="L138">        Log.i(TAG, &quot;run()   RecordingService.recording: &quot; + RecordingService.recording + &quot;   oldRecordingServiceRecording: &quot; + oldRecordingServiceRecording);</span>
+        while (true) {
+<span class="fc bfc" id="L140" title="All 2 branches covered.">            if (RecordingService.reset) {</span>
+                // close and re-open the meeting.wav file.
+                try {
+<span class="fc" id="L143">                    rawFileOutputStream.close();</span>
+<span class="nc" id="L144">                } catch (IOException e) {</span>
+<span class="nc" id="L145">                    e.printStackTrace();</span>
+<span class="fc" id="L146">                }</span>
+<span class="fc" id="L147">                rawFileOutputStream = null;</span>
+<span class="fc" id="L148">                getRawFileOutputStream();</span>
+<span class="fc" id="L149">                RecordingService.reset = false;</span>
+            }
+<span class="pc bpc" id="L151" title="1 of 2 branches missed.">            if (RecordingService.recording != oldRecordingServiceRecording) {</span>
+<span class="nc" id="L152">                Log.i(TAG, &quot;run()   RecordingService.recording: &quot; + RecordingService.recording + &quot;   oldRecordingServiceRecording: &quot; + oldRecordingServiceRecording);</span>
+<span class="nc bnc" id="L153" title="All 2 branches missed.">                if (!RecordingService.recording) {</span>
+                    // We're not recording, stop
+<span class="nc" id="L155">                    audioRecordWrapper.stopAndRelease();</span>
+<span class="nc" id="L156">                    notificationBar(false);</span>
+                } else {
+<span class="nc" id="L158">                    Log.i(TAG, &quot;run()   About to call audioRecordWrapper.startRecording()&quot;);</span>
+<span class="nc" id="L159">                    audioRecordWrapper.startRecording();</span>
+<span class="nc" id="L160">                    notificationBar(true);</span>
+                }
+<span class="nc" id="L162">                oldRecordingServiceRecording = RecordingService.recording;</span>
+            }
+<span class="pc bpc" id="L164" title="1 of 2 branches missed.">            if (RecordingService.recording) {</span>
+<span class="nc" id="L165">                short[] buffer = new short[NUM_FRAMES];</span>
+<span class="nc" id="L166">                int readSize = audioRecordWrapper.read(buffer, 0, NUM_FRAMES);</span>
+<span class="nc bnc" id="L167" title="All 2 branches missed.">                if (readSize &gt; 0) {</span>
+<span class="nc" id="L168">                    Log.v(TAG, &quot;run() readSize: &quot; + readSize);</span>
+<span class="nc" id="L169">                    writeRaw(buffer);</span>
+                } else {
+                    // if readSize is negative, it most likely means that we have an ERROR_INVALID_OPERATION (-3)
+<span class="nc" id="L172">                    Log.v(TAG, &quot;run() NEGATIVE readsize: &quot; + readSize);</span>
+<span class="nc bnc" id="L173" title="All 3 branches missed.">                    switch (readSize) {</span>
+                        case AudioRecord.ERROR_BAD_VALUE:
+<span class="nc" id="L175">                            Log.wtf(TAG, &quot;run()   readSize == AudioRecord.ERROR_BAD_VALUE.  Denotes a failure due to the use of an invalid value.&quot;);</span>
+<span class="nc" id="L176">                            break;</span>
+                        case AudioRecord.ERROR_INVALID_OPERATION:
+<span class="nc" id="L178">                            Log.wtf(TAG, &quot;run(..)   readSize == AudioRecord.ERROR_INVALID_OPERATION.  Denotes a failure due to the improper use of a method.&quot;);</span>
+                            break;
+                    }
+                }
+<span class="nc" id="L182">            } else {</span>
+                // sleep while not recording rather than spinning like crazy
+                try {
+<span class="fc" id="L185">                    Thread.sleep(1000 / AudioEventProcessor.UPDATES_PER_SECOND);</span>
+<span class="nc" id="L186">                } catch (InterruptedException e) {</span>
+<span class="nc" id="L187">                    Log.i(TAG, &quot;run()   Huh.  InterruptedException thrown while sleep()ing.&quot;);</span>
+<span class="nc" id="L188">                    e.printStackTrace();</span>
+<span class="pc" id="L189">                }</span>
+            }
+        }
+    }
+
+    private void notificationBar(boolean show) {
+<span class="pc bpc" id="L195" title="1 of 2 branches missed.">        if (show) {</span>
+<span class="fc" id="L196">            Notification.Builder mBuilder =</span>
+                    new Notification.Builder(context)
+<span class="fc" id="L198">                            .setSmallIcon(R.drawable.black_mic)</span>
+<span class="fc" id="L199">                            .setContentTitle(context.getString(R.string.app_name))</span>
+<span class="fc" id="L200">                            .setContentText(context.getString(R.string.recording_service));</span>
+            // Creates an explicit intent for an Activity in your app
+<span class="fc" id="L202">            Intent resultIntent = new Intent(context, RecordingActivity.class);</span>
+
+            // The stack builder object will contain an artificial back stack for the
+            // started Activity.
+            // This ensures that navigating backward from the Activity leads out of
+            // your application to the Home screen.
+<span class="fc" id="L208">            TaskStackBuilder stackBuilder = TaskStackBuilder.create(context);</span>
+            // Adds the back stack for the Intent (but not the Intent itself)
+<span class="fc" id="L210">            stackBuilder.addParentStack(RecordingActivity.class);</span>
+            // Adds the Intent that starts the Activity to the top of the stack
+<span class="fc" id="L212">            stackBuilder.addNextIntent(resultIntent);</span>
+<span class="fc" id="L213">            PendingIntent resultPendingIntent =</span>
+<span class="fc" id="L214">                    stackBuilder.getPendingIntent(</span>
+                            0,
+                            PendingIntent.FLAG_UPDATE_CURRENT
+                    );
+<span class="fc" id="L218">            mBuilder.setContentIntent(resultPendingIntent);</span>
+
+            // mId allows you to update the notification later on.
+<span class="fc" id="L221">            mNotificationManager.notify(RECORDER_NOTIFICATION_ID, mBuilder.build());</span>
+<span class="fc" id="L222">        } else {</span>
+<span class="nc" id="L223">            mNotificationManager.cancelAll();</span>
+        }
+<span class="fc" id="L225">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

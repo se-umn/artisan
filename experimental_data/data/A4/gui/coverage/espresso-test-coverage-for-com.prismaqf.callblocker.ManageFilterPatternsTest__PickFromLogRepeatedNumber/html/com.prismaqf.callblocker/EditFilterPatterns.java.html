@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EditFilterPatterns.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker</a> &gt; <span class="el_source">EditFilterPatterns.java</span></div><h1>EditFilterPatterns.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker;
+
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.FragmentTransaction;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.os.Bundle;
+import android.os.Parcelable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.NavUtils;
+import android.text.InputType;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.ViewGroup;
+import android.webkit.WebView;
+import android.widget.EditText;
+import android.widget.ScrollView;
+import android.widget.TextView;
+
+import com.prismaqf.callblocker.rules.FilterRule;
+import com.prismaqf.callblocker.utils.PatternAdapter;
+
+/**
+ * @author ConteDiMonteCristo
+ */
+<span class="fc" id="L28">public class EditFilterPatterns extends AppCompatActivity {</span>
+
+    private EditPatternsFragment myFragment;
+<span class="fc" id="L31">    private final int RESULT_PICK = 1001;</span>
+    private MenuItem mi_update, mi_delete, mi_edit;
+    private FilterRule myOrigRule;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+<span class="fc" id="L37">        super.onCreate(savedInstanceState);</span>
+
+<span class="fc" id="L39">        setContentView(R.layout.data_bound_edit_activity);</span>
+
+<span class="fc" id="L41">        myFragment = new EditPatternsFragment();</span>
+<span class="pc bpc" id="L42" title="1 of 2 branches missed.">        if (savedInstanceState == null) {</span>
+<span class="fc" id="L43">            myFragment.setArguments(getIntent().getExtras());</span>
+<span class="pc bpc" id="L44" title="1 of 2 branches missed.">            if (myOrigRule == null)</span>
+<span class="fc" id="L45">                myOrigRule = getIntent().getParcelableExtra(NewEditActivity.KEY_ORIG);</span>
+        } else {
+<span class="nc" id="L47">            myFragment.setArguments(savedInstanceState);</span>
+<span class="nc" id="L48">            myOrigRule = getIntent().getParcelableExtra(NewEditActivity.KEY_ORIG);</span>
+        }
+
+
+<span class="fc" id="L52">        String FRAGMENT = &quot;EditFilterPatternsFragment&quot;;</span>
+<span class="fc" id="L53">        getFragmentManager().</span>
+<span class="fc" id="L54">                beginTransaction().</span>
+<span class="fc" id="L55">                setTransition(FragmentTransaction.TRANSIT_NONE).</span>
+<span class="fc" id="L56">                replace(R.id.list_fragment_holder, myFragment, FRAGMENT).</span>
+<span class="fc" id="L57">                commit();</span>
+<span class="pc bpc" id="L58" title="1 of 2 branches missed.">        if (getSupportActionBar() != null)</span>
+<span class="fc" id="L59">            getSupportActionBar().setDisplayHomeAsUpEnabled(true);</span>
+<span class="fc" id="L60">    }</span>
+
+    @Override
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+<span class="fc" id="L64">        savedInstanceState.putParcelable(NewEditActivity.KEY_PTRULE, myFragment.getAdapter().getRule());</span>
+<span class="fc" id="L65">        savedInstanceState.putParcelable(NewEditActivity.KEY_ORIG, myOrigRule);</span>
+<span class="fc" id="L66">        savedInstanceState.putStringArrayList(NewEditActivity.KEY_CHECKED, myFragment.getAdapter().getMyChecked());</span>
+<span class="fc" id="L67">        super.onSaveInstanceState(savedInstanceState);</span>
+<span class="fc" id="L68">    }</span>
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu items for use in the action bar
+<span class="fc" id="L73">        MenuInflater inflater = getMenuInflater();</span>
+<span class="fc" id="L74">        inflater.inflate(R.menu.menu_edit_patterns, menu);</span>
+<span class="fc" id="L75">        mi_update = menu.findItem(R.id.action_update_patterns);</span>
+<span class="fc" id="L76">        mi_delete = menu.findItem(R.id.action_delete_pattern);</span>
+<span class="fc" id="L77">        mi_edit = menu.findItem(R.id.action_edit_pattern);</span>
+<span class="fc" id="L78">        validateActions();</span>
+<span class="fc" id="L79">        return super.onCreateOptionsMenu(menu);</span>
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+<span class="fc" id="L84">        int id = item.getItemId();</span>
+
+<span class="pc bpc" id="L86" title="7 of 8 branches missed.">        switch (id) {</span>
+            case R.id.action_add_pattern:
+<span class="nc" id="L88">                add();</span>
+<span class="nc" id="L89">                return true;</span>
+            case R.id.action_pick_pattern:
+<span class="fc" id="L91">                pick();</span>
+<span class="fc" id="L92">                return true;</span>
+            case R.id.action_edit_pattern:
+<span class="nc" id="L94">                edit();</span>
+<span class="nc" id="L95">                return true;</span>
+            case R.id.action_delete_pattern:
+<span class="nc" id="L97">                delete();</span>
+<span class="nc" id="L98">                return true;</span>
+            case R.id.action_update_patterns:
+<span class="nc" id="L100">                update();</span>
+<span class="nc" id="L101">                return true;</span>
+            case R.id.action_help_patterns:
+<span class="nc" id="L103">                help();</span>
+<span class="nc" id="L104">                return true;</span>
+            case android.R.id.home:
+<span class="nc" id="L106">                FilterRule currentRule = myFragment.getAdapter().getRule();</span>
+<span class="nc bnc" id="L107" title="All 4 branches missed.">                if (currentRule !=null &amp;&amp; !currentRule.equals(myOrigRule)) {</span>
+<span class="nc" id="L108">                    update();</span>
+<span class="nc" id="L109">                    return true;</span>
+                }
+<span class="nc" id="L111">                Intent intent = NavUtils.getParentActivityIntent(this);</span>
+<span class="nc" id="L112">                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);</span>
+<span class="nc" id="L113">                NavUtils.navigateUpTo(this, intent);</span>
+<span class="nc" id="L114">                return true;</span>
+        }
+<span class="nc" id="L116">        return super.onOptionsItemSelected(item);</span>
+    }
+
+    @Override
+    public void onBackPressed() {
+<span class="nc" id="L121">        FilterRule currentRule = myFragment.getAdapter().getRule();</span>
+<span class="nc bnc" id="L122" title="All 4 branches missed.">        if (currentRule !=null &amp;&amp; !currentRule.equals(myOrigRule)) {</span>
+<span class="nc" id="L123">            update();</span>
+<span class="nc" id="L124">            return;</span>
+        }
+<span class="nc" id="L126">        super.onBackPressed();</span>
+<span class="nc" id="L127">    }</span>
+
+    private void pick() {
+<span class="fc" id="L130">        Intent intent = new Intent(this, ShowLoggedCalls.class);</span>
+<span class="fc" id="L131">        intent.putExtra(NewEditActivity.KEY_CONTEXT, NewEditActivity.CONTEXT_PICK);</span>
+<span class="fc" id="L132">        startActivityForResult(intent, RESULT_PICK);</span>
+<span class="fc" id="L133">        validateActions();</span>
+<span class="fc" id="L134">    }</span>
+
+    private void update() {
+<span class="nc" id="L137">        Intent returnIntent = new Intent();</span>
+<span class="nc" id="L138">        returnIntent.putExtra(NewEditActivity.KEY_PTRULE, (Parcelable)myFragment.getAdapter().getRule());</span>
+<span class="nc" id="L139">        setResult(Activity.RESULT_OK, returnIntent);</span>
+<span class="nc" id="L140">        finish();</span>
+<span class="nc" id="L141">    }</span>
+
+    private void edit() {
+<span class="nc" id="L144">        PatternAdapter adapter = myFragment.getAdapter();</span>
+<span class="nc bnc" id="L145" title="All 2 branches missed.">        if (adapter.getMyChecked().size()!=1) return;</span>
+<span class="nc" id="L146">        final String oldPattern = adapter.getMyChecked().get(0);</span>
+<span class="nc" id="L147">        AlertDialog.Builder builder = new AlertDialog.Builder(this);</span>
+<span class="nc" id="L148">        builder.setTitle(&quot;Edit a pattern (* and digits)&quot;);</span>
+<span class="nc" id="L149">        final EditText input = new EditText(this);</span>
+<span class="nc" id="L150">        input.setInputType(InputType.TYPE_CLASS_PHONE);</span>
+<span class="nc" id="L151">        input.setText(oldPattern, TextView.BufferType.EDITABLE);</span>
+<span class="nc" id="L152">        builder.setView(input);</span>
+<span class="nc" id="L153">        builder.setPositiveButton(&quot;OK&quot;, new DialogInterface.OnClickListener() {</span>
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+<span class="nc" id="L156">                myFragment.getAdapter().replace(oldPattern,input.getText().toString());</span>
+<span class="nc" id="L157">            }</span>
+        });
+<span class="nc" id="L159">        builder.setNegativeButton(&quot;Cancel&quot;, new DialogInterface.OnClickListener() {</span>
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+<span class="nc" id="L162">                dialog.cancel();</span>
+<span class="nc" id="L163">            }</span>
+        });
+
+<span class="nc" id="L166">        builder.show();</span>
+<span class="nc" id="L167">        validateActions();</span>
+<span class="nc" id="L168">    }</span>
+
+
+    private void add() {
+        //todo: restrict input to what allowed
+        //todo: what to do with screen rotation?
+<span class="nc" id="L174">        AlertDialog.Builder builder = new AlertDialog.Builder(this);</span>
+<span class="nc" id="L175">        builder.setTitle(&quot;Type a pattern (* and digits)&quot;);</span>
+<span class="nc" id="L176">        final EditText input = new EditText(this);</span>
+<span class="nc" id="L177">        input.setInputType(InputType.TYPE_CLASS_PHONE);</span>
+<span class="nc" id="L178">        builder.setView(input);</span>
+<span class="nc" id="L179">        builder.setPositiveButton(&quot;OK&quot;, new DialogInterface.OnClickListener() {</span>
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+<span class="nc" id="L182">                myFragment.getAdapter().add(input.getText().toString());</span>
+<span class="nc" id="L183">            }</span>
+        });
+<span class="nc" id="L185">        builder.setNegativeButton(&quot;Cancel&quot;, new DialogInterface.OnClickListener() {</span>
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+<span class="nc" id="L188">                dialog.cancel();</span>
+<span class="nc" id="L189">            }</span>
+        });
+
+<span class="nc" id="L192">        builder.show();</span>
+<span class="nc" id="L193">        validateActions();</span>
+<span class="nc" id="L194">    }</span>
+
+    private void delete() {
+<span class="nc" id="L197">        PatternAdapter adapter = myFragment.getAdapter();</span>
+<span class="nc bnc" id="L198" title="All 2 branches missed.">        for (String pattern : adapter.getMyChecked())</span>
+<span class="nc" id="L199">            adapter.remove(pattern);</span>
+<span class="nc" id="L200">        adapter.resetChecked();</span>
+<span class="nc" id="L201">        validateActions();</span>
+<span class="nc" id="L202">    }</span>
+
+    private void help() {
+<span class="nc" id="L205">        AlertDialog.Builder alert = new AlertDialog.Builder(this);</span>
+<span class="nc" id="L206">        alert.setTitle(R.string.tx_manage_patterns_help);</span>
+
+<span class="nc" id="L208">        WebView wv = new WebView(this);</span>
+<span class="nc" id="L209">        wv.loadUrl(&quot;file:///android_asset/html/patterns_edit.html&quot;);</span>
+<span class="nc" id="L210">        ScrollView scroll = new ScrollView(this);</span>
+<span class="nc" id="L211">        scroll.setVerticalScrollBarEnabled(true);</span>
+<span class="nc" id="L212">        scroll.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,</span>
+                ViewGroup.LayoutParams.MATCH_PARENT));
+<span class="nc" id="L214">        scroll.addView(wv);</span>
+
+<span class="nc" id="L216">        alert.setView(scroll);</span>
+<span class="nc" id="L217">        alert.setNegativeButton(&quot;Close&quot;, new DialogInterface.OnClickListener() {</span>
+            @Override
+            public void onClick(DialogInterface dialog, int id) {
+<span class="nc" id="L220">                dialog.dismiss();</span>
+<span class="nc" id="L221">            }</span>
+        });
+<span class="nc" id="L223">        alert.show();</span>
+<span class="nc" id="L224">    }</span>
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+<span class="pc bpc" id="L228" title="2 of 4 branches missed.">        if (resultCode == Activity.RESULT_OK &amp;&amp; requestCode == RESULT_PICK) {</span>
+<span class="fc" id="L229">            String number = data.getStringExtra(NewEditActivity.KEY_NUMBER);</span>
+
+<span class="fc" id="L231">            myFragment.getAdapter().add(number);</span>
+        }
+<span class="fc" id="L233">    }</span>
+
+    public void validateActions() {
+<span class="fc" id="L236">        FilterRule currentRule = myFragment.getAdapter().getRule();</span>
+<span class="fc bfc" id="L237" title="All 2 branches covered.">        mi_update.setVisible(!currentRule.equals(myOrigRule));</span>
+<span class="pc bpc" id="L238" title="1 of 2 branches missed.">        mi_delete.setVisible(myFragment.getAdapter().getMyChecked().size() &gt; 0);</span>
+<span class="pc bpc" id="L239" title="1 of 2 branches missed.">        mi_edit.setVisible(myFragment.getAdapter().getMyChecked().size() == 1);</span>
+<span class="fc" id="L240">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

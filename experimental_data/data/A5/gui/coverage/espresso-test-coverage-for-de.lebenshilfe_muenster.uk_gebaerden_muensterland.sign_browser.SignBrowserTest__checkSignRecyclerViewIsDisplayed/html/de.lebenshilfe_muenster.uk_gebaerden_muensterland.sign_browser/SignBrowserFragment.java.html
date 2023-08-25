@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SignBrowserFragment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_browser</a> &gt; <span class="el_source">SignBrowserFragment.java</span></div><h1>SignBrowserFragment.java</h1><pre class="source lang-java linenums">package de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_browser;
+
+import android.app.Activity;
+import android.app.Fragment;
+import android.app.SearchManager;
+import android.content.Context;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+
+import org.apache.commons.lang3.Validate;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import androidx.annotation.Nullable;
+import androidx.appcompat.widget.SearchView;
+import androidx.core.view.MenuItemCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.R;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.Sign;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.SignDAO;
+
+/**
+ * Copyright (c) 2016 Matthias Tonhäuser
+ * &lt;p/&gt;
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * &lt;p/&gt;
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * &lt;p/&gt;
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.
+ */
+<span class="fc" id="L47">public class SignBrowserFragment extends Fragment implements SignBrowserAdapter.OnSignBrowserAdapterSignClickedListener{</span>
+
+    private static final boolean INTERRUPT_IF_RUNNING = true;
+<span class="fc" id="L50">    private static final String TAG = SignBrowserFragment.class.getSimpleName();</span>
+    private static final String KEY_SHOW_STARRED_ONLY = &quot;sign_browser_show_starred_only&quot;;
+    private LoadSignsTask loadSignsTask;
+<span class="fc" id="L53">    private boolean showStarredOnly = false;</span>
+<span class="fc" id="L54">    private OnSignBrowserSignClickedListener onSignBrowserSignClickedListener = null;</span>
+
+    @SuppressWarnings(&quot;deprecation&quot;) // necessary for API 15!
+    @Override
+    public void onAttach(Activity activity) {
+<span class="fc" id="L59">        Log.d(TAG, &quot;onAttach &quot; + hashCode());</span>
+<span class="fc" id="L60">        super.onAttach(activity);</span>
+        try {
+<span class="fc" id="L62">            this.onSignBrowserSignClickedListener = (OnSignBrowserSignClickedListener) activity;</span>
+<span class="nc" id="L63">        } catch (ClassCastException ex) {</span>
+<span class="nc" id="L64">            throw new ClassCastException(activity.toString()</span>
+                    + &quot; must implement OnSignBrowserSignClickedListener&quot;);
+<span class="fc" id="L66">        }</span>
+<span class="fc" id="L67">    }</span>
+
+    @Nullable
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+<span class="fc" id="L72">        Log.d(TAG, &quot;onCreateView &quot; + hashCode());</span>
+<span class="fc" id="L73">        final View view = inflater.inflate(R.layout.browser_fragment, container, false);</span>
+<span class="fc" id="L74">        setHasOptionsMenu(true);</span>
+<span class="fc" id="L75">        final RecyclerView recyclerView = (RecyclerView) view.findViewById(R.id.signRecyclerView);</span>
+<span class="fc" id="L76">        recyclerView.setHasFixedSize(true); // performance fix</span>
+<span class="fc" id="L77">        recyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));</span>
+<span class="fc" id="L78">        recyclerView.setAdapter(new SignBrowserAdapter(this, getActivity(), new ArrayList&lt;Sign&gt;()));</span>
+<span class="fc" id="L79">        return view;</span>
+    }
+
+    @Override
+    public void onActivityCreated(Bundle savedInstanceState) {
+<span class="fc" id="L84">        Log.d(TAG, &quot;onActivityCreated &quot; + hashCode());</span>
+<span class="fc" id="L85">        super.onActivityCreated(savedInstanceState);</span>
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">        if (savedInstanceState != null) {</span>
+<span class="nc" id="L87">            this.showStarredOnly = savedInstanceState.getBoolean(KEY_SHOW_STARRED_ONLY);</span>
+        }
+<span class="fc" id="L89">        this.loadSignsTask = new LoadSignsTask(getActivity());</span>
+<span class="fc" id="L90">        this.loadSignsTask.execute(this.showStarredOnly);</span>
+<span class="fc" id="L91">    }</span>
+
+    @Override
+    public void onStart() {
+<span class="fc" id="L95">        Log.d(TAG, &quot;onStart &quot; + hashCode());</span>
+<span class="fc" id="L96">        super.onStart();</span>
+<span class="fc" id="L97">    }</span>
+
+    @Override
+    public void onPause() {
+<span class="fc" id="L101">        Log.d(TAG, &quot;onPause &quot; + hashCode());</span>
+<span class="pc bpc" id="L102" title="1 of 2 branches missed.">        if (null != this.loadSignsTask) {</span>
+<span class="fc" id="L103">            final AsyncTask.Status status = this.loadSignsTask.getStatus();</span>
+<span class="pc bpc" id="L104" title="2 of 4 branches missed.">            if (status.equals(AsyncTask.Status.PENDING)|| status.equals(AsyncTask.Status.RUNNING)) {</span>
+<span class="nc" id="L105">                this.loadSignsTask.cancel(INTERRUPT_IF_RUNNING);</span>
+            }
+        }
+<span class="fc" id="L108">        super.onPause();</span>
+<span class="fc" id="L109">    }</span>
+
+    @Override
+    public void onStop() {
+<span class="fc" id="L113">        Log.d(TAG, &quot;onStop &quot; + hashCode());</span>
+<span class="fc" id="L114">        super.onStop();</span>
+<span class="fc" id="L115">    }</span>
+
+    @Override
+    public void onDestroy() {
+<span class="fc" id="L119">        Log.d(TAG, &quot;onDestroy &quot; + hashCode());</span>
+<span class="fc" id="L120">        super.onDestroy();</span>
+<span class="fc" id="L121">    }</span>
+
+    @Override
+    public void onDetach() {
+<span class="nc" id="L125">        Log.d(TAG, &quot;onDetach &quot; + hashCode());</span>
+<span class="nc" id="L126">        super.onDetach();</span>
+<span class="nc" id="L127">    }</span>
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+<span class="fc" id="L131">        Log.d(TAG, &quot;onCreateOptionsMenu &quot; + hashCode());</span>
+<span class="fc" id="L132">        super.onCreateOptionsMenu(menu, inflater);</span>
+<span class="fc" id="L133">        inflater.inflate(R.menu.options_sign_browser, menu);</span>
+<span class="fc" id="L134">        final MenuItem item = menu.findItem(R.id.action_toggle_starred);</span>
+<span class="pc bpc" id="L135" title="1 of 2 branches missed.">        if (this.showStarredOnly) {</span>
+<span class="nc" id="L136">            item.setIcon(R.drawable.ic_sign_browser_grade_checked);</span>
+        } else {
+<span class="fc" id="L138">            item.setIcon(R.drawable.ic_sign_browser_grade_no_stroke);</span>
+        }
+<span class="fc" id="L140">        final SearchManager searchManager = (SearchManager) getActivity().getSystemService(Context.SEARCH_SERVICE);</span>
+<span class="fc" id="L141">        final MenuItem searchItem = menu.findItem(R.id.action_search);</span>
+<span class="fc" id="L142">        final SearchView searchView = (SearchView) MenuItemCompat.getActionView(searchItem);</span>
+<span class="fc" id="L143">        searchView.setSearchableInfo(searchManager.getSearchableInfo(getActivity().getComponentName()));</span>
+<span class="fc" id="L144">    }</span>
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+<span class="nc" id="L148">        Log.d(TAG, &quot;onOptionsItemSelected &quot; + hashCode());</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">        if (item.getItemId() == R.id.action_toggle_starred) {</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">            if (!this.showStarredOnly) {</span>
+<span class="nc" id="L151">                this.showStarredOnly = true;</span>
+<span class="nc" id="L152">                item.setIcon(R.drawable.ic_sign_browser_grade_checked);</span>
+            } else {
+<span class="nc" id="L154">                this.showStarredOnly = false;</span>
+<span class="nc" id="L155">                item.setIcon(R.drawable.ic_sign_browser_grade_no_stroke);</span>
+            }
+<span class="nc" id="L157">            this.loadSignsTask = new LoadSignsTask(getActivity());</span>
+<span class="nc" id="L158">            this.loadSignsTask.execute(this.showStarredOnly);</span>
+        }
+<span class="nc" id="L160">        return super.onOptionsItemSelected(item);</span>
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+<span class="nc" id="L165">        Log.d(TAG, &quot;onSaveInstance &quot; + hashCode());</span>
+<span class="nc" id="L166">        super.onSaveInstanceState(outState);</span>
+<span class="nc" id="L167">        outState.putBoolean(KEY_SHOW_STARRED_ONLY, this.showStarredOnly);</span>
+<span class="nc" id="L168">    }</span>
+
+    @Override
+    public void onSignBrowserAdapterSignClicked(Sign sign) {
+<span class="nc" id="L172">        Log.d(TAG, &quot;onSignBrowserAdapterSignClicked &quot; + hashCode());</span>
+<span class="nc" id="L173">        Validate.notNull(this.onSignBrowserSignClickedListener, &quot;Parent activity has to implement the OnSignBrowserSignClickedListener&quot;);</span>
+<span class="nc" id="L174">        this.onSignBrowserSignClickedListener.onSignBrowserSignSelected(sign);</span>
+
+<span class="nc" id="L176">    }</span>
+
+    /**
+     * Has to be implemented by parent activity.
+     */
+    public interface OnSignBrowserSignClickedListener {
+        void onSignBrowserSignSelected(Sign sign);
+    }
+
+    /**
+     * If the first parameter Boolean is true, only starred signs will be loaded.
+     */
+    private class LoadSignsTask extends AsyncTask&lt;Boolean, Void, List&lt;Sign&gt;&gt; {
+
+        private final Context context;
+
+<span class="fc" id="L192">        public LoadSignsTask(Context context) {</span>
+<span class="fc" id="L193">            this.context = context;</span>
+<span class="fc" id="L194">        }</span>
+
+        @Override
+        protected List&lt;Sign&gt; doInBackground(Boolean... params) {
+<span class="fc" id="L198">            Log.d(LoadSignsTask.class.getSimpleName(), &quot;doInBackground &quot; + hashCode());</span>
+<span class="fc" id="L199">            Validate.inclusiveBetween(0, 1, params.length, &quot;Only null or one Boolean as a parameter allowed.&quot;);</span>
+<span class="fc" id="L200">            List&lt;Sign&gt; signs = new ArrayList&lt;&gt;();</span>
+<span class="pc bpc" id="L201" title="1 of 2 branches missed.">            if (isCancelled()) {</span>
+<span class="nc" id="L202">                return signs;</span>
+            }
+<span class="fc" id="L204">            final SignDAO signDAO = SignDAO.getInstance(this.context);</span>
+<span class="fc" id="L205">            signDAO.open();</span>
+<span class="pc bpc" id="L206" title="2 of 4 branches missed.">            if (1 == params.length &amp;&amp; params[0]) { // read starred signs only</span>
+<span class="nc" id="L207">                signs = signDAO.readStarredSignsOnly();</span>
+            } else {
+<span class="fc" id="L209">                signs = signDAO.read();</span>
+            }
+<span class="fc" id="L211">            signDAO.close();</span>
+<span class="fc" id="L212">            return signs;</span>
+        }
+        @Override
+        protected void onPostExecute(List&lt;Sign&gt; result) {
+<span class="fc" id="L216">            Log.d(LoadSignsTask.class.getSimpleName(), &quot;onPostExecute &quot; + hashCode());</span>
+<span class="fc" id="L217">            final RecyclerView recyclerView = (RecyclerView) getActivity().findViewById(R.id.signRecyclerView);</span>
+<span class="fc" id="L218">            Validate.notNull(recyclerView, &quot;RecyclerView is null&quot;);</span>
+<span class="fc" id="L219">            recyclerView.swapAdapter(new SignBrowserAdapter(SignBrowserFragment.this, getActivity(), result), true);</span>
+<span class="fc" id="L220">        }</span>
+
+    }
+
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

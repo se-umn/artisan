@@ -1,0 +1,21 @@
+groups: []
+resources:
+- name: blabbertabber
+  type: git
+  source:
+    branch: concourse
+    uri: https://github.com/blabbertabber/blabbertabber.git
+resource_types: []
+jobs:
+- name: robolectric
+  plan:
+  - get: blabbertabber
+    trigger: true
+  - task: robolectric
+    file: blabbertabber/ci/tasks/robolectric/task.yml
+- name: android-instrumentation
+  plan:
+  - get: blabbertabber
+    trigger: true
+  - task: android-instrumentation
+    file: blabbertabber/ci/tasks/android-instrumentation/task.yml

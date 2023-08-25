@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PermissionHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker</a> &gt; <span class="el_source">PermissionHelper.java</span></div><h1>PermissionHelper.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker;
+
+import android.Manifest;
+import android.app.Activity;
+import android.content.pm.PackageManager;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Created by ConteDiMonteCristo
+ */
+<span class="nc" id="L15">class PermissionHelper {</span>
+    static final int REQUEST_CODE_PERMISSION_WRITE_EXTERNAL_STORAGE = 102;
+    static final int REQUEST_CODE_PERMISSION_TELEPHONY_STATE = 103;
+    static final int REQUEST_CODE_PERMISSION_CONTACTS = 104;
+
+    static void checkWritingPermission(Activity activity) {
+<span class="nc bnc" id="L21" title="All 2 branches missed.">        if (ContextCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {</span>
+<span class="nc" id="L22">            ActivityCompat.requestPermissions(activity, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},REQUEST_CODE_PERMISSION_WRITE_EXTERNAL_STORAGE);</span>
+        }
+<span class="nc" id="L24">    }</span>
+
+    static void checkTelephonePermission(Activity activity) {
+<span class="nc bnc" id="L27" title="All 2 branches missed.">        if (ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {</span>
+<span class="nc" id="L28">            ActivityCompat.requestPermissions(activity, new String[]{Manifest.permission.READ_PHONE_STATE}, REQUEST_CODE_PERMISSION_TELEPHONY_STATE);</span>
+        }
+<span class="nc" id="L30">    }</span>
+
+    static void checkContactsPermission(Activity activity) {
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        if (ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {</span>
+<span class="nc" id="L34">            ActivityCompat.requestPermissions(activity, new String[]{Manifest.permission.READ_CONTACTS}, REQUEST_CODE_PERMISSION_CONTACTS);</span>
+        }
+<span class="nc" id="L36">    }</span>
+
+    static void checkPermissions(Activity activity) {
+<span class="nc bnc" id="L39" title="All 2 branches missed.">        final boolean telephony = ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED;</span>
+<span class="nc bnc" id="L40" title="All 2 branches missed.">        final boolean contacts = ContextCompat.checkSelfPermission(activity, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED;</span>
+<span class="nc" id="L41">        List&lt;String&gt; perms = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L42">        int code = 0;</span>
+<span class="nc bnc" id="L43" title="All 2 branches missed.">        if (telephony) {</span>
+<span class="nc" id="L44">            code += REQUEST_CODE_PERMISSION_TELEPHONY_STATE;</span>
+<span class="nc" id="L45">            perms.add(Manifest.permission.READ_PHONE_STATE);</span>
+        }
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        if (contacts) {</span>
+<span class="nc" id="L48">            code += REQUEST_CODE_PERMISSION_CONTACTS;</span>
+<span class="nc" id="L49">            perms.add(Manifest.permission.READ_CONTACTS);</span>
+        }
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        if (code &gt; 0) {</span>
+<span class="nc" id="L52">            String[] arrPerrms = perms.toArray(new String[0]);</span>
+<span class="nc" id="L53">            ActivityCompat.requestPermissions(activity, arrPerrms, code);</span>
+        }
+
+
+<span class="nc" id="L57">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Services.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.application</a> &gt; <span class="el_source">Services.java</span></div><h1>Services.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.application;
+
+import android.support.v7.app.AppCompatActivity;
+
+import fifthelement.theelement.business.services.AlbumService;
+import fifthelement.theelement.business.services.AuthorService;
+import fifthelement.theelement.business.services.PlaylistService;
+import fifthelement.theelement.business.services.SongListService;
+import fifthelement.theelement.business.services.SongService;
+import fifthelement.theelement.presentation.services.DrawerService;
+import fifthelement.theelement.presentation.services.MusicService;
+
+<span class="nc" id="L13">public class Services {</span>
+<span class="fc" id="L14">    private static DrawerService drawerService = null;</span>
+<span class="fc" id="L15">    private static MusicService musicService = null;</span>
+<span class="fc" id="L16">    private static AuthorService authorService = null;</span>
+<span class="fc" id="L17">    private static AlbumService albumService = null;</span>
+<span class="fc" id="L18">    private static SongService songService = null;</span>
+<span class="fc" id="L19">    private static SongListService songListService = null;</span>
+<span class="fc" id="L20">	private static PlaylistService playlistService = null;</span>
+
+    public static synchronized DrawerService getDrawerService(AppCompatActivity appCompatActivity) {
+
+<span class="nc bnc" id="L24" title="All 4 branches missed.">        if(drawerService == null || appCompatActivity.hashCode() != drawerService.getApplicationHashCode())</span>
+<span class="nc" id="L25">             drawerService = new DrawerService(appCompatActivity);</span>
+
+<span class="nc" id="L27">        return drawerService;</span>
+    }
+
+    public static synchronized AuthorService getAuthorService() {
+
+<span class="fc bfc" id="L32" title="All 2 branches covered.">        if( authorService == null ) {</span>
+<span class="fc" id="L33">            authorService = new AuthorService();</span>
+        }
+
+<span class="fc" id="L36">        return authorService;</span>
+    }
+
+    public static synchronized AlbumService getAlbumService() {
+
+<span class="fc bfc" id="L41" title="All 2 branches covered.">        if( albumService == null ) {</span>
+<span class="fc" id="L42">            albumService = new AlbumService();</span>
+        }
+
+<span class="fc" id="L45">        return albumService;</span>
+    }
+
+    public static synchronized SongService getSongService(){
+<span class="fc bfc" id="L49" title="All 2 branches covered.">        if( songService == null ) {</span>
+<span class="fc" id="L50">            songService = new SongService();</span>
+        }
+
+<span class="fc" id="L53">        return songService;</span>
+    }
+
+    public static synchronized SongListService getSongListService(){
+<span class="fc bfc" id="L57" title="All 2 branches covered.">        if( songListService == null ) {</span>
+<span class="fc" id="L58">            songListService = new SongListService();</span>
+        }
+
+<span class="fc" id="L61">        return songListService;</span>
+    }
+
+    public static synchronized MusicService getMusicService() {
+
+<span class="nc" id="L66">        return musicService;</span>
+    }
+
+    public static synchronized void setMusicService(MusicService musicServiceToSet) {
+
+<span class="nc" id="L71">        musicService = musicServiceToSet;</span>
+<span class="nc" id="L72">    }</span>
+
+    public static synchronized PlaylistService getPlaylistService() {
+
+<span class="nc bnc" id="L76" title="All 2 branches missed.">        if( playlistService == null ) {</span>
+<span class="nc" id="L77">            playlistService = new PlaylistService();</span>
+        }
+
+<span class="nc" id="L80">        return playlistService;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

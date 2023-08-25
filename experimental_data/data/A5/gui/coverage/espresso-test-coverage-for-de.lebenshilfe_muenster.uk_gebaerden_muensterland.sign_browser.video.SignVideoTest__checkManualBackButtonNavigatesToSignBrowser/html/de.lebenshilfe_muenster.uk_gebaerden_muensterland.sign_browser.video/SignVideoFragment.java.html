@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SignVideoFragment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_browser.video</a> &gt; <span class="el_source">SignVideoFragment.java</span></div><h1>SignVideoFragment.java</h1><pre class="source lang-java linenums">package de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_browser.video;
+
+import android.os.Bundle;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.TextView;
+
+import org.apache.commons.lang3.Validate;
+
+import androidx.annotation.Nullable;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.R;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.Sign;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_video_view.AbstractSignVideoFragment;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_video_view.VideoSetupException;
+
+/**
+ * Copyright (c) 2016 Matthias Tonhäuser
+ * &lt;p/&gt;
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * &lt;p/&gt;
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * &lt;p/&gt;
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.
+ */
+<span class="fc" id="L35">public class SignVideoFragment extends AbstractSignVideoFragment {</span>
+
+    public static final String SIGN_TO_SHOW = &quot;sign_to_show&quot;;
+<span class="fc" id="L38">    private static final String TAG = SignVideoFragment.class.getSimpleName();</span>
+    private TextView signVideoName;
+    private TextView signVideoMnemonic;
+    private TextView signVideoTags;
+    private TextView signVideoExceptionMessage;
+    private Button backToSignBrowserButton;
+
+    @Nullable
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+<span class="fc" id="L48">        Log.d(TAG, &quot;onCreateView&quot;);</span>
+<span class="fc" id="L49">        final View view = inflater.inflate(R.layout.video_fragment_view, container, false);</span>
+<span class="fc" id="L50">        this.signVideoName = view.findViewById(R.id.signVideoName);</span>
+<span class="fc" id="L51">        this.videoView = view.findViewById(R.id.signVideoView);</span>
+<span class="fc" id="L52">        this.signVideoMnemonic = view.findViewById(R.id.signVideoMnemonic);</span>
+<span class="fc" id="L53">        this.signVideoTags = view.findViewById(R.id.signVideoTags);</span>
+<span class="fc" id="L54">        this.signVideoExceptionMessage = view.findViewById(R.id.signVideoExceptionMessage);</span>
+<span class="fc" id="L55">        this.backToSignBrowserButton = view.findViewById(R.id.backToSignBrowserButton);</span>
+<span class="fc" id="L56">        this.backToSignBrowserButton.setOnClickListener(new View.OnClickListener() {</span>
+            @Override
+            public void onClick(View v) {
+<span class="fc" id="L59">                getActivity().onBackPressed();</span>
+<span class="fc" id="L60">            }</span>
+        });
+<span class="fc" id="L62">        this.progressBar = view.findViewById(R.id.signVideoLoadingProgressCircle);</span>
+<span class="fc" id="L63">        this.videoView.setContentDescription(getActivity().getString(R.string.videoIsLoading));</span>
+<span class="fc" id="L64">        return view;</span>
+    }
+
+    @Override
+    public void onActivityCreated(Bundle savedInstanceState) {
+<span class="fc" id="L69">        Log.d(TAG, &quot;onActivityCreated&quot;);</span>
+<span class="fc" id="L70">        super.onActivityCreated(savedInstanceState);</span>
+<span class="fc" id="L71">        final Sign sign = getArguments().getParcelable(SIGN_TO_SHOW);</span>
+<span class="fc" id="L72">        Validate.notNull(sign, &quot;No sign to show provided via fragment arguments.&quot;);</span>
+<span class="fc" id="L73">        this.signVideoName.setText(sign.getNameLocaleDe());</span>
+<span class="fc" id="L74">        this.signVideoMnemonic.setText(sign.getMnemonic());</span>
+<span class="fc" id="L75">        this.signVideoTags.setText(sign.getTags());</span>
+        try {
+<span class="fc" id="L77">            setupVideoView(sign, SOUND.ON, CONTROLS.SHOW);</span>
+<span class="nc" id="L78">        } catch (VideoSetupException ex) {</span>
+<span class="nc" id="L79">            this.signVideoName.setText(getString(R.string.videoError));</span>
+<span class="nc" id="L80">            this.signVideoMnemonic.setVisibility(View.GONE);</span>
+<span class="nc" id="L81">            this.signVideoExceptionMessage.setText(ex.getMessage());</span>
+<span class="nc" id="L82">            this.signVideoExceptionMessage.setVisibility(View.VISIBLE);</span>
+<span class="nc" id="L83">            this.progressBar.setVisibility(View.GONE);</span>
+<span class="fc" id="L84">        }</span>
+<span class="fc" id="L85">    }</span>
+
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

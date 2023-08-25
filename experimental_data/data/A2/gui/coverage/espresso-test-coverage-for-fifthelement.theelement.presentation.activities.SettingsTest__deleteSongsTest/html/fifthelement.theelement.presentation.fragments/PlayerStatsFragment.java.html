@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PlayerStatsFragment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.presentation.fragments</a> &gt; <span class="el_source">PlayerStatsFragment.java</span></div><h1>PlayerStatsFragment.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.presentation.fragments;
+
+import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
+
+import java.util.List;
+import java.util.Locale;
+
+import fifthelement.theelement.R;
+import fifthelement.theelement.application.Services;
+import fifthelement.theelement.business.services.AlbumService;
+import fifthelement.theelement.business.services.AuthorService;
+import fifthelement.theelement.business.services.SongService;
+import fifthelement.theelement.objects.Album;
+import fifthelement.theelement.objects.Author;
+import fifthelement.theelement.objects.Song;
+import fifthelement.theelement.presentation.activities.MainActivity;
+
+
+public class PlayerStatsFragment extends Fragment {
+    private MainActivity mainActivity;
+    private View view;
+<span class="fc" id="L27">    private SongService songService = Services.getSongService();</span>
+<span class="fc" id="L28">    private AlbumService albumService = Services.getAlbumService();</span>
+<span class="fc" id="L29">    private AuthorService authorService = Services.getAuthorService();</span>
+<span class="fc" id="L30">    private static int hey = 0;</span>
+
+<span class="fc" id="L32">    public PlayerStatsFragment() {</span>
+        // Required empty public constructor
+<span class="fc" id="L34">    }</span>
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+        // Inflate the layout for this fragment
+<span class="fc" id="L40">        this.view = getView(inflater, container);</span>
+<span class="fc" id="L41">        refresh(view);</span>
+<span class="fc" id="L42">        return view;</span>
+    }
+
+    private View getView(LayoutInflater inflater, ViewGroup container) {
+<span class="fc" id="L46">        return inflater.inflate(R.layout.fragment_player_statistics, container, false);</span>
+    }
+
+    private void refresh(View view) {
+<span class="fc" id="L50">        TextView totalSongsOwned= (TextView) view.findViewById(R.id.total_songs_owned);</span>
+<span class="fc" id="L51">        TextView totalAlbumsOwned= (TextView) view.findViewById(R.id.total_albums_owned);</span>
+<span class="fc" id="L52">        TextView totalAuthorsOwned= (TextView) view.findViewById(R.id.total_authors_owned);</span>
+<span class="fc" id="L53">        TextView mostPlayedSong = (TextView) view.findViewById(R.id.most_played_song);</span>
+<span class="fc" id="L54">        TextView mostPlayedAlbum = (TextView) view.findViewById(R.id.most_played_album);</span>
+<span class="fc" id="L55">        TextView mostPlayedAuthor = (TextView) view.findViewById(R.id.most_played_author);</span>
+<span class="fc" id="L56">        TextView totalSongPlays = (TextView) view.findViewById(R.id.total_song_plays);</span>
+<span class="fc" id="L57">        TextView totalAlbumPlays = (TextView) view.findViewById(R.id.total_album_plays);</span>
+<span class="fc" id="L58">        TextView totalAuthorPlays = (TextView) view.findViewById(R.id.total_author_plays);</span>
+
+<span class="fc" id="L60">        int numOwnedSongs = songService.getSongs().size();</span>
+<span class="fc" id="L61">        int numOwnedAlbums = albumService.getAlbums().size();</span>
+<span class="fc" id="L62">        int numOwnedAuthors = authorService.getAuthors().size();</span>
+<span class="fc" id="L63">        Song song = songService.getMostPlayedSong();</span>
+<span class="fc" id="L64">        Album album = albumService.getMostPlayedAlbum();</span>
+<span class="fc" id="L65">        Author author = authorService.getMostPlayedAuthor();</span>
+
+<span class="pc bpc" id="L67" title="1 of 2 branches missed.">        if( numOwnedSongs != -1 ) {</span>
+<span class="fc" id="L68">            String totalOwnedSongsString = String.format(Locale.getDefault(), &quot;%d Songs&quot;, numOwnedSongs);</span>
+<span class="fc" id="L69">            String totalOwnedAlbumsString = String.format(Locale.getDefault(), &quot;%d Albums&quot;, numOwnedAlbums);</span>
+<span class="fc" id="L70">            String totalOwnedAuthorsString = String.format(Locale.getDefault(), &quot;%d Authors&quot;, numOwnedAuthors);</span>
+<span class="fc" id="L71">            totalSongsOwned.setText(totalOwnedSongsString);</span>
+<span class="fc" id="L72">            totalAlbumsOwned.setText(totalOwnedAlbumsString);</span>
+<span class="fc" id="L73">            totalAuthorsOwned.setText(totalOwnedAuthorsString);</span>
+        }
+
+<span class="pc bpc" id="L76" title="1 of 4 branches missed.">        if( song != null &amp;&amp; song.getNumPlayed() != 0 ) {</span>
+<span class="fc" id="L77">            String mostPlayedSongString = String.format(Locale.getDefault(), &quot;%s (%d plays)&quot;, song.getName(), song.getNumPlayed());</span>
+<span class="fc" id="L78">            mostPlayedSong.setText(mostPlayedSongString);</span>
+        }
+
+<span class="pc bpc" id="L81" title="1 of 4 branches missed.">        if( album != null &amp;&amp; album.getNumPlayed() != 0 ) {</span>
+<span class="fc" id="L82">            String mostPlayedAlbumString = String.format(Locale.getDefault(), &quot;%s (%d plays)&quot;, album.getName(), album.getNumPlayed());</span>
+<span class="fc" id="L83">            mostPlayedAlbum.setText(mostPlayedAlbumString);</span>
+        }
+<span class="pc bpc" id="L85" title="1 of 4 branches missed.">        if( author != null &amp;&amp; author.getNumPlayed() != 0 ) {</span>
+<span class="fc" id="L86">            String mostPlayedAuthorString = String.format(Locale.getDefault(), &quot;%s (%d plays)&quot;, author.getName(), author.getNumPlayed());</span>
+<span class="fc" id="L87">            mostPlayedAuthor.setText(mostPlayedAuthorString);</span>
+        }
+
+<span class="fc" id="L90">        String totalSongPlaysString = String.format(Locale.getDefault(), &quot;%d total song plays&quot;, songService.getTotalSongPlays());</span>
+<span class="fc" id="L91">        String totalAlbumPlaysString = String.format(Locale.getDefault(), &quot;%d total album plays&quot;, albumService.getTotalAlbumPlays(), authorService.getTotalAuthorPlays());</span>
+<span class="fc" id="L92">        String totalAuthorPlaysString = String.format(Locale.getDefault(), &quot;%d total author plays&quot;, authorService.getTotalAuthorPlays());</span>
+<span class="fc" id="L93">        totalSongPlays.setText(totalSongPlaysString);</span>
+<span class="fc" id="L94">        totalAlbumPlays.setText(totalAlbumPlaysString);</span>
+<span class="fc" id="L95">        totalAuthorPlays.setText(totalAuthorPlaysString);</span>
+<span class="fc" id="L96">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Card.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.dcfportfolio.owlflashcardsen_cnlevel1.roomDataBase</a> &gt; <span class="el_source">Card.java</span></div><h1>Card.java</h1><pre class="source lang-java linenums">package com.dcfportfolio.owlflashcardsen_cnlevel1.roomDataBase;
+
+import android.arch.persistence.room.ColumnInfo;
+import android.arch.persistence.room.Entity;
+import android.arch.persistence.room.Ignore;
+import android.arch.persistence.room.PrimaryKey;
+import android.support.annotation.NonNull;
+
+/**
+ * Card class
+ * Allows creation of card objects.
+ * @Entities int id, String mEnglish, String mChinese, String mChineseEnglish, int mSoundEn, int mSoundCn, int mCategory
+ */
+@Entity(tableName = &quot;card_table&quot;)
+public class Card {
+    @PrimaryKey(autoGenerate = true)
+    private int mId;
+
+    @NonNull
+    @ColumnInfo(name = &quot;card_english&quot;)
+    private String mEnglish;
+
+    @NonNull
+    @ColumnInfo(name = &quot;card_chinese&quot;)
+    private String mChinese;
+
+    @NonNull
+    @ColumnInfo(name = &quot;card_chinese_english&quot;)
+    private String mChineseEnglish;
+
+    @ColumnInfo(name = &quot;english_sound&quot;)
+    private int mSoundEn;
+
+    @ColumnInfo(name = &quot;chinese_sound&quot;)
+    private int mSoundCn;
+
+    @NonNull
+    @ColumnInfo(name = &quot;card_category&quot;)
+    private int mCategory;
+
+    @Ignore
+<span class="fc" id="L42">    Card(@NonNull String english_in, @NonNull String chinese_in, @NonNull String chinese_english_in, int sound_english_in, int sound_chinese_in, @NonNull int category_in){</span>
+<span class="fc" id="L43">        this.mEnglish = english_in;</span>
+<span class="fc" id="L44">        this.mChinese = chinese_in;</span>
+<span class="fc" id="L45">        this.mChineseEnglish = chinese_english_in;</span>
+<span class="fc" id="L46">        this.mSoundEn = sound_english_in;</span>
+<span class="fc" id="L47">        this.mSoundCn = sound_chinese_in;</span>
+<span class="fc" id="L48">        this.mCategory = category_in;</span>
+<span class="fc" id="L49">    }</span>
+
+    @Ignore
+<span class="nc" id="L52">    Card(@NonNull String english_in, @NonNull String chinese_in, @NonNull String chinese_english_in, @NonNull int category_in){</span>
+<span class="nc" id="L53">        this.mEnglish = english_in;</span>
+<span class="nc" id="L54">        this.mChinese = chinese_in;</span>
+<span class="nc" id="L55">        this.mChineseEnglish = chinese_english_in;</span>
+<span class="nc" id="L56">        this.mSoundEn = 0;</span>
+<span class="nc" id="L57">        this.mSoundCn = 0;</span>
+<span class="nc" id="L58">        this.mCategory = category_in;</span>
+<span class="nc" id="L59">    }</span>
+
+<span class="fc" id="L61">    Card(){</span>
+<span class="fc" id="L62">        this.mEnglish = &quot;&quot;;</span>
+<span class="fc" id="L63">        this.mChinese = &quot;&quot;;</span>
+<span class="fc" id="L64">        this.mChineseEnglish = &quot;&quot;;</span>
+<span class="fc" id="L65">        this.mSoundEn = 0;</span>
+<span class="fc" id="L66">        this.mSoundCn = 0;</span>
+<span class="fc" id="L67">        this.mCategory = 0;</span>
+<span class="fc" id="L68">    }</span>
+
+    public int getId() {
+<span class="fc" id="L71">        return mId;</span>
+    }
+
+    @NonNull
+    public String getEnglish() {
+<span class="fc" id="L76">        return mEnglish;</span>
+    }
+
+    @NonNull
+    public String getChinese() {
+<span class="fc" id="L81">        return mChinese;</span>
+    }
+
+    @NonNull
+    public String getChineseEnglish() {
+<span class="fc" id="L86">        return mChineseEnglish;</span>
+    }
+
+    public int getSoundEn() {
+<span class="fc" id="L90">        return mSoundEn;</span>
+    }
+
+    public int getSoundCn() {
+<span class="fc" id="L94">        return mSoundCn;</span>
+    }
+
+    public int getCategory() {
+<span class="fc" id="L98">        return mCategory;</span>
+    }
+
+    public void setId(int mId) {
+<span class="fc" id="L102">        this.mId = mId;</span>
+<span class="fc" id="L103">    }</span>
+
+    public void setEnglish(@NonNull String mEnglish) {
+<span class="fc" id="L106">        this.mEnglish = mEnglish;</span>
+<span class="fc" id="L107">    }</span>
+
+    public void setChinese(@NonNull String mChinese) {
+<span class="fc" id="L110">        this.mChinese = mChinese;</span>
+<span class="fc" id="L111">    }</span>
+
+    public void setChineseEnglish(@NonNull String mChineseEnglish) {
+<span class="fc" id="L114">        this.mChineseEnglish = mChineseEnglish;</span>
+<span class="fc" id="L115">    }</span>
+
+    public void setSoundEn(int mSoundEn) {
+<span class="fc" id="L118">        this.mSoundEn = mSoundEn;</span>
+<span class="fc" id="L119">    }</span>
+
+    public void setSoundCn(int mSoundCn) {
+<span class="fc" id="L122">        this.mSoundCn = mSoundCn;</span>
+<span class="fc" id="L123">    }</span>
+
+    public void setCategory(int mCategory) {
+<span class="fc" id="L126">        this.mCategory = mCategory;</span>
+<span class="fc" id="L127">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

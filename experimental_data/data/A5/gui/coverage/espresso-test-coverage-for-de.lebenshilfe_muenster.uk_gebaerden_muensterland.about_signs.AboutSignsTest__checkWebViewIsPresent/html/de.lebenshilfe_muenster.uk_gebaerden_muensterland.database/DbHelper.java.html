@@ -1,0 +1,532 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DbHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">de.lebenshilfe_muenster.uk_gebaerden_muensterland.database</a> &gt; <span class="el_source">DbHelper.java</span></div><h1>DbHelper.java</h1><pre class="source lang-java linenums">package de.lebenshilfe_muenster.uk_gebaerden_muensterland.database;
+
+import android.content.Context;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+import android.util.Log;
+
+/**
+ * Copyright (c) 2016 Matthias Tonhäuser
+ * &lt;p/&gt;
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * &lt;p/&gt;
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * &lt;p/&gt;
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.
+ */
+class DbHelper extends SQLiteOpenHelper {
+
+    private static final String TAG = &quot;DbHelper&quot;;
+
+    DbHelper(Context context) {
+<span class="fc" id="L29">        super(context, DbContract.DATABASE_NAME, null, DbContract.DATABASE_VERSION);</span>
+<span class="fc" id="L30">    }</span>
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+<span class="fc" id="L34">        Log.i(TAG, &quot;onCreate: Creating new database&quot;);</span>
+<span class="fc" id="L35">        createVersion1(db);</span>
+<span class="fc" id="L36">        doMigrationVersion1to2(db);</span>
+<span class="fc" id="L37">    }</span>
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+<span class="nc" id="L41">        Log.i(TAG, &quot;onUpgrade: Upgrading database if necessary. See following log statements.&quot;);</span>
+<span class="nc bnc" id="L42" title="All 4 branches missed.">        if (oldVersion == 1 &amp;&amp; newVersion == 2) {</span>
+<span class="nc" id="L43">            doMigrationVersion1to2(db);</span>
+        }
+<span class="nc" id="L45">    }</span>
+
+    private void createVersion1(SQLiteDatabase db) {
+<span class="fc" id="L48">        Log.i(TAG, &quot;Creating version 1&quot;);</span>
+<span class="fc" id="L49">        db.execSQL(DbContract.SignTable.CREATE);</span>
+<span class="fc" id="L50">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'afterwards', 'Dann/Danach', 'Die Zukunft liegt vor mir', 0, 0)&quot;);</span>
+<span class="fc" id="L51">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'again', 'Noch mal', 'Gebärde \&quot;eins\&quot; kommt von hinten nach vorn', 0, 0)&quot;);</span>
+<span class="fc" id="L52">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'airplane', 'Flugzeug/Fliegen', 'Y-Hand startet vom Boden', 0, 0)&quot;);</span>
+<span class="fc" id="L53">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'allah', 'Allah', 'Faust öffnet nach vorn', 0, 0)&quot;);</span>
+<span class="fc" id="L54">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'alone', 'Alleine', 'Erhobenen Zeigefinger von oben nach unten ziehen', 0, 0)&quot;);</span>
+<span class="fc" id="L55">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'apology', 'Entschuldigung', 'Handfläche kreist auf Handrücken', 0, 0)&quot;);</span>
+<span class="fc" id="L56">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'apple', 'Apfel', 'Abbeißen', 0, 0)&quot;);</span>
+<span class="fc" id="L57">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'are_you_ok', 'Geht es dir Gut?', 'Mit fragender Mimik \&quot;du\&quot; und \&quot;gut\&quot; gebärden', 0, 0)&quot;);</span>
+<span class="fc" id="L58">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'as_well', 'Auch', 'Komma in die Luft malen', 0, 0)&quot;);</span>
+<span class="fc" id="L59">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'baby', 'Baby', 'Baby auf Arm schaukeln', 0, 0)&quot;);</span>
+<span class="fc" id="L60">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'bad', 'Schlecht/Doof', 'Daumen runter', 0, 0)&quot;);</span>
+<span class="fc" id="L61">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'bag', 'Tasche', 'Taschengriff ergreifen und hochnehmen', 0, 0)&quot;);</span>
+<span class="fc" id="L62">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'baking', 'Backen/Kneten', 'Mit Händen kneten', 0, 0)&quot;);</span>
+<span class="fc" id="L63">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'ball', 'Ball', 'Mit Handflächen Ball umfahren', 0, 0)&quot;);</span>
+<span class="fc" id="L64">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'banana', 'Banane', 'Dominante Hand schält', 0, 0)&quot;);</span>
+<span class="fc" id="L65">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'bathing', 'Baden', 'Rücken mit Handtuch abrubbeln', 0, 0)&quot;);</span>
+<span class="fc" id="L66">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'bathroom', 'Badezimmer', 'Erst \&quot;baden\&quot; dann \&quot;Zimmer\&quot;', 0, 0)&quot;);</span>
+<span class="fc" id="L67">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'bed', 'Bett', 'Kopf legt sich  schlafen', 0, 0)&quot;);</span>
+<span class="fc" id="L68">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'before', 'Vorher', 'Vergangenheit liegt hinter mir', 0, 0)&quot;);</span>
+<span class="fc" id="L69">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'begin', 'Anfangen', 'Eine Arbeit aufnehmen', 0, 0)&quot;);</span>
+<span class="fc" id="L70">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'below', 'Unter', 'Handrücken unter Handfläche legen', 0, 0)&quot;);</span>
+<span class="fc" id="L71">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'big', 'Groß', 'Hände maximal breit auseinander', 0, 0)&quot;);</span>
+<span class="fc" id="L72">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'bike', 'Fahrrad', 'Fäuste fahren', 0, 0)&quot;);</span>
+<span class="fc" id="L73">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'bird', 'Vogel', 'Schnabel auf und zu', 0, 0)&quot;);</span>
+<span class="fc" id="L74">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'bloom', 'Blühen', 'Pflanze wächst aus Boden/neben Körper', 0, 0)&quot;);</span>
+<span class="fc" id="L75">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'blue', 'Blau', 'Fluss von oben nach unten schlängeln', 0, 0)&quot;);</span>
+<span class="fc" id="L76">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'book', 'Buch', 'Handflächen öffnen sich wie Buch', 0, 0)&quot;);</span>
+<span class="fc" id="L77">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'boy', 'Junge', '2x mit gestreckter Hand grüßen', 0, 0)&quot;);</span>
+<span class="fc" id="L78">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'bread', 'Brot', 'Eine Scheibe abschneiden', 0, 0)&quot;);</span>
+<span class="fc" id="L79">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'broken', 'Kaputt', 'Fäuste zerbrechen etwas', 0, 0)&quot;);</span>
+<span class="fc" id="L80">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'brush_hair', 'Bürsten/Kämmen', 'Faust bürstet über Haare', 0, 0)&quot;);</span>
+<span class="fc" id="L81">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'brush_teeth', 'Zähne putzen', 'Zeigefinger putzt Zähne auf und ab', 0, 0)&quot;);</span>
+<span class="fc" id="L82">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'buddha', 'Buddha', 'O-Hände bewegen sich nach vorn', 0, 0)&quot;);</span>
+<span class="fc" id="L83">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'build', 'Bauen/Bauklötze', 'Hände stapeln', 0, 0)&quot;);</span>
+<span class="fc" id="L84">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'bus', 'Bus', 'Buslänge zeigen, diagonal', 0, 0)&quot;);</span>
+<span class="fc" id="L85">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'butter', 'Butter', 'Zeigefinger streicht Butter auf Brot', 0, 0)&quot;);</span>
+<span class="fc" id="L86">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'butterfly', 'Schmetterling', 'Hände verhaken und Flügel flattern', 0, 0)&quot;);</span>
+<span class="fc" id="L87">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'cacao', 'Kakao', 'Daumen tippt 2x an Mundwinkel', 0, 0)&quot;);</span>
+<span class="fc" id="L88">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'candy', 'Bonbon', 'Bonbon in Wange', 0, 0)&quot;);</span>
+<span class="fc" id="L89">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'car', 'Auto', 'lenken mimen', 0, 0)&quot;);</span>
+<span class="fc" id="L90">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'careful', 'Achtung/Vorsicht', 'V-Hände gucken weit zu den Seiten', 0, 0)&quot;);</span>
+<span class="fc" id="L91">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'carrot', 'Möhre', 'Schrappen', 0, 0)&quot;);</span>
+<span class="fc" id="L92">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'cat', 'Katze', '3 Schnurrhaare andeuten', 0, 0)&quot;);</span>
+<span class="fc" id="L93">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'chair', 'Stuhl', 'Gebeugte Finger  als Lehne', 0, 0)&quot;);</span>
+<span class="fc" id="L94">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'chicken', 'Huhn', 'Mit Zeigefinger und Daumen picken', 0, 0)&quot;);</span>
+<span class="fc" id="L95">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'children', 'Kinder', 'Köpfe wie Orgelpfeifen zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L96">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'chocolade', 'Schokolade', 'Tafel zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L97">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'clean', 'Sauber', 'Hand sauber wischen', 0, 0)&quot;);</span>
+<span class="fc" id="L98">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'climbing', 'Klettern', 'Mit Krallhänden nach oben klettern', 0, 0)&quot;);</span>
+<span class="fc" id="L99">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'close', 'Schlüssel/Schließen', 'Auf- und zuschließen', 0, 0)&quot;);</span>
+<span class="fc" id="L100">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'coffee', 'Kaffee', 'Kaffee mahlen', 0, 0)&quot;);</span>
+<span class="fc" id="L101">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'cold', 'Kalt/Frieren', 'Vor Kälte zittern', 0, 0)&quot;);</span>
+<span class="fc" id="L102">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'come_here', 'Kommen', 'Heranwinken', 0, 0)&quot;);</span>
+<span class="fc" id="L103">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'cookie', 'Keks', 'Abbeißen', 0, 0)&quot;);</span>
+<span class="fc" id="L104">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'cooking', 'Kochen', 'In Stielkasserolle rühren', 0, 0)&quot;);</span>
+<span class="fc" id="L105">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'cow', 'Kuh', 'Hörner nachahmen', 0, 0)&quot;);</span>
+<span class="fc" id="L106">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'cucumber', 'Gurke', 'Gurke nachformen', 0, 0)&quot;);</span>
+<span class="fc" id="L107">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'cupboard', 'Schrank', 'Mit Handflächen Schrank umreißen', 0, 0)&quot;);</span>
+<span class="fc" id="L108">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'deaf_aid', 'Hörgerät', 'Hörgerät hinter Ohr mimen', 0, 0)&quot;);</span>
+<span class="fc" id="L109">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'diaper', 'Windel', 'Handflächen kletten Windel zu', 0, 0)&quot;);</span>
+<span class="fc" id="L110">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'dirty', 'Schmutzig', 'Krümel auf Hand verteilen', 0, 0)&quot;);</span>
+<span class="fc" id="L111">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'doctor', 'Arzt/Doktor', 'Auf Handrücken pieksen', 0, 0)&quot;);</span>
+<span class="fc" id="L112">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'dog', 'Hund', 'Hund zu sich \&quot;heranklopfen\&quot;', 0, 0)&quot;);</span>
+<span class="fc" id="L113">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'doll', 'Puppe', 'Baby still auf Arm halten', 0, 0)&quot;);</span>
+<span class="fc" id="L114">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'done', 'Fertig', 'Handkante auf Handfläche \&quot;schlagen\&quot;', 0, 0)&quot;);</span>
+<span class="fc" id="L115">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'door', 'Tür/Tor', 'Mit gestreckter Hand \&quot;Türöffnen\&quot; zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L116">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'down', 'Unten/ Tief', 'Nach unten zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L117">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'drink', 'Getränk', 'Getränk/Trinkgefäß', 0, 0)&quot;);</span>
+<span class="fc" id="L118">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'drinking', 'Trinken', 'Getränk zum Mund führen', 0, 0)&quot;);</span>
+<span class="fc" id="L119">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'drop', 'Tropfen', 'Zeigefinger tropft' , 0, 0)&quot;);</span>
+<span class="fc" id="L120">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'eating', 'Essen', 'Essen nachahmen', 0, 0)&quot;);</span>
+<span class="fc" id="L121">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'egg', 'Ei', 'Eigröße zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L122">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'empty', 'Leer', 'Alles weg', 0, 0)&quot;);</span>
+<span class="fc" id="L123">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'fall_down', 'Runterfallen', 'Zeige-und Mittelfinger fallen von Handfläche', 0, 0)&quot;);</span>
+<span class="fc" id="L124">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'first', 'Zuerst', 'Daumen taucht von unten auf', 0, 0)&quot;);</span>
+<span class="fc" id="L125">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'fish', 'Fisch', 'Hand schlängelt sich durch''s Wasser', 0, 0)&quot;);</span>
+<span class="fc" id="L126">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'flower', 'Blume', 'Blüte öffnet sich unter Nase', 0, 0)&quot;);</span>
+<span class="fc" id="L127">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'fond', 'Lieb', 'Wange 1x von oben nach unten streicheln', 0, 0)&quot;);</span>
+<span class="fc" id="L128">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'football', 'Fußball Spielen', 'Faust tritt in Handfläche', 0, 0)&quot;);</span>
+<span class="fc" id="L129">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'fork', 'Gabel', 'Gabel piekt in Handfläche', 0, 0)&quot;);</span>
+<span class="fc" id="L130">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'friend', 'Freund/In', '2x Hände schütteln', 0, 0)&quot;);</span>
+<span class="fc" id="L131">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'full', 'Voll', 'Bis oben randvoll', 0, 0)&quot;);</span>
+<span class="fc" id="L132">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'fun', 'Spaß', '2x Nasenspitze stupsen', 0, 0)&quot;);</span>
+<span class="fc" id="L133">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'girl', 'Mädchen', 'Mit Daumen 2x Trägerkleid andeuten', 0, 0)&quot;);</span>
+<span class="fc" id="L134">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'give', 'Geben', 'Richtungsgebärde von … zu …', 0, 0)&quot;);</span>
+<span class="fc" id="L135">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'glasses', 'Brille', 'Zeigefinger und Daumen formen Brille', 0, 0)&quot;);</span>
+<span class="fc" id="L136">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'go_away', 'Geh weg!', 'Wegwerf-Bewegung', 0, 0)&quot;);</span>
+<span class="fc" id="L137">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'go_there', 'Geh Da Hin', 'Richtung zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L138">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'god', 'Gott', 'Dreieinigkeit fährt in den Himmel', 0, 0)&quot;);</span>
+<span class="fc" id="L139">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'good', 'Gut/Prima', 'Daumen hoch', 0, 0)&quot;);</span>
+<span class="fc" id="L140">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'grandma', 'Oma', 'Dutt andeuten', 0, 0)&quot;);</span>
+<span class="fc" id="L141">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'grandpa', 'Opa', 'Zwirbelbart andeuten', 0, 0)&quot;);</span>
+<span class="fc" id="L142">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'green', 'Grün', 'Grasbüschel wackelt', 0, 0)&quot;);</span>
+<span class="fc" id="L143">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'hello', 'Hallo/Tschüss', 'Winken', 0, 0)&quot;);</span>
+<span class="fc" id="L144">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'helping', 'Ich helfe dir', '2. Hand hilft der anderen', 0, 0)&quot;);</span>
+<span class="fc" id="L145">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'here', 'Hier', 'Punkt zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L146">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'horse', 'Pferd', 'Mit Zügeln reiten', 0, 0)&quot;);</span>
+<span class="fc" id="L147">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'hot', 'Heiß/Warm', 'Schweiß von Stirn wischen', 0, 0)&quot;);</span>
+<span class="fc" id="L148">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'house', 'Haus', 'Dach andeuten', 0, 0)&quot;);</span>
+<span class="fc" id="L149">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'i', 'Ich', 'Mit Zeigefinger auf sich zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L150">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'ice', 'Eis', 'Eis lecken', 0, 0)&quot;);</span>
+<span class="fc" id="L151">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'in', 'In', 'In ein \&quot;Regal\&quot; oder in ein \&quot;Gefäß\&quot; zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L152">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'jesus', 'Jesus', 'Mittelfinger tippen auf Nagelmale', 0, 0)&quot;);</span>
+<span class="fc" id="L153">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'juice', 'Saft', 'Saft läuft aus gepresster Frucht', 0, 0)&quot;);</span>
+<span class="fc" id="L154">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'jump', 'Springen/Hüpfen', 'Zeige-und Mittelfinger hüpfen auf Handfläche', 0, 0)&quot;);</span>
+<span class="fc" id="L155">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'kindergarden', '\&quot;Kindergarten\&quot;',' \&quot;Kinder\&quot; und \&quot;Garten\&quot; zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L156">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'kitchen', 'Küche', 'Erst \&quot;kochen\&quot; dann \&quot;Zimmer\&quot;', 0, 0)&quot;);</span>
+<span class="fc" id="L157">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'knife', 'Messer/Schneiden', 'Beide Zeigefinger schneiden', 0, 0)&quot;);</span>
+<span class="fc" id="L158">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'lamp', 'Licht/Lampe', 'Strahlende Lampe seitlich oben neben Kopf', 0, 0)&quot;);</span>
+<span class="fc" id="L159">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'later', 'Später', 'Wellenförmige Bewegung', 0, 0)&quot;);</span>
+<span class="fc" id="L160">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'listening', 'Hören', 'Schall kommt an das Ohr', 0, 0)&quot;);</span>
+<span class="fc" id="L161">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'look', 'Sehen/Gucken', 'Richtungsgebärde', 0, 0)&quot;);</span>
+<span class="fc" id="L162">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'make', 'Machen', 'Obere Faust klopft drehend auf untere Faust', 0, 0)&quot;);</span>
+<span class="fc" id="L163">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'mama', 'Mama', 'Wange kreisend streicheln', 0, 0)&quot;);</span>
+<span class="fc" id="L164">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'man', 'Mann', 'Hut an Krempe fassen', 0, 0)&quot;);</span>
+<span class="fc" id="L165">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'many', 'Viele', 'Finger zappeln am Kinn zur dominanten Seite', 0, 0)&quot;);</span>
+<span class="fc" id="L166">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'marmelade', 'Marmelade', 'Hand streicht flächig auf Brotscheibe', 0, 0)&quot;);</span>
+<span class="fc" id="L167">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'milk', 'Milch', 'Melken', 0, 0)&quot;);</span>
+<span class="fc" id="L168">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'more', 'Mehr', 'Handfläche bewegt sich nach oben vorn', 0, 0)&quot;);</span>
+<span class="fc" id="L169">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'motorcycle', 'Motorrad/Mofa', 'An Lenker gibt eine Faust Gas', 0, 0)&quot;);</span>
+<span class="fc" id="L170">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'music', 'Singen/Musik', 'Dirigieren', 0, 0)&quot;);</span>
+<span class="fc" id="L171">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'no', 'Nein', 'Schnell von einer zur anderen Seite', 0, 0)&quot;);</span>
+<span class="fc" id="L172">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'noodles', 'Nudeln', 'Spaghetti aufwickeln', 0, 0)&quot;);</span>
+<span class="fc" id="L173">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'now', 'Jetzt', 'Ich bin die Gegenwart', 0, 0)&quot;);</span>
+<span class="fc" id="L174">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'on_sth', 'Auf', 'Handfläche auf Handrücken legen', 0, 0)&quot;);</span>
+<span class="fc" id="L175">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'one', 'Eins/Ein', 'Zeigefinger und Handrücken zum Gegenüber', 0, 0)&quot;);</span>
+<span class="fc" id="L176">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'orange', 'Orange', 'Schalen zeigen und herausbrechen', 0, 0)&quot;);</span>
+<span class="fc" id="L177">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'outside', 'Draußen', 'Nach draußen zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L178">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'owning', 'Haben', 'Handfläche auf Brustkorb legen', 0, 0)&quot;);</span>
+<span class="fc" id="L179">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'pain', 'Schmerzen', 'Handfläche vibriert vor Schmerzstelle', 0, 0)&quot;);</span>
+<span class="fc" id="L180">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'painting', 'Malen', 'Großflächig in Luft malen', 0, 0)&quot;);</span>
+<span class="fc" id="L181">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'papa', 'Papa', 'Schnauzbart andeuten', 0, 0)&quot;);</span>
+<span class="fc" id="L182">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'paper', 'Papier', 'Fäuste klopfen 2x aneinander', 0, 0)&quot;);</span>
+<span class="fc" id="L183">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'picture', 'Bild', 'DIN A4-Blatt in die Luft malen', 0, 0)&quot;);</span>
+<span class="fc" id="L184">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'pig', 'Schwein', 'Schnauze nach vorn ziehen', 0, 0)&quot;);</span>
+<span class="fc" id="L185">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'pill', 'Tablette', 'Tablette auf Handfläche malen', 0, 0)&quot;);</span>
+<span class="fc" id="L186">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'pink', 'Rosa/Pink', 'Rosa Rose öffnet sich unter Nase', 0, 0)&quot;);</span>
+<span class="fc" id="L187">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'plate', 'Teller', 'Mit Zeigefinger Teller auf Handfläche malen', 0, 0)&quot;);</span>
+<span class="fc" id="L188">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'playing', 'Spielen', 'Fächerhände 2x gegengleich auf- und abbewegen', 0, 0)&quot;);</span>
+<span class="fc" id="L189">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'please', 'Bitte', '2x Handflächen aneinander', 0, 0)&quot;);</span>
+<span class="fc" id="L190">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'puke', 'Sich übergeben', 'Den Weg von unten aus Mund heraus', 0, 0)&quot;);</span>
+<span class="fc" id="L191">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'rabbit', 'Hase', 'Zeige-und Mittelfinger zeigen Ohren', 0, 0)&quot;);</span>
+<span class="fc" id="L192">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'reading', 'Lesen', 'Auf Handfläche lesen', 0, 0)&quot;);</span>
+<span class="fc" id="L193">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'red', 'Rot', 'Lippenrot zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L194">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'roll', 'Brötchen', '2x Brötchen formen', 0, 0)&quot;);</span>
+<span class="fc" id="L195">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'room', 'Zimmer', 'Zeigefinger ziehen Mauer um Zimmer', 0, 0)&quot;);</span>
+<span class="fc" id="L196">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'run', 'Rennen/Laufen', 'Mit Armen \&quot;rennen\&quot;', 0, 0)&quot;);</span>
+<span class="fc" id="L197">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'salt', 'Salz', 'Prise', 0, 0)&quot;);</span>
+<span class="fc" id="L198">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'sand', 'Sand', 'Sand aufnehmen und rieseln', 0, 0)&quot;);</span>
+<span class="fc" id="L199">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'school', 'Schule', 'Kreide an der Tafel', 0, 0)&quot;);</span>
+<span class="fc" id="L200">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'scissors', 'Schere/Schneiden', 'Scherbewegung mimen', 0, 0)&quot;);</span>
+<span class="fc" id="L201">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'scolding', 'Schimpfen', 'Wie die Geste', 0, 0)&quot;);</span>
+<span class="fc" id="L202">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'shave', 'Rasieren', 'Rasierer halten und rasieren mimen', 0, 0)&quot;);</span>
+<span class="fc" id="L203">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'sheep', 'Schaf', 'Wolle am Bauch zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L204">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'ship', 'Schiff/Boot', 'Mit Handflächen Bug nach vorn fahren', 0, 0)&quot;);</span>
+<span class="fc" id="L205">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'showering', 'Duschen', 'Über dem Kopf duschen', 0, 0)&quot;);</span>
+<span class="fc" id="L206">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'sibling', 'Bruder/Schwester', 'Gestreckte Zeigefinger aneinander führen', 0, 0)&quot;);</span>
+<span class="fc" id="L207">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'sick', 'Krank', 'Krallhand klopft 2x auf Brustkorb', 0, 0)&quot;);</span>
+<span class="fc" id="L208">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'sink', 'Waschbecken', 'Handschüsseln formen Waschbecken', 0, 0)&quot;);</span>
+<span class="fc" id="L209">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'sit', 'Sitzen', 'Häschenhand zieht von oben nach unten', 0, 0)&quot;);</span>
+<span class="fc" id="L210">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'small', 'Klein', 'Handflächen 20 cm breit auseinander', 0, 0)&quot;);</span>
+<span class="fc" id="L211">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'something_else', 'Etw. Anderes', 'Zeigefinger deuten viele andere Möglichkeiten an', 0, 0)&quot;);</span>
+<span class="fc" id="L212">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'spoon', 'Löffel', '2x in Mund löffeln', 0, 0)&quot;);</span>
+<span class="fc" id="L213">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'stand', 'Stehen', 'Zeige-und Mittelfinger  stehen auf Handfläche', 0, 0)&quot;);</span>
+<span class="fc" id="L214">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'stand_up', 'Aufstehen', 'Wie der Pfarrer in der Kirche', 0, 0)&quot;);</span>
+<span class="fc" id="L215">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'stop', 'Stopp', 'Halt zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L216">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'sugar', 'Zucker', 'Erst \&quot;süß\&quot; zeigen, dann mit Fingern streuen', 0, 0)&quot;);</span>
+<span class="fc" id="L217">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'swimming', 'Schwimmen', 'Brustschwimmen mimen', 0, 0)&quot;);</span>
+<span class="fc" id="L218">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'switch_off', 'Etw. Ausschalten', 'Klappe zu', 0, 0)&quot;);</span>
+<span class="fc" id="L219">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'switch_on', 'Etw. Anschalten', 'Daumen drückt Schalter', 0, 0)&quot;);</span>
+<span class="fc" id="L220">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'table', 'Tisch', 'Tischfläche von innen nach außen streichen', 0, 0)&quot;);</span>
+<span class="fc" id="L221">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'tea', 'Tee', 'Teebeutel auf-und abschwenken', 0, 0)&quot;);</span>
+<span class="fc" id="L222">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'telephone', 'Telefon', 'Y-Hand an Ohr', 0, 0)&quot;);</span>
+<span class="fc" id="L223">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'thank_you', 'Danke', 'Wie die Queen vom Kinn aus nach vorn', 0, 0)&quot;);</span>
+<span class="fc" id="L224">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'there', 'Da', 'Zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L225">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'thinking', 'Denken/Schlau', 'Mit Zeigefinger auf Kopf tippen', 0, 0)&quot;);</span>
+<span class="fc" id="L226">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'tidy_up', 'Aufräumen', '3x einen Stapel zusammenschieben', 0, 0)&quot;);</span>
+<span class="fc" id="L227">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'tiny', 'Winzig/Wenig', 'Zeigefinger und Daumen zeigen \&quot;wenig\&quot;', 0, 0)&quot;);</span>
+<span class="fc" id="L228">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'today', 'Heute', '2x langsam vor sich nach unten zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L229">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'toilet', 'Toilette', 'Y-Hand dreht neben Kopf', 0, 0)&quot;);</span>
+<span class="fc" id="L230">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'tomato', 'Tomate', 'Tomate vom Busch abdrehen', 0, 0)&quot;);</span>
+<span class="fc" id="L231">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'tomorrow', 'Morgen', 'Großen Bogen nach vorn zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L232">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'towel', 'Handtuch', 'Handtuch mit Zeigefinger umfahren', 0, 0)&quot;);</span>
+<span class="fc" id="L233">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'toy', 'Kuscheltier', 'Kuscheln zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L234">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'train', 'Zug/Eisenbahn', 'Neben Körper Räderdrehen zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L235">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'tree', 'Baum', 'Arm=Baumstamm, Finger=Äste', 0, 0)&quot;);</span>
+<span class="fc" id="L236">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'tumbling', 'Hinfallen', 'Nach vorn abstützen', 0, 0)&quot;);</span>
+<span class="fc" id="L237">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'tv', 'Fernseher/Fernsehen', 'Fernbedienung tippen', 0, 0)&quot;);</span>
+<span class="fc" id="L238">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'two', 'Zwei', 'Zwei Finger', 0, 0)&quot;);</span>
+<span class="fc" id="L239">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'up', 'Oben/Hoch', 'Nach oben zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L240">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'wait', 'Warte/Langsam', 'verlangsamende Bewegung', 0, 0)&quot;);</span>
+<span class="fc" id="L241">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'walk', 'Gehen', 'Zeige-und Mittelfinger spazieren', 0, 0)&quot;);</span>
+<span class="fc" id="L242">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'washing', 'Waschen', 'Hände waschen sich', 0, 0)&quot;);</span>
+<span class="fc" id="L243">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'water', 'Wasser', 'Steht mir bis zum Hals', 0, 0)&quot;);</span>
+<span class="fc" id="L244">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'we', 'Wir', 'Auf alle und sich selbst zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L245">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'what', 'Was?', 'Handflächen hin und her schütteln', 0, 0)&quot;);</span>
+<span class="fc" id="L246">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'when', 'Wann?', 'Finger klopfen ungeduldig an Wange', 0, 0)&quot;);</span>
+<span class="fc" id="L247">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'where', 'Wo?', 'Schüssel mit Händen nachahmen', 0, 0)&quot;);</span>
+<span class="fc" id="L248">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'who', 'Wer?', 'Fingeralphabet-R wackelt', 0, 0)&quot;);</span>
+<span class="fc" id="L249">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'window', 'Fenster', 'Mit Zeigefingern Fenster in Luft malen', 0, 0)&quot;);</span>
+<span class="fc" id="L250">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'with', 'Mit', 'Daumen kommt mit anderen Fingern mit', 0, 0)&quot;);</span>
+<span class="fc" id="L251">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'woman', 'Frau', 'Ohrring', 0, 0)&quot;);</span>
+<span class="fc" id="L252">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'writing', 'Stift/Schreiben', 'Mit Stift schreiben mimen', 0, 0)&quot;);</span>
+<span class="fc" id="L253">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'yellow', 'Gelb', 'Y-Hand (Yellow) dreht im Handgelenk', 0, 0)&quot;);</span>
+<span class="fc" id="L254">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'yes', 'Ja', 'Nicken', 0, 0)&quot;);</span>
+<span class="fc" id="L255">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'yesterday', 'Gestern', 'Großen Bogen  nach hinten zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L256">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'yoghurt', 'Joghurt', 'Becher auslöffen', 0, 0)&quot;);</span>
+<span class="fc" id="L257">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'you', 'Du', 'mit Zeigefinger auf Gegenüber zeigen', 0, 0)&quot;);</span>
+<span class="fc" id="L258">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'you_help_me', 'Du Hilfst Mir', '2. Hand hilft der anderen', 0, 0)&quot;);</span>
+<span class="fc" id="L259">        db.execSQL(&quot;INSERT INTO signs (name, name_de, mnemonic, learning_progress, starred) VALUES ( 'yours', 'Dein', 'Handfläche zeigt langsam auf Gesprächspartner', 0, 0)&quot;);</span>
+<span class="fc" id="L260">    }</span>
+
+    private void doMigrationVersion1to2(SQLiteDatabase db) {
+<span class="fc" id="L263">        Log.i(TAG, &quot;Upgrading from version 1 to 2&quot;);</span>
+<span class="fc" id="L264">        db.execSQL(&quot;alter table signs add tag1 TEXT&quot;);</span>
+<span class="fc" id="L265">        db.execSQL(&quot;alter table signs add tag2 TEXT&quot;);</span>
+<span class="fc" id="L266">        db.execSQL(&quot;alter table signs add tag3 TEXT&quot;);</span>
+<span class="fc" id="L267">        db.execSQL(&quot;update signs set name_de = 'Dann/Danach', mnemonic = 'Die Zukunft liegt vor mir', tag1 ='Zeit', tag2 ='Teil 2' where name = 'afterwards'&quot;);</span>
+<span class="fc" id="L268">        db.execSQL(&quot;update signs set name_de = 'Noch mal', mnemonic = 'Gebärde eins kommt von hinten nach vorn', tag1 ='Kleine Worte', tag2 ='Teil 1' where name = 'again'&quot;);</span>
+<span class="fc" id="L269">        db.execSQL(&quot;update signs set name_de = 'Flugzeug/Fliegen', mnemonic = 'Y-Hand startet vom Boden', tag1 ='Fahrzeug', tag2 ='Teil 3' where name = 'airplane'&quot;);</span>
+<span class="fc" id="L270">        db.execSQL(&quot;update signs set name_de = 'Allah', mnemonic = 'Faust öffnet nach vorn', tag1 ='Religion', tag2 ='Teil 3' where name = 'allah'&quot;);</span>
+<span class="fc" id="L271">        db.execSQL(&quot;update signs set name_de = 'Alleine', mnemonic = 'Erhobenen Zeigefinger von oben nach unten ziehen', tag1 ='Kleine Worte', tag2 ='Teil 1' where name = 'alone'&quot;);</span>
+<span class="fc" id="L272">        db.execSQL(&quot;update signs set name_de = 'Entschuldigung', mnemonic = 'Handfläche kreist auf Handrücken', tag1 ='Interaktion', tag2 ='Teil 3' where name = 'apology'&quot;);</span>
+<span class="fc" id="L273">        db.execSQL(&quot;update signs set name_de = 'Apfel', mnemonic = 'Abbeißen', tag1 ='Lebensmittel', tag2 ='Teil 1' where name = 'apple'&quot;);</span>
+<span class="fc" id="L274">        db.execSQL(&quot;update signs set name_de = 'Geht es dir gut?', mnemonic = 'Mit fragender Mimik \&quot;du\&quot; und \&quot;gut\&quot; gebärden', tag1 ='Interaktion', tag2 ='Teil 2' where name = 'are_you_ok'&quot;);</span>
+<span class="fc" id="L275">        db.execSQL(&quot;update signs set name_de = 'Auch', mnemonic = 'Komma in die Luft malen', tag1 ='Kleine Worte', tag2 ='Teil 1', tag3 ='Interaktion' where name = 'as_well'&quot;);</span>
+<span class="fc" id="L276">        db.execSQL(&quot;update signs set name_de = 'Baby', mnemonic = 'Baby auf Arm schaukeln', tag1 ='Person', tag2 ='Teil 1' where name = 'baby'&quot;);</span>
+<span class="fc" id="L277">        db.execSQL(&quot;update signs set name_de = 'Schlecht/Doof', mnemonic = 'Daumen runter', tag1 ='Eigenschaften', tag2 ='Teil 1' where name = 'bad'&quot;);</span>
+<span class="fc" id="L278">        db.execSQL(&quot;update signs set name_de = 'Tasche', mnemonic = 'Taschengriff ergreifen und hochnehmen', tag1 ='Behälter', tag2 ='Teil 2' where name = 'bag'&quot;);</span>
+<span class="fc" id="L279">        db.execSQL(&quot;update signs set name_de = 'Backen/Kneten', mnemonic = 'Mit Händen kneten', tag1 ='Ernährung', tag2 ='Teil 2', tag3 ='Verb' where name = 'baking'&quot;);</span>
+<span class="fc" id="L280">        db.execSQL(&quot;update signs set name_de = 'Ball', mnemonic = 'Mit Handflächen Ball umfahren', tag1 ='Spielen', tag2 ='Teil 2' where name = 'ball'&quot;);</span>
+<span class="fc" id="L281">        db.execSQL(&quot;update signs set name_de = 'Banane', mnemonic = 'Dominante Hand schält', tag1 ='Lebensmittel', tag2 ='Teil 1' where name = 'banana'&quot;);</span>
+<span class="fc" id="L282">        db.execSQL(&quot;update signs set name_de = 'Baden', mnemonic = 'Rücken mit Handtuch abrubbeln', tag1 ='Körperpflege', tag2 ='Teil 1', tag3 ='Verb' where name = 'bathing'&quot;);</span>
+<span class="fc" id="L283">        db.execSQL(&quot;update signs set name_de = 'Badezimmer', mnemonic = 'Erst \&quot;baden\&quot; dann \&quot;Zimmer\&quot;', tag1 ='Haus', tag2 ='Teil 3' where name = 'bathroom'&quot;);</span>
+<span class="fc" id="L284">        db.execSQL(&quot;update signs set name_de = 'Bett', mnemonic = 'Kopf legt sich  schlafen', tag1 ='Haus', tag2 ='Teil 1' where name = 'bed'&quot;);</span>
+<span class="fc" id="L285">        db.execSQL(&quot;update signs set name_de = 'Vorher', mnemonic = 'Vergangenheit liegt hinter mir', tag1 ='Zeit', tag2 ='Teil 2', tag3 ='Zeit' where name = 'before'&quot;);</span>
+<span class="fc" id="L286">        db.execSQL(&quot;update signs set name_de = 'Anfangen', mnemonic = 'Eine Arbeit aufnehmen', tag1 ='Arbeit', tag2 ='Teil 2', tag3 ='Verb' where name = 'begin'&quot;);</span>
+<span class="fc" id="L287">        db.execSQL(&quot;update signs set name_de = 'Unter', mnemonic = 'Handrücken unter Handfläche legen', tag1 ='Kleine Worte', tag2 ='Teil 2', tag3 ='Präposition' where name = 'below'&quot;);</span>
+<span class="fc" id="L288">        db.execSQL(&quot;update signs set name_de = 'Groß', mnemonic = 'Hände maximal breit auseinander', tag1 ='Eigenschaften', tag2 ='Teil 3' where name = 'big'&quot;);</span>
+<span class="fc" id="L289">        db.execSQL(&quot;update signs set name_de = 'Fahrrad', mnemonic = 'Fäuste fahren', tag1 ='Fahrzeug', tag2 ='Teil 3' where name = 'bike'&quot;);</span>
+<span class="fc" id="L290">        db.execSQL(&quot;update signs set name_de = 'Vogel', mnemonic = 'Schnabel auf und zu', tag1 ='Tier', tag2 ='Teil 2' where name = 'bird'&quot;);</span>
+<span class="fc" id="L291">        db.execSQL(&quot;update signs set name_de = 'Pflanze/blühen', mnemonic = 'Pflanze wächst aus Boden/neben Körper', tag1 ='Natur', tag2 ='Teil 2' where name = 'bloom'&quot;);</span>
+<span class="fc" id="L292">        db.execSQL(&quot;update signs set name_de = 'Blau', mnemonic = 'Fluss von oben nach unten schlängeln', tag1 ='Farbe', tag2 ='Teil 3', tag3 ='Eigenschaften' where name = 'blue'&quot;);</span>
+<span class="fc" id="L293">        db.execSQL(&quot;update signs set name_de = 'Buch', mnemonic = 'Handflächen öffnen sich wie Buch', tag1 ='Spielen', tag2 ='Teil 2', tag3 ='Lernen' where name = 'book'&quot;);</span>
+<span class="fc" id="L294">        db.execSQL(&quot;update signs set name_de = 'Junge', mnemonic = '2x mit gestreckter Hand grüßen', tag1 ='Person', tag2 ='Teil 2' where name = 'boy'&quot;);</span>
+<span class="fc" id="L295">        db.execSQL(&quot;update signs set name_de = 'Brot', mnemonic = 'Eine Scheibe abschneiden', tag1 ='Lebensmittel', tag2 ='Teil 2' where name = 'bread'&quot;);</span>
+<span class="fc" id="L296">        db.execSQL(&quot;update signs set name_de = 'Kaputt', mnemonic = 'Fäuste zerbrechen etwas', tag1 ='Eigenschaften', tag2 ='Teil 3' where name = 'broken'&quot;);</span>
+<span class="fc" id="L297">        db.execSQL(&quot;update signs set name_de = 'Bürsten/Kämmen', mnemonic = 'Faust bürstet über Haare', tag1 ='Körperpflege', tag2 ='Teil 3' where name = 'brush_hair'&quot;);</span>
+<span class="fc" id="L298">        db.execSQL(&quot;update signs set name_de = 'Zähne putzen', mnemonic = 'Zeigefinger putzt Zähne auf und ab', tag1 ='Körperpflege', tag2 ='Teil 3' where name = 'brush_teeth'&quot;);</span>
+<span class="fc" id="L299">        db.execSQL(&quot;update signs set name_de = 'Buddha', mnemonic = 'O-Hände bewegen sich nach vorn', tag1 ='Religion', tag2 ='Teil 3' where name = 'buddha'&quot;);</span>
+<span class="fc" id="L300">        db.execSQL(&quot;update signs set name_de = 'Bauen/Bauklötze', mnemonic = 'Hände stapeln', tag1 ='Spielen', tag2 ='Teil 2' where name = 'build'&quot;);</span>
+<span class="fc" id="L301">        db.execSQL(&quot;update signs set name_de = 'Bus', mnemonic = 'Buslänge zeigen, diagonal', tag1 ='Fahrzeug', tag2 ='Teil 1' where name = 'bus'&quot;);</span>
+<span class="fc" id="L302">        db.execSQL(&quot;update signs set name_de = 'Butter', mnemonic = 'Zeigefinger streicht Butter auf Brot', tag1 ='Lebensmittel', tag2 ='Teil 3' where name = 'butter'&quot;);</span>
+<span class="fc" id="L303">        db.execSQL(&quot;update signs set name_de = 'Schmetterling', mnemonic = 'Hände verhaken und Flügel flattern', tag1 ='Tier', tag2 ='Teil 3' where name = 'butterfly'&quot;);</span>
+<span class="fc" id="L304">        db.execSQL(&quot;update signs set name_de = 'Kakao', mnemonic = 'Daumen tippt 2x an Mundwinkel', tag1 ='Lebensmittel', tag2 ='Teil 2', tag3 ='Getränk' where name = 'cacao'&quot;);</span>
+<span class="fc" id="L305">        db.execSQL(&quot;update signs set name_de = 'Bonbon', mnemonic = 'Bonbon in Wange', tag1 ='Lebensmittel', tag2 ='Teil 1' where name = 'candy'&quot;);</span>
+<span class="fc" id="L306">        db.execSQL(&quot;update signs set name_de = 'Auto', mnemonic = 'lenken mimen', tag1 ='Fahrzeug', tag2 ='Teil 1' where name = 'car'&quot;);</span>
+<span class="fc" id="L307">        db.execSQL(&quot;update signs set name_de = 'Achtung/Vorsicht', mnemonic = 'V-Hände gucken weit zu den Seiten', tag1 ='Interaktion', tag2 ='Teil 3' where name = 'careful'&quot;);</span>
+<span class="fc" id="L308">        db.execSQL(&quot;update signs set name_de = 'Möhre', mnemonic = 'Schrappen', tag1 ='Lebensmittel', tag2 ='Teil 1' where name = 'carrot'&quot;);</span>
+<span class="fc" id="L309">        db.execSQL(&quot;update signs set name_de = 'Katze', mnemonic = '3 Schnurrhaare andeuten', tag1 ='Tier', tag2 ='Teil 2' where name = 'cat'&quot;);</span>
+<span class="fc" id="L310">        db.execSQL(&quot;update signs set name_de = 'Stuhl', mnemonic = 'Gebeugte Finger  als Lehne', tag1 ='Haus', tag2 ='Teil 1' where name = 'chair'&quot;);</span>
+<span class="fc" id="L311">        db.execSQL(&quot;update signs set name_de = 'Huhn', mnemonic = 'Mit Zeigefinger und Daumen picken', tag1 ='Tier', tag2 ='Teil 3' where name = 'chicken'&quot;);</span>
+<span class="fc" id="L312">        db.execSQL(&quot;update signs set name_de = 'Kinder', mnemonic = 'Köpfe wie Orgelpfeifen zeigen', tag1 ='Person', tag2 ='Teil 1' where name = 'children'&quot;);</span>
+<span class="fc" id="L313">        db.execSQL(&quot;update signs set name_de = 'Schokolade', mnemonic = 'Tafel zeigen', tag1 ='Lebensmittel', tag2 ='Teil 1' where name = 'chocolade'&quot;);</span>
+<span class="fc" id="L314">        db.execSQL(&quot;update signs set name_de = 'Sauber', mnemonic = 'Hand sauber wischen', tag1 ='Eigenschaften', tag2 ='Teil 2' where name = 'clean'&quot;);</span>
+<span class="fc" id="L315">        db.execSQL(&quot;update signs set name_de = 'Klettern', mnemonic = 'Mit Krallhänden nach oben klettern', tag1 ='Freizeit', tag2 ='Teil 3', tag3 ='Verb' where name = 'climbing'&quot;);</span>
+<span class="fc" id="L316">        db.execSQL(&quot;update signs set name_de = 'Schlüssel/Schließen', mnemonic = 'Auf- und zuschließen', tag1 ='Haus', tag2 ='Teil 2', tag3 ='Verb' where name = 'close'&quot;);</span>
+<span class="fc" id="L317">        db.execSQL(&quot;update signs set name_de = 'Kaffee', mnemonic = 'Kaffee mahlen', tag1 ='Lebensmittel', tag2 ='Teil 2' where name = 'coffee'&quot;);</span>
+<span class="fc" id="L318">        db.execSQL(&quot;update signs set name_de = 'Kalt/Frieren', mnemonic = 'Vor Kälte zittern', tag1 ='Eigenschaften', tag2 ='Teil 2' where name = 'cold'&quot;);</span>
+<span class="fc" id="L319">        db.execSQL(&quot;update signs set name_de = 'Kommen', mnemonic = 'Heranwinken', tag1 ='Interaktion', tag2 ='Teil 1', tag3 ='Verb' where name = 'come_here'&quot;);</span>
+<span class="fc" id="L320">        db.execSQL(&quot;update signs set name_de = 'Keks', mnemonic = 'Abbeißen', tag1 ='Lebensmittel', tag2 ='Teil 1' where name = 'cookie'&quot;);</span>
+<span class="fc" id="L321">        db.execSQL(&quot;update signs set name_de = 'Kochen', mnemonic = 'In Stielkasserolle rühren', tag1 ='Ernährung', tag2 ='Teil 2', tag3 ='Verb' where name = 'cooking'&quot;);</span>
+<span class="fc" id="L322">        db.execSQL(&quot;update signs set name_de = 'Kuh', mnemonic = 'Hörner nachahmen', tag1 ='Tier', tag2 ='Teil 3' where name = 'cow'&quot;);</span>
+<span class="fc" id="L323">        db.execSQL(&quot;update signs set name_de = 'Gurke', mnemonic = 'Gurke nachformen', tag1 ='Lebensmittel', tag2 ='Teil 2' where name = 'cucumber'&quot;);</span>
+<span class="fc" id="L324">        db.execSQL(&quot;update signs set name_de = 'Schrank', mnemonic = 'Mit Handflächen Schrank umreißen', tag1 ='Haus', tag2 ='Teil 2' where name = 'cupboard'&quot;);</span>
+<span class="fc" id="L325">        db.execSQL(&quot;update signs set name_de = 'Hörgerät', mnemonic = 'Hörgerät hinter Ohr mimen', tag1 ='Behinderung', tag2 ='Teil 3' where name = 'deaf_aid'&quot;);</span>
+<span class="fc" id="L326">        db.execSQL(&quot;update signs set name_de = 'Windel', mnemonic = 'Handflächen kletten Windel zu', tag1 ='Körperpflege', tag2 ='Teil 3' where name = 'diaper'&quot;);</span>
+<span class="fc" id="L327">        db.execSQL(&quot;update signs set name_de = 'Schmutzig', mnemonic = 'Krümel auf Hand verteilen', tag1 ='Körperpflege', tag2 ='Teil 2', tag3 ='Eigenschaften' where name = 'dirty'&quot;);</span>
+<span class="fc" id="L328">        db.execSQL(&quot;update signs set name_de = 'Arzt/Doktor', mnemonic = 'Auf Handrücken pieksen', tag1 ='Person', tag2 ='Teil 2' where name = 'doctor'&quot;);</span>
+<span class="fc" id="L329">        db.execSQL(&quot;update signs set name_de = 'Hund', mnemonic = 'Hund zu sich \&quot;heranklopfen\&quot;', tag1 ='Tier', tag2 ='Teil 2' where name = 'dog'&quot;);</span>
+<span class="fc" id="L330">        db.execSQL(&quot;update signs set name_de = 'Puppe', mnemonic = 'Baby still auf Arm halten', tag1 ='Spielen', tag2 ='Teil 1' where name = 'doll'&quot;);</span>
+<span class="fc" id="L331">        db.execSQL(&quot;update signs set name_de = 'Fertig', mnemonic = 'Handkante auf Handfläche \&quot;schlagen\&quot;', tag1 ='Eigenschaften', tag2 ='Teil 1', tag3 ='Kleine Worte' where name = 'done'&quot;);</span>
+<span class="fc" id="L332">        db.execSQL(&quot;update signs set name_de = 'Tür/Tor', mnemonic = 'Mit gestreckter Hand \&quot;Türöffnen\&quot; zeigen', tag1 ='Haus', tag2 ='Teil 2' where name = 'door'&quot;);</span>
+<span class="fc" id="L333">        db.execSQL(&quot;update signs set name_de = 'Unten/ Tief', mnemonic = 'Nach unten zeigen', tag1 ='Kleine Worte', tag2 ='Teil 3', tag3 ='Eigenschaften' where name = 'down'&quot;);</span>
+<span class="fc" id="L334">        db.execSQL(&quot;update signs set name_de = 'Getränk', mnemonic = 'Getränk/Trinkgefäß', tag1 ='Lebensmittel', tag2 ='Teil 1', tag3 ='Getränk' where name = 'drink'&quot;);</span>
+<span class="fc" id="L335">        db.execSQL(&quot;update signs set name_de = 'Trinken', mnemonic = 'Getränk zum Mund führen', tag1 ='Ernährung', tag2 ='Teil 1', tag3 ='Verb' where name = 'drinking'&quot;);</span>
+<span class="fc" id="L336">        db.execSQL(&quot;update signs set name_de = 'Tropfen', mnemonic = 'Zeigefinger tropft (tippen)', tag1 ='Krankheit', tag2 ='Teil 3' where name = 'drop'&quot;);</span>
+<span class="fc" id="L337">        db.execSQL(&quot;update signs set name_de = 'Essen', mnemonic = 'Essen nachahmen', tag1 ='Ernährung', tag2 ='Teil 1', tag3 ='Verb' where name = 'eating'&quot;);</span>
+<span class="fc" id="L338">        db.execSQL(&quot;update signs set name_de = 'Ei', mnemonic = 'Eigröße zeigen', tag1 ='Lebensmittel', tag2 ='Teil 3' where name = 'egg'&quot;);</span>
+<span class="fc" id="L339">        db.execSQL(&quot;update signs set name_de = 'Leer', mnemonic = 'Alles weg', tag1 ='Kleine Worte', tag2 ='Teil 3', tag3 ='Eigenschaften' where name = 'empty'&quot;);</span>
+<span class="fc" id="L340">        db.execSQL(&quot;update signs set name_de = 'Runterfallen', mnemonic = 'Zeige-und Mittelfinger fallen von Handfläche', tag1 ='Freizeit', tag2 ='Teil 3', tag3 ='Verb' where name = 'fall_down'&quot;);</span>
+<span class="fc" id="L341">        db.execSQL(&quot;update signs set name_de = 'Zuerst', mnemonic = 'Daumen taucht von unten auf', tag1 ='Kleine Worte', tag2 ='Teil 2', tag3 ='Zeit' where name = 'first'&quot;);</span>
+<span class="fc" id="L342">        db.execSQL(&quot;update signs set name_de = 'Fisch', mnemonic = 'Hand schlängelt sich durchs Wasser', tag1 ='Tier', tag2 ='Teil 3' where name = 'fish'&quot;);</span>
+<span class="fc" id="L343">        db.execSQL(&quot;update signs set name_de = 'Blume', mnemonic = 'Blüte öffnet sich unter Nase', tag1 ='draußen', tag2 ='Teil 2', tag3 ='Pflanzen' where name = 'flower'&quot;);</span>
+<span class="fc" id="L344">        db.execSQL(&quot;update signs set name_de = 'Lieb', mnemonic = 'Wange 1x von oben nach unten streicheln', tag1 ='Interaktion', tag2 ='Teil 1', tag3 ='Eigenschaften' where name = 'fond'&quot;);</span>
+<span class="fc" id="L345">        db.execSQL(&quot;update signs set name_de = 'Fußball spielen', mnemonic = 'Faust tritt in Handfläche', tag1 ='Freizeit', tag2 ='Teil 3', tag3 ='Verb' where name = 'football'&quot;);</span>
+<span class="fc" id="L346">        db.execSQL(&quot;update signs set name_de = 'Gabel', mnemonic = 'Gabel piekt in Handfläche', tag1 ='Ernährung', tag2 ='Teil 2' where name = 'fork'&quot;);</span>
+<span class="fc" id="L347">        db.execSQL(&quot;update signs set name_de = 'Freund/In', mnemonic = '2x Hände schütteln', tag1 ='Person', tag2 ='Teil 1' where name = 'friend'&quot;);</span>
+<span class="fc" id="L348">        db.execSQL(&quot;update signs set name_de = 'Voll', mnemonic = 'Bis oben randvoll', tag1 ='Kleine Worte', tag2 ='Teil 3', tag3 ='Eigenschaften' where name = 'full'&quot;);</span>
+<span class="fc" id="L349">        db.execSQL(&quot;update signs set name_de = 'Spaß', mnemonic = '2x Nasenspitze stupsen', tag1 ='Interaktion', tag2 ='Teil 3', tag3 ='Freizeit' where name = 'fun'&quot;);</span>
+<span class="fc" id="L350">        db.execSQL(&quot;update signs set name_de = 'Mädchen', mnemonic = 'Mit Daumen 2x Trägerkleid andeuten', tag1 ='Person', tag2 ='Teil 2' where name = 'girl'&quot;);</span>
+<span class="fc" id="L351">        db.execSQL(&quot;update signs set name_de = 'Geben', mnemonic = 'Richtungsgebärde von … zu …', tag1 ='Interaktion', tag2 ='Teil 1', tag3 ='Verb' where name = 'give'&quot;);</span>
+<span class="fc" id="L352">        db.execSQL(&quot;update signs set name_de = 'Brille', mnemonic = 'Zeigefinger und Daumen formen Brille', tag1 ='Behinderung', tag2 ='Teil 3' where name = 'glasses'&quot;);</span>
+<span class="fc" id="L353">        db.execSQL(&quot;update signs set name_de = 'weg!', mnemonic = 'Wegwerf-Bewegung', tag1 ='Kleine Worte', tag2 ='Teil 1', tag3 ='Eigenschaften' where name = 'go_away'&quot;);</span>
+<span class="fc" id="L354">        db.execSQL(&quot;update signs set name_de = 'Geh da hin', mnemonic = 'Richtung zeigen', tag1 ='Interaktion', tag2 ='Teil 1' where name = 'go_there'&quot;);</span>
+<span class="fc" id="L355">        db.execSQL(&quot;update signs set name_de = 'Gott', mnemonic = 'Dreieinigkeit fährt in den Himmel', tag1 ='Religion', tag2 ='Teil 3' where name = 'god'&quot;);</span>
+<span class="fc" id="L356">        db.execSQL(&quot;update signs set name_de = 'Gut/Prima', mnemonic = 'Daumen hoch', tag1 ='Kleine Worte', tag2 ='Teil 1', tag3 ='Eigenschaften' where name = 'good'&quot;);</span>
+<span class="fc" id="L357">        db.execSQL(&quot;update signs set name_de = 'Oma', mnemonic = 'Dutt andeuten', tag1 ='Person', tag2 ='Teil 2' where name = 'grandma'&quot;);</span>
+<span class="fc" id="L358">        db.execSQL(&quot;update signs set name_de = 'Opa', mnemonic = 'Zwirbelbart andeuten', tag1 ='Person', tag2 ='Teil 2' where name = 'grandpa'&quot;);</span>
+<span class="fc" id="L359">        db.execSQL(&quot;update signs set name_de = 'Grün', mnemonic = 'Grasbüschel wackelt', tag1 ='Farbe', tag2 ='Teil 3', tag3 ='Eigenschaften' where name = 'green'&quot;);</span>
+<span class="fc" id="L360">        db.execSQL(&quot;update signs set name_de = 'Hallo/Tschüss', mnemonic = 'Winken', tag1 ='Interaktion', tag2 ='Teil 1', tag3 ='Kleine Worte' where name = 'hello'&quot;);</span>
+<span class="fc" id="L361">        db.execSQL(&quot;update signs set name_de = 'Ich helfe dir', mnemonic = '2. Hand hilft der anderen', tag1 ='Interaktion', tag2 ='Teil 1', tag3 ='Verb' where name = 'helping'&quot;);</span>
+<span class="fc" id="L362">        db.execSQL(&quot;update signs set name_de = 'Hier', mnemonic = 'Punkt zeigen', tag1 ='Kleine Worte', tag2 ='Teil 1' where name = 'here'&quot;);</span>
+<span class="fc" id="L363">        db.execSQL(&quot;update signs set name_de = 'Pferd', mnemonic = 'Mit Zügeln reiten', tag1 ='Tier', tag2 ='Teil 3' where name = 'horse'&quot;);</span>
+<span class="fc" id="L364">        db.execSQL(&quot;update signs set name_de = 'Heiß/Warm', mnemonic = 'Schweiß von Stirn wischen', tag1 ='draußen', tag2 ='Teil 2', tag3 ='Eigenschaften' where name = 'hot'&quot;);</span>
+<span class="fc" id="L365">        db.execSQL(&quot;update signs set name_de = 'Haus', mnemonic = 'Dach andeuten', tag1 ='Haus', tag2 ='Teil 1' where name = 'house'&quot;);</span>
+<span class="fc" id="L366">        db.execSQL(&quot;update signs set name_de = 'Ich', mnemonic = 'Mit Zeigefinger auf sich zeigen', tag1 ='Person', tag2 ='Teil 1' where name = 'i'&quot;);</span>
+<span class="fc" id="L367">        db.execSQL(&quot;update signs set name_de = 'Eis', mnemonic = 'Eis lecken', tag1 ='Lebensmittel', tag2 ='Teil 2' where name = 'ice'&quot;);</span>
+<span class="fc" id="L368">        db.execSQL(&quot;update signs set name_de = 'In', mnemonic = 'In ein \&quot;Regal\&quot; oder in ein \&quot;Gefäß\&quot; zeigen', tag1 ='Kleine Worte', tag2 ='Teil 2', tag3 ='Präposition' where name = 'in'&quot;);</span>
+<span class="fc" id="L369">        db.execSQL(&quot;update signs set name_de = 'Jesus', mnemonic = 'Mittelfinger tippen auf Nagelmale', tag1 ='Religion', tag2 ='Teil 3', tag3 ='Person' where name = 'jesus'&quot;);</span>
+<span class="fc" id="L370">        db.execSQL(&quot;update signs set name_de = 'Saft', mnemonic = 'Saft läuft aus gepresster Frucht', tag1 ='Lebensmittel', tag2 ='Teil 2', tag3 ='Getränk' where name = 'juice'&quot;);</span>
+<span class="fc" id="L371">        db.execSQL(&quot;update signs set name_de = 'Springen/Hüpfen', mnemonic = 'Zeige-und Mittelfinger hüpfen auf Handfläche', tag1 ='Freizeit', tag2 ='Teil 3', tag3 ='Verb' where name = 'jump'&quot;);</span>
+<span class="fc" id="L372">        db.execSQL(&quot;update signs set name_de = 'Kindergarten', mnemonic = '\&quot;Kinder\&quot; und \&quot;Garten\&quot; zeigen', tag1 ='Haus', tag2 ='Teil 2', tag3 ='Spielen' where name = 'kindergarden'&quot;);</span>
+<span class="fc" id="L373">        db.execSQL(&quot;update signs set name_de = 'Küche', mnemonic = 'Erst \&quot;kochen\&quot; dann \&quot;Zimmer\&quot;', tag1 ='Haus', tag2 ='Teil 3' where name = 'kitchen'&quot;);</span>
+<span class="fc" id="L374">        db.execSQL(&quot;update signs set name_de = 'Messer/Schneiden', mnemonic = 'Beide Zeigefinger schneiden', tag1 ='Ernährung', tag2 ='Teil 2', tag3 ='Verb' where name = 'knife'&quot;);</span>
+<span class="fc" id="L375">        db.execSQL(&quot;update signs set name_de = 'Licht/Lampe', mnemonic = 'Strahlende Lampe seitlich oben neben Kopf', tag1 ='Haus', tag2 ='Teil 2' where name = 'lamp'&quot;);</span>
+<span class="fc" id="L376">        db.execSQL(&quot;update signs set name_de = 'Später', mnemonic = 'Wellenförmige Bewegung', tag1 ='Kleine Worte', tag2 ='Teil 2', tag3 ='Zeit' where name = 'later'&quot;);</span>
+<span class="fc" id="L377">        db.execSQL(&quot;update signs set name_de = 'Hören', mnemonic = 'Schall kommt an das Ohr', tag1 ='Interaktion', tag2 ='Teil 1', tag3 ='Verb' where name = 'listening'&quot;);</span>
+<span class="fc" id="L378">        db.execSQL(&quot;update signs set name_de = 'Sehen/Gucken', mnemonic = 'Richtungsgebärde', tag1 ='Interaktion', tag2 ='Teil 1', tag3 ='Verb' where name = 'look'&quot;);</span>
+<span class="fc" id="L379">        db.execSQL(&quot;update signs set name_de = 'Machen', mnemonic = 'Obere Faust klopft drehend auf untere Faust', tag1 ='Arbeit', tag2 ='Teil 1', tag3 ='Verb' where name = 'make'&quot;);</span>
+<span class="fc" id="L380">        db.execSQL(&quot;update signs set name_de = 'Mama', mnemonic = 'Wange kreisend streicheln', tag1 ='Person', tag2 ='Teil 1' where name = 'mama'&quot;);</span>
+<span class="fc" id="L381">        db.execSQL(&quot;update signs set name_de = 'Mann', mnemonic = 'Hut an Krempe fassen', tag1 ='Person', tag2 ='Teil 2' where name = 'man'&quot;);</span>
+<span class="fc" id="L382">        db.execSQL(&quot;update signs set name_de = 'Viele', mnemonic = 'Finger zappeln am Kinn zur dominanten Seite', tag1 ='Kleine Worte', tag2 ='Teil 3', tag3 ='Menge' where name = 'many'&quot;);</span>
+<span class="fc" id="L383">        db.execSQL(&quot;update signs set name_de = 'Marmelade', mnemonic = 'Hand streicht flächig auf Brotscheibe', tag1 ='Lebensmittel', tag2 ='Teil 3' where name = 'marmelade'&quot;);</span>
+<span class="fc" id="L384">        db.execSQL(&quot;update signs set name_de = 'Milch', mnemonic = 'Melken', tag1 ='Lebensmittel', tag2 ='Teil 1', tag3 ='Getränk' where name = 'milk'&quot;);</span>
+<span class="fc" id="L385">        db.execSQL(&quot;update signs set name_de = 'Mehr', mnemonic = 'Handfläche bewegt sich nach oben vorn', tag1 ='Kleine Worte', tag2 ='Teil 3', tag3 ='Menge' where name = 'more'&quot;);</span>
+<span class="fc" id="L386">        db.execSQL(&quot;update signs set name_de = 'Motorrad/Mofa', mnemonic = 'An Lenker gibt eine Faust Gas', tag1 ='Fahrzeug', tag2 ='Teil 3' where name = 'motorcycle'&quot;);</span>
+<span class="fc" id="L387">        db.execSQL(&quot;update signs set name_de = 'Singen/Musik', mnemonic = 'Dirigieren', tag1 ='Spielen', tag2 ='Teil 1', tag3 ='Verb' where name = 'music'&quot;);</span>
+<span class="fc" id="L388">        db.execSQL(&quot;update signs set name_de = 'Nein', mnemonic = 'Schnell von einer zur anderen Seite', tag1 ='Kleine Worte', tag2 ='Teil 1', tag3 ='Interaktion' where name = 'no'&quot;);</span>
+<span class="fc" id="L389">        db.execSQL(&quot;update signs set name_de = 'Nudeln', mnemonic = 'Spaghetti aufwickeln', tag1 ='Lebensmittel', tag2 ='Teil 3' where name = 'noodles'&quot;);</span>
+<span class="fc" id="L390">        db.execSQL(&quot;update signs set name_de = 'Jetzt', mnemonic = 'Ich bin die Gegenwart', tag1 ='Kleine Worte', tag2 ='Teil 2', tag3 ='Zeit' where name = 'now'&quot;);</span>
+<span class="fc" id="L391">        db.execSQL(&quot;update signs set name_de = 'Auf', mnemonic = 'Handfläche auf Handrücken legen', tag1 ='Kleine Worte', tag2 ='Teil 2', tag3 ='Präposition' where name = 'on_sth'&quot;);</span>
+<span class="fc" id="L392">        db.execSQL(&quot;update signs set name_de = 'Eins/Ein', mnemonic = 'Zeigefinger und Handrücken zum Gegenüber', tag1 ='Kleine Worte', tag2 ='Teil 1', tag3 ='Menge' where name = 'one'&quot;);</span>
+<span class="fc" id="L393">        db.execSQL(&quot;update signs set name_de = 'Orange', mnemonic = 'Schalen zeigen und herausbrechen', tag1 ='Lebensmittel', tag2 ='Teil 1' where name = 'orange'&quot;);</span>
+<span class="fc" id="L394">        db.execSQL(&quot;update signs set name_de = 'Draußen', mnemonic = 'Nach draußen zeigen', tag1 ='Freizeit', tag2 ='Teil 2', tag3 ='Ort' where name = 'outside'&quot;);</span>
+<span class="fc" id="L395">        db.execSQL(&quot;update signs set name_de = 'haben/mein', mnemonic = 'Handfläche auf Brustkorb legen', tag1 ='Kleine Worte', tag2 ='Teil 3', tag3 ='Verb' where name = 'owning'&quot;);</span>
+<span class="fc" id="L396">        db.execSQL(&quot;update signs set name_de = 'Schmerzen', mnemonic = 'Handfläche vibriert vor Schmerzstelle', tag1 ='Krankheit', tag2 ='Teil 3' where name = 'pain'&quot;);</span>
+<span class="fc" id="L397">        db.execSQL(&quot;update signs set name_de = 'Malen', mnemonic = 'Großflächig in Luft malen', tag1 ='Freizeit', tag2 ='Teil 2', tag3 ='Verb' where name = 'painting'&quot;);</span>
+<span class="fc" id="L398">        db.execSQL(&quot;update signs set name_de = 'Papa', mnemonic = 'Schnauzbart andeuten', tag1 ='Person', tag2 ='Teil 1' where name = 'papa'&quot;);</span>
+<span class="fc" id="L399">        db.execSQL(&quot;update signs set name_de = 'Papier', mnemonic = 'Fäuste klopfen 2x aneinander', tag1 ='Arbeit', tag2 ='Teil 2', tag3 ='Freizeit' where name = 'paper'&quot;);</span>
+<span class="fc" id="L400">        db.execSQL(&quot;update signs set name_de = 'Bild', mnemonic = 'DIN A4-Blatt in die Luft malen', tag1 ='Freizeit', tag2 ='Teil 2', tag3 ='Haus' where name = 'picture'&quot;);</span>
+<span class="fc" id="L401">        db.execSQL(&quot;update signs set name_de = 'Schwein', mnemonic = 'Schnauze nach vorn ziehen', tag1 ='Tier', tag2 ='Teil 3' where name = 'pig'&quot;);</span>
+<span class="fc" id="L402">        db.execSQL(&quot;update signs set name_de = 'Tablette', mnemonic = 'Tablette auf Handfläche malen', tag1 ='Krankheit', tag2 ='Teil 3' where name = 'pill'&quot;);</span>
+<span class="fc" id="L403">        db.execSQL(&quot;update signs set name_de = 'Rosa/Pink', mnemonic = 'Rosa Rose öffnet sich unter Nase', tag1 ='Farbe', tag2 ='Teil 3', tag3 ='Eigenschaften' where name = 'pink'&quot;);</span>
+<span class="fc" id="L404">        db.execSQL(&quot;update signs set name_de = 'Teller', mnemonic = 'Mit Zeigefinger Teller auf Handfläche malen', tag1 ='Ernährung', tag2 ='Teil 2', tag3 ='Geschirr' where name = 'plate'&quot;);</span>
+<span class="fc" id="L405">        db.execSQL(&quot;update signs set name_de = 'Spielen', mnemonic = 'Fächerhände 2x gegengleich auf- und abbewegen', tag1 ='Freizeit', tag2 ='Teil 1', tag3 ='Verb' where name = 'playing'&quot;);</span>
+<span class="fc" id="L406">        db.execSQL(&quot;update signs set name_de = 'Bitte', mnemonic = '2x Handflächen aneinander', tag1 ='Interaktion', tag2 ='Teil 1', tag3 ='Kleine Worte' where name = 'please'&quot;);</span>
+<span class="fc" id="L407">        db.execSQL(&quot;update signs set name_de = 'Sich übergeben', mnemonic = 'Den Weg von unten aus Mund heraus', tag1 ='Krankheit', tag2 ='Teil 3', tag3 ='Verb' where name = 'puke'&quot;);</span>
+<span class="fc" id="L408">        db.execSQL(&quot;update signs set name_de = 'Hase', mnemonic = 'Zeige-und Mittelfinger zeigen Ohren', tag1 ='Tier', tag2 ='Teil 3' where name = 'rabbit'&quot;);</span>
+<span class="fc" id="L409">        db.execSQL(&quot;update signs set name_de = 'Lesen', mnemonic = 'Auf Handfläche lesen', tag1 ='Freizeit', tag2 ='Teil 2', tag3 ='Verb' where name = 'reading'&quot;);</span>
+<span class="fc" id="L410">        db.execSQL(&quot;update signs set name_de = 'Rot', mnemonic = 'Lippenrot zeigen', tag1 ='Farbe', tag2 ='Teil 3', tag3 ='Eigenschaften' where name = 'red'&quot;);</span>
+<span class="fc" id="L411">        db.execSQL(&quot;update signs set name_de = 'Brötchen', mnemonic = '2x Brötchen formen', tag1 ='Lebensmittel', tag2 ='Teil 2' where name = 'roll'&quot;);</span>
+<span class="fc" id="L412">        db.execSQL(&quot;update signs set name_de = 'Zimmer', mnemonic = 'Zeigefinger ziehen Mauer um Zimmer', tag1 ='Haus', tag2 ='Teil 3' where name = 'room'&quot;);</span>
+<span class="fc" id="L413">        db.execSQL(&quot;update signs set name_de = 'Rennen/Laufen', mnemonic = 'Mit Armen \&quot;rennen\&quot;', tag1 ='Freizeit', tag2 ='Teil 3', tag3 ='Verb' where name = 'run'&quot;);</span>
+<span class="fc" id="L414">        db.execSQL(&quot;update signs set name_de = 'Salz', mnemonic = 'Prise', tag1 ='Lebensmittel', tag2 ='Teil 3' where name = 'salt'&quot;);</span>
+<span class="fc" id="L415">        db.execSQL(&quot;update signs set name_de = 'Sand', mnemonic = 'Sand aufnehmen und rieseln', tag1 ='Spielen', tag2 ='Teil 2' where name = 'sand'&quot;);</span>
+<span class="fc" id="L416">        db.execSQL(&quot;update signs set name_de = 'Schule', mnemonic = 'Kreide an der Tafel', tag1 ='Arbeit', tag2 ='Teil 2', tag3 ='Haus' where name = 'school'&quot;);</span>
+<span class="fc" id="L417">        db.execSQL(&quot;update signs set name_de = 'Schere/Schneiden', mnemonic = 'Scherbewegung mimen', tag1 ='Freizeit', tag2 ='Teil 2', tag3 ='Arbeit' where name = 'scissors'&quot;);</span>
+<span class="fc" id="L418">        db.execSQL(&quot;update signs set name_de = 'Schimpfen', mnemonic = 'Wie die Geste', tag1 ='Interaktion', tag2 ='Teil 1', tag3 ='Verb' where name = 'scolding'&quot;);</span>
+<span class="fc" id="L419">        db.execSQL(&quot;update signs set name_de = 'Rasieren', mnemonic = 'Rasierer halten und rasieren mimen', tag1 ='Körperpflege', tag2 ='Teil 3', tag3 ='Verb' where name = 'shave'&quot;);</span>
+<span class="fc" id="L420">        db.execSQL(&quot;update signs set name_de = 'Schaf', mnemonic = 'Wolle am Bauch zeigen', tag1 ='Tier', tag2 ='Teil 3' where name = 'sheep'&quot;);</span>
+<span class="fc" id="L421">        db.execSQL(&quot;update signs set name_de = 'Schiff/Boot', mnemonic = 'Mit Handflächen Bug nach vorn fahren', tag1 ='Fahrzeug', tag2 ='Teil 3' where name = 'ship'&quot;);</span>
+<span class="fc" id="L422">        db.execSQL(&quot;update signs set name_de = 'Duschen', mnemonic = 'Über dem Kopf duschen', tag1 ='Körperpflege', tag2 ='Teil 1', tag3 ='Verb' where name = 'showering'&quot;);</span>
+<span class="fc" id="L423">        db.execSQL(&quot;update signs set name_de = 'Bruder/Schwester', mnemonic = 'Gestreckte Zeigefinger aneinander führen', tag1 ='Person', tag2 ='Teil 1' where name = 'sibling'&quot;);</span>
+<span class="fc" id="L424">        db.execSQL(&quot;update signs set name_de = 'Krank', mnemonic = 'Krallhand klopft 2x auf Brustkorb', tag1 ='Krankheit', tag2 ='Teil 3', tag3 ='Eigenschaften' where name = 'sick'&quot;);</span>
+<span class="fc" id="L425">        db.execSQL(&quot;update signs set name_de = 'Waschbecken', mnemonic = 'Handschüsseln formen Waschbecken', tag1 ='Haus', tag2 ='Teil 3', tag3 ='Körperpflege' where name = 'sink'&quot;);</span>
+<span class="fc" id="L426">        db.execSQL(&quot;update signs set name_de = 'Sitzen', mnemonic = 'Häschenhand zieht von oben nach unten', tag1 ='Arbeit', tag2 ='Teil 1', tag3 ='Verb' where name = 'sit'&quot;);</span>
+<span class="fc" id="L427">        db.execSQL(&quot;update signs set name_de = 'Klein', mnemonic = 'Handflächen 20 cm breit auseinander', tag1 ='Kleine Worte', tag2 ='Teil 3', tag3 ='Eigenschaften' where name = 'small'&quot;);</span>
+<span class="fc" id="L428">        db.execSQL(&quot;update signs set name_de = 'Etw. anderes', mnemonic = 'Zeigefinger deuten viele andere Möglichkeiten an', tag1 ='Interaktion', tag2 ='Teil 1', tag3 ='Kleine Worte' where name = 'something_else'&quot;);</span>
+<span class="fc" id="L429">        db.execSQL(&quot;update signs set name_de = 'Löffel', mnemonic = '2x in Mund löffeln', tag1 ='Ernährung', tag2 ='Teil 2', tag3 ='Besteck' where name = 'spoon'&quot;);</span>
+<span class="fc" id="L430">        db.execSQL(&quot;update signs set name_de = 'Stehen', mnemonic = 'Zeige-und Mittelfinger  stehen auf Handfläche', tag1 ='Alltag', tag2 ='Teil 1', tag3 ='Verb' where name = 'stand'&quot;);</span>
+<span class="fc" id="L431">        db.execSQL(&quot;update signs set name_de = 'Aufstehen', mnemonic = 'Wie der Pfarrer in der Kirche', tag1 ='Alltag', tag2 ='Teil 1', tag3 ='Verb' where name = 'stand_up'&quot;);</span>
+<span class="fc" id="L432">        db.execSQL(&quot;update signs set name_de = 'Stopp', mnemonic = 'Halt zeigen', tag1 ='Interaktion', tag2 ='Teil 1', tag3 ='Kleine Worte' where name = 'stop'&quot;);</span>
+<span class="fc" id="L433">        db.execSQL(&quot;update signs set name_de = 'Zucker', mnemonic = 'Erst \&quot;süß\&quot; zeigen, dann mit Fingern streuen', tag1 ='Lebensmittel', tag2 ='Teil 3' where name = 'sugar'&quot;);</span>
+<span class="fc" id="L434">        db.execSQL(&quot;update signs set name_de = 'Schwimmen', mnemonic = 'Brustschwimmen mimen', tag1 ='Freizeit', tag2 ='Teil 3', tag3 ='Verb' where name = 'swimming'&quot;);</span>
+<span class="fc" id="L435">        db.execSQL(&quot;update signs set name_de = 'Etw. ausschalten', mnemonic = 'Klappe zu!', tag1 ='Eigenschaften', tag2 ='Teil 1', tag3 ='Verb' where name = 'switch_off'&quot;);</span>
+<span class="fc" id="L436">        db.execSQL(&quot;update signs set name_de = 'Etw. anschalten', mnemonic = 'Daumen drückt Schalter', tag1 ='Eigenschaften', tag2 ='Teil 1', tag3 ='Verb' where name = 'switch_on'&quot;);</span>
+<span class="fc" id="L437">        db.execSQL(&quot;update signs set name_de = 'Tisch', mnemonic = 'Tischfläche von innen nach außen streichen', tag1 ='Haus', tag2 ='Teil 1' where name = 'table'&quot;);</span>
+<span class="fc" id="L438">        db.execSQL(&quot;update signs set name_de = 'Tee', mnemonic = 'Teebeutel auf-und abschwenken', tag1 ='Lebensmittel', tag2 ='Teil 2', tag3 ='Getränk' where name = 'tea'&quot;);</span>
+<span class="fc" id="L439">        db.execSQL(&quot;update signs set name_de = 'Telefon', mnemonic = 'Y-Hand an Ohr', tag1 ='Interaktion', tag2 ='Teil 2', tag3 ='Alltag' where name = 'telephone'&quot;);</span>
+<span class="fc" id="L440">        db.execSQL(&quot;update signs set name_de = 'Danke', mnemonic = 'Wie die Queen: vom Kinn aus nach vorn', tag1 ='Interaktion', tag2 ='Teil 1' where name = 'thank_you'&quot;);</span>
+<span class="fc" id="L441">        db.execSQL(&quot;update signs set name_de = 'Da', mnemonic = 'Zeigen', tag1 ='Interaktion', tag2 ='Teil 1', tag3 ='Kleine Worte' where name = 'there'&quot;);</span>
+<span class="fc" id="L442">        db.execSQL(&quot;update signs set name_de = 'Denken/Schlau', mnemonic = 'Mit Zeigefinger auf Kopf tippen', tag1 ='Arbeit', tag2 ='Teil 2', tag3 ='Verb' where name = 'thinking'&quot;);</span>
+<span class="fc" id="L443">        db.execSQL(&quot;update signs set name_de = 'Aufräumen', mnemonic = '3x einen Stapel zusammenschieben', tag1 ='Spielen', tag2 ='Teil 1', tag3 ='Verb' where name = 'tidy_up'&quot;);</span>
+<span class="fc" id="L444">        db.execSQL(&quot;update signs set name_de = 'Winzig/Wenig', mnemonic = 'Zeigefinger und Daumen zeigen \&quot;wenig\&quot;', tag1 ='Kleine Worte', tag2 ='Teil 3', tag3 ='Menge' where name = 'tiny'&quot;);</span>
+<span class="fc" id="L445">        db.execSQL(&quot;update signs set name_de = 'Heute', mnemonic = '2x langsam vor sich nach unten zeigen', tag1 ='Zeit', tag2 ='Teil 3' where name = 'today'&quot;);</span>
+<span class="fc" id="L446">        db.execSQL(&quot;update signs set name_de = 'Toilette', mnemonic = 'Y-Hand dreht neben Kopf', tag1 ='Körperpflege', tag2 ='Teil 1', tag3 ='Alltag' where name = 'toilet'&quot;);</span>
+<span class="fc" id="L447">        db.execSQL(&quot;update signs set name_de = 'Tomate', mnemonic = 'Tomate vom Busch abdrehen', tag1 ='Lebensmittel', tag2 ='Teil 2' where name = 'tomato'&quot;);</span>
+<span class="fc" id="L448">        db.execSQL(&quot;update signs set name_de = 'Morgen', mnemonic = 'Großen Bogen nach vorn zeigen', tag1 ='Zeit', tag2 ='Teil 3' where name = 'tomorrow'&quot;);</span>
+<span class="fc" id="L449">        db.execSQL(&quot;update signs set name_de = 'Handtuch', mnemonic = 'Handtuch mit Zeigefinger umfahren', tag1 ='Körperpflege', tag2 ='Teil 3' where name = 'towel'&quot;);</span>
+<span class="fc" id="L450">        db.execSQL(&quot;update signs set name_de = 'Kuscheltier', mnemonic = 'Kuscheln zeigen', tag1 ='Spielen', tag2 ='Teil 2' where name = 'toy'&quot;);</span>
+<span class="fc" id="L451">        db.execSQL(&quot;update signs set name_de = 'Zug/Eisenbahn', mnemonic = 'Neben Körper Räderdrehen zeigen', tag1 ='Fahrzeug', tag2 ='Teil 3', tag3 ='Spielen' where name = 'train'&quot;);</span>
+<span class="fc" id="L452">        db.execSQL(&quot;update signs set name_de = 'Baum', mnemonic = 'Arm=Baumstamm, Finger=Äste', tag1 ='draußen', tag2 ='Teil 2', tag3 ='Pflanzen' where name = 'tree'&quot;);</span>
+<span class="fc" id="L453">        db.execSQL(&quot;update signs set name_de = 'Hinfallen', mnemonic = 'Nach vorn abstützen', tag1 ='Alltag', tag2 ='Teil 3', tag3 ='Verb' where name = 'tumbling'&quot;);</span>
+<span class="fc" id="L454">        db.execSQL(&quot;update signs set name_de = 'Fernseher/Fernsehen', mnemonic = 'Fernbedienung tippen', tag1 ='Haus', tag2 ='Teil 2', tag3 ='Freizeit' where name = 'tv'&quot;);</span>
+<span class="fc" id="L455">        db.execSQL(&quot;update signs set name_de = 'Zwei', mnemonic = 'Zwei Finger', tag1 ='Kleine Worte', tag2 ='Teil 1', tag3 ='Menge' where name = 'two'&quot;);</span>
+<span class="fc" id="L456">        db.execSQL(&quot;update signs set name_de = 'Oben/Hoch', mnemonic = 'Nach oben zeigen', tag1 ='Kleine Worte', tag2 ='Teil 3' where name = 'up'&quot;);</span>
+<span class="fc" id="L457">        db.execSQL(&quot;update signs set name_de = 'Warte/Langsam', mnemonic = 'verlangsamende Bewegung', tag1 ='Eigenschaften', tag2 ='Teil 1', tag3 ='Verb' where name = 'wait'&quot;);</span>
+<span class="fc" id="L458">        db.execSQL(&quot;update signs set name_de = 'Gehen', mnemonic = 'Zeige-und Mittelfinger spazieren', tag1 ='Alltag', tag2 ='Teil 3', tag3 ='Verb' where name = 'walk'&quot;);</span>
+<span class="fc" id="L459">        db.execSQL(&quot;update signs set name_de = 'Waschen', mnemonic = 'Hände waschen sich', tag1 ='Körperpflege', tag2 ='Teil 1' where name = 'washing'&quot;);</span>
+<span class="fc" id="L460">        db.execSQL(&quot;update signs set name_de = 'Wasser', mnemonic = 'Steht mir bis zum Hals', tag1 ='Lebensmittel', tag2 ='Teil 1', tag3 ='Getränk' where name = 'water'&quot;);</span>
+<span class="fc" id="L461">        db.execSQL(&quot;update signs set name_de = 'Wir', mnemonic = 'Auf alle und sich selbst zeigen', tag1 ='Personen', tag2 ='Teil 1', tag3 ='Kleine Worte' where name = 'we'&quot;);</span>
+<span class="fc" id="L462">        db.execSQL(&quot;update signs set name_de = 'Was?', mnemonic = 'Handflächen hin und her schütteln', tag1 ='Frage', tag2 ='Teil 1' where name = 'what'&quot;);</span>
+<span class="fc" id="L463">        db.execSQL(&quot;update signs set name_de = 'Wann?', mnemonic = 'Finger klopfen ungeduldig an Wange', tag1 ='Frage', tag2 ='Teil 3' where name = 'when'&quot;);</span>
+<span class="fc" id="L464">        db.execSQL(&quot;update signs set name_de = 'Wo?', mnemonic = 'Schüssel mit Händen nachahmen', tag1 ='Frage', tag2 ='Teil 1' where name = 'where'&quot;);</span>
+<span class="fc" id="L465">        db.execSQL(&quot;update signs set name_de = 'Wer?', mnemonic = 'Fingeralphabet-R wackelt', tag1 ='Frage', tag2 ='Teil 3' where name = 'who'&quot;);</span>
+<span class="fc" id="L466">        db.execSQL(&quot;update signs set name_de = 'Fenster', mnemonic = 'Mit Zeigefingern Fenster in Luft malen', tag1 ='Haus', tag2 ='Teil 2' where name = 'window'&quot;);</span>
+<span class="fc" id="L467">        db.execSQL(&quot;update signs set name_de = 'Mit', mnemonic = 'Daumen kommt mit anderen Fingern mit', tag1 ='Kleine Worte', tag2 ='Teil 2' where name = 'with'&quot;);</span>
+<span class="fc" id="L468">        db.execSQL(&quot;update signs set name_de = 'Frau', mnemonic = 'Ohrring', tag1 ='Person', tag2 ='Teil 2' where name = 'woman'&quot;);</span>
+<span class="fc" id="L469">        db.execSQL(&quot;update signs set name_de = 'Stift/Schreiben', mnemonic = 'Mit Stift schreiben mimen', tag1 ='Arbeit', tag2 ='Teil 2', tag3 ='Verb' where name = 'writing'&quot;);</span>
+<span class="fc" id="L470">        db.execSQL(&quot;update signs set name_de = 'Gelb', mnemonic = 'Y-Hand (Yellow) dreht im Handgelenk', tag1 ='Farbe', tag2 ='Teil 3', tag3 ='Eigenschaften' where name = 'yellow'&quot;);</span>
+<span class="fc" id="L471">        db.execSQL(&quot;update signs set name_de = 'Ja', mnemonic = 'Nicken', tag1 ='Interaktion', tag2 ='Teil 1', tag3 ='Kleine Worte' where name = 'yes'&quot;);</span>
+<span class="fc" id="L472">        db.execSQL(&quot;update signs set name_de = 'Gestern', mnemonic = 'Großen Bogen  nach hinten zeigen', tag1 ='Zeit', tag2 ='Teil 3' where name = 'yesterday'&quot;);</span>
+<span class="fc" id="L473">        db.execSQL(&quot;update signs set name_de = 'Joghurt', mnemonic = 'Becher auslöffen', tag1 ='Lebensmittel', tag2 ='Teil 2' where name = 'yoghurt'&quot;);</span>
+<span class="fc" id="L474">        db.execSQL(&quot;update signs set name_de = 'Du', mnemonic = 'mit Zeigefinger auf Gegenüber zeigen', tag1 ='Person', tag2 ='Teil 1', tag3 ='Kleine Worte' where name = 'you'&quot;);</span>
+<span class="fc" id="L475">        db.execSQL(&quot;update signs set name_de = 'Du hilfst Mir', mnemonic = '2. Hand hilft der anderen', tag1 ='Interaktion', tag2 ='Teil 1', tag3 ='Verb' where name = 'you_help_me'&quot;);</span>
+<span class="fc" id="L476">        db.execSQL(&quot;update signs set name_de = 'Dein', mnemonic = 'Handfläche zeigt langsam auf Gesprächspartner', tag1 ='Kleine Worte', tag2 ='Teil 3' where name = 'yours'&quot;);</span>
+<span class="fc" id="L477">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('evening','Abend','Handflächen legen sich übereinander','Zeit','Zusatz')&quot;);</span>
+<span class="fc" id="L478">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('old','alt','mit Zügelhand an Wange runtersteichen','Eigenschaften','Zusatz')&quot;);</span>
+<span class="fc" id="L479">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('anxiety','Angst','Faust klopft an Herz','Gefühl','Zusatz')&quot;);</span>
+<span class="fc" id="L480">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('here_you_are','Bitte schön','Flachhand bietet etwas an','Interaktion','Zusatz','Kleine Worte')&quot;);</span>
+<span class="fc" id="L481">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('bossmang','Chef','\&quot;Gut\&quot;-Faust steigt von anderem Handrücken auf','Person','Zusatz')&quot;);</span>
+<span class="fc" id="L482">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('computer','Computer','Finger tippen auf Tastatur','Arbeit','Zusatz')&quot;);</span>
+<span class="fc" id="L483">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('morning','der Morgen','es wird hell','Zeit','Zusatz')&quot;);</span>
+<span class="fc" id="L484">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('tuesday','Dienstag','mit Pinzettengriff an Wange 1x drehen','Wochentag','Zusatz','Zeit')&quot;);</span>
+<span class="fc" id="L485">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('thursday','Donnerstag','Blitzschnell mit Zeigefinger neben dem Kopf','Wochentag','Zusatz','Zeit')&quot;);</span>
+<span class="fc" id="L486">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('allowed','dürfen','Flachhand kippt nach vorn','Verb','Zusatz')&quot;);</span>
+<span class="fc" id="L487">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('surprise','erschrecken','gespreizte Hände fliegen nach außen','Gefühl','Zusatz','Verb')&quot;);</span>
+<span class="fc" id="L488">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('drive','fahren','Pistolenhände fahren nach vorn','Fahrzeug','Zusatz','Verb')&quot;);</span>
+<span class="fc" id="L489">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('friday','Freitag','Zeigefinger von Nasenspitze an Stirn drehen','Wochentag','Zusatz')&quot;);</span>
+<span class="fc" id="L490">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('happiness','Freude','Handflächen wedeln aufsteigende Freude','Gefühl','Zusatz')&quot;);</span>
+<span class="fc" id="L491">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('happy','fröhlich','Handflächen wedeln aufsteigende Freude','Gefühl','Zusatz')&quot;);</span>
+<span class="fc" id="L492">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('spring','Frühling','sich öffnende Blume seitlich auf Schulterhöhe','Jahreszeit','Zusatz')&quot;);</span>
+<span class="fc" id="L493">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('birthday','Geburtstag','erstes Herzklopfen mit der Faust zeigen','Freizeit','Zusatz','feiern')&quot;);</span>
+<span class="fc" id="L494">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('soon','gleich','gestreckte Zeigefinger aneinderstoßen','Kleine Worte','Zusatz','Eigenschaften')&quot;);</span>
+<span class="fc" id="L495">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('autumn','Herbst','Pflanzen verschwinden wieder in Erde','Jahreszeit','Zusatz')&quot;);</span>
+<span class="fc" id="L496">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('fetch','holen','offene Hand zieht etwas zu sich heran','Alltag','Zusatz','Verb')&quot;);</span>
+<span class="fc" id="L497">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('you_plural','ihr','in Bogen auf die anderen zeigen','Person','Zusatz','Kleine Worte')&quot;);</span>
+<span class="fc" id="L498">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('always','immer','große Spaghetti nach vorn wickeln','Kleine Worte','Zusatz','Zeit')&quot;);</span>
+<span class="fc" id="L499">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('cake','Kuchen','Blech mit flachen Händen in Ofen schieben','Lebensmittel','Zusatz','Freizeit')&quot;);</span>
+<span class="fc" id="L500">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('slow','langsam','flache Hände 2x langsam vor Körper senken','Eigenschaften','Zusatz')&quot;);</span>
+<span class="fc" id="L501">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('loud','laut','beide C-Hände von den Ohren wegführen','hören','Zusatz','Eigenschaften')&quot;);</span>
+<span class="fc" id="L502">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('quiet','leise','Zeigefinger auf geschlossenen Lippen','hören','Zusatz','Eigenschaften')&quot;);</span>
+<span class="fc" id="L503">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('learn','lernen','Schnabelhand füttert Hirn - an Schläfe','Arbeit','Zusatz','Verb')&quot;);</span>
+<span class="fc" id="L504">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('wednesday','Mittwoch','Pistolenhand 2x an Kinn tupfen','Wochentag','Zusatz')&quot;);</span>
+<span class="fc" id="L505">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('monday','Montag','Daumennagel streicht an Wange runter','Wochentag','Zusatz')&quot;);</span>
+<span class="fc" id="L506">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('night','Nacht','Handflächen schließen zu Fäusten','Zeit','Zusatz')&quot;);</span>
+<span class="fc" id="L507">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('name','Name','Zeige-und Mittelfinger 3x an Wange  klopfen','Person','Zusatz')&quot;);</span>
+<span class="fc" id="L508">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('brand_new','neu','Hand schiebt sich hinter anderer Hand hervor','Kleine Worte','Zusatz','Eigenschaften')&quot;);</span>
+<span class="fc" id="L509">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('never','nie','Zeigefinger-X schnell auseinanderziehen','Kleine Worte','Zusatz')&quot;);</span>
+<span class="fc" id="L510">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('pause','Pause','Glocke läuten zeigen','Arbeit','Zusatz','Alltag')&quot;);</span>
+<span class="fc" id="L511">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('calculate','rechnen','alle Finger wackeln' ,'Arbeit','Zusatz','Verb')&quot;);</span>
+<span class="fc" id="L512">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('saturday','Samstag','mit Handrücken \&quot;Lächeln\&quot; unter Kinn zeigen','Wochentag','Zusatz')&quot;);</span>
+<span class="fc" id="L513">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('fast','schnell','Faust schnell nach vorn mit plötzlichem Stopp','Kleine Worte','Zusatz','Eigenschaften')&quot;);</span>
+<span class="fc" id="L514">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('summer','Sommer','wie \&quot;warm\&quot;','Jahreszeit','Zusatz')&quot;);</span>
+<span class="fc" id="L515">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('sunday','Sonntag','\&quot;schicke Kleidung\&quot; mit Handstreichen zeigen','Wochentag','Zusatz')&quot;);</span>
+<span class="fc" id="L516">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('tablet','Tablet','Zeige wischt auf Tablet/Handfläche','Arbeit','Zusatz','Interaktion')&quot;);</span>
+<span class="fc" id="L517">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('day','Tag','Tag wie Kaugummi auseinanderziehen','Zeit','Zusatz')&quot;);</span>
+<span class="fc" id="L518">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('sad','traurig','Krallenhand zeigt \&quot;Herzschmerz\&quot;','Gefühl','Zusatz','Eigenschaften')&quot;);</span>
+<span class="fc" id="L519">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('forget','vergessen','Flachhand zieht etwas aus dem Gedächtnis/ Kopf','Interaktion','Zusatz','Verb')&quot;);</span>
+<span class="fc" id="L520">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('different','verschieden','V-Hände gegengleich vor Körper senken und heben','Kleine Worte','Zusatz','Eigenschaften')&quot;);</span>
+<span class="fc" id="L521">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('why','warum','bohrender Zeigefinger','Frage','Zusatz')&quot;);</span>
+<span class="fc" id="L522">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('which','welche','eine Flugzeug-Hand 3x wackeln','Frage','Zusatz')&quot;);</span>
+<span class="fc" id="L523">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('how_many','wie viele','zappelnde Finger einer Hand neben Schulter','Frage','Zusatz')&quot;);</span>
+<span class="fc" id="L524">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('how','wie','\&quot;Flugzeug-Hände\&quot;','Frage','Zusatz')&quot;);</span>
+<span class="fc" id="L525">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2) values ('winter','Winter','wie \&quot;kalt\&quot;','Jahreszeit','Zusatz')&quot;);</span>
+<span class="fc" id="L526">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('week','Woche','C-Hand von nichtdominanter zu dominanter Seite','Zeit','Zusatz','Wochentage')&quot;);</span>
+<span class="fc" id="L527">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('want','wollen','Flachhand 1x an Herz schlagen','Alltag','Zusatz','Verb')&quot;);</span>
+<span class="fc" id="L528">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('angry','wütend','Fäuste zittern vor Wut neben Schultern','Gefühl','Zusatz','Eigenschaften')&quot;);</span>
+<span class="fc" id="L529">        db.execSQL(&quot;insert into signs (name, name_de, mnemonic, tag1, tag2, tag3) values ('together','zusammen','von außen mit offenen Handflächen alles zusammenballen','Kleine Worte','Zusatz','Eigenschaften')&quot;);</span>
+<span class="fc" id="L530">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

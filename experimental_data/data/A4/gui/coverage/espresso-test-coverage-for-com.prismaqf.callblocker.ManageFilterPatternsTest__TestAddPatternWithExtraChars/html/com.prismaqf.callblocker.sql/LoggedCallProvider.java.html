@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LoggedCallProvider.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker.sql</a> &gt; <span class="el_source">LoggedCallProvider.java</span></div><h1>LoggedCallProvider.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker.sql;
+
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+
+/**
+ * @author ConteDiMonteCristo.
+ */
+<span class="nc" id="L10">public class LoggedCallProvider {</span>
+
+<span class="fc" id="L12">    private static final String TAG = LoggedCallProvider.class.getCanonicalName();</span>
+
+    public static class LoggedCall{
+        private final long runid;
+        private final String number;
+        private final String description;
+        private final String action;
+
+
+<span class="fc" id="L21">        public LoggedCall(long runid, String action, String number, String description) {</span>
+<span class="fc" id="L22">            this.runid = runid;</span>
+<span class="fc" id="L23">            this.action = action;</span>
+<span class="fc" id="L24">            this.number = number;</span>
+<span class="fc" id="L25">            this.description = description;</span>
+<span class="fc" id="L26">        }</span>
+
+        public long getRunid() {
+<span class="fc" id="L29">            return runid;</span>
+        }
+
+        public String getNumber() {
+<span class="fc" id="L33">            return number;</span>
+        }
+
+        public String getDescription() {
+<span class="fc" id="L37">            return description;</span>
+        }
+
+        public String getAction() {
+<span class="fc" id="L41">            return action;</span>
+        }
+
+    }
+
+    public static LoggedCall deserialize(Cursor c) {
+<span class="nc" id="L47">        long runId = c.getLong(c.getColumnIndexOrThrow(DbContract.LoggedCalls.COLUMN_NAME_RUNID));</span>
+<span class="nc" id="L48">        String action=null;</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        if (!c.isNull(c.getColumnIndexOrThrow(DbContract.LoggedCalls.COLUMN_NAME_ACTION)))</span>
+<span class="nc" id="L50">            action = c.getString(c.getColumnIndexOrThrow(DbContract.LoggedCalls.COLUMN_NAME_ACTION));</span>
+<span class="nc" id="L51">        String number = c.getString(c.getColumnIndexOrThrow(DbContract.LoggedCalls.COLUMN_NAME_NUMBER));</span>
+<span class="nc" id="L52">        String description = c.getString(c.getColumnIndexOrThrow(DbContract.LoggedCalls.COLUMN_NAME_DESCRIPTION));</span>
+<span class="nc" id="L53">        return new LoggedCall(runId,action,number,description);</span>
+    }
+
+    public static void serialize(SQLiteDatabase db, LoggedCall lc) {
+<span class="nc" id="L57">        InsertRow(db,lc);</span>
+<span class="nc" id="L58">    }</span>
+
+    /**
+     * Insert a new record (logged call) in the database
+     * @param db the SQLite connection
+     * @param lc the logged call
+     * @return the new call id
+     */
+    public static synchronized long InsertRow(SQLiteDatabase db, LoggedCall lc) {
+<span class="fc" id="L67">        ContentValues vals = new ContentValues();</span>
+<span class="fc" id="L68">        vals.put(DbContract.LoggedCalls.COLUMN_NAME_RUNID,lc.getRunid());</span>
+<span class="fc" id="L69">        vals.put(DbContract.LoggedCalls.COLUMN_NAME_NUMBER,lc.getNumber());</span>
+<span class="pc bpc" id="L70" title="1 of 2 branches missed.">        if (lc.getDescription() != null)</span>
+<span class="fc" id="L71">            vals.put(DbContract.LoggedCalls.COLUMN_NAME_DESCRIPTION,lc.getDescription());</span>
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">        if (lc.getAction()!=null)</span>
+<span class="nc" id="L73">            vals.put(DbContract.LoggedCalls.COLUMN_NAME_ACTION,lc.getAction());</span>
+<span class="fc" id="L74">        return db.insert(DbContract.LoggedCalls.TABLE_NAME, DbContract.LoggedCalls.COLUMN_NAME_DESCRIPTION, vals);</span>
+    }
+
+    public static synchronized void DeleteLoggedCall(SQLiteDatabase db, long callid) {
+<span class="fc" id="L78">        String where = DbContract.LoggedCalls._ID + &quot; = ?&quot;;</span>
+<span class="fc" id="L79">        String[] args = {String.valueOf(callid)};</span>
+<span class="fc" id="L80">        db.delete(DbContract.LoggedCalls.TABLE_NAME, where, args);</span>
+<span class="fc" id="L81">    }</span>
+
+    public static synchronized void DeleteLoggedCallInRun(SQLiteDatabase db, long runid) {
+<span class="nc" id="L84">        String where = DbContract.LoggedCalls.COLUMN_NAME_RUNID + &quot; = ?&quot;;</span>
+<span class="nc" id="L85">        String[] args = {String.valueOf(runid)};</span>
+<span class="nc" id="L86">        db.delete(DbContract.LoggedCalls.TABLE_NAME, where, args);</span>
+<span class="nc" id="L87">    }</span>
+
+    /**
+     * Retrieves the latest calls logged
+     * @param db the SQLite connection
+     * @param maxRecords the total number of records returned
+     * @return a cursor
+     */
+    public static Cursor LatestCalls(SQLiteDatabase db, int maxRecords) {
+<span class="nc" id="L96">        return LatestCalls(db, maxRecords, true);</span>
+    }
+
+    /**
+     * Retrieves the latest calls logged
+     * @param db the SQLite connection
+     * @param maxRecords the total number of records returned
+     * @param descending a flag to inicate the sorting order, descending when the flag is true
+     * @return a cursor
+     */
+    public static synchronized Cursor LatestCalls(SQLiteDatabase db, int maxRecords, boolean descending) {
+        String orderby;
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        if (descending)</span>
+<span class="nc" id="L109">            orderby= String.format(&quot;%s desc&quot;,DbContract.LoggedCalls._ID);</span>
+        else
+<span class="nc" id="L111">            orderby= String.format(&quot;%s asc&quot;, DbContract.LoggedCalls._ID);</span>
+
+<span class="nc" id="L113">        String limit = null;</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">        if (maxRecords &gt; 0)</span>
+<span class="nc" id="L115">            limit = String.valueOf(maxRecords);</span>
+<span class="nc" id="L116">        return db.query(DbContract.LoggedCalls.TABLE_NAME, null, null, null, null, null, orderby, limit);</span>
+    }
+
+    /**
+     * Retrieves the latest calls logged
+     * @param db the SQLite connection
+     * @param maxRecords the total number of records returned
+     * @param descending a flag to inicate the sorting order, descending when the flag is true
+     * @return a cursor
+     */
+    public static synchronized Cursor LatestTriggered(SQLiteDatabase db, int maxRecords, boolean descending) {
+        String orderby;
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        if (descending)</span>
+<span class="nc" id="L129">            orderby= String.format(&quot;%s desc&quot;,DbContract.LoggedCalls._ID);</span>
+        else
+<span class="nc" id="L131">            orderby= String.format(&quot;%s asc&quot;, DbContract.LoggedCalls._ID);</span>
+
+<span class="nc" id="L133">        String limit = null;</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">        if (maxRecords &gt; 0)</span>
+<span class="nc" id="L135">            limit = String.valueOf(maxRecords);</span>
+<span class="nc" id="L136">        String selection = String.format(&quot;%s is not null&quot;,DbContract.LoggedCalls.COLUMN_NAME_ACTION);</span>
+<span class="nc" id="L137">        return db.query(DbContract.LoggedCalls.TABLE_NAME, null, selection, null, null, null, orderby, limit);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

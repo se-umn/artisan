@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CallDetectService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker</a> &gt; <span class="el_source">CallDetectService.java</span></div><h1>CallDetectService.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker;
+
+import android.app.Notification;
+import android.app.PendingIntent;
+import android.app.Service;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Binder;
+import android.os.IBinder;
+import android.util.Log;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationCompat.Builder;
+
+/**
+ * Call detect service
+ * @author Moskvichev Andrey V.
+ * @see 'www.codeproject.com/Articles/548416/Detecting-incoming-and-outgoing-phone-calls-on-And'
+ */public class CallDetectService extends Service {
+
+<span class="fc" id="L20">    private static final String TAG = CallDetectService.class.getCanonicalName();</span>
+    private static final int ONGOING_NOTIFICATION_ID = 1007;
+
+
+    /**
+     * Class used for the client Binder.  Because we know this service always
+     * runs in the same process as its clients, we don't need to deal with IPC.
+     */
+<span class="fc" id="L28">    public class LocalBinder extends Binder {</span>
+        CallDetectService getService() {
+            // Return this instance of LocalService so clients can call public methods
+<span class="nc" id="L31">            return CallDetectService.this;</span>
+        }
+    }
+
+    private final CallHelper myCallHelper;
+<span class="fc" id="L36">    private final IBinder myBinder = new LocalBinder();</span>
+    
+<span class="fc" id="L38">    public CallDetectService() {</span>
+<span class="fc" id="L39">        myCallHelper = CallHelper.GetHelper();</span>
+<span class="fc" id="L40">    }</span>
+
+<span class="nc" id="L42">    public int getNumReceived() {return myCallHelper.getNumReceived();}</span>
+
+<span class="nc" id="L44">    public int getNumTriggered() {return myCallHelper.getNumTriggered();}</span>
+
+
+
+
+    @Override
+    public int onStartCommand(final Intent intent, int flags, int startId) {
+        /*
+        The idea of starting the service in the foreground + aquiring a wake lock
+        does not work properly in Marshmallow. The service is still killed by the
+        doze mode. Untill this is fixed the only solution is to add the app to
+        the whitelist to prevent doze
+         */
+<span class="fc" id="L57">        final Context ctx=this;</span>
+<span class="fc" id="L58">        myCallHelper.start(ctx);</span>
+<span class="fc" id="L59">        new Thread(new Runnable() {</span>
+            @Override
+            public void run() {
+<span class="fc" id="L62">                synchronized (myCallHelper) {</span>
+<span class="nc" id="L63">                    myCallHelper.recordServiceStart(ctx);</span>
+<span class="nc" id="L64">                }</span>
+<span class="nc" id="L65">            }</span>
+<span class="fc" id="L66">        }).start();</span>
+
+
+<span class="fc" id="L69">        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, CallBlockerManager.class), 0);</span>
+<span class="fc" id="L70">        NotificationCompat.Builder builder = new Builder(this, &quot;mychannel&quot;)</span>
+<span class="fc" id="L71">              .setSmallIcon(R.drawable.police)</span>
+<span class="fc" id="L72">              .setContentTitle(getText(R.string.app_name))</span>
+<span class="fc" id="L73">              .setContentText(getText(R.string.tx_notification))</span>
+<span class="fc" id="L74">              .setContentIntent(pendingIntent)</span>
+<span class="fc" id="L75">              .setTicker(getText(R.string.app_name));</span>
+
+<span class="fc" id="L77">        Notification notification = new Notification.Builder(this, &quot;mychannel&quot;)</span>
+<span class="fc" id="L78">                .setContentTitle(getText(R.string.app_name))</span>
+<span class="fc" id="L79">                .setContentText(getText(R.string.tx_notification))</span>
+<span class="fc" id="L80">                .setSmallIcon(R.drawable.police)</span>
+<span class="fc" id="L81">                .setContentIntent(pendingIntent)</span>
+<span class="fc" id="L82">                .setTicker(getText(R.string.app_name))</span>
+<span class="fc" id="L83">                .build();</span>
+<span class="fc" id="L84">        startForeground(ONGOING_NOTIFICATION_ID, notification);</span>
+
+<span class="fc" id="L86">        return Service.START_STICKY;</span>
+    }
+
+    @Override
+    public void onDestroy() {
+<span class="nc" id="L91">        Log.w(TAG,&quot;The service has been killed&quot;);</span>
+/*        new Thread(new Runnable() {
+
+            @Override
+            public void run() {
+                synchronized (this) {
+                    myCallHelper.recordServiceStop();
+                }
+            }
+        }).start();*/
+<span class="nc" id="L101">        myCallHelper.recordServiceStop(this);</span>
+<span class="nc" id="L102">        myCallHelper.stop(this);</span>
+<span class="nc" id="L103">        super.onDestroy();</span>
+<span class="nc" id="L104">    }</span>
+
+    @Override
+    public IBinder onBind(Intent intent) {
+<span class="nc" id="L108">        return myBinder;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Sign.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">de.lebenshilfe_muenster.uk_gebaerden_muensterland.database</a> &gt; <span class="el_source">Sign.java</span></div><h1>Sign.java</h1><pre class="source lang-java linenums">package de.lebenshilfe_muenster.uk_gebaerden_muensterland.database;
+
+import android.os.Parcel;
+import android.os.Parcelable;
+
+import org.apache.commons.lang3.Validate;
+
+/**
+ * Copyright (c) 2016 Matthias Tonhäuser
+ * &lt;p/&gt;
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * &lt;p/&gt;
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * &lt;p/&gt;
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.
+ */
+public class Sign implements Parcelable {
+
+    /**
+     * Parcelable Creator.
+     */
+<span class="fc" id="L29">    public static final Creator&lt;Sign&gt; CREATOR = new Creator&lt;Sign&gt;() {</span>
+        public Sign createFromParcel(Parcel in) {
+<span class="nc" id="L31">            return new Sign(in);</span>
+        }
+
+        public Sign[] newArray(int size) {
+<span class="nc" id="L35">            return new Sign[size];</span>
+        }
+    };
+
+    private static final int LEARNING_PROGRESS_LOWER_BOUNDARY = -5;
+    private static final int LEARNING_PROGRESS_UPPER_BOUNDARY = 5;
+    private final int id;
+    private final String name;
+    private final String mnemonic;
+    private final String tags;
+    private final String nameLocaleDe;
+    private int learningProgress;
+    private boolean starred;
+
+    /**
+     * Constructor for a sign ('Gebärde'), which has been persisted to the database. Used by the Builder.
+     *
+     * @param id               the database id
+     * @param name             the name, has to be unique within the app
+     * @param nameLocaleDe     the German name
+     * @param mnemonic         the mnemonic ('Eselsbrücke')
+     * @param tags             the tags ('Stichworte') for this sign. In the database, up to three tags are allowed. They are concatenated for displaying purposes.
+     * @param starred          whether the user has starred this sign (added to his favorites)
+     * @param learningProgress the learning progress for this sign. Must not be &lt; -5 or &gt; 5
+     */
+<span class="fc" id="L60">    private Sign(int id, String name, String nameLocaleDe, String mnemonic, String tags, boolean starred, int learningProgress) {</span>
+<span class="fc" id="L61">        validateParameters(name, nameLocaleDe, mnemonic, tags, learningProgress);</span>
+<span class="fc" id="L62">        this.id = id;</span>
+<span class="fc" id="L63">        this.name = name;</span>
+<span class="fc" id="L64">        this.nameLocaleDe = nameLocaleDe;</span>
+<span class="fc" id="L65">        this.mnemonic = mnemonic;</span>
+<span class="fc" id="L66">        this.tags = tags;</span>
+<span class="fc" id="L67">        this.starred = starred;</span>
+<span class="fc" id="L68">        this.learningProgress = learningProgress;</span>
+<span class="fc" id="L69">    }</span>
+
+    /**
+     * Constructor for a sign which has been parcelled.
+     *
+     * @param in an Android parcel.
+     */
+<span class="nc" id="L76">    private Sign(Parcel in) {</span>
+<span class="nc" id="L77">        this.id = in.readInt();</span>
+<span class="nc" id="L78">        this.name = in.readString();</span>
+<span class="nc" id="L79">        this.nameLocaleDe = in.readString();</span>
+<span class="nc" id="L80">        this.mnemonic = in.readString();</span>
+<span class="nc" id="L81">        this.tags = in.readString();</span>
+<span class="nc" id="L82">        this.starred = (boolean) in.readValue(getClass().getClassLoader());</span>
+<span class="nc" id="L83">        this.learningProgress = in.readInt();</span>
+<span class="nc" id="L84">    }</span>
+
+    private void validateParameters(String name, String nameLocaleDe, String mnemonic, String tags, int learningProgress) {
+<span class="fc" id="L87">        Validate.notNull(name, &quot;Name must not be null&quot;);</span>
+<span class="fc" id="L88">        Validate.notBlank(name, &quot;Name must not be empty.&quot;);</span>
+<span class="fc" id="L89">        Validate.notNull(nameLocaleDe, &quot;NameLocaleDe must not be null&quot;);</span>
+<span class="fc" id="L90">        Validate.notBlank(nameLocaleDe, &quot;NameLocaleDe must not be empty.&quot;);</span>
+<span class="fc" id="L91">        Validate.notNull(mnemonic, &quot;Mnemonic must not be null&quot;);</span>
+<span class="fc" id="L92">        Validate.notBlank(mnemonic, &quot;Mnemonic must not be empty.&quot;);</span>
+<span class="fc" id="L93">        Validate.notBlank(tags, &quot;Tags must not be empty.&quot;);</span>
+<span class="fc" id="L94">        Validate.inclusiveBetween(LEARNING_PROGRESS_LOWER_BOUNDARY, LEARNING_PROGRESS_UPPER_BOUNDARY, learningProgress, &quot;Learning progress cannot be &lt; -5 or &gt; 5&quot;);</span>
+<span class="fc" id="L95">    }</span>
+
+    public int getId() {
+<span class="nc" id="L98">        return this.id;</span>
+    }
+
+    public String getName() {
+<span class="fc" id="L102">        return this.name;</span>
+    }
+
+    public String getNameLocaleDe() {
+<span class="fc" id="L106">        return this.nameLocaleDe;</span>
+    }
+
+    public boolean isStarred() {
+<span class="fc" id="L110">        return starred;</span>
+    }
+
+    public void setStarred(boolean starred) {
+<span class="nc" id="L114">        this.starred = starred;</span>
+<span class="nc" id="L115">    }</span>
+
+    public int getLearningProgress() {
+<span class="fc" id="L118">        return learningProgress;</span>
+    }
+
+    public void increaseLearningProgress() {
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (this.learningProgress &lt; LEARNING_PROGRESS_UPPER_BOUNDARY) {</span>
+<span class="nc" id="L123">            this.learningProgress++;</span>
+        }
+<span class="nc" id="L125">    }</span>
+
+    public void decreaseLearningProgress() {
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        if (this.learningProgress &gt; LEARNING_PROGRESS_LOWER_BOUNDARY) {</span>
+<span class="nc" id="L129">            this.learningProgress--;</span>
+        }
+<span class="nc" id="L131">    }</span>
+
+    public String getMnemonic() {
+<span class="fc" id="L134">        return mnemonic;</span>
+    }
+
+    public String getTags() {
+<span class="nc" id="L138">        return tags;</span>
+    }
+
+    @Override
+    public boolean equals(Object o) {
+<span class="fc bfc" id="L143" title="All 2 branches covered.">        if (this == o) return true;</span>
+<span class="pc bpc" id="L144" title="2 of 4 branches missed.">        if (o == null || getClass() != o.getClass()) return false;</span>
+<span class="fc" id="L145">        Sign sign = (Sign) o;</span>
+<span class="fc" id="L146">        return name.equals(sign.name);</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="nc" id="L151">        return name.hashCode();</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="nc" id="L156">        return &quot;Sign{&quot; +</span>
+                &quot;id=&quot; + id +
+                &quot;, name='&quot; + name + '\'' +
+                &quot;, nameLocaleDe='&quot; + nameLocaleDe + '\'' +
+                &quot;, mnemonic='&quot; + mnemonic + '\'' +
+                &quot;, tags='&quot; + tags + '\'' +
+                &quot;, starred=&quot; + starred +
+                &quot;, learningProgress=&quot; + learningProgress +
+                '}';
+    }
+
+    @Override
+    public int describeContents() {
+<span class="nc" id="L169">        return 0;</span>
+    }
+
+    @Override
+    public void writeToParcel(Parcel out, int flags) {
+<span class="nc" id="L174">        out.writeInt(this.id);</span>
+<span class="nc" id="L175">        out.writeString(this.name);</span>
+<span class="nc" id="L176">        out.writeString(this.nameLocaleDe);</span>
+<span class="nc" id="L177">        out.writeString(this.mnemonic);</span>
+<span class="nc" id="L178">        out.writeString(this.tags);</span>
+<span class="nc" id="L179">        out.writeValue(this.starred);</span>
+<span class="nc" id="L180">        out.writeInt(this.learningProgress);</span>
+<span class="nc" id="L181">    }</span>
+
+
+<span class="fc" id="L184">    public static class Builder {</span>
+<span class="fc" id="L185">        private int id = 0;</span>
+        private String name;
+        private String nameLocaleDe;
+        private String mnemonic;
+        private String tags;
+<span class="fc" id="L190">        private boolean starred = false;</span>
+<span class="fc" id="L191">        private int learningProgress = 0;</span>
+
+        public Builder setId(int id) {
+<span class="fc" id="L194">            this.id = id;</span>
+<span class="fc" id="L195">            return this;</span>
+        }
+
+        public Builder setName(String name) {
+<span class="fc" id="L199">            this.name = name;</span>
+<span class="fc" id="L200">            return this;</span>
+        }
+
+        public Builder setNameLocaleDe(String nameLocaleDe) {
+<span class="fc" id="L204">            this.nameLocaleDe = nameLocaleDe;</span>
+<span class="fc" id="L205">            return this;</span>
+        }
+
+        public Builder setMnemonic(String mnemonic) {
+<span class="fc" id="L209">            this.mnemonic = mnemonic;</span>
+<span class="fc" id="L210">            return this;</span>
+        }
+
+        public Builder setTags(String tags) {
+<span class="fc" id="L214">            this.tags = tags;</span>
+<span class="fc" id="L215">            return this;</span>
+        }
+
+        public Builder setStarred(boolean starred) {
+<span class="fc" id="L219">            this.starred = starred;</span>
+<span class="fc" id="L220">            return this;</span>
+        }
+
+        public Builder setLearningProgress(int learningProgress) {
+<span class="fc" id="L224">            this.learningProgress = learningProgress;</span>
+<span class="fc" id="L225">            return this;</span>
+        }
+
+        public Sign create() {
+<span class="fc" id="L229">            return new Sign(id, name, nameLocaleDe, mnemonic, tags, starred, learningProgress);</span>
+        }
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

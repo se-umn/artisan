@@ -1,0 +1,137 @@
+package fifthelement.theelement.objects;
+
+import org.junit.Before;
+import androidx.test.core.app.ApplicationProvider;
+import org.junit.Test;
+import java.io.File;
+import fifthelement.theelement.utils.TestDatabaseUtil;
+
+public class Test4098 {
+
+    /**
+     * Generated from /home/mattia/Research/AndroidCarving/action-based-test-carving/apps-src/FifthElement/traces/fifthelement.theelement.presentation.activities.MusicLibraryTests#deleteSongTest/Trace-1650046535485.txt
+     * Method invocation under test: <fifthelement.theelement.objects.Song: fifthelement.theelement.objects.Author getAuthor()>_1228_2455
+     */
+    @Test(timeout = 4000)
+    public void test_fifthelement_theelement_objects_Song_getAuthor_052() throws Exception {
+        File tempDB = TestDatabaseUtil.copyDB();
+        fifthelement.theelement.objects.Song song4519 = null;
+        fifthelement.theelement.objects.Author author4625 = null;
+        fifthelement.theelement.objects.Album album2157 = null;
+        fifthelement.theelement.objects.Author author4626 = null;
+        fifthelement.theelement.objects.Song song4520 = null;
+        fifthelement.theelement.objects.Song song4521 = null;
+        fifthelement.theelement.objects.Author author4627 = null;
+        java.util.UUID.fromString("067e6162-3b6f-4ae2-a171-2470b63dff00");
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("123e4567-e89b-12d3-a456-556642440000");
+        java.util.UUID.fromString("54947df8-0e9e-4471-a2f9-9af509fb5889");
+        java.util.UUID.fromString("7dc53df5-703e-49b3-8670-b1c468f47f1f");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.randomUUID();
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("067e6162-3b6f-4ae2-a171-2470b63dff00");
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("123e4567-e89b-12d3-a456-556642440000");
+        java.util.UUID.fromString("54947df8-0e9e-4471-a2f9-9af509fb5889");
+        java.util.UUID.fromString("7dc53df5-703e-49b3-8670-b1c468f47f1f");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.randomUUID();
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("067e6162-3b6f-4ae2-a171-2470b63dff00");
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("123e4567-e89b-12d3-a456-556642440000");
+        java.util.UUID.fromString("54947df8-0e9e-4471-a2f9-9af509fb5889");
+        java.util.UUID.fromString("7dc53df5-703e-49b3-8670-b1c468f47f1f");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.randomUUID();
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("067e6162-3b6f-4ae2-a171-2470b63dff00");
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("123e4567-e89b-12d3-a456-556642440000");
+        java.util.UUID.fromString("54947df8-0e9e-4471-a2f9-9af509fb5889");
+        java.util.UUID.fromString("7dc53df5-703e-49b3-8670-b1c468f47f1f");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.randomUUID();
+        java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID uuid27442 = java.util.UUID.fromString("067e6162-3b6f-4ae2-a171-2470b63dff00");
+        java.util.UUID uuid27443 = java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        author4625 = new fifthelement.theelement.objects.Author(uuid27443, "");
+        song4521 = new fifthelement.theelement.objects.Song(uuid27442, "This Is America", "android.resource://fifthelement.theelement/raw/childish_gambino_this_is_america", author4625, album2157, "Hiphop", 3, 1.5);
+        java.util.UUID uuid27444 = java.util.UUID.fromString("123e4567-e89b-12d3-a456-556642440000");
+        song4519 = new fifthelement.theelement.objects.Song(uuid27444, "Hall of Fame", "android.resource://fifthelement.theelement/raw/hall_of_fame", author4626, album2157, "", 3, 4.5);
+        java.util.UUID uuid27445 = java.util.UUID.fromString("54947df8-0e9e-4471-a2f9-9af509fb5889");
+        song4520 = new fifthelement.theelement.objects.Song(uuid27445, "Classical Music", "android.resource://fifthelement.theelement/raw/classical_music", author4626, album2157, "Classical", 4, 2.0);
+        java.util.UUID.fromString("7dc53df5-703e-49b3-8670-b1c468f47f1f");
+        java.util.UUID.fromString("359f9962-7a89-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.fromString("c8fe0546-7a88-11e8-adc0-fa7ae01bbebc");
+        java.util.UUID.randomUUID();
+        song4521.getAuthor();
+        fifthelement.theelement.objects.Author author4629 = song4521.getAuthor();
+        author4629.getUUID();
+        java.util.UUID uuid27451 = java.util.UUID.fromString("e9bcb1b6-7b3b-11e8-adc0-fa7ae01bbebc");
+        author4627 = new fifthelement.theelement.objects.Author(uuid27451, "Childish Gambino", 3);
+        song4521.setAuthor(author4627);
+        song4521.getAlbum();
+        song4519.getAuthor();
+        song4519.getAlbum();
+        song4520.getAuthor();
+        song4520.getAlbum();
+        song4519.compareTo(song4521);
+        song4520.compareTo(song4519);
+        song4520.getName();
+        song4520.getAuthor();
+        song4520.getName();
+        song4519.getAuthor();
+        song4519.getName();
+        fifthelement.theelement.objects.Author author4634 = song4521.getAuthor();
+        author4634.getName();
+        song4521.getName();
+        song4520.getAuthor();
+        song4520.getName();
+        song4519.getAuthor();
+        song4519.getName();
+        fifthelement.theelement.objects.Author author4637 = song4521.getAuthor();
+        author4637.getName();
+        song4521.getName();
+        song4520.getAuthor();
+        song4520.getName();
+        song4519.getAuthor();
+        song4519.getName();
+        fifthelement.theelement.objects.Author author4640 = song4521.getAuthor();
+        author4640.getName();
+        song4521.getName();
+        song4520.getAuthor();
+        song4520.getName();
+        song4519.getAuthor();
+        song4519.getName();
+        fifthelement.theelement.objects.Author author4643 = song4521.getAuthor();
+        author4643.getName();
+        song4521.getName();
+        song4520.getAuthor();
+        song4520.getName();
+        song4519.getAuthor();
+        song4519.getName();
+        song4520.getAuthor();
+    }
+}

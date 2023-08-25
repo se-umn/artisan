@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DrawerService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.presentation.services</a> &gt; <span class="el_source">DrawerService.java</span></div><h1>DrawerService.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.presentation.services;
+
+import android.support.design.widget.NavigationView;
+import android.support.v4.app.Fragment;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
+import android.view.MenuItem;
+
+import fifthelement.theelement.R;
+import fifthelement.theelement.application.Helpers;
+import fifthelement.theelement.presentation.fragments.HomeFragment;
+import fifthelement.theelement.presentation.fragments.PlaylistListFragment;
+import fifthelement.theelement.presentation.fragments.SearchFragment;
+import fifthelement.theelement.presentation.fragments.SettingFragment;
+import fifthelement.theelement.presentation.fragments.SongListFragment;
+
+public class DrawerService {
+    AppCompatActivity application;
+    private NavigationView nvDrawer;
+    private DrawerLayout mDrawer;
+
+    private static final String LOG_TAG = &quot;DrawerService&quot;;
+
+<span class="fc" id="L25">    public DrawerService(AppCompatActivity application) {</span>
+<span class="fc" id="L26">        this.application = application;</span>
+<span class="fc" id="L27">        nvDrawer = application.findViewById(R.id.nvView);</span>
+<span class="fc" id="L28">        mDrawer = application.findViewById(R.id.drawer_layout);</span>
+<span class="fc" id="L29">        setupDrawerContent(nvDrawer);</span>
+<span class="fc" id="L30">    }</span>
+
+    public void setupDrawerContent(NavigationView navigationView) {
+<span class="fc" id="L33">        navigationView.setNavigationItemSelectedListener(</span>
+<span class="fc" id="L34">                new NavigationView.OnNavigationItemSelectedListener() {</span>
+                    @Override
+                    public boolean onNavigationItemSelected(MenuItem menuItem) {
+<span class="fc" id="L37">                        selectDrawerItem(menuItem);</span>
+<span class="fc" id="L38">                        return true;</span>
+                    }
+                });
+<span class="fc" id="L41">    }</span>
+
+    public void selectDrawerItem(MenuItem menuItem) {
+        // Create a new fragment and specify the fragment to show based on nav item clicked
+<span class="fc" id="L45">        Fragment fragment = null;</span>
+<span class="fc" id="L46">        Class fragmentClass = null;</span>
+<span class="pc bpc" id="L47" title="4 of 5 branches missed.">        switch(menuItem.getItemId()) {</span>
+            case R.id.home_page:
+<span class="nc" id="L49">                fragmentClass = HomeFragment.class;</span>
+<span class="nc" id="L50">                break;</span>
+            case R.id.playlist_list:
+<span class="nc" id="L52">                fragmentClass = PlaylistListFragment.class;</span>
+<span class="nc" id="L53">                break;</span>
+            case R.id.song_list:
+<span class="fc" id="L55">                fragmentClass = SongListFragment.class;</span>
+<span class="fc" id="L56">                break;</span>
+            case R.id.search_view_fragment:
+<span class="nc" id="L58">                fragmentClass = SearchFragment.class;</span>
+<span class="nc" id="L59">                break;</span>
+            default:
+<span class="nc" id="L61">                fragmentClass = SettingFragment.class;</span>
+                break;
+        }
+
+        try {
+<span class="fc" id="L66">            fragment = (Fragment) fragmentClass.newInstance();</span>
+<span class="nc" id="L67">        } catch (Exception e) {</span>
+<span class="nc" id="L68">            Log.e(LOG_TAG, e.getMessage());</span>
+<span class="fc" id="L69">        }</span>
+
+<span class="fc" id="L71">        Helpers.getFragmentHelper(application).createFragment(R.id.flContent, fragment);</span>
+
+        // Highlight the selected item has been done by NavigationView
+<span class="fc" id="L74">        menuItem.setChecked(true);</span>
+        // Set action bar title
+<span class="fc" id="L76">        application.setTitle(menuItem.getTitle());</span>
+        // Close the navigation drawer
+<span class="fc" id="L78">        mDrawer.closeDrawers();</span>
+<span class="fc" id="L79">    }</span>
+
+    public DrawerLayout getmDrawer() {
+<span class="fc" id="L82">        return mDrawer;</span>
+    }
+
+    public long getApplicationHashCode() {
+<span class="nc" id="L86">        return application.hashCode();</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

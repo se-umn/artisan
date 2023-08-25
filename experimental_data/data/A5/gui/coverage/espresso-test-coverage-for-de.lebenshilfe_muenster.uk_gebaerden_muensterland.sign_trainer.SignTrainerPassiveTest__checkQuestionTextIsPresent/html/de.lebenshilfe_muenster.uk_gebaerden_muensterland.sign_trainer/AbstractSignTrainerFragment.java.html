@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AbstractSignTrainerFragment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_trainer</a> &gt; <span class="el_source">AbstractSignTrainerFragment.java</span></div><h1>AbstractSignTrainerFragment.java</h1><pre class="source lang-java linenums">package de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_trainer;
+
+import android.app.Activity;
+import android.content.Context;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.View;
+import android.widget.Button;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import android.widget.VideoView;
+
+import org.apache.commons.lang3.Validate;
+
+import java.text.DecimalFormat;
+
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.R;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.Sign;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.database.SignDAO;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_video_view.AbstractSignVideoFragment;
+import de.lebenshilfe_muenster.uk_gebaerden_muensterland.sign_video_view.VideoSetupException;
+
+/**
+ * Copyright (c) 2016 Matthias Tonhäuser
+ * &lt;p/&gt;
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * &lt;p/&gt;
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * &lt;p/&gt;
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.
+ */
+@SuppressWarnings(&quot;WeakerAccess&quot;)
+<span class="fc" id="L43">public abstract class AbstractSignTrainerFragment extends AbstractSignVideoFragment {</span>
+    protected static final String KEY_CURRENT_SIGN = &quot;KEY_CURRENT_SIGN&quot;;
+    private static final boolean INTERRUPT_IF_RUNNING = true;
+    protected static final String KEY_ANSWER_VISIBLE = &quot;KEY_ANSWER_VISIBLE&quot;;
+<span class="fc" id="L47">    private static final String TAG = AbstractSignTrainerFragment.class.getSimpleName();</span>
+<span class="fc" id="L48">    protected Sign currentSign = null;</span>
+    protected TextView signAnswerTextView;
+    protected TextView signMnemonicTextView;
+    protected TextView signLearningProgressTextView;
+    protected TextView signHowHardWasQuestionTextView;
+    protected TextView signTrainerExplanationTextView;
+    protected TextView signTrainerExceptionMessageTextView;
+    protected Button questionWasEasyButton;
+    protected Button questionWasFairButton;
+    protected Button questionWasHardButton;
+    protected TextView signQuestionText;
+    protected View[] questionViews;
+    protected View[] answerViews;
+    protected View[] exceptionViews;
+    protected Button solveQuestionButton;
+    protected LoadRandomSignTask loadRandomSignTask;
+
+<span class="fc" id="L65">    protected OnToggleLearningModeListener onToggleLearningModeListener = null;</span>
+
+    @SuppressWarnings(&quot;deprecation&quot;) // necessary for API 15!
+    @Override
+    public void onAttach(Activity activity) {
+<span class="fc" id="L70">        Log.d(TAG, &quot;onAttach &quot; + hashCode());</span>
+<span class="fc" id="L71">        super.onAttach(activity);</span>
+        try {
+<span class="fc" id="L73">            this.onToggleLearningModeListener = (OnToggleLearningModeListener) activity;</span>
+<span class="nc" id="L74">        } catch (ClassCastException ex) {</span>
+<span class="nc" id="L75">            throw new ClassCastException(activity.toString()</span>
+                    + &quot; must implement OnToggleLearningModeListener&quot;);
+<span class="fc" id="L77">        }</span>
+<span class="fc" id="L78">    }</span>
+
+    @Override
+    public void onStart() {
+<span class="fc" id="L82">        Log.d(AbstractSignTrainerFragment.TAG, &quot;onStart &quot; + hashCode());</span>
+<span class="fc" id="L83">        super.onStart();</span>
+<span class="fc" id="L84">    }</span>
+
+    @Override
+    public void onPause() {
+<span class="fc" id="L88">        Log.d(AbstractSignTrainerFragment.TAG, &quot;onPause &quot; + hashCode());</span>
+<span class="pc bpc" id="L89" title="1 of 2 branches missed.">        if (null != this.loadRandomSignTask) {</span>
+<span class="fc" id="L90">            final AsyncTask.Status status = this.loadRandomSignTask.getStatus();</span>
+<span class="pc bpc" id="L91" title="2 of 4 branches missed.">            if (status.equals(AsyncTask.Status.PENDING) || status.equals(AsyncTask.Status.RUNNING)) {</span>
+<span class="nc" id="L92">                this.loadRandomSignTask.cancel(INTERRUPT_IF_RUNNING);</span>
+            }
+        }
+<span class="fc" id="L95">        super.onPause();</span>
+<span class="fc" id="L96">    }</span>
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+<span class="fc" id="L100">        Log.d(TAG, &quot;onCreateOptionsMenu &quot; + hashCode());</span>
+<span class="fc" id="L101">        inflater.inflate(R.menu.options_sign_trainer, menu);</span>
+<span class="fc" id="L102">    }</span>
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+<span class="nc" id="L106">        Log.d(AbstractSignTrainerFragment.TAG, &quot;onSaveInstance &quot; + hashCode());</span>
+<span class="nc" id="L107">        super.onSaveInstanceState(outState);</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        if (null != this.answerViews) {</span>
+<span class="nc" id="L109">            Validate.notEmpty(this.answerViews, &quot;AnswerViews should always contain at least one view!&quot;);</span>
+<span class="nc bnc" id="L110" title="All 2 branches missed.">            final boolean answerVisible = View.VISIBLE == this.answerViews[0].getVisibility();</span>
+<span class="nc" id="L111">            outState.putBoolean(KEY_ANSWER_VISIBLE, answerVisible);</span>
+<span class="nc" id="L112">        } else {</span>
+<span class="nc" id="L113">            outState.putBoolean(KEY_ANSWER_VISIBLE, Boolean.FALSE);</span>
+        }
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        if (null != this.currentSign) {</span>
+<span class="nc" id="L116">            outState.putParcelable(KEY_CURRENT_SIGN, this.currentSign);</span>
+        }
+<span class="nc" id="L118">    }</span>
+
+    protected void initializeAnswerViews(View view) {
+<span class="fc" id="L121">        this.signAnswerTextView = (TextView) view.findViewById(R.id.signTrainerAnswer);</span>
+<span class="fc" id="L122">        this.signMnemonicTextView = (TextView) view.findViewById(R.id.signTrainerMnemonic);</span>
+<span class="fc" id="L123">        this.signLearningProgressTextView = (TextView) view.findViewById(R.id.signTrainerLearningProgress);</span>
+<span class="fc" id="L124">        this.signHowHardWasQuestionTextView = (TextView) view.findViewById(R.id.signTrainerHowHardWasTheQuestion);</span>
+<span class="fc" id="L125">        this.signTrainerExplanationTextView = (TextView) view.findViewById(R.id.signTrainerExplanation);</span>
+<span class="fc" id="L126">        this.questionWasEasyButton = (Button) view.findViewById(R.id.signTrainerEasyButton);</span>
+<span class="fc" id="L127">        this.questionWasEasyButton.setOnClickListener(new View.OnClickListener() {</span>
+            @Override
+            public void onClick(View v) {
+<span class="nc" id="L130">                handleClickOnQuestionWasEasyButton();</span>
+<span class="nc" id="L131">            }</span>
+        });
+<span class="fc" id="L133">        this.questionWasFairButton = (Button) view.findViewById(R.id.signTrainerFairButton);</span>
+<span class="fc" id="L134">        this.questionWasFairButton.setOnClickListener(new View.OnClickListener() {</span>
+            @Override
+            public void onClick(View v) {
+<span class="nc" id="L137">                handleClickOnQuestionWasFairButton();</span>
+<span class="nc" id="L138">            }</span>
+        });
+<span class="fc" id="L140">        this.questionWasHardButton = (Button) view.findViewById(R.id.signTrainerHardButton);</span>
+<span class="fc" id="L141">        this.questionWasHardButton.setOnClickListener(new View.OnClickListener() {</span>
+            @Override
+            public void onClick(View v) {
+<span class="nc" id="L144">                handleClickOnQuestionWasHardButton();</span>
+<span class="nc" id="L145">            }</span>
+        });
+<span class="fc" id="L147">    }</span>
+
+    protected void initializeQuestionViews(View view ) {
+<span class="fc" id="L150">        this.signQuestionText = (TextView) view.findViewById(R.id.signTrainerQuestionText);</span>
+<span class="fc" id="L151">        this.solveQuestionButton = (Button) view.findViewById(R.id.signTrainerSolveQuestionButton);</span>
+<span class="fc" id="L152">        this.solveQuestionButton.setOnClickListener(new View.OnClickListener() {</span>
+            @Override
+            public void onClick(View v) {
+<span class="nc" id="L155">                handleClickOnSolveQuestionButton();</span>
+<span class="nc" id="L156">            }</span>
+        });
+<span class="fc" id="L158">    }</span>
+
+    protected void initializeExceptionViews(View view) {
+<span class="fc" id="L161">        this.signTrainerExceptionMessageTextView = (TextView) view.findViewById(R.id.signTrainerExceptionMessage);</span>
+<span class="fc" id="L162">    }</span>
+
+    protected void initializeVideoViews(View view) {
+<span class="fc" id="L165">        this.videoView = (VideoView) view.findViewById(R.id.signTrainerVideoView);</span>
+<span class="fc" id="L166">        this.videoView.setContentDescription(getActivity().getString(R.string.videoIsLoading));</span>
+<span class="fc" id="L167">        this.progressBar = (ProgressBar) view.findViewById(R.id.signTrainerVideoLoadingProgressBar);</span>
+<span class="fc" id="L168">    }</span>
+
+    protected void setAnswerTextViews() {
+<span class="nc" id="L171">        this.signAnswerTextView.setText(this.currentSign.getNameLocaleDe());</span>
+<span class="nc" id="L172">        this.signMnemonicTextView.setText(this.currentSign.getMnemonic());</span>
+<span class="nc" id="L173">        final DecimalFormat decimalFormat = new DecimalFormat(&quot; 0;-0&quot;);</span>
+<span class="nc" id="L174">        this.signLearningProgressTextView.setText(String.format(getString(R.string.learningProgress), decimalFormat.format(this.currentSign.getLearningProgress())));</span>
+<span class="nc" id="L175">        this.signHowHardWasQuestionTextView.setText(getString(R.string.howHardWasTheQuestion));</span>
+<span class="nc" id="L176">        this.signTrainerExplanationTextView.setText(getString(R.string.signTrainerExplanation));</span>
+<span class="nc" id="L177">    }</span>
+
+    protected void setQuestionTextViews(String questionText) {
+<span class="fc" id="L180">        this.signQuestionText.setText(questionText);</span>
+<span class="fc" id="L181">    }</span>
+
+    private void handleClickOnQuestionWasEasyButton() {
+<span class="nc" id="L184">        Log.d(TAG, &quot;handleClickOnQuestionWasEasyButton &quot; + hashCode());</span>
+<span class="nc" id="L185">        this.currentSign.increaseLearningProgress();</span>
+<span class="nc" id="L186">        new UpdateLearningProgressTask(getActivity()).execute(this.currentSign);</span>
+<span class="nc" id="L187">        new LoadRandomSignTask(getActivity()).execute(this.currentSign);</span>
+<span class="nc" id="L188">    }</span>
+
+    private void handleClickOnQuestionWasFairButton() {
+<span class="nc" id="L191">        Log.d(TAG, &quot;handleClickOnQuestionWasFairButton &quot; + hashCode());</span>
+<span class="nc" id="L192">        new LoadRandomSignTask(getActivity()).execute(this.currentSign);</span>
+<span class="nc" id="L193">    }</span>
+
+    private void handleClickOnQuestionWasHardButton() {
+<span class="nc" id="L196">        Log.d(TAG, &quot;handleClickOnQuestionWasHardButton &quot; + hashCode());</span>
+<span class="nc" id="L197">        this.currentSign.decreaseLearningProgress();</span>
+<span class="nc" id="L198">        new UpdateLearningProgressTask(getActivity()).execute(this.currentSign);</span>
+<span class="nc" id="L199">        new LoadRandomSignTask(getActivity()).execute(this.currentSign);</span>
+<span class="nc" id="L200">    }</span>
+
+    protected void setVisibility(View[] views, int visibility) {
+<span class="fc" id="L203">        Validate.notNull(views, &quot;View array is null!&quot;);</span>
+<span class="pc bpc" id="L204" title="2 of 6 branches missed.">        if (View.VISIBLE != visibility &amp;&amp; View.INVISIBLE != visibility &amp;&amp; View.GONE != visibility) {</span>
+<span class="nc" id="L205">            throw new IllegalArgumentException(&quot;Visibility can either be View.VISIBLE, VIEW.INVISIBLE or View.GONE, but was: &quot; + visibility);</span>
+        }
+<span class="fc bfc" id="L207" title="All 2 branches covered.">        for (View view : views) {</span>
+<span class="fc" id="L208">            view.setVisibility(visibility);</span>
+        }
+<span class="fc" id="L210">    }</span>
+
+
+    protected abstract void handleClickOnSolveQuestionButton();
+
+    protected abstract void handleLoadRandomSignTaskOnPostExecute();
+
+    protected abstract void handleVideoCouldNotBeLoaded(VideoSetupException videoSetupException);
+
+    /**
+     * Has to be implemented by parent activity.
+     */
+    public interface OnToggleLearningModeListener {
+        void toggleLearningMode(LearningMode learningMode);
+
+<span class="fc" id="L225">        enum LearningMode {</span>
+<span class="fc" id="L226">            ACTIVE, PASSIVE</span>
+        }
+    }
+
+    /**
+     * Reads a random sign from the database. Will return null if the task is cancelled. The current
+     * sign can be provided as a parameter or be null, if there is no current sign.
+     */
+    protected class LoadRandomSignTask extends AsyncTask&lt;Sign, Void, Sign&gt; {
+
+        private final Context context;
+
+<span class="fc" id="L238">        public LoadRandomSignTask(Context context) {</span>
+<span class="fc" id="L239">            this.context = context;</span>
+<span class="fc" id="L240">        }</span>
+
+        @Override
+        protected Sign doInBackground(Sign... params) {
+<span class="fc" id="L244">            Log.d(LoadRandomSignTask.class.getSimpleName(), &quot;doInBackground &quot; + hashCode());</span>
+<span class="fc" id="L245">            Validate.inclusiveBetween(0, 1, params.length, &quot;Only null or one sign as a parameter allowed.&quot;);</span>
+<span class="pc bpc" id="L246" title="1 of 2 branches missed.">            if (isCancelled()) {</span>
+<span class="nc" id="L247">                return null;</span>
+            }
+<span class="fc" id="L249">            final SignDAO signDAO = SignDAO.getInstance(this.context);</span>
+<span class="fc" id="L250">            signDAO.open();</span>
+            Sign sign;
+<span class="pc bpc" id="L252" title="2 of 4 branches missed.">            if (1 == params.length &amp;&amp; null != params[0]) { // current sign provided via parameters</span>
+<span class="nc" id="L253">                sign = signDAO.readRandomSign(params[0]);</span>
+            } else {
+<span class="fc" id="L255">                sign = signDAO.readRandomSign(null);</span>
+            }
+<span class="fc" id="L257">            signDAO.close();</span>
+<span class="fc" id="L258">            return sign;</span>
+        }
+
+
+        @Override
+        protected void onPostExecute(Sign result) {
+<span class="fc" id="L264">            Log.d(LoadRandomSignTask.class.getSimpleName(), &quot;onPostExecute &quot; + hashCode());</span>
+<span class="pc bpc" id="L265" title="1 of 2 branches missed.">            if (null == result) {</span>
+<span class="nc" id="L266">                AbstractSignTrainerFragment.this.signQuestionText.setText(R.string.noSignWasFound);</span>
+            } else {
+<span class="fc" id="L268">                AbstractSignTrainerFragment.this.currentSign = result;</span>
+<span class="fc" id="L269">                handleLoadRandomSignTaskOnPostExecute();</span>
+            }
+<span class="fc" id="L271">        }</span>
+
+    }
+
+    /**
+     * Update the learning progress for a sign in the database.
+     */
+    private class UpdateLearningProgressTask extends AsyncTask&lt;Sign, Void, Void&gt; {
+
+        private final Context context;
+
+<span class="nc" id="L282">        public UpdateLearningProgressTask(Context context) {</span>
+<span class="nc" id="L283">            this.context = context;</span>
+<span class="nc" id="L284">        }</span>
+
+        @Override
+        protected Void doInBackground(Sign... params) {
+<span class="nc" id="L288">            Log.d(UpdateLearningProgressTask.class.getSimpleName(), &quot;doInBackground &quot; + hashCode());</span>
+<span class="nc bnc" id="L289" title="All 2 branches missed.">            Validate.isTrue(1 == params.length, &quot;Exactly one sign as a parameter allowed.&quot;);</span>
+<span class="nc" id="L290">            final SignDAO signDAO = SignDAO.getInstance(this.context);</span>
+<span class="nc" id="L291">            signDAO.open();</span>
+<span class="nc" id="L292">            signDAO.update(params[0]);</span>
+<span class="nc" id="L293">            signDAO.close();</span>
+<span class="nc" id="L294">            return null;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FilterRuleProvider.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker.sql</a> &gt; <span class="el_source">FilterRuleProvider.java</span></div><h1>FilterRuleProvider.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker.sql;
+
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.database.SQLException;
+import android.database.sqlite.SQLiteDatabase;
+import android.util.Log;
+
+import com.prismaqf.callblocker.rules.FilterRule;
+
+import java.util.ArrayList;
+
+/**
+ * @author ConteDiMonteCristo
+ */
+<span class="nc" id="L16">public class FilterRuleProvider {</span>
+<span class="fc" id="L17">    private static final String TAG = FilterRuleProvider.class.getCanonicalName();</span>
+
+
+    /**
+     * Insert a FilterRule and the associated FilterPattern objects
+     * @param db the SQLite connection
+     * @param fr the filter rule
+     * @return the rule id
+     */
+    public static synchronized long InsertRow(SQLiteDatabase db, FilterRule fr) {
+        //the behaviour should be transactional, i.e. both insertion in filterrules
+        //and filterpatterns should happen or everything should be unwound.
+        //Hence the try-catch
+<span class="fc" id="L30">        long ruleId=-1;</span>
+        try {
+<span class="fc" id="L32">            ContentValues vals = new ContentValues();</span>
+<span class="fc" id="L33">            vals.put(DbContract.FilterRules.COLUMN_NAME_RULENAME,fr.getName());</span>
+<span class="pc bpc" id="L34" title="1 of 2 branches missed.">            if (fr.getDescription()!=null)</span>
+<span class="fc" id="L35">                vals.put(DbContract.FilterRules.COLUMN_NAME_DESCRIPTION,fr.getDescription());</span>
+<span class="fc" id="L36">            ruleId = db.insert(DbContract.FilterRules.TABLE_NAME,DbContract.FilterRules.COLUMN_NAME_DESCRIPTION,vals);</span>
+<span class="fc bfc" id="L37" title="All 2 branches covered.">            for (String regex: fr.getPatternKeys()) {</span>
+<span class="fc" id="L38">                vals = new ContentValues();</span>
+<span class="fc" id="L39">                vals.put(DbContract.FilterPatterns.COLUMN_NAME_RULEID,ruleId);</span>
+<span class="fc" id="L40">                vals.put(DbContract.FilterPatterns.COLUMN_NAME_PATTERN,regex);</span>
+<span class="fc" id="L41">                db.insert(DbContract.FilterPatterns.TABLE_NAME,null,vals);</span>
+<span class="fc" id="L42">            }</span>
+<span class="nc" id="L43">        } catch (SQLException e) {</span>
+<span class="nc" id="L44">            Log.e(TAG, e.getMessage());</span>
+<span class="nc" id="L45">            String where = DbContract.FilterPatterns.COLUMN_NAME_RULEID + &quot; = ?&quot;;</span>
+<span class="nc" id="L46">            String[] args = {String.valueOf(ruleId)};</span>
+<span class="nc" id="L47">            db.delete(DbContract.FilterPatterns.TABLE_NAME,where,args);</span>
+<span class="nc" id="L48">            where = DbContract.FilterRules._ID + &quot; = ?&quot;;</span>
+<span class="nc" id="L49">            db.delete(DbContract.FilterRules.TABLE_NAME,where,args);</span>
+<span class="fc" id="L50">        }</span>
+
+<span class="fc" id="L52">        return ruleId;</span>
+    }
+
+    /**
+     * Return all filter rules
+     * @param db the SQlite connection
+     * @return a list of FilterRules
+     */
+    public static synchronized ArrayList&lt;FilterRule&gt; AllFilterRules(SQLiteDatabase db) {
+<span class="nc" id="L61">        ArrayList&lt;FilterRule&gt; rules = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L62">        Cursor c1 = db.query(DbContract.FilterRules.TABLE_NAME, null, null, null, null, null, null, null);</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">        while (c1.moveToNext()) {</span>
+<span class="nc" id="L64">            long ruleid = c1.getLong(c1.getColumnIndexOrThrow(DbContract.FilterRules._ID));</span>
+<span class="nc" id="L65">            String name = c1.getString(c1.getColumnIndexOrThrow(DbContract.FilterRules.COLUMN_NAME_RULENAME));</span>
+<span class="nc" id="L66">            String description = c1.getString(c1.getColumnIndexOrThrow(DbContract.FilterRules.COLUMN_NAME_DESCRIPTION));</span>
+<span class="nc" id="L67">            FilterRule fr = new FilterRule(name,description);</span>
+<span class="nc" id="L68">            String selection = DbContract.FilterPatterns.COLUMN_NAME_RULEID + &quot; = ?&quot;;</span>
+<span class="nc" id="L69">            String[] selectionArgs = { String.valueOf(ruleid) };</span>
+<span class="nc" id="L70">            Cursor c2 = db.query(DbContract.FilterPatterns.TABLE_NAME,null,selection,selectionArgs,null,null,null,null);</span>
+<span class="nc bnc" id="L71" title="All 2 branches missed.">            while (c2.moveToNext()) {</span>
+<span class="nc" id="L72">                String regex = c2.getString(c2.getColumnIndexOrThrow(DbContract.FilterPatterns.COLUMN_NAME_PATTERN));</span>
+<span class="nc" id="L73">                fr.addPattern(regex);</span>
+<span class="nc" id="L74">            }</span>
+<span class="nc" id="L75">            c2.close();</span>
+<span class="nc" id="L76">            rules.add(fr);</span>
+<span class="nc" id="L77">        }</span>
+<span class="nc" id="L78">        c1.close();</span>
+<span class="nc" id="L79">        return rules;</span>
+    }
+
+
+    /**
+     * Return all names of the rule to prevent re-inserting a rule with a given name
+     * @param db the SQLite connection
+     * @return a list of names
+     */
+    public static synchronized ArrayList&lt;String&gt; AllRuleNames(SQLiteDatabase db) {
+<span class="nc" id="L89">        Cursor c = db.query(DbContract.FilterRules.TABLE_NAME, null, null, null, null, null, null, null);</span>
+<span class="nc" id="L90">        ArrayList&lt;String&gt; names = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">        while (c.moveToNext()) {</span>
+<span class="nc" id="L92">            String name = c.getString(c.getColumnIndexOrThrow(DbContract.FilterRules.COLUMN_NAME_RULENAME));</span>
+<span class="nc" id="L93">            names.add(name);</span>
+<span class="nc" id="L94">        }</span>
+<span class="nc" id="L95">        c.close();</span>
+<span class="nc" id="L96">        return names;</span>
+    }
+
+    /**
+     * Update a filter rule by changing name and description and
+     * deleting and reinserting the filter patterns
+     * @param db the SQLite connection
+     * @param ruleId the filter rule identifier
+     * @param fr the filter rule
+     */
+    public static synchronized void UpdateFilterRule(SQLiteDatabase db, long ruleId, FilterRule fr) {
+<span class="nc" id="L107">        ContentValues vals = new ContentValues();</span>
+<span class="nc" id="L108">        vals.put(DbContract.FilterRules.COLUMN_NAME_RULENAME,fr.getName());</span>
+<span class="nc" id="L109">        vals.put(DbContract.FilterRules.COLUMN_NAME_DESCRIPTION,fr.getDescription());</span>
+<span class="nc" id="L110">        String selection = DbContract.FilterRules._ID + &quot; = ?&quot;;</span>
+<span class="nc" id="L111">        String[] selectionArgs = { String.valueOf(ruleId) };</span>
+<span class="nc" id="L112">        db.update(DbContract.FilterRules.TABLE_NAME,vals,selection,selectionArgs);</span>
+        //now delete and reinsert the patterns
+<span class="nc" id="L114">        selection = DbContract.FilterPatterns.COLUMN_NAME_RULEID + &quot; = ?&quot;;</span>
+<span class="nc" id="L115">        db.delete(DbContract.FilterPatterns.TABLE_NAME, selection, selectionArgs);</span>
+<span class="nc bnc" id="L116" title="All 2 branches missed.">        for (String regex: fr.getPatternKeys()) {</span>
+<span class="nc" id="L117">            vals = new ContentValues();</span>
+<span class="nc" id="L118">            vals.put(DbContract.FilterPatterns.COLUMN_NAME_RULEID,ruleId);</span>
+<span class="nc" id="L119">            vals.put(DbContract.FilterPatterns.COLUMN_NAME_PATTERN,regex);</span>
+<span class="nc" id="L120">            db.insert(DbContract.FilterPatterns.TABLE_NAME,null,vals);</span>
+<span class="nc" id="L121">        }</span>
+<span class="nc" id="L122">    }</span>
+
+    /**
+     * Delete a rule by id
+     * @param db the SQlite connection
+     * @param ruleid the rule id
+     */
+    public static synchronized void DeleteFilterRule(SQLiteDatabase db, long ruleid) {
+<span class="fc" id="L130">        String where = DbContract.FilterRules._ID + &quot; = ?&quot;;</span>
+<span class="fc" id="L131">        String[] args = {String.valueOf(ruleid)};</span>
+<span class="fc" id="L132">        db.delete(DbContract.FilterRules.TABLE_NAME, where, args);</span>
+<span class="fc" id="L133">        where = DbContract.FilterPatterns.COLUMN_NAME_RULEID + &quot; = ?&quot;;</span>
+<span class="fc" id="L134">        db.delete(DbContract.FilterPatterns.TABLE_NAME,where,args);</span>
+<span class="fc" id="L135">    }</span>
+
+    /**
+     * Delete a rule by name
+     * @param db the SQlite connection
+     * @param name the rule name
+     */
+    public static synchronized void DeleteFilterRule(SQLiteDatabase db, String name) {
+        //find the rule id
+<span class="fc" id="L144">        String where = DbContract.FilterRules.COLUMN_NAME_RULENAME + &quot; = ?&quot;;</span>
+<span class="fc" id="L145">        String[] args = {name};</span>
+<span class="fc" id="L146">        String[] cols = {DbContract.FilterRules._ID};</span>
+<span class="fc" id="L147">        Cursor c = db.query(DbContract.FilterRules.TABLE_NAME,cols,where,args,null,null,null,null);</span>
+<span class="fc bfc" id="L148" title="All 2 branches covered.">        if (c.getCount()&gt;0) {</span>
+<span class="fc" id="L149">            c.moveToFirst();</span>
+<span class="fc" id="L150">            long ruleId = c.getLong(c.getColumnIndexOrThrow(DbContract.FilterRules._ID));</span>
+<span class="fc" id="L151">            DeleteFilterRule(db, ruleId);</span>
+        }
+<span class="fc" id="L153">        c.close();</span>
+<span class="fc" id="L154">    }</span>
+
+    public static synchronized FilterRule FindFilterRule(SQLiteDatabase db, long ruleid) {
+<span class="fc" id="L157">        String selection = DbContract.FilterRules._ID + &quot; = ?&quot;;</span>
+<span class="fc" id="L158">        String[] selectionArgs = { String.valueOf(ruleid) };</span>
+<span class="fc" id="L159">        Cursor c1 = db.query(DbContract.FilterRules.TABLE_NAME,null,selection,selectionArgs,null,null,null,null);</span>
+<span class="pc bpc" id="L160" title="1 of 2 branches missed.">        if (c1.getCount() &gt;0) {</span>
+<span class="fc" id="L161">            c1.moveToFirst();</span>
+<span class="fc" id="L162">            String name = c1.getString(c1.getColumnIndexOrThrow(DbContract.FilterRules.COLUMN_NAME_RULENAME));</span>
+<span class="fc" id="L163">            String description = c1.getString(c1.getColumnIndexOrThrow(DbContract.FilterRules.COLUMN_NAME_DESCRIPTION));</span>
+<span class="fc" id="L164">            FilterRule fr = new FilterRule(name,description);</span>
+<span class="fc" id="L165">            selection = DbContract.FilterPatterns.COLUMN_NAME_RULEID + &quot; = ?&quot;;</span>
+<span class="fc" id="L166">            Cursor c2 = db.query(DbContract.FilterPatterns.TABLE_NAME,null,selection,selectionArgs,null,null,null,null);</span>
+<span class="fc bfc" id="L167" title="All 2 branches covered.">            while (c2.moveToNext()) {</span>
+<span class="fc" id="L168">                String regex = c2.getString(c2.getColumnIndexOrThrow(DbContract.FilterPatterns.COLUMN_NAME_PATTERN));</span>
+<span class="fc" id="L169">                fr.addPattern(regex);</span>
+<span class="fc" id="L170">            }</span>
+<span class="fc" id="L171">            c1.close();</span>
+<span class="fc" id="L172">            c2.close();</span>
+<span class="fc" id="L173">            return fr;</span>
+        }
+<span class="nc" id="L175">        c1.close();</span>
+<span class="nc" id="L176">        return null;</span>
+    }
+
+    public static synchronized FilterRule FindFilterRule(SQLiteDatabase db, String ruleName) {
+<span class="fc" id="L180">        String where = DbContract.FilterRules.COLUMN_NAME_RULENAME + &quot; = ?&quot;;</span>
+<span class="fc" id="L181">        String[] args = {ruleName};</span>
+<span class="fc" id="L182">        String[] cols = {DbContract.FilterRules._ID};</span>
+<span class="fc" id="L183">        Cursor c = db.query(DbContract.FilterRules.TABLE_NAME, cols, where, args, null, null, null, null);</span>
+<span class="fc bfc" id="L184" title="All 2 branches covered.">        if (c.moveToLast()) {</span>
+<span class="fc" id="L185">            long ruleId = c.getLong(c.getColumnIndexOrThrow(DbContract.FilterRules._ID));</span>
+<span class="fc" id="L186">            c.close();</span>
+<span class="fc" id="L187">            return FindFilterRule(db,ruleId);</span>
+        }
+<span class="fc" id="L189">        c.close();</span>
+<span class="fc" id="L190">        return null;</span>
+    }
+
+    public static synchronized long FindFilterRuleId(SQLiteDatabase db, String ruleName) {
+<span class="nc" id="L194">        String selection = DbContract.FilterRules.COLUMN_NAME_RULENAME + &quot; = ?&quot;;</span>
+<span class="nc" id="L195">        String[] selectionArgs = { ruleName };</span>
+<span class="nc" id="L196">        Cursor c = db.query(DbContract.FilterRules.TABLE_NAME,null,selection,selectionArgs,null,null,null,null);</span>
+<span class="nc bnc" id="L197" title="All 2 branches missed.">        if (c.getCount() &gt;0) {</span>
+<span class="nc" id="L198">            c.moveToLast(); //get the last occurrency (should be only one entry</span>
+<span class="nc" id="L199">            return c.getLong(c.getColumnIndexOrThrow(DbContract.FilterRules._ID));</span>
+        }
+<span class="nc" id="L201">        c.close();</span>
+<span class="nc" id="L202">        return 0;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="end"
+    android:orientation="vertical"
+    tools:context=".SearchActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginEnd="16dp"
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/searchEditTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:autofillHints="@string/search_hint_text"
+            android:background="@drawable/edit_text_border"
+            android:hint="@string/search_hint_text"
+            android:inputType="textShortMessage"
+            android:text="" />
+
+        <Button
+            android:id="@+id/commit_search_button"
+            style="@style/Widget.AppCompat.Button.Borderless"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="0"
+            android:background="@color/colorAccent"
+            android:drawableStart="@drawable/ic_search_bar_button"
+            android:onClick="commitSearch"
+            android:text="@string/search_button_description"
+            android:textColor="@color/cardview_light_background"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+
+    <ScrollView
+        android:id="@+id/scrollView2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp">
+
+        <android.support.constraint.ConstraintLayout
+            android:id="@+id/searchConstraintInnerLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/square"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <ImageView
+                android:id="@+id/imageView2"
+                android:layout_width="284dp"
+                android:layout_height="244dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
+                app:layout_constraintBottom_toTopOf="@+id/searchChineseTextView"
+                app:layout_constraintEnd_toStartOf="@+id/searchEnglishTextView"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:srcCompat="@drawable/owl_background_image_icon" />
+
+            <TextView
+                android:id="@+id/searchEnglishTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="8dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="50dp"
+                android:layout_marginEnd="8dp"
+                android:contentDescription="@string/search_text_view_results_description"
+                android:text="@string/search_no_results_default_text"
+                android:textAlignment="center"
+                android:textColor="@color/earthGreen"
+                android:textIsSelectable="true"
+                android:textSize="44sp"
+                android:textStyle="bold"
+                app:layout_constraintBottom_toTopOf="@+id/search_sound_english_button"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/imageView2"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <TextView
+                android:id="@+id/searchChineseTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="8dp"
+                android:layout_marginTop="30dp"
+                android:contentDescription="@string/search_text_view_results_description"
+                android:text="@string/search_no_results_default_text"
+                android:textAlignment="center"
+                android:textColor="@color/earthGreen"
+                android:textIsSelectable="true"
+                android:textSize="54sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/imageView2" />
+
+            <TextView
+                android:id="@+id/searchChineseEnglishTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="8dp"
+                android:layout_marginTop="16dp"
+                android:contentDescription="@string/search_text_view_results_description"
+                android:text="@string/search_no_results_default_text"
+                android:textAlignment="center"
+                android:textColor="@color/earthGreen"
+                android:textIsSelectable="true"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/searchChineseTextView" />
+
+            <ImageButton
+                android:id="@+id/search_sound_english_button"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="140dp"
+                android:layout_height="134dp"
+                android:layout_margin="8dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="16dp"
+                android:contentDescription="@string/search_screen_play_sound_description"
+                android:onClick="playEnglishSound"
+                android:scaleType="fitXY"
+                android:tint="@color/earthGreen"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/imageView2"
+                app:layout_constraintTop_toBottomOf="@+id/searchEnglishTextView"
+                app:srcCompat="@drawable/ic_play_circle_outline_black_24dp" />
+
+            <ImageButton
+                android:id="@+id/search_sound_chinese_button"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="141dp"
+                android:layout_height="118dp"
+                android:layout_margin="8dp"
+                android:layout_marginTop="8dp"
+                android:contentDescription="@string/search_screen_play_sound_description"
+                android:onClick="playChineseSound"
+                android:scaleType="fitXY"
+                android:tint="@color/earthGreen"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/searchChineseEnglishTextView"
+                app:srcCompat="@drawable/ic_play_circle_outline_black_24dp" />
+
+
+        </android.support.constraint.ConstraintLayout>
+
+    </ScrollView>
+
+
+</LinearLayout>

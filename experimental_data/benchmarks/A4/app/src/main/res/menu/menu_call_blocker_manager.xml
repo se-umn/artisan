@@ -1,0 +1,41 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:com.prismaqf.callblocker="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.prismaqf.callblocker.CallBlockerManager">
+    <item
+        android:id="@+id/action_settings"
+        android:orderInCategory="100"
+        android:title="@string/ac_setting"
+        app:showAsAction="never" />
+    <item android:id="@+id/action_show_filters"
+        android:orderInCategory="5"
+        android:title="@string/ac_show_filters" />
+    <item android:id="@+id/action_show_runs"
+          android:orderInCategory="10"
+          android:title="@string/ac_show_runs" />
+    <item android:id="@+id/action_show_calls"
+        android:orderInCategory="20"
+        android:title="@string/ac_show_calls" />
+    <item android:id="@+id/action_show_calendar_rules"
+        android:orderInCategory="30"
+        android:title="@string/ac_show_calendar_rules" />
+    <item android:id="@+id/action_show_filter_rules"
+        android:orderInCategory="40"
+        android:title="@string/ac_show_filter_rules" />
+    <item android:id="@+id/action_help"
+        android:title="@string/mn_help"
+        android:icon="@drawable/ic_help_circle"
+        android:orderInCategory="80"
+        com.prismaqf.callblocker:showAsAction="ifRoom"/>
+    <item
+        android:id="@+id/action_about"
+        android:orderInCategory="200"
+        android:title="@string/ac_about"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_faq"
+        android:orderInCategory="300"
+        android:title="@string/ac_faq"
+        app:showAsAction="never" />
+</menu>

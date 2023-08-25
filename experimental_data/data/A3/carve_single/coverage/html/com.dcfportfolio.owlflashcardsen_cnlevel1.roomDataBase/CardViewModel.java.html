@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CardViewModel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.dcfportfolio.owlflashcardsen_cnlevel1.roomDataBase</a> &gt; <span class="el_source">CardViewModel.java</span></div><h1>CardViewModel.java</h1><pre class="source lang-java linenums">package com.dcfportfolio.owlflashcardsen_cnlevel1.roomDataBase;
+
+import android.app.Application;
+import android.arch.lifecycle.AndroidViewModel;
+import android.arch.lifecycle.LiveData;
+import android.arch.lifecycle.MutableLiveData;
+import android.arch.lifecycle.Transformations;
+import android.support.annotation.NonNull;
+
+import java.util.List;
+
+/**
+ * ViewModel Class
+ * Connects to the repository and handles maintaining LiveData for Activities
+ */
+public class CardViewModel extends AndroidViewModel {
+    private CardRepository mRepository;
+    private LiveData&lt;List&lt;Card&gt;&gt; mAllCards;
+<span class="fc" id="L19">    private MutableLiveData&lt;Integer&gt; mCategory = new MutableLiveData&lt;&gt;();</span>
+
+    /**
+     * Inserts the category into the LiveData
+     * @return LiveData&lt;List&lt;Card&gt;&gt;
+     */
+<span class="fc" id="L25">    public LiveData&lt;List&lt;Card&gt;&gt; mSomeCards =</span>
+<span class="fc" id="L26">            Transformations.switchMap(mCategory, category -&gt; {</span>
+<span class="nc" id="L27">                return mRepository.getSomeCards(category);</span>
+            });
+
+    private LiveData&lt;Card[]&gt; mInitCard;
+
+<span class="fc" id="L32">    private MutableLiveData&lt;String&gt; mSearchTerm = new MutableLiveData&lt;&gt;();</span>
+
+    /**
+     * Inserts the query_term into the LiveData
+     * @return LiveData&lt;List&lt;Card&gt;&gt;
+     */
+<span class="fc" id="L38">    public LiveData&lt;List&lt;Card&gt;&gt; mSearchedCard =</span>
+<span class="fc" id="L39">            Transformations.switchMap(mSearchTerm, searchTerm -&gt; {</span>
+<span class="nc" id="L40">                return mRepository.findCard(searchTerm);</span>
+            });
+
+    /**
+     * Sets the MutableLiveData mCategory
+     * @param category
+     */
+    public void setCategory(int category){
+<span class="fc" id="L48">        mCategory.setValue(category);</span>
+<span class="fc" id="L49">    }</span>
+
+    /**
+     * Sets the MutableLiveData mSearchTerm
+     * @param term
+     */
+    public void setSearchTerm(String term){
+<span class="fc" id="L56">        mSearchTerm.setValue(term);</span>
+<span class="fc" id="L57">    }</span>
+
+    /**
+     * Initializes the Repository
+     * and gets LiveData for member Variables
+     * @param application
+     */
+    public CardViewModel(@NonNull Application application) {
+<span class="fc" id="L65">        super(application);</span>
+<span class="fc" id="L66">        mRepository = new CardRepository(application);</span>
+<span class="fc" id="L67">        mAllCards = mRepository.getAllCards();</span>
+<span class="fc" id="L68">        mInitCard = mRepository.getInitCard();</span>
+<span class="fc" id="L69">    }</span>
+
+    /**
+     * Gets all Cards in database wrapped with LiveData
+     * @return
+     */
+    public LiveData&lt;List&lt;Card&gt;&gt; getAllCards(){
+<span class="nc" id="L76">        return this.mAllCards;</span>
+    }
+
+    /**
+     * Gets a card from the database wrapped in LiveData
+     * @return
+     */
+    public LiveData&lt;Card[]&gt; getInitCard(){
+<span class="nc" id="L84">        return mInitCard;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

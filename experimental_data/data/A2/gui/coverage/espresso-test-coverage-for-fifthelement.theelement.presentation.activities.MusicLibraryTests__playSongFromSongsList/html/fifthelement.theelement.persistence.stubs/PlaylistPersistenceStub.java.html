@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PlaylistPersistenceStub.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.persistence.stubs</a> &gt; <span class="el_source">PlaylistPersistenceStub.java</span></div><h1>PlaylistPersistenceStub.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.persistence.stubs;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+import fifthelement.theelement.objects.Author;
+import fifthelement.theelement.objects.Playlist;
+import fifthelement.theelement.objects.Song;
+import fifthelement.theelement.persistence.PlaylistPersistence;
+
+public class PlaylistPersistenceStub implements PlaylistPersistence {
+
+    private List&lt;Playlist&gt; playlists;
+
+<span class="nc" id="L16">    public PlaylistPersistenceStub() {</span>
+<span class="nc" id="L17">        this.playlists = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L19">        Song song1 = new Song(&quot;This Is America&quot;, &quot;android.resource://fifthelement.theelement/raw/childish_gambino_this_is_america&quot;);</span>
+<span class="nc" id="L20">        song1.setAuthor(new Author(&quot;Childish Gambino&quot;));</span>
+<span class="nc" id="L21">        Song song2 = new Song(&quot;Classical Music&quot;, &quot;android.resource://fifthelement.theelement/raw/classical_music&quot;);</span>
+<span class="nc" id="L22">        Song song3 = new Song(&quot;Adventure of a Lifetime&quot;, &quot;android.resource://fifthelement.theelement/raw/coldplay_adventure_of_a_lifetime&quot;);</span>
+<span class="nc" id="L23">        song3.setAuthor(new Author(&quot;Coldplay&quot;));</span>
+
+
+<span class="nc" id="L26">        Playlist playlist1 = new Playlist(&quot;Actual Playlist&quot;);</span>
+<span class="nc" id="L27">        playlist1.addSong(song1);</span>
+<span class="nc" id="L28">        playlist1.addSong(song2);</span>
+<span class="nc" id="L29">        playlist1.addSong(song3);</span>
+<span class="nc" id="L30">        this.storePlaylist(playlist1);</span>
+
+<span class="nc" id="L32">        Playlist playlist2 = new Playlist(&quot;Second Playlist&quot;);</span>
+<span class="nc" id="L33">        playlist2.addSong(song1);</span>
+<span class="nc" id="L34">        this.storePlaylist(playlist2);</span>
+
+<span class="nc" id="L36">        this.storePlaylist(new Playlist(&quot;Empty Playlist&quot;));</span>
+
+<span class="nc" id="L38">        Playlist playlist3 = new Playlist(&quot;Duplicate songs&quot;);</span>
+<span class="nc" id="L39">        playlist3.addSong(song1);</span>
+<span class="nc" id="L40">        playlist3.addSong(song3);</span>
+<span class="nc" id="L41">        playlist3.addSong(song1);</span>
+<span class="nc" id="L42">        playlist3.addSong(song3);</span>
+<span class="nc" id="L43">        playlist3.addSong(song1);</span>
+<span class="nc" id="L44">        playlist3.addSong(song3);</span>
+<span class="nc" id="L45">        playlist3.addSong(song1);</span>
+<span class="nc" id="L46">        playlist3.addSong(song3);</span>
+<span class="nc" id="L47">        playlist3.addSong(song1);</span>
+<span class="nc" id="L48">        playlist3.addSong(song3);</span>
+<span class="nc" id="L49">        playlist3.addSong(song1);</span>
+<span class="nc" id="L50">        playlist3.addSong(song3);</span>
+<span class="nc" id="L51">        playlist3.addSong(song1);</span>
+<span class="nc" id="L52">        playlist3.addSong(song3);</span>
+<span class="nc" id="L53">        playlist3.addSong(song1);</span>
+<span class="nc" id="L54">        playlist3.addSong(song3);</span>
+<span class="nc" id="L55">        playlist3.addSong(song1);</span>
+<span class="nc" id="L56">        playlist3.addSong(song3);</span>
+<span class="nc" id="L57">        playlist3.addSong(song1);</span>
+<span class="nc" id="L58">        playlist3.addSong(song3);</span>
+<span class="nc" id="L59">        playlist3.addSong(song1);</span>
+<span class="nc" id="L60">        playlist3.addSong(song3);</span>
+<span class="nc" id="L61">        playlist3.addSong(song1);</span>
+<span class="nc" id="L62">        playlist3.addSong(song3);</span>
+<span class="nc" id="L63">        playlist3.addSong(song1);</span>
+<span class="nc" id="L64">        playlist3.addSong(song3);</span>
+<span class="nc" id="L65">        playlist3.addSong(song1);</span>
+<span class="nc" id="L66">        playlist3.addSong(song3);</span>
+<span class="nc" id="L67">        playlist3.addSong(song1);</span>
+<span class="nc" id="L68">        playlist3.addSong(song3);</span>
+<span class="nc" id="L69">        playlist3.addSong(song1);</span>
+<span class="nc" id="L70">        playlist3.addSong(song3);</span>
+<span class="nc" id="L71">        playlist3.addSong(song1);</span>
+<span class="nc" id="L72">        playlist3.addSong(song3);</span>
+<span class="nc" id="L73">        playlist3.addSong(song1);</span>
+<span class="nc" id="L74">        playlist3.addSong(song3);</span>
+<span class="nc" id="L75">        this.storePlaylist(playlist3);</span>
+
+<span class="nc" id="L77">    }</span>
+
+    @Override
+    public List&lt;Playlist&gt; getAllPlaylists() {
+<span class="nc" id="L81">        return playlists;</span>
+    }
+
+    @Override
+    public Playlist getPlaylistByUUID(UUID uuid) throws IllegalArgumentException {
+<span class="nc bnc" id="L86" title="All 2 branches missed.">        if(uuid == null)</span>
+<span class="nc" id="L87">            throw new IllegalArgumentException(&quot;Cannot get playlist with a null UUID&quot;);</span>
+<span class="nc bnc" id="L88" title="All 2 branches missed.">        for( Playlist p : playlists) {</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">            if( p.getUUID() == uuid ) {</span>
+<span class="nc" id="L90">                return p;</span>
+            }
+<span class="nc" id="L92">        }</span>
+<span class="nc" id="L93">        return null;</span>
+    }
+
+    @Override
+    public boolean storePlaylist(Playlist playList) throws IllegalArgumentException {
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        if(playList == null)</span>
+<span class="nc" id="L99">            throw new IllegalArgumentException(&quot;Cant store a playlist with null Playlist&quot;);</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">        if(playlistExists(playList.getUUID()))</span>
+<span class="nc" id="L101">            throw new IllegalArgumentException(&quot;Cant store a playlist with existing UUID&quot;);</span>
+<span class="nc" id="L102">        playlists.add(playList);</span>
+<span class="nc" id="L103">        return true;</span>
+    }
+
+    @Override
+    public boolean updatePlaylist(Playlist playlist, String newName) throws IllegalArgumentException {
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        if(playlist == null){</span>
+<span class="nc" id="L109">            throw new IllegalArgumentException(&quot;Cannot update a playlist with null Playlist&quot;);</span>
+        }
+<span class="nc bnc" id="L111" title="All 2 branches missed.">        if( newName == null ) {</span>
+<span class="nc" id="L112">            throw new IllegalArgumentException(&quot;Cannot update a playlist with null name&quot;);</span>
+        }
+<span class="nc" id="L114">        playlist.setName(newName);</span>
+<span class="nc" id="L115">        return true;</span>
+    }
+
+    @Override
+    public boolean deletePlaylist(Playlist playList) throws IllegalArgumentException {
+<span class="nc bnc" id="L120" title="All 2 branches missed.">        if(playList == null)</span>
+<span class="nc" id="L121">            throw new IllegalArgumentException(&quot;Cannot delete a playlist with a null Playlist&quot;);</span>
+<span class="nc" id="L122">        return this.deletePlaylist(playList.getUUID());</span>
+    }
+
+    @Override
+    public boolean deletePlaylist(UUID uuid) throws IllegalArgumentException {
+<span class="nc" id="L127">        boolean removed = false;</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        if(uuid == null)</span>
+<span class="nc" id="L129">            throw new IllegalArgumentException(&quot;Cannot delete a playlist with a null UUID&quot;);</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">        for(int index = 0; index &lt; playlists.size(); index++) {</span>
+<span class="nc bnc" id="L131" title="All 2 branches missed.">            if(playlists.get(index).getUUID().compareTo(uuid) == 0) {</span>
+<span class="nc" id="L132">                this.playlists.remove(index);</span>
+<span class="nc" id="L133">                removed = true;</span>
+            }
+        }
+<span class="nc" id="L136">        return removed;</span>
+    }
+
+
+    public boolean playlistExists(Playlist playList) throws IllegalArgumentException {
+<span class="nc bnc" id="L141" title="All 2 branches missed.">        if(playList == null)</span>
+<span class="nc" id="L142">            throw new IllegalArgumentException(&quot;Cannot check exists with a null Playlist&quot;);</span>
+<span class="nc" id="L143">        return this.playlistExists(playList.getUUID());</span>
+    }
+
+    @Override
+    public boolean playlistExists(UUID uuid) throws IllegalArgumentException {
+<span class="nc bnc" id="L148" title="All 2 branches missed.">        if(uuid == null)</span>
+<span class="nc" id="L149">            throw new IllegalArgumentException(&quot;Cannot check exists with a null UUID&quot;);</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">        return getPlaylistByUUID(uuid) != null;</span>
+    }
+
+    @Override
+    public List&lt;Song&gt; getAllSongsByPlaylist(UUID uuid) throws IllegalArgumentException {
+<span class="nc bnc" id="L155" title="All 2 branches missed.">        if(uuid == null)</span>
+<span class="nc" id="L156">            throw new IllegalArgumentException(&quot;Cannot get songs from playlist with a null UUID&quot;);</span>
+<span class="nc" id="L157">        Playlist playlist = getPlaylistByUUID(uuid);</span>
+<span class="nc" id="L158">        return playlist.getSongs();</span>
+    }
+
+    @Override
+    public boolean storeSongForPlaylist(Playlist playList, Song song) throws IllegalArgumentException {
+<span class="nc bnc" id="L163" title="All 2 branches missed.">        if(playList == null){</span>
+<span class="nc" id="L164">            throw new IllegalArgumentException(&quot;Cannot add song to a playlist with null Playlist&quot;);</span>
+        }
+<span class="nc bnc" id="L166" title="All 2 branches missed.">        if( song == null ) {</span>
+<span class="nc" id="L167">            throw new IllegalArgumentException(&quot;Cannot add null Song to playlist&quot;);</span>
+        }
+<span class="nc" id="L169">        playList.addSong(song);</span>
+<span class="nc" id="L170">        return true;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

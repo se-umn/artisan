@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MusicService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.presentation.services</a> &gt; <span class="el_source">MusicService.java</span></div><h1>MusicService.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.presentation.services;
+
+import android.app.Service;
+import android.content.Intent;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
+import android.net.Uri;
+import android.os.Binder;
+import android.os.IBinder;
+import android.os.PowerManager;
+import android.util.Log;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import fifthelement.theelement.R;
+import fifthelement.theelement.application.Helpers;
+import fifthelement.theelement.application.Services;
+import fifthelement.theelement.business.services.SongListService;
+import fifthelement.theelement.business.services.SongService;
+import fifthelement.theelement.objects.Song;
+import fifthelement.theelement.presentation.activities.MainActivity;
+import fifthelement.theelement.presentation.constants.NotificationConstants;
+import fifthelement.theelement.presentation.fragments.SeekerFragment;
+
+
+// This MusicService will allow for a MediaPlayer instance to
+// play music in the background of the app and be controlled
+// by various UI elements in the app.
+<span class="fc" id="L31">public class MusicService extends Service implements MediaPlayer.OnPreparedListener,</span>
+        MediaPlayer.OnErrorListener, MediaPlayer.OnCompletionListener {
+
+    private MediaPlayer player;
+    private boolean playerPrepared;
+    private SongListService songListService;
+    private Song currentSongPlaying;
+<span class="fc" id="L38">    private final IBinder musicBind = new MusicBinder();</span>
+    private SeekerFragment.SeekerPlaybackStartStopListener seekerPlaybackListener;
+    private NotificationService.NotificationPlaybackStartStopListener notificationPlaybackListener;
+<span class="fc" id="L41">    private SongService songService = Services.getSongService();</span>
+
+    private static final String LOG_TAG = &quot;MusicService&quot;;
+
+    //This function is called when the service is bound, it will return a MusicBinder instance
+    @Override
+    public IBinder onBind(Intent intent) {
+<span class="fc" id="L48">        return musicBind;</span>
+    }
+
+
+    //This function is called when the service is unbound, it will clean up the MediaPlayer
+    @Override
+    public boolean onUnbind(Intent intent) {
+<span class="nc" id="L55">        player.stop();</span>
+<span class="nc" id="L56">        player.release();</span>
+<span class="nc" id="L57">        return false;</span>
+    }
+
+    //This function is called when the service is created, it will initialize the MediaPlayer
+    public void onCreate() {
+<span class="fc" id="L62">        super.onCreate();</span>
+<span class="fc" id="L63">        songListService = Services.getSongListService();</span>
+<span class="fc" id="L64">        player = new MediaPlayer();</span>
+<span class="fc" id="L65">        initMusicPlayer();</span>
+<span class="fc" id="L66">    }</span>
+
+    //This function acts as a callback that occurs when the private MediaPlayer
+    // instance completes playback of a music file.
+    @Override
+    public void onCompletion(MediaPlayer mediaPlayer) {
+        //We stop playback on completion
+<span class="nc bnc" id="L73" title="All 2 branches missed.">        if(seekerPlaybackListener != null){</span>
+<span class="nc" id="L74">            seekerPlaybackListener.onPlaybackStop(true);</span>
+        }
+<span class="nc bnc" id="L76" title="All 2 branches missed.">        if(notificationPlaybackListener != null){</span>
+<span class="nc" id="L77">            notificationPlaybackListener.onPlaybackStop();</span>
+        }
+        //If autoplay is on, we &quot;skip&quot; to next song on completion
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        if(songListService.getAutoplayEnabled()){</span>
+<span class="nc" id="L81">            skip();</span>
+        }
+<span class="nc" id="L83">    }</span>
+
+    // This function acts as a callback that occurs when the private MediaPlayer
+    // instance runs into an error
+    @Override
+    public boolean onError(MediaPlayer mediaPlayer, int what, int extra) {
+<span class="nc" id="L89">        return false;</span>
+    }
+
+    // This function acts as a callback that occurs when the private MediaPlayer
+    // instance has fully prepared.
+    @Override
+    public void onPrepared(MediaPlayer mediaPlayer) {
+        //Code to run when media player is prepared to play
+<span class="nc" id="L97">        playerPrepared = true;</span>
+<span class="nc" id="L98">    }</span>
+
+    // This function will initialize the private MediaPlayer member to play music in the background
+    // and sets up the 3 listener methods above.
+    public void initMusicPlayer() {
+        //Sets up the MediaPlayer to continue playing in the background + listeners
+<span class="pc bpc" id="L104" title="1 of 2 branches missed.">        if(player != null) {</span>
+<span class="fc" id="L105">            player.setWakeMode(getApplicationContext(), PowerManager.PARTIAL_WAKE_LOCK);</span>
+<span class="fc" id="L106">            player.setAudioStreamType(AudioManager.STREAM_MUSIC);</span>
+<span class="fc" id="L107">            player.setOnPreparedListener(this);</span>
+<span class="fc" id="L108">            player.setOnCompletionListener(this);</span>
+<span class="fc" id="L109">            player.setOnErrorListener(this);</span>
+<span class="fc" id="L110">            playerPrepared = true;</span>
+        }
+<span class="fc" id="L112">    }</span>
+
+    public void playSongAsync() {
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        if (songListService.getSongAtIndex(0) != null)</span>
+<span class="nc" id="L116">            playSongAsync( songListService.getSongAtIndex(0));</span>
+<span class="nc" id="L117">    }</span>
+
+    // This function will attempt to set the media player up asynchronously and play the media.
+    public boolean playSongAsync(Song song) {
+<span class="fc" id="L121">        reset();</span>
+<span class="pc bpc" id="L122" title="1 of 2 branches missed.">        if(song != null) {</span>
+<span class="fc" id="L123">            Uri uri = Uri.parse(song.getPath());</span>
+            try {
+<span class="fc" id="L125">                player.setDataSource(getApplication(), uri);</span>
+<span class="fc" id="L126">                player.prepareAsync();</span>
+<span class="fc" id="L127">                currentSongPlaying = song;</span>
+<span class="nc" id="L128">            } catch (Exception e) {</span>
+<span class="nc" id="L129">                Helpers.getToastHelper(getApplicationContext()).sendToast(&quot;Invalid Song!&quot;, &quot;RED&quot;);</span>
+<span class="nc" id="L130">                Log.e(LOG_TAG, e.getMessage());</span>
+<span class="nc" id="L131">                return false;</span>
+<span class="fc" id="L132">            }</span>
+<span class="fc" id="L133">            playerPrepared = false;</span>
+
+<span class="fc" id="L135">            player.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {</span>
+
+                @Override
+                public void onPrepared(MediaPlayer player) {
+<span class="fc" id="L139">                    playerPrepared = true;</span>
+<span class="fc" id="L140">                    start();</span>
+<span class="fc" id="L141">                    songService.songIsPlayed(currentSongPlaying.getUUID());</span>
+<span class="fc" id="L142">                    Helpers.getToastHelper(getApplicationContext()).sendToast(&quot;Now Playing: &quot; + currentSongPlaying.getName());</span>
+<span class="fc bfc" id="L143" title="All 2 branches covered.">                    if(notificationPlaybackListener != null){</span>
+<span class="fc" id="L144">                        notificationPlaybackListener.onSkip();</span>
+                    } else {
+<span class="fc" id="L146">                        startNotificationService();</span>
+                    }
+<span class="fc" id="L148">                }</span>
+
+            });
+<span class="fc" id="L151">            return true;</span>
+        }
+<span class="nc" id="L153">        return false;</span>
+    }
+
+    // Start the notification service if it did not exist
+    public void startNotificationService() {
+<span class="fc" id="L158">        Intent serviceIntent = new Intent(getApplicationContext(), NotificationService.class);</span>
+<span class="fc" id="L159">        serviceIntent.setAction(NotificationConstants.STARTFOREGROUND_ACTION);</span>
+<span class="fc" id="L160">        startService(serviceIntent);</span>
+<span class="fc" id="L161">    }</span>
+
+    public void stopNotificationService() {
+<span class="fc" id="L164">        Intent serviceIntent = new Intent(getApplicationContext(), NotificationService.class);</span>
+<span class="fc" id="L165">        serviceIntent.setAction(NotificationConstants.STARTFOREGROUND_ACTION);</span>
+<span class="fc" id="L166">        stopService(serviceIntent);</span>
+<span class="fc" id="L167">    }</span>
+
+    // This function will reset the MediaPlayer instance and reset seekbar UI positions to start.
+    public void reset() {
+<span class="fc bfc" id="L171" title="All 2 branches covered.">        if(seekerPlaybackListener != null){</span>
+<span class="fc" id="L172">            seekerPlaybackListener.onPlaybackStop(true);</span>
+        }
+<span class="fc bfc" id="L174" title="All 2 branches covered.">        if(notificationPlaybackListener != null){</span>
+<span class="fc" id="L175">            notificationPlaybackListener.onPlaybackStop();</span>
+        }
+<span class="fc" id="L177">        player.reset();</span>
+<span class="fc" id="L178">        playerPrepared = false;</span>
+<span class="fc" id="L179">    }</span>
+
+    // This function will start the private MediaPlayer instance (equivalent to 'Play').
+    public void start() {
+<span class="pc bpc" id="L183" title="2 of 4 branches missed.">        if(playerPrepared &amp;&amp; !player.isPlaying()) {</span>
+<span class="pc bpc" id="L184" title="1 of 2 branches missed.">            if(seekerPlaybackListener != null){</span>
+<span class="fc" id="L185">                seekerPlaybackListener.onPlaybackStart();</span>
+            }
+<span class="fc bfc" id="L187" title="All 2 branches covered.">            if(notificationPlaybackListener != null){</span>
+<span class="fc" id="L188">                notificationPlaybackListener.onPlaybackStart();</span>
+            }
+<span class="fc" id="L190">            player.start();</span>
+<span class="nc bnc" id="L191" title="All 2 branches missed.">        } else if(!playerPrepared) {</span>
+<span class="nc" id="L192">            initMusicPlayer();</span>
+<span class="nc" id="L193">            start(); // retry starting</span>
+        }
+<span class="fc" id="L195">    }</span>
+
+    // This function pauses the playback of the private MediaPlayer instance.
+    public void pause() {
+<span class="nc bnc" id="L199" title="All 4 branches missed.">        if(playerPrepared &amp;&amp; player.isPlaying()){</span>
+<span class="nc bnc" id="L200" title="All 2 branches missed.">            if(seekerPlaybackListener != null){</span>
+<span class="nc" id="L201">                seekerPlaybackListener.onPlaybackStop(false);</span>
+            }
+<span class="nc bnc" id="L203" title="All 2 branches missed.">            if(notificationPlaybackListener != null){</span>
+<span class="nc" id="L204">                notificationPlaybackListener.onPlaybackStop();</span>
+            }
+<span class="nc" id="L206">            player.pause();</span>
+        }
+<span class="nc" id="L208">    }</span>
+
+    // Skips to the next song in the list
+    public void skip() {
+<span class="fc" id="L212">        songService.songIsSkipped(songListService.getSongAtIndex(songListService.getCurrentSongPlayingIndex()).getUUID());</span>
+<span class="fc" id="L213">        playSongAsync(songListService.skipToNextSong());</span>
+<span class="pc bpc" id="L214" title="1 of 2 branches missed.">        if(notificationPlaybackListener != null){</span>
+<span class="fc" id="L215">            notificationPlaybackListener.onSkip();</span>
+        }
+<span class="fc" id="L217">    }</span>
+
+    // Skips to the previous song in the list
+    public void prev() {
+<span class="fc" id="L221">        songService.songIsSkipped(songListService.getSongAtIndex(songListService.getCurrentSongPlayingIndex()).getUUID());</span>
+<span class="fc" id="L222">        playSongAsync(songListService.goToPrevSong());</span>
+<span class="pc bpc" id="L223" title="1 of 2 branches missed.">        if(notificationPlaybackListener != null){</span>
+<span class="fc" id="L224">            notificationPlaybackListener.onSkip();</span>
+        }
+<span class="fc" id="L226">    }</span>
+
+    public void shuffle() {
+<span class="nc" id="L229">       songListService.shuffle();</span>
+<span class="nc" id="L230">       playSongAsync(songListService.skipToNextSong());</span>
+<span class="nc" id="L231">    }</span>
+
+    // This function will return the duration of the currently loaded music file.
+    public int getDuration() {
+<span class="pc bpc" id="L235" title="1 of 2 branches missed.">        if(playerPrepared) {</span>
+<span class="nc" id="L236">            return player.getDuration();</span>
+        }
+        else {
+<span class="fc" id="L239">            return 0;</span>
+        }
+    }
+
+    // This function will return the current position of playback in ms.
+    public int getCurrentPosition() {
+<span class="pc bpc" id="L245" title="1 of 2 branches missed.">        if(playerPrepared) {</span>
+<span class="nc" id="L246">            return player.getCurrentPosition();</span>
+        }
+        else {
+<span class="fc" id="L249">            return 0;</span>
+        }
+    }
+
+    // This function will have the MediaPlayer seek to a position of playback in ms.
+    public void seekTo(int pos) {
+<span class="nc bnc" id="L255" title="All 2 branches missed.">        if(playerPrepared) {</span>
+<span class="nc" id="L256">            player.seekTo(pos);</span>
+        }
+<span class="nc" id="L258">    }</span>
+
+    // This function will return a boolean indicating if playback is currently going on.
+    public boolean isPlaying() {
+<span class="fc" id="L262">        return player.isPlaying();</span>
+    }
+
+    public Song getCurrentSongPlaying() {
+<span class="fc" id="L266">        return this.currentSongPlaying;</span>
+    }
+
+    public void setSeekerPlaybackListener(SeekerFragment.SeekerPlaybackStartStopListener listener){
+<span class="fc" id="L270">        seekerPlaybackListener = listener;</span>
+<span class="fc" id="L271">    }</span>
+
+    public void setNotificationPlaybackListener(NotificationService.NotificationPlaybackStartStopListener listener){
+<span class="fc" id="L274">        notificationPlaybackListener = listener;</span>
+<span class="fc" id="L275">    }</span>
+
+    //Public helper class for binding this service to an activity
+<span class="fc" id="L278">    public class MusicBinder extends Binder {</span>
+        public MusicService getService() {
+<span class="fc" id="L280">            return MusicService.this;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

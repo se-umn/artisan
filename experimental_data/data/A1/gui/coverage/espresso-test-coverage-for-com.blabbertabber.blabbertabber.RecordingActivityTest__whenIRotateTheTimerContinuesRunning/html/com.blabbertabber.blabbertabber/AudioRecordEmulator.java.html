@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AudioRecordEmulator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.blabbertabber.blabbertabber</a> &gt; <span class="el_source">AudioRecordEmulator.java</span></div><h1>AudioRecordEmulator.java</h1><pre class="source lang-java linenums">package com.blabbertabber.blabbertabber;
+
+import android.util.Log;
+
+import java.util.Random;
+
+/**
+ * AudioRecord for testing on emulators with no hardware sound (e.g. on a Mac Pro emulator)
+ */
+public class AudioRecordEmulator extends AudioRecordAbstract {
+    static final String TAG = &quot;AudioRecordEmulator&quot;;
+    private short[] randomAudioData;
+
+<span class="fc" id="L14">    public AudioRecordEmulator(int recorderAudioSource, int recorderSampleRateInHz, int recorderChannelConfig, int recorderAudioFormat, int recorderBufferSizeInBytes) {</span>
+        // We create a random buffer of sound to emulate the real AudioRecord
+<span class="fc" id="L16">        Random random = new Random();</span>
+<span class="fc" id="L17">        randomAudioData = new short[AudioEventProcessor.NUM_FRAMES];</span>
+<span class="fc bfc" id="L18" title="All 2 branches covered.">        for (int i = 0; i &lt; randomAudioData.length; i++) {</span>
+<span class="fc" id="L19">            randomAudioData[i] = (short) (random.nextInt(Short.MAX_VALUE * 2) - Short.MAX_VALUE);</span>
+        }
+<span class="fc" id="L21">    }</span>
+
+    @Override
+    protected void stopAndRelease() {
+<span class="nc" id="L25">        Log.i(TAG, &quot;stopAndRelease()&quot;);</span>
+<span class="nc" id="L26">    }</span>
+
+    @Override
+    public void startRecording() {
+<span class="fc" id="L30">        Log.i(TAG, &quot;startRecording()&quot;);</span>
+<span class="fc" id="L31">    }</span>
+
+    @Override
+    public int read(short[] audioData, int offsetInShorts, int sizeInShorts) {
+        try {
+<span class="fc" id="L36">            System.arraycopy(randomAudioData, 0, audioData, offsetInShorts, sizeInShorts);</span>
+<span class="fc" id="L37">            Thread.sleep(1000 / AudioEventProcessor.UPDATES_PER_SECOND);</span>
+<span class="nc" id="L38">        } catch (InterruptedException e) {</span>
+<span class="nc" id="L39">            Log.i(TAG, &quot;run() InterruptedException thrown while sleep()ing.&quot;);</span>
+<span class="nc" id="L40">            e.printStackTrace();</span>
+<span class="nc" id="L41">            return 0;</span>
+<span class="fc" id="L42">        }</span>
+<span class="fc" id="L43">        return sizeInShorts;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

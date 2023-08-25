@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SettingsActivity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.dcfportfolio.owlflashcardsen_cnlevel1</a> &gt; <span class="el_source">SettingsActivity.java</span></div><h1>SettingsActivity.java</h1><pre class="source lang-java linenums">package com.dcfportfolio.owlflashcardsen_cnlevel1;
+
+import android.content.SharedPreferences;
+import android.preference.Preference;
+import android.preference.PreferenceManager;
+import android.support.v7.app.AppCompatActivity;
+import android.os.Bundle;
+import android.widget.Toast;
+
+/**
+ * Inits and inflates the support fragment for displaying preferences
+ */
+<span class="nc" id="L13">public class SettingsActivity extends AppCompatActivity {</span>
+    //public static final String KEY_PREF_EDIT_USER_NAME = &quot;edit_text_name_preference&quot;;
+    //public static final String KEY_PREF_ASK_FOR_USER_NAME = &quot;check_box_preference_username_set&quot;;
+    public static final String KEY_PREF_CARD_HELP_NOTIFICATION = &quot;switch_show_card_help_preference&quot;;
+    public static final String KEY_PREF_SET_CARD_LANGUAGE = &quot;list_preference_card_language_choice&quot;;
+
+    /**
+     * Begins the support fragment transaction
+     * @param savedInstanceState
+     */
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+<span class="nc" id="L25">        super.onCreate(savedInstanceState);</span>
+
+<span class="nc" id="L27">        getSupportFragmentManager()</span>
+<span class="nc" id="L28">                .beginTransaction()</span>
+<span class="nc" id="L29">                .replace(android.R.id.content, new SettingsFragment())</span>
+<span class="nc" id="L30">                .commit();</span>
+<span class="nc" id="L31">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

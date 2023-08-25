@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Song.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.objects</a> &gt; <span class="el_source">Song.java</span></div><h1>Song.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.objects;
+
+import java.util.UUID;
+
+public class Song implements Comparable&lt;Song&gt;{
+    private UUID uuid;
+    private String songName;
+    private String path;
+    private String genre;
+    private Author author;
+    private Album album;
+    private int numPlayed;
+    private double rating;
+
+<span class="nc" id="L15">    public Song(String name, String path){</span>
+<span class="nc" id="L16">        this.uuid = UUID.randomUUID();</span>
+<span class="nc" id="L17">        this.songName = name;</span>
+<span class="nc" id="L18">        this.path = path;</span>
+<span class="nc" id="L19">        this.genre = &quot;&quot;;</span>
+<span class="nc" id="L20">        author = null;</span>
+<span class="nc" id="L21">        album = null;</span>
+<span class="nc" id="L22">        this.numPlayed = 0;</span>
+<span class="nc" id="L23">        rating = 0;</span>
+<span class="nc" id="L24">    }</span>
+
+<span class="nc" id="L26">    public Song(UUID uuid, String name, String path){</span>
+<span class="nc" id="L27">        this.uuid = uuid;</span>
+<span class="nc" id="L28">        this.songName = name;</span>
+<span class="nc" id="L29">        this.path = path;</span>
+<span class="nc" id="L30">        this.genre = &quot;&quot;;</span>
+<span class="nc" id="L31">        author = null;</span>
+<span class="nc" id="L32">        album = null;</span>
+<span class="nc" id="L33">        this.numPlayed = 0;</span>
+<span class="nc" id="L34">        rating = 0;</span>
+<span class="nc" id="L35">    }</span>
+
+<span class="nc" id="L37">    public Song(UUID uuid, String name, String path, Author author, Album album, String genre){</span>
+<span class="nc" id="L38">        this.uuid = uuid;</span>
+<span class="nc" id="L39">        this.songName = name;</span>
+<span class="nc" id="L40">        this.path = path;</span>
+<span class="nc" id="L41">        this.author = author;</span>
+<span class="nc" id="L42">        this.album = album;</span>
+<span class="nc" id="L43">        this.genre = genre;</span>
+<span class="nc" id="L44">        this.numPlayed = 0;</span>
+<span class="nc" id="L45">    }</span>
+
+<span class="nc" id="L47">    public Song(UUID uuid, String name, String path, Author author, Album album, String genre, int numPlayed){</span>
+<span class="nc" id="L48">        this.uuid = uuid;</span>
+<span class="nc" id="L49">        this.songName = name;</span>
+<span class="nc" id="L50">        this.path = path;</span>
+<span class="nc" id="L51">        this.author = author;</span>
+<span class="nc" id="L52">        this.album = album;</span>
+<span class="nc" id="L53">        this.genre = genre;</span>
+<span class="nc" id="L54">        this.numPlayed = numPlayed;</span>
+<span class="nc" id="L55">        rating = 0;</span>
+<span class="nc" id="L56">    }</span>
+
+<span class="nc" id="L58">    public Song(UUID uuid, String name, String path, Author author, Album album, String genre, double rating) {</span>
+<span class="nc" id="L59">        this.uuid = uuid;</span>
+<span class="nc" id="L60">        this.songName = name;</span>
+<span class="nc" id="L61">        this.path = path;</span>
+<span class="nc" id="L62">        this.author = author;</span>
+<span class="nc" id="L63">        this.album = album;</span>
+<span class="nc" id="L64">        this.genre = genre;</span>
+<span class="nc" id="L65">        this.numPlayed = 0;</span>
+<span class="nc" id="L66">        this.rating = rating;</span>
+<span class="nc" id="L67">    }</span>
+
+<span class="fc" id="L69">    public Song(UUID uuid, String name, String path, Author author, Album album, String genre, int numPlayed, double rating) {</span>
+<span class="fc" id="L70">        this.uuid = uuid;</span>
+<span class="fc" id="L71">        this.songName = name;</span>
+<span class="fc" id="L72">        this.path = path;</span>
+<span class="fc" id="L73">        this.author = author;</span>
+<span class="fc" id="L74">        this.album = album;</span>
+<span class="fc" id="L75">        this.genre = genre;</span>
+<span class="fc" id="L76">        this.numPlayed = numPlayed;</span>
+<span class="fc" id="L77">        this.rating = rating;</span>
+<span class="fc" id="L78">    }</span>
+
+    // getters
+    public UUID getUUID(){
+<span class="nc" id="L82">        return uuid;</span>
+    }
+
+    public String getName(){
+<span class="fc" id="L86">        return songName;</span>
+    }
+
+    public String getPath() {
+<span class="nc" id="L90">        return path;</span>
+    }
+
+    public String getGenre() {
+<span class="nc" id="L94">        return genre;</span>
+    }
+
+    public Author getAuthor(){
+<span class="fc" id="L98">        return author;</span>
+    }
+
+    public Album getAlbum(){
+<span class="fc" id="L102">        return album;</span>
+    }
+
+    public int getNumPlayed() {
+<span class="nc" id="L106">        return numPlayed;</span>
+    }
+
+<span class="nc" id="L109">    public double getRating() { return rating; }</span>
+
+    // setters
+    public void setUUID(UUID uuid) {
+<span class="nc" id="L113">        this.uuid = uuid;</span>
+<span class="nc" id="L114">    }</span>
+
+    public void setName(String newName){
+<span class="nc" id="L117">        this.songName = newName;</span>
+<span class="nc" id="L118">    }</span>
+
+    public void setPath(String path) {
+<span class="nc" id="L121">        this.path = path;</span>
+<span class="nc" id="L122">    }</span>
+
+    public void setGenre(String genre) {
+<span class="nc" id="L125">        this.genre = genre;</span>
+<span class="nc" id="L126">    }</span>
+
+    public void setAuthor(Author author){
+<span class="fc" id="L129">        this.author =  author;</span>
+<span class="fc" id="L130">    }</span>
+
+    public void setAlbum(Album album){
+<span class="fc" id="L133">        this.album =  album;</span>
+<span class="fc" id="L134">    }</span>
+
+<span class="nc" id="L136">    public void setRating(double rating){ this.rating = rating; }</span>
+
+    public void setNumPlayed(int numPlayed) {
+<span class="nc" id="L139">        this.numPlayed = numPlayed;</span>
+<span class="nc" id="L140">    }</span>
+
+    public void incrNumPlayed() {
+<span class="nc" id="L143">        this.numPlayed++;</span>
+<span class="nc" id="L144">    }</span>
+
+    public void decrNumPlayed() {
+<span class="nc bnc" id="L147" title="All 2 branches missed.">        if( this.numPlayed &gt; 0 ) {</span>
+<span class="nc" id="L148">            this.numPlayed--;</span>
+        }
+<span class="nc" id="L150">    }</span>
+
+    @Override
+    public int compareTo(Song song){
+<span class="fc" id="L154">        return songName.compareTo(song.getName());</span>
+    }
+
+    @Override
+    public boolean equals(Object object) {
+<span class="nc bnc" id="L159" title="All 4 branches missed.">        return object instanceof Song &amp;&amp; ((Song) object).getUUID() == this.getUUID();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

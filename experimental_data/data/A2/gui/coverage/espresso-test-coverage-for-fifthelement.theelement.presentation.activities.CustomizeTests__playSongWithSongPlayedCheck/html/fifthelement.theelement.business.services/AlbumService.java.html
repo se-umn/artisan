@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AlbumService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.business.services</a> &gt; <span class="el_source">AlbumService.java</span></div><h1>AlbumService.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.business.services;
+
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.UUID;
+
+import fifthelement.theelement.application.Persistence;
+import fifthelement.theelement.application.Services;
+import fifthelement.theelement.objects.Album;
+import fifthelement.theelement.objects.Author;
+import fifthelement.theelement.persistence.AlbumPersistence;
+import fifthelement.theelement.persistence.AuthorPersistence;
+import fifthelement.theelement.persistence.SongPersistence;
+
+
+public class AlbumService {
+
+    private AlbumPersistence albumPersistence;
+    private SongPersistence songPersistence;
+    private AuthorPersistence authorPersistence;
+
+<span class="fc" id="L23">    public AlbumService() {</span>
+<span class="fc" id="L24">        albumPersistence = Persistence.getAlbumPersistence();</span>
+<span class="fc" id="L25">        songPersistence = Persistence.getSongPersistence();</span>
+<span class="fc" id="L26">        authorPersistence = Persistence.getAuthorPersistence();</span>
+<span class="fc" id="L27">    }</span>
+
+<span class="nc" id="L29">    public AlbumService(AlbumPersistence albumPersistence, SongPersistence songPersistence, AuthorPersistence authorPersistence) {</span>
+<span class="nc" id="L30">        this.albumPersistence = albumPersistence;</span>
+<span class="nc" id="L31">        this.songPersistence = songPersistence;</span>
+<span class="nc" id="L32">        this.authorPersistence = authorPersistence;</span>
+<span class="nc" id="L33">    }</span>
+
+    public Album getAlbumByUUID(UUID uuid) {
+<span class="fc" id="L36">        return albumPersistence.getAlbumByUUID(uuid);</span>
+    }
+
+    public List&lt;Album&gt; getAlbums() {
+<span class="fc" id="L40">        List&lt;Album&gt; albums = albumPersistence.getAllAlbums();</span>
+<span class="fc bfc" id="L41" title="All 2 branches covered.">        for(Album album : albums) {</span>
+<span class="pc bpc" id="L42" title="1 of 2 branches missed.">            if(album.getSongs() == null) {</span>
+<span class="fc" id="L43">                album.setSongs(songPersistence.getSongsByAlbumUUID(album.getUUID()));</span>
+            }
+<span class="fc" id="L45">        }</span>
+<span class="fc" id="L46">        return albumPersistence.getAllAlbums();</span>
+    }
+
+    public boolean insertAlbum(Album album) throws ArrayStoreException, IllegalArgumentException {
+<span class="nc bnc" id="L50" title="All 4 branches missed.">        if(album == null || getAlbumByUUID(album.getUUID()) != null)</span>
+<span class="nc" id="L51">            throw new IllegalArgumentException();</span>
+
+<span class="nc bnc" id="L53" title="All 2 branches missed.">        if(album.getAuthor() != null) {</span>
+<span class="nc" id="L54">            Author author = album.getAuthor();</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">            if(authorPersistence.getAuthorByUUID(author.getUUID()) == null) {</span>
+<span class="nc" id="L56">                authorPersistence.storeAuthor(author);</span>
+            }
+        }
+
+<span class="nc" id="L60">        return albumPersistence.storeAlbum(album);</span>
+    }
+
+    public boolean updateAlbum(Album album) throws IllegalArgumentException {
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">        if(album == null)</span>
+<span class="nc" id="L65">            throw new IllegalArgumentException();</span>
+<span class="fc" id="L66">        return albumPersistence.updateAlbum(album);</span>
+    }
+
+    public boolean deleteAlbum(Album album) throws IllegalArgumentException {
+<span class="nc bnc" id="L70" title="All 2 branches missed.">        if(album == null)</span>
+<span class="nc" id="L71">            throw new IllegalArgumentException();</span>
+<span class="nc" id="L72">        return albumPersistence.deleteAlbum(album.getUUID());</span>
+    }
+
+    public Album getMostPlayedAlbum() {
+<span class="fc" id="L76">        Album album = null;</span>
+<span class="fc" id="L77">        List&lt;Album&gt; albumList = getSortedAlbumListByMostPlayed();</span>
+<span class="pc bpc" id="L78" title="2 of 4 branches missed.">        if( albumList != null &amp;&amp; albumList.size() &gt; 0 ) {</span>
+<span class="fc" id="L79">            album = albumList.get(0);</span>
+        }
+<span class="fc" id="L81">        return album;</span>
+    }
+
+    public List&lt;Album&gt; getSortedAlbumListByMostPlayed() {
+<span class="fc" id="L85">        List&lt;Album&gt; albumList = this.getAlbums();</span>
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">        if( albumList != null ) {</span>
+<span class="fc" id="L87">            Collections.sort(albumList, new Comparator&lt;Album&gt;() {</span>
+                @Override
+                public int compare(Album album, Album t1) {
+<span class="nc" id="L90">                    return Integer.compare(Integer.valueOf(t1.getNumPlayed()), Integer.valueOf(album.getNumPlayed()));</span>
+                }
+            });
+        }
+<span class="fc" id="L94">        return albumList;</span>
+    }
+
+    public int getTotalAlbumPlays() {
+<span class="fc" id="L98">        List&lt;Album&gt; albumList = this.getAlbums();</span>
+<span class="fc" id="L99">        int totalPlays = 0;</span>
+<span class="fc bfc" id="L100" title="All 2 branches covered.">        for( Album album : albumList ) {</span>
+<span class="fc" id="L101">            totalPlays += album.getNumPlayed();</span>
+<span class="fc" id="L102">        }</span>
+<span class="fc" id="L103">        return totalPlays;</span>
+    }
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

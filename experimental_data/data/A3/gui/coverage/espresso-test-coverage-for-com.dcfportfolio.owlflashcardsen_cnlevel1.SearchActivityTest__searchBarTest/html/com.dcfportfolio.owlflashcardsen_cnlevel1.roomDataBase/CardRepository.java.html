@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CardRepository.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.dcfportfolio.owlflashcardsen_cnlevel1.roomDataBase</a> &gt; <span class="el_source">CardRepository.java</span></div><h1>CardRepository.java</h1><pre class="source lang-java linenums">package com.dcfportfolio.owlflashcardsen_cnlevel1.roomDataBase;
+
+import android.app.Application;
+import android.arch.lifecycle.LiveData;
+import android.os.AsyncTask;
+import android.util.Log;
+
+import java.util.List;
+
+/**
+ * Card Repository Class
+ * connects to the Dao class to update, insert or retrieve data from the database.
+ */
+public class CardRepository {
+    private CardDao mDao;
+    private LiveData&lt;List&lt;Card&gt;&gt; mAllCards;
+    private LiveData&lt;List&lt;Card&gt;&gt; mSomeCards;
+    private LiveData&lt;List&lt;Card&gt;&gt; mFoundCard;
+    private LiveData&lt;Card[]&gt; mInitCard;
+
+
+<span class="fc" id="L22">    CardRepository(Application application) {</span>
+<span class="fc" id="L23">        CardDatabase db = CardDatabase.getDatabase(application);</span>
+<span class="fc" id="L24">        mDao = db.cardDao();</span>
+<span class="fc" id="L25">        mAllCards = mDao.getAllCards();</span>
+<span class="fc" id="L26">        mInitCard = mDao.initCard();</span>
+<span class="fc" id="L27">    }</span>
+
+    /**
+     * Gets all cards from the Database
+     * @return LiveData&lt;List&lt;Card&gt;&gt;
+     */
+    public LiveData&lt;List&lt;Card&gt;&gt; getAllCards() {
+<span class="fc" id="L34">        return this.mAllCards;</span>
+    }
+
+    /**
+     * Gets a single card to init the database
+     * @return LiveData&lt;Card[]&gt;
+     */
+    public LiveData&lt;Card[]&gt; getInitCard(){
+<span class="fc" id="L42">        return mInitCard;</span>
+    }
+
+    /**
+     * Gets specific group of cards based on the insert param
+     * @param cat_in
+     * @return LiveData&lt;List&lt;Card&gt;&gt;
+     */
+    public LiveData&lt;List&lt;Card&gt;&gt; getSomeCards(int cat_in) {
+<span class="nc" id="L51">        mSomeCards = mDao.getCardsbyCategory(cat_in);</span>
+<span class="nc" id="L52">        return mSomeCards;</span>
+    }
+
+    /**
+     * Finds the most relevant cards based on the query_term
+     * @param query_term
+     * @return LiveData&lt;List&lt;Card&gt;&gt;
+     */
+    public LiveData&lt;List&lt;Card&gt;&gt; findCard(String query_term){
+<span class="fc" id="L61">        mFoundCard = mDao.findCard(query_term);</span>
+<span class="fc" id="L62">        return mFoundCard;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

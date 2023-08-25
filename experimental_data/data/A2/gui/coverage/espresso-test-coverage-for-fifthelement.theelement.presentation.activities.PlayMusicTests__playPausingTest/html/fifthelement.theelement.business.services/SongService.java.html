@@ -1,0 +1,344 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SongService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.business.services</a> &gt; <span class="el_source">SongService.java</span></div><h1>SongService.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.business.services;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import fifthelement.theelement.application.Persistence;
+import fifthelement.theelement.application.Services;
+import fifthelement.theelement.business.exceptions.SongAlreadyExistsException;
+import fifthelement.theelement.objects.Album;
+import fifthelement.theelement.objects.Author;
+import fifthelement.theelement.objects.Song;
+import fifthelement.theelement.persistence.AlbumPersistence;
+import fifthelement.theelement.persistence.AuthorPersistence;
+import fifthelement.theelement.persistence.PlaylistPersistence;
+import fifthelement.theelement.persistence.SongPersistence;
+import fifthelement.theelement.persistence.hsqldb.PersistenceException;
+
+public class SongService {
+
+    private SongPersistence songPersistence;
+    private AlbumPersistence albumPersistence;
+    private AuthorPersistence authorPersistence;
+    private PlaylistPersistence playlistPersistence;
+
+<span class="fc" id="L30">    public SongService() {</span>
+<span class="fc" id="L31">        songPersistence = Persistence.getSongPersistence();</span>
+<span class="fc" id="L32">        albumPersistence = Persistence.getAlbumPersistence();</span>
+<span class="fc" id="L33">        authorPersistence = Persistence.getAuthorPersistence();</span>
+<span class="fc" id="L34">        playlistPersistence = Persistence.getPlaylistPersistence();</span>
+<span class="fc" id="L35">    }</span>
+
+<span class="nc" id="L37">    public SongService(SongPersistence songPersistence, AlbumPersistence albumPersistence, AuthorPersistence authorPersistence, PlaylistPersistence playlistPersistence) {</span>
+<span class="nc" id="L38">        this.songPersistence = songPersistence;</span>
+<span class="nc" id="L39">        this.albumPersistence = albumPersistence;</span>
+<span class="nc" id="L40">        this.authorPersistence = authorPersistence;</span>
+<span class="nc" id="L41">        this.playlistPersistence = playlistPersistence;</span>
+
+<span class="nc" id="L43">    }</span>
+
+    public Song getSongByUUID(UUID uuid) {
+<span class="fc" id="L46">        Song toReturn =  songPersistence.getSongByUUID(uuid);</span>
+<span class="pc bpc" id="L47" title="1 of 2 branches missed.">        if(toReturn != null) {</span>
+<span class="pc bpc" id="L48" title="1 of 2 branches missed.">            if (toReturn.getAlbum() != null) {</span>
+<span class="fc" id="L49">                Album albumToFetch = toReturn.getAlbum();</span>
+<span class="fc" id="L50">                toReturn.setAlbum(albumPersistence.getAlbumByUUID(albumToFetch.getUUID()));</span>
+            }
+<span class="pc bpc" id="L52" title="1 of 2 branches missed.">            if (toReturn.getAuthor() != null) {</span>
+<span class="fc" id="L53">                Author authorToFetch = toReturn.getAuthor();</span>
+<span class="fc" id="L54">                toReturn.setAuthor(authorPersistence.getAuthorByUUID(authorToFetch.getUUID()));</span>
+            }
+        }
+<span class="fc" id="L57">        return toReturn;</span>
+    }
+
+    public List&lt;Song&gt; getSongs() throws PersistenceException {
+<span class="fc" id="L61">        List&lt;Song&gt; songs = songPersistence.getAllSongs();</span>
+
+<span class="pc bpc" id="L63" title="1 of 2 branches missed.">        if(songs != null) {</span>
+<span class="fc bfc" id="L64" title="All 2 branches covered.">            for(Song song : songs) {</span>
+<span class="fc bfc" id="L65" title="All 2 branches covered.">                if(song.getAuthor() != null)</span>
+<span class="fc" id="L66">                    song.setAuthor(authorPersistence.getAuthorByUUID(song.getAuthor().getUUID()));</span>
+<span class="fc bfc" id="L67" title="All 2 branches covered.">                if(song.getAlbum() != null) {</span>
+<span class="fc" id="L68">                    Album album = albumPersistence.getAlbumByUUID(song.getAlbum().getUUID());</span>
+<span class="pc bpc" id="L69" title="1 of 2 branches missed.">                    if(album.getAuthor() != null){</span>
+<span class="fc" id="L70">                        album.setAuthor(authorPersistence.getAuthorByUUID(album.getAuthor().getUUID()));</span>
+                    }
+<span class="fc" id="L72">                    song.setAlbum(album);</span>
+                }
+<span class="fc" id="L74">            }</span>
+        }
+
+<span class="fc" id="L77">        return songs;</span>
+    }
+
+    public void createSong(String realPath, String songName, String songArtist, String songAlbum, String songGenre) throws PersistenceException, IllegalArgumentException, SongAlreadyExistsException {
+<span class="nc bnc" id="L81" title="All 4 branches missed.">        if(songName == null || realPath == null)</span>
+<span class="nc" id="L82">            throw new IllegalArgumentException();</span>
+
+<span class="nc" id="L84">        Author author = null;</span>
+<span class="nc" id="L85">        Album album = null;</span>
+<span class="nc" id="L86">        Song song = new Song(songName, realPath);</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">        if(songArtist != null) {</span>
+<span class="nc" id="L88">            author = new Author(songArtist);</span>
+<span class="nc" id="L89">            song.setAuthor(author);</span>
+        }
+
+<span class="nc bnc" id="L92" title="All 2 branches missed.">        if(songAlbum != null) {</span>
+<span class="nc" id="L93">            album = new Album(songAlbum);</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">            if(author != null)</span>
+<span class="nc" id="L95">                album.setAuthor(author);</span>
+            else
+<span class="nc" id="L97">                album.setAuthor(null);</span>
+<span class="nc" id="L98">            song.setAlbum(album);</span>
+        }
+
+<span class="nc bnc" id="L101" title="All 2 branches missed.">        if(songGenre != null)</span>
+<span class="nc" id="L102">            song.setGenre(songGenre);</span>
+<span class="nc" id="L103">        insertSong(song);</span>
+<span class="nc" id="L104">    }</span>
+
+    public boolean insertSong(Song song) throws PersistenceException, IllegalArgumentException, SongAlreadyExistsException {
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        if(song == null)</span>
+<span class="nc" id="L108">            throw new IllegalArgumentException();</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        if(pathExists(song.getPath()))</span>
+<span class="nc" id="L110">            throw new SongAlreadyExistsException(song.getPath());</span>
+
+<span class="nc" id="L112">        Author author = null;</span>
+<span class="nc" id="L113">        Album album = null;</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">        if(song.getAuthor() != null) {</span>
+<span class="nc" id="L115">            author = song.getAuthor();</span>
+<span class="nc" id="L116">            authorPersistence.storeAuthor(author);</span>
+        }
+
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        if(song.getAlbum() != null) {</span>
+<span class="nc" id="L120">            album = song.getAlbum();</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">            if(author != null)</span>
+<span class="nc" id="L122">                album.setAuthor(author);</span>
+            else
+<span class="nc" id="L124">                album.setAuthor(null);</span>
+<span class="nc" id="L125">            albumPersistence.storeAlbum(album);</span>
+        }
+
+<span class="nc" id="L128">        return songPersistence.storeSong(song);</span>
+    }
+
+    public boolean updateSong(Song song) throws PersistenceException, IllegalArgumentException {
+<span class="pc bpc" id="L132" title="1 of 2 branches missed.">        if(song == null)</span>
+<span class="nc" id="L133">            throw new IllegalArgumentException();</span>
+
+<span class="fc" id="L135">        return songPersistence.updateSong(song);</span>
+    }
+
+    public boolean updateSongWithParameters(Song song, String songName, String author, String album, String genre) {
+
+<span class="nc bnc" id="L140" title="All 2 branches missed.">        if(!songName.equals(&quot;&quot;)){</span>
+<span class="nc" id="L141">            song.setName(songName);</span>
+        }
+
+<span class="nc" id="L144">        Author newAuthor = new Author(author);</span>
+<span class="nc bnc" id="L145" title="All 2 branches missed.">        if(!author.equals(&quot;&quot;)) {</span>
+<span class="nc" id="L146">            song.setAuthor(newAuthor);</span>
+<span class="nc" id="L147">            authorPersistence.storeAuthor(newAuthor);</span>
+        }else {
+<span class="nc" id="L149">            song.setAuthor(null);</span>
+        }
+
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        if(!album.equals(&quot;&quot;)) {</span>
+<span class="nc" id="L153">            Album newAlbum = new Album(album);</span>
+<span class="nc bnc" id="L154" title="All 2 branches missed.">            if(!author.equals(&quot;&quot;))</span>
+<span class="nc" id="L155">                newAlbum.setAuthor(newAuthor);</span>
+            else
+<span class="nc" id="L157">                newAlbum.setAuthor(null);</span>
+<span class="nc" id="L158">            song.setAlbum(newAlbum);</span>
+<span class="nc" id="L159">            albumPersistence.storeAlbum(newAlbum);</span>
+<span class="nc" id="L160">        } else {</span>
+<span class="nc" id="L161">            song.setAlbum(null);</span>
+        }
+
+<span class="nc bnc" id="L164" title="All 2 branches missed.">        if(genre.equals(&quot;&quot;)) {</span>
+<span class="nc" id="L165">            song.setGenre(null);</span>
+        } else {
+<span class="nc" id="L167">            song.setGenre(genre);</span>
+        }
+<span class="nc" id="L169">        return updateSong(song);</span>
+    }
+
+    public boolean updateSongWithRating(Song song, double rating){
+<span class="nc" id="L173">        song.setRating(rating);</span>
+<span class="nc" id="L174">        return updateSong(song);</span>
+    }
+
+
+    public boolean deleteSong(Song songToRemove) throws PersistenceException, IllegalArgumentException {
+<span class="nc bnc" id="L179" title="All 2 branches missed.">        if(songToRemove == null)</span>
+<span class="nc" id="L180">            throw new IllegalArgumentException();</span>
+<span class="nc" id="L181">        Song song = songPersistence.getSongByUUID(songToRemove.getUUID());</span>
+
+<span class="nc bnc" id="L183" title="All 2 branches missed.">        if( song != null ) {</span>
+<span class="nc" id="L184">            songPersistence.deleteSong(song);</span>
+
+<span class="nc" id="L186">            Album album = song.getAlbum();</span>
+<span class="nc bnc" id="L187" title="All 2 branches missed.">            if( album != null ) {</span>
+<span class="nc" id="L188">                List&lt;Song&gt; songListByAlbum = songPersistence.getSongsByAlbumUUID(album.getUUID());</span>
+<span class="nc bnc" id="L189" title="All 4 branches missed.">                if( songListByAlbum == null || songListByAlbum.size() &lt;= 0 ) {</span>
+<span class="nc" id="L190">                    albumPersistence.deleteAlbum(album.getUUID());</span>
+                }
+            }
+
+<span class="nc" id="L194">            Author author = song.getAuthor();</span>
+<span class="nc bnc" id="L195" title="All 2 branches missed.">            if( author != null ) {</span>
+<span class="nc" id="L196">                List&lt;Song&gt; songListByAlbum = songPersistence.getSongsByAlbumUUID(author.getUUID());</span>
+<span class="nc bnc" id="L197" title="All 4 branches missed.">                if( songListByAlbum == null || songListByAlbum.size() &lt;= 0 ) {</span>
+<span class="nc" id="L198">                    authorPersistence.deleteAuthor(author.getUUID());</span>
+                }
+            }
+
+
+<span class="nc" id="L203">            return true;</span>
+        }
+<span class="nc" id="L205">        return false;</span>
+    }
+
+    // Method checks if any song already has the same path
+    // and returns true if a songs exists with the same path
+    public boolean pathExists(String path) {
+<span class="nc" id="L211">        List&lt;Song&gt; songs = getSongs();</span>
+<span class="nc" id="L212">        boolean toReturn = false;</span>
+
+<span class="nc bnc" id="L214" title="All 2 branches missed.">        for(Song song : songs) {</span>
+<span class="nc bnc" id="L215" title="All 2 branches missed.">            if(song.getPath().equals(path)) {</span>
+<span class="nc" id="L216">                toReturn = true;</span>
+<span class="nc" id="L217">                break;</span>
+            }
+<span class="nc" id="L219">        }</span>
+<span class="nc" id="L220">        return toReturn;</span>
+    }
+
+    public List&lt;Song&gt; search(String query) {
+<span class="nc" id="L224">        List&lt;Song&gt; allSongs = getSongs();</span>
+<span class="nc" id="L225">        ArrayList&lt;Song&gt; matchesList = new ArrayList&lt;&gt;();</span>
+        Matcher matcher;
+
+<span class="nc bnc" id="L228" title="All 2 branches missed.">        if (validateRegex(query)){</span>
+<span class="nc" id="L229">            String regex = query;</span>
+<span class="nc" id="L230">            Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);</span>
+
+<span class="nc bnc" id="L232" title="All 2 branches missed.">            for (Song s: allSongs) {</span>
+<span class="nc" id="L233">                matcher = pattern.matcher(s.getName());</span>
+<span class="nc bnc" id="L234" title="All 2 branches missed.">                if ( matcher.find()){</span>
+<span class="nc" id="L235">                    matchesList.add(s);</span>
+                }
+<span class="nc" id="L237">            }</span>
+        }
+<span class="nc" id="L239">        return matchesList;</span>
+    }
+
+    // Making sure the regex pattern doesn't contain special
+    // characters, which screws up regex compiling
+    private boolean validateRegex(String regexPattern){
+<span class="nc" id="L245">        boolean result = false;</span>
+<span class="nc" id="L246">        Pattern special = Pattern.compile (&quot;[!@#$%&amp;*()_+=|&lt;&gt;?{}\\[\\]~-]&quot;);</span>
+<span class="nc" id="L247">        Matcher matcher = special.matcher(regexPattern);</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">        if (matcher.find() == false)</span>
+<span class="nc" id="L249">            result = true;</span>
+<span class="nc" id="L250">        return result;</span>
+    }
+
+    public void clearAllSongs(){
+<span class="nc" id="L254">        List&lt;Song&gt; allSongs = songPersistence.getAllSongs();</span>
+
+<span class="nc bnc" id="L256" title="All 2 branches missed.">        for(Song song : allSongs){</span>
+<span class="nc" id="L257">            songPersistence.deleteSong(song);</span>
+
+<span class="nc" id="L259">            Album album = song.getAlbum();</span>
+<span class="nc bnc" id="L260" title="All 2 branches missed.">            if( album != null ) {</span>
+<span class="nc" id="L261">                albumPersistence.deleteAlbum(album.getUUID());</span>
+            }
+
+<span class="nc" id="L264">            Author author = song.getAuthor();</span>
+<span class="nc bnc" id="L265" title="All 2 branches missed.">            if( author != null ) {</span>
+<span class="nc" id="L266">                authorPersistence.deleteAuthor(author.getUUID());</span>
+            }
+<span class="nc" id="L268">        }</span>
+<span class="nc" id="L269">    }</span>
+
+    public Song getMostPlayedSong() {
+<span class="nc" id="L272">        List&lt;Song&gt; songList = getSortedSongListByMostPlayed();</span>
+<span class="nc" id="L273">        Song song = null;</span>
+<span class="nc bnc" id="L274" title="All 4 branches missed.">        if( songList != null &amp;&amp; songList.size() &gt; 0 ) {</span>
+<span class="nc" id="L275">            song = songList.get(0);</span>
+        }
+<span class="nc" id="L277">        return song;</span>
+    }
+
+    public List&lt;Song&gt; getSortedSongListByMostPlayed() {
+<span class="nc" id="L281">        List&lt;Song&gt; songList = this.getSongs();</span>
+<span class="nc bnc" id="L282" title="All 2 branches missed.">        if( songList != null ) {</span>
+<span class="nc" id="L283">            Collections.sort(songList, new Comparator&lt;Song&gt;() {</span>
+                @Override
+                public int compare(Song song, Song t1) {
+<span class="nc" id="L286">                    return Integer.compare(t1.getNumPlayed(), song.getNumPlayed());</span>
+                }
+            });
+        }
+<span class="nc" id="L290">        return  songList;</span>
+    }
+
+    public int getTotalSongPlays() {
+<span class="nc" id="L294">        List&lt;Song&gt; songList = this.getSongs();</span>
+<span class="nc" id="L295">        int totalPlays = 0;</span>
+<span class="nc bnc" id="L296" title="All 2 branches missed.">        for( Song song : songList ) {</span>
+<span class="nc" id="L297">            totalPlays += song.getNumPlayed();</span>
+<span class="nc" id="L298">        }</span>
+<span class="nc" id="L299">        return totalPlays;</span>
+    }
+
+    // called every time a song is skipped.
+    public void songIsPlayed(UUID songId) {
+<span class="fc" id="L304">        Song song = this.getSongByUUID(songId);</span>
+<span class="fc" id="L305">        Author author = null;</span>
+<span class="fc" id="L306">        Album album = null;</span>
+<span class="pc bpc" id="L307" title="1 of 2 branches missed.">        if( song != null ) {</span>
+<span class="fc" id="L308">            song.incrNumPlayed();</span>
+<span class="pc bpc" id="L309" title="1 of 2 branches missed.">            if( song.getAuthor() != null ) {</span>
+<span class="fc" id="L310">                author = Services.getAuthorService().getAuthorByUUID(song.getAuthor().getUUID());</span>
+<span class="fc" id="L311">                author.incrNumPlayed();</span>
+<span class="fc" id="L312">                Services.getAuthorService().updateAuthor(author);</span>
+            }
+<span class="pc bpc" id="L314" title="1 of 2 branches missed.">            if( song.getAlbum() != null ) {</span>
+<span class="fc" id="L315">                album = Services.getAlbumService().getAlbumByUUID(song.getAlbum().getUUID());</span>
+<span class="fc" id="L316">                album.incrNumPlayed();</span>
+<span class="fc" id="L317">                Services.getAlbumService().updateAlbum(album);</span>
+            }
+        }
+<span class="fc" id="L320">        this.updateSong(song);</span>
+<span class="fc" id="L321">    }</span>
+
+    // if the song is skipped then we shouldn't count it as a played
+    public void songIsSkipped(UUID songId) {
+<span class="nc" id="L325">        Song song = this.getSongByUUID(songId);</span>
+<span class="nc" id="L326">        Author author = null;</span>
+<span class="nc" id="L327">        Album album = null;</span>
+<span class="nc bnc" id="L328" title="All 2 branches missed.">        if( song != null ) {</span>
+<span class="nc" id="L329">            song.decrNumPlayed();</span>
+<span class="nc bnc" id="L330" title="All 2 branches missed.">            if( song.getAuthor() != null ) {</span>
+<span class="nc" id="L331">                author = Services.getAuthorService().getAuthorByUUID(song.getAuthor().getUUID());</span>
+<span class="nc" id="L332">                author.decrNumPlayed();</span>
+<span class="nc" id="L333">                Services.getAuthorService().updateAuthor(author);</span>
+            }
+<span class="nc bnc" id="L335" title="All 2 branches missed.">            if( song.getAlbum() != null ) {</span>
+<span class="nc" id="L336">                album = Services.getAlbumService().getAlbumByUUID(song.getAlbum().getUUID());</span>
+<span class="nc" id="L337">                album.decrNumPlayed();</span>
+<span class="nc" id="L338">                Services.getAlbumService().updateAlbum(album);</span>
+            }
+        }
+<span class="nc" id="L341">        this.updateSong(song);</span>
+<span class="nc" id="L342">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

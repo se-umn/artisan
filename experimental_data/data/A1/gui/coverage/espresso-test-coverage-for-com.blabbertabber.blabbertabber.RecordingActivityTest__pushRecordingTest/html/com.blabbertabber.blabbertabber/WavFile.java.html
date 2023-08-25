@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WavFile.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.blabbertabber.blabbertabber</a> &gt; <span class="el_source">WavFile.java</span></div><h1>WavFile.java</h1><pre class="source lang-java linenums">package com.blabbertabber.blabbertabber;
+
+import android.content.Context;
+import android.util.Log;
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+
+/**
+ * Utility class to convert the .raw pcm file to a .wav file.
+ */
+public class WavFile extends File {
+    private static final String TAG = &quot;WavFile&quot;;
+<span class="nc" id="L19">    public static int DEFAULT_SAMPLE_RATE = 16_000;</span>
+    File wavFile;
+
+    private WavFile(String path) {
+<span class="nc" id="L23">        super(path);</span>
+<span class="nc" id="L24">    }</span>
+
+    public static WavFile of(Context context, File rawFile) throws IOException {
+<span class="nc" id="L27">        String wavFilePath = convertFilenameFromRawToWav(rawFile.getPath());</span>
+<span class="nc" id="L28">        WavFile wavFile = new WavFile(wavFilePath);</span>
+<span class="nc" id="L29">        Log.i(TAG, &quot;wavFilePath: &quot; + wavFilePath);</span>
+<span class="nc" id="L30">        wavFile.rawToWave(context, rawFile, new File(wavFilePath));</span>
+<span class="nc" id="L31">        return wavFile;</span>
+    }
+
+    public static WavFile of(Context context, String rawFilepathname) throws IOException {
+<span class="nc" id="L35">        return of(context, new File(rawFilepathname));</span>
+    }
+
+    // Returns an appropriately named .wav file path.
+    // TODO: Consider making this private or moving to a different class.
+    public static String convertFilenameFromRawToWav(String filename) {
+<span class="nc" id="L41">        filename = filename.replaceFirst(&quot;\\.raw$&quot;, &quot;&quot;);</span>
+<span class="nc" id="L42">        return filename + &quot;.wav&quot;;</span>
+    }
+
+    private void rawToWave(Context context, final File rawFile, final File waveFile) throws IOException {
+<span class="nc" id="L46">        wavFile = waveFile;</span>
+
+<span class="nc" id="L48">        byte[] rawData = new byte[(int) rawFile.length()];</span>
+<span class="nc" id="L49">        DataInputStream input = null;</span>
+        try {
+<span class="nc" id="L51">            input = new DataInputStream(new FileInputStream(rawFile));</span>
+<span class="nc" id="L52">            input.read(rawData);</span>
+        } finally {
+<span class="nc bnc" id="L54" title="All 2 branches missed.">            if (input != null) {</span>
+<span class="nc" id="L55">                input.close();</span>
+            }
+        }
+
+<span class="nc" id="L59">        DataOutputStream output = null;</span>
+        try {
+<span class="nc" id="L61">            Log.i(TAG, &quot;About to write to wav file in path &quot; + waveFile.getAbsolutePath());</span>
+<span class="nc" id="L62">            output = new DataOutputStream(context.openFileOutput(waveFile.getName(), Context.MODE_PRIVATE));</span>
+            // WAVE header
+            // see http://ccrma.stanford.edu/courses/422/projects/WaveFormat/
+<span class="nc" id="L65">            writeString(output, &quot;RIFF&quot;); // chunk id</span>
+<span class="nc" id="L66">            writeInt(output, 36 + rawData.length); // chunk size</span>
+<span class="nc" id="L67">            writeString(output, &quot;WAVE&quot;); // format</span>
+<span class="nc" id="L68">            writeString(output, &quot;fmt &quot;); // subchunk 1 id</span>
+<span class="nc" id="L69">            writeInt(output, 16); // subchunk 1 size</span>
+<span class="nc" id="L70">            writeShort(output, (short) 1); // audio format (1 = PCM)</span>
+<span class="nc" id="L71">            writeShort(output, (short) 1); // number of channels</span>
+<span class="nc" id="L72">            writeInt(output, DEFAULT_SAMPLE_RATE); // sample rate</span>
+<span class="nc" id="L73">            writeInt(output, DEFAULT_SAMPLE_RATE * 2); // byte rate</span>
+<span class="nc" id="L74">            writeShort(output, (short) 2); // block align</span>
+<span class="nc" id="L75">            writeShort(output, (short) 16); // bits per sample</span>
+<span class="nc" id="L76">            writeString(output, &quot;data&quot;); // subchunk 2 id</span>
+<span class="nc" id="L77">            writeInt(output, rawData.length); // subchunk 2 size</span>
+            // Audio data (conversion big endian -&gt; little endian)
+<span class="nc" id="L79">            short[] shorts = new short[rawData.length / 2];</span>
+<span class="nc" id="L80">            ByteBuffer.wrap(rawData).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts);</span>
+<span class="nc" id="L81">            ByteBuffer bytes = ByteBuffer.allocate(shorts.length * 2);</span>
+<span class="nc bnc" id="L82" title="All 2 branches missed.">            for (short s : shorts) {</span>
+<span class="nc" id="L83">                bytes.putShort(s);</span>
+            }
+<span class="nc" id="L85">            output.write(bytes.array());</span>
+        } finally {
+<span class="nc bnc" id="L87" title="All 2 branches missed.">            if (output != null) {</span>
+<span class="nc" id="L88">                output.close();</span>
+            }
+        }
+<span class="nc" id="L91">    }</span>
+
+    private void writeInt(final DataOutputStream output, final int value) throws IOException {
+<span class="nc" id="L94">        output.write(value);</span>
+<span class="nc" id="L95">        output.write(value &gt;&gt; 8);</span>
+<span class="nc" id="L96">        output.write(value &gt;&gt; 16);</span>
+<span class="nc" id="L97">        output.write(value &gt;&gt; 24);</span>
+<span class="nc" id="L98">    }</span>
+
+    private void writeShort(final DataOutputStream output, final short value) throws IOException {
+<span class="nc" id="L101">        output.write(value);</span>
+<span class="nc" id="L102">        output.write(value &gt;&gt; 8);</span>
+<span class="nc" id="L103">    }</span>
+
+    private void writeString(final DataOutputStream output, final String value) throws IOException {
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        for (int i = 0; i &lt; value.length(); i++) {</span>
+<span class="nc" id="L107">            output.write(value.charAt(i));</span>
+        }
+<span class="nc" id="L109">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

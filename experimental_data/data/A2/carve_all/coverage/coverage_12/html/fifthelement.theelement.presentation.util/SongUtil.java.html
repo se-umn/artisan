@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SongUtil.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.presentation.util</a> &gt; <span class="el_source">SongUtil.java</span></div><h1>SongUtil.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.presentation.util;
+
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.media.MediaMetadataRetriever;
+import android.net.Uri;
+import android.util.Log;
+
+import fifthelement.theelement.R;
+import fifthelement.theelement.objects.Song;
+
+<span class="nc" id="L13">public class SongUtil {</span>
+
+    private static final String LOG_TAG = &quot;SongUtil&quot;;
+
+    /**
+     * This method will give you the default album art
+     * @param context   The context of the app
+     * @return          The default album art as a bitmap
+     */
+    public static Bitmap getDefaultAlbumArt(Context context) {
+<span class="nc" id="L23">        Bitmap bm = null;</span>
+<span class="nc" id="L24">        BitmapFactory.Options options = new BitmapFactory.Options();</span>
+        try {
+<span class="nc" id="L26">            bm = BitmapFactory.decodeResource(context.getResources(),</span>
+                    R.drawable.default_album_art, options);
+<span class="nc" id="L28">        } catch (Exception e) {</span>
+<span class="nc" id="L29">            Log.e(LOG_TAG, e.toString());</span>
+<span class="nc" id="L30">        }</span>
+<span class="nc" id="L31">        return bm;</span>
+    }
+
+    /**
+     * This method will give you a songs album art
+     * @param context   The context of the app
+     * @param song      The song to extract the album art
+     * @return          The songs album art as a bitmap
+     */
+    public static Bitmap getSongAlbumArt(Context context, Song song) {
+<span class="nc" id="L41">        Bitmap bm = null;</span>
+<span class="nc" id="L42">        MediaMetadataRetriever metaRetriver = new MediaMetadataRetriever();</span>
+        try {
+<span class="nc bnc" id="L44" title="All 2 branches missed.">            if(song.getPath().contains(&quot;android.resource&quot;))</span>
+<span class="nc" id="L45">                metaRetriver.setDataSource(context, Uri.parse(song.getPath()));</span>
+            else
+<span class="nc" id="L47">                 metaRetriver.setDataSource(song.getPath());</span>
+<span class="nc" id="L48">            byte[] art = metaRetriver.getEmbeddedPicture();</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">            if(art != null)</span>
+<span class="nc" id="L50">                bm = BitmapFactory.decodeByteArray(art, 0, art.length);</span>
+<span class="nc" id="L51">        } catch (Exception e) {</span>
+<span class="nc" id="L52">            Log.e(LOG_TAG, e.toString());</span>
+<span class="nc" id="L53">        }</span>
+<span class="nc bnc" id="L54" title="All 2 branches missed.">        if(bm == null)</span>
+<span class="nc" id="L55">            bm = getDefaultAlbumArt(context);</span>
+
+<span class="nc" id="L57">        return bm;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

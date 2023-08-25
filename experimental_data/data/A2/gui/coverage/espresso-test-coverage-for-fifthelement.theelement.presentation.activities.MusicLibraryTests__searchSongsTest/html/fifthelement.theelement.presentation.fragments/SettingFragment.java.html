@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SettingFragment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.presentation.fragments</a> &gt; <span class="el_source">SettingFragment.java</span></div><h1>SettingFragment.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.presentation.fragments;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.res.Resources;
+import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+
+import fifthelement.theelement.R;
+import fifthelement.theelement.application.Helpers;
+import fifthelement.theelement.application.Services;
+import fifthelement.theelement.business.services.SongListService;
+import fifthelement.theelement.business.services.SongService;
+import fifthelement.theelement.presentation.activities.MainActivity;
+import fifthelement.theelement.presentation.constants.SettingsConstants;
+import fifthelement.theelement.presentation.services.NotificationService;
+import fifthelement.theelement.presentation.util.ThemeUtil;
+
+<span class="nc" id="L33">public class SettingFragment extends Fragment {</span>
+
+    private View view;
+    private ListView mainListView;
+    private ArrayAdapter&lt;String&gt; listAdapter;
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+
+        // Find the ListView resource.
+<span class="nc" id="L44">        view = inflater.inflate(R.layout.setting_fragment, container, false);</span>
+<span class="nc" id="L45">        mainListView = view.findViewById(R.id.library_view);</span>
+
+
+        // Create and populate a List of for the library.
+<span class="nc" id="L49">        ArrayList&lt;String&gt; libraryList = new ArrayList&lt;String&gt;();</span>
+<span class="nc" id="L50">        libraryList.addAll(Arrays.asList(SettingsConstants.SETTING_OPTIONS));</span>
+
+        // Create ArrayAdapter using the library list.
+<span class="nc" id="L53">        listAdapter = new ArrayAdapter&lt;&gt;(getActivity(), R.layout.simplerow, libraryList);</span>
+<span class="nc" id="L54">        mainListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {</span>
+            @Override
+            public void onItemClick(AdapterView&lt;?&gt; parent, View view, int position, long id) {
+<span class="nc bnc" id="L57" title="All 2 branches missed.">                if(position == 0) {</span>
+<span class="nc" id="L58">                    selectTheme();</span>
+                }
+<span class="nc bnc" id="L60" title="All 2 branches missed.">                else if(position == 1){</span>
+<span class="nc" id="L61">                    deleteSongsConfirmDialog();</span>
+                }
+<span class="nc bnc" id="L63" title="All 2 branches missed.">                if( position == 2 ) {</span>
+<span class="nc" id="L64">                    System.out.println(&quot;Called PlayerStatsFragment&quot;);</span>
+<span class="nc" id="L65">                    Fragment fragment = null;</span>
+<span class="nc" id="L66">                    Class fragmentClass = PlayerStatsFragment.class;</span>
+                    try {
+<span class="nc" id="L68">                        fragment = (Fragment) fragmentClass.newInstance();</span>
+<span class="nc" id="L69">                    } catch (Exception e) {</span>
+<span class="nc" id="L70">                        Log.e(&quot;PlayerStatsFragment&quot;, e.getMessage());</span>
+<span class="nc" id="L71">                    }</span>
+<span class="nc" id="L72">                    Helpers.getFragmentHelper((MainActivity)getActivity()).createFragment(R.id.flContent, fragment);</span>
+                }
+<span class="nc" id="L74">            }</span>
+        });
+
+        // Set the ArrayAdapter as the ListView's adapter.
+<span class="nc" id="L78">        mainListView.setAdapter(listAdapter);</span>
+<span class="nc" id="L79">        return view;</span>
+    }
+
+    private void selectTheme() {
+<span class="nc" id="L83">        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());</span>
+<span class="nc" id="L84">        builder.setTitle(&quot;Please choose a theme:&quot;)</span>
+
+<span class="nc" id="L86">                .setItems(SettingsConstants.THEMES, new DialogInterface.OnClickListener() {</span>
+                    public void onClick(DialogInterface dialog, int clicked) {
+<span class="nc" id="L88">                        ThemeUtil.changeToTheme(getActivity(), clicked);</span>
+<span class="nc" id="L89">                    }</span>
+                });
+<span class="nc" id="L91">        builder.create();</span>
+<span class="nc" id="L92">        builder.show();</span>
+<span class="nc" id="L93">    }</span>
+
+    private void deleteSongsConfirmDialog(){
+<span class="nc" id="L96">        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());</span>
+<span class="nc" id="L97">        builder.setTitle(&quot;Are you sure you want to delete all songs?:&quot;)</span>
+
+<span class="nc" id="L99">                .setItems(SettingsConstants.YES_NO_OPTIONS, new DialogInterface.OnClickListener() {</span>
+                    public void onClick(DialogInterface dialog, int clicked) {
+<span class="nc bnc" id="L101" title="All 2 branches missed.">                        if(clicked == 0){</span>
+<span class="nc" id="L102">                            SongService songService = Services.getSongService();</span>
+<span class="nc" id="L103">                            SongListService songListService = Services.getSongListService();</span>
+<span class="nc" id="L104">                            songService.clearAllSongs();</span>
+<span class="nc" id="L105">                            songListService.setCurrentSongsList(songService.getSongs());</span>
+<span class="nc" id="L106">                            songListService.setAllSongsList(songService.getSongs());</span>
+<span class="nc" id="L107">                            Services.getMusicService().reset();</span>
+<span class="nc" id="L108">                            getActivity().stopService(new Intent(getActivity(), NotificationService.class));</span>
+<span class="nc" id="L109">                            Helpers.getToastHelper((getActivity()).getApplicationContext()).sendToast(&quot;Deleted all songs&quot;);</span>
+                        }
+<span class="nc" id="L111">                    }</span>
+                });
+<span class="nc" id="L113">        builder.create();</span>
+<span class="nc" id="L114">        builder.show();</span>
+<span class="nc" id="L115">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

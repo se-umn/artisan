@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SongMetaUtil.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.business.util</a> &gt; <span class="el_source">SongMetaUtil.java</span></div><h1>SongMetaUtil.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.business.util;
+
+<span class="nc" id="L3">public class SongMetaUtil {</span>
+
+    public static String getExtension(String uri) {
+<span class="nc bnc" id="L6" title="All 2 branches missed.">        if (uri == null) {</span>
+<span class="nc" id="L7">            return null;</span>
+        }
+
+<span class="nc" id="L10">        int dot = uri.lastIndexOf(&quot;.&quot;);</span>
+<span class="nc bnc" id="L11" title="All 2 branches missed.">        if (dot &gt;= 0) {</span>
+<span class="nc" id="L12">            return uri.substring(dot+1);</span>
+        } else {
+<span class="nc" id="L14">            return &quot;&quot;;</span>
+        }
+    }
+
+    public static boolean supportedAudioFileExtension(String extension){
+<span class="nc bnc" id="L19" title="All 2 branches missed.">        if(extension == null) {</span>
+<span class="nc" id="L20">            return false;</span>
+        }
+
+<span class="nc" id="L23">        boolean toReturn = false;</span>
+<span class="nc" id="L24">        final String[] supportedFormats = {&quot;mp3&quot;, &quot;mkv&quot;, &quot;wav&quot;, &quot;ogg&quot;, &quot;mid&quot;,</span>
+                &quot;rtx&quot;, &quot;mp4&quot;, &quot;m4a&quot;, &quot;aac&quot;, &quot;3gp&quot;,
+                &quot;flac&quot;, &quot;xmf&quot;, &quot;mxmf&quot;, &quot;rtttl&quot;, &quot;ota&quot;,
+                &quot;imy&quot;};
+
+<span class="nc bnc" id="L29" title="All 2 branches missed.">        for(String format : supportedFormats){</span>
+<span class="nc bnc" id="L30" title="All 4 branches missed.">            toReturn = toReturn || extension.equals(format);</span>
+        }
+
+<span class="nc" id="L33">        return toReturn;</span>
+    }
+
+    public static boolean validName(String newName){
+<span class="nc" id="L37">        boolean result = false;</span>
+<span class="nc" id="L38">        String normalChars = &quot;^[a-zA-Z0-9 ]+$&quot;;</span>
+<span class="nc bnc" id="L39" title="All 2 branches missed.">        if (newName.matches(normalChars))</span>
+<span class="nc" id="L40">            result = true;</span>
+<span class="nc" id="L41">        return result;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

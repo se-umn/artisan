@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <ListPreference
+        android:key="@string/pk_sql_limit"
+        android:title="@string/tx_sql_limit"
+        android:defaultValue="10"
+        android:entries="@array/sql_limit_keys"
+        android:entryValues="@array/sql_limits_vals" />
+
+    <ListPreference
+        android:key="@string/pk_log_longevity"
+        android:title="@string/tx_log_longevity"
+        android:defaultValue="no limit"
+        android:entries="@array/log_longevity"
+        android:entryValues="@array/log_longevity" />
+
+    <ListPreference
+        android:key="@string/pk_toast_verbosity"
+        android:title="@string/tx_toasts_verbosity"
+        android:defaultValue="medium verbosity"
+        android:entries="@array/toast_verbosity"
+        android:entryValues="@array/toast_verbosity" />
+    <Preference
+        android:key="@string/pk_exp_rules"
+        android:title="@string/tx_exp_rules"
+        android:summary="@string/tx_serialization_location"/>
+    <Preference
+        android:key="@string/pk_imp_rules"
+        android:title="@string/tx_imp_rules"
+        android:summary="@string/tx_serialization_location"/>
+    <Preference
+        android:key="@string/px_show_protected"
+        android:title="@string/tx_show_protected" />
+    <Preference
+        android:key="@string/mn_help"
+        android:title="@string/mn_help" />
+
+</PreferenceScreen>

@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FilterRulesFragment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker</a> &gt; <span class="el_source">FilterRulesFragment.java</span></div><h1>FilterRulesFragment.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker;
+
+import android.app.Activity;
+import android.content.CursorLoader;
+import android.content.Intent;
+import android.content.Loader;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.os.Parcelable;
+import android.util.Log;
+import android.view.View;
+import android.widget.ListView;
+import android.widget.SimpleCursorAdapter;
+
+import com.prismaqf.callblocker.rules.FilterRule;
+import com.prismaqf.callblocker.sql.DbContract;
+import com.prismaqf.callblocker.sql.DbHelper;
+import com.prismaqf.callblocker.sql.FilterRuleProvider;
+
+/**
+ * Fragment for editing filter rules
+ * @author ConteDiMonteCristo
+ */
+<span class="fc" id="L26">public class FilterRulesFragment extends EditCursorListFragment {</span>
+
+    private class DbOperation extends AsyncTask&lt;Long, Void, FilterRule&gt; {
+
+        private final String context;
+        private long myRuleId;
+
+<span class="fc" id="L33">        DbOperation(String context) {</span>
+<span class="fc" id="L34">            this.context = context;</span>
+<span class="fc" id="L35">        }</span>
+        @Override
+        protected FilterRule doInBackground(Long... ids) {
+<span class="fc" id="L38">            SQLiteDatabase db = new DbHelper(getActivity()).getReadableDatabase();</span>
+<span class="fc" id="L39">            final long ruleid = ids[0];</span>
+<span class="fc" id="L40">            myRuleId = ruleid;</span>
+            try {
+<span class="fc" id="L42">                return FilterRuleProvider.FindFilterRule(db, ruleid);</span>
+
+<span class="nc" id="L44">            } catch (Exception e) {</span>
+<span class="nc" id="L45">                Log.e(TAG, e.getMessage());</span>
+            }
+            finally {
+<span class="fc" id="L48">                db.close();</span>
+            }
+<span class="nc" id="L50">            return null;</span>
+        }
+
+        @Override
+        protected void onPostExecute (FilterRule rule) {
+<span class="pc bpc" id="L55" title="1 of 2 branches missed.">            if (context.equals(NewEditActivity.CONTEXT_PICK)) {</span>
+<span class="nc" id="L56">                Intent returnIntent = new Intent();</span>
+<span class="nc" id="L57">                returnIntent.putExtra(NewEditActivity.KEY_RULENAME, rule.getName());</span>
+<span class="nc" id="L58">                getActivity().setResult(Activity.RESULT_OK, returnIntent);</span>
+<span class="nc" id="L59">                getActivity().finish();</span>
+<span class="nc" id="L60">            } else {</span>
+<span class="fc" id="L61">                Intent intent = new Intent(getActivity(),NewEditFilterRule.class);</span>
+<span class="fc" id="L62">                intent.putExtra(NewEditActivity.KEY_ACTION, NewEditActivity.ACTION_UPDATE);</span>
+<span class="fc" id="L63">                intent.putExtra(NewEditActivity.KEY_ORIG,(Parcelable)rule);</span>
+<span class="fc" id="L64">                intent.putExtra(NewEditActivity.KEY_RULEID,myRuleId);</span>
+<span class="fc" id="L65">                startActivity(intent);</span>
+            }
+
+<span class="fc" id="L68">        }</span>
+    }
+
+<span class="fc" id="L71">    private final String TAG = FilterRulesFragment.class.getCanonicalName();</span>
+    private static final int URL_LOADER = 3; // Identifies a particular Loader being used in this component
+    private String myContext;
+
+    @Override
+    public void onStart() {
+<span class="fc" id="L77">        super.onStart();</span>
+<span class="fc" id="L78">        Bundle args = getArguments();</span>
+<span class="pc bpc" id="L79" title="1 of 2 branches missed.">        if (args != null)</span>
+<span class="nc" id="L80">            myContext = args.getString(NewEditActivity.KEY_CONTEXT,&quot;none&quot;);</span>
+        else
+<span class="fc" id="L82">            myContext = &quot;none&quot;;</span>
+<span class="fc" id="L83">    }</span>
+
+    @Override
+    protected SimpleCursorAdapter getAdapter() {
+<span class="fc" id="L87">        return new SimpleCursorAdapter(getActivity(),</span>
+                                       R.layout.filter_rule_record,
+                                       null,  //no cursor yet
+                                       new String[] {DbContract.FilterRules.COLUMN_NAME_RULENAME,
+                                                     DbContract.FilterRules.COLUMN_NAME_DESCRIPTION},
+                                       new int[] {R.id.text_rule_name,
+                                                  R.id.text_rule_description},
+                                       0);
+    }
+
+    @Override
+    protected void initLoader() {
+<span class="fc" id="L99">        getLoaderManager().initLoader(URL_LOADER, null,this);</span>
+<span class="fc" id="L100">    }</span>
+
+    @Override
+    public Loader&lt;Cursor&gt; onCreateLoader(int loaderID, Bundle args) {
+<span class="pc bpc" id="L104" title="1 of 2 branches missed.">        switch (loaderID) {</span>
+            case URL_LOADER:
+                // Returns a new CursorLoader
+<span class="fc" id="L107">                return new CursorLoader(getActivity(),   // Parent activity context</span>
+                        null,   // All the following params
+                        null,   // are null
+                        null,   // because the Cursor is created
+                        null,   // below
+<span class="fc" id="L112">                        null) {</span>
+                    @Override
+                    public Cursor loadInBackground() {
+<span class="fc" id="L115">                        return myDbConnection.query(DbContract.FilterRules.TABLE_NAME,</span>
+                                null, null, null, null, null, null, null);
+                    }
+                };
+            default:
+<span class="nc" id="L120">                return null;</span>
+        }
+    }
+
+    @Override
+    public void onListItemClick(ListView l, View v, int position, long id) {
+<span class="fc" id="L126">        super.onListItemClick(l, v, position, id);</span>
+<span class="fc" id="L127">        new DbOperation(myContext).execute(id);</span>
+<span class="fc" id="L128">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PlaylistService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.business.services</a> &gt; <span class="el_source">PlaylistService.java</span></div><h1>PlaylistService.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.business.services;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+import fifthelement.theelement.application.Persistence;
+import fifthelement.theelement.objects.Playlist;
+import fifthelement.theelement.objects.Song;
+import fifthelement.theelement.persistence.PlaylistPersistence;
+import fifthelement.theelement.persistence.SongPersistence;
+import fifthelement.theelement.persistence.hsqldb.PersistenceException;
+
+
+public class PlaylistService {
+
+    private PlaylistPersistence playlistPersistence;
+    private SongPersistence songPersistence;
+
+<span class="fc" id="L20">    public PlaylistService() {</span>
+<span class="fc" id="L21">        playlistPersistence = Persistence.getPlaylistPersistence();</span>
+<span class="fc" id="L22">        songPersistence = Persistence.getSongPersistence();</span>
+<span class="fc" id="L23">    }</span>
+
+<span class="nc" id="L25">    public PlaylistService(PlaylistPersistence playlistPersistence, SongPersistence songPersistence) {</span>
+<span class="nc" id="L26">        this.playlistPersistence = playlistPersistence;</span>
+<span class="nc" id="L27">        this.songPersistence = songPersistence;</span>
+<span class="nc" id="L28">    }</span>
+
+    public Playlist getPlaylistByUUID(UUID uuid) {
+<span class="nc" id="L31">        return playlistPersistence.getPlaylistByUUID(uuid);</span>
+    }
+
+    public List&lt;Playlist&gt; getAllPlaylists() throws PersistenceException {
+
+<span class="nc" id="L36">        List&lt;Playlist&gt; playlists = playlistPersistence.getAllPlaylists();</span>
+
+<span class="nc bnc" id="L38" title="All 2 branches missed.">        if(playlists != null) {</span>
+<span class="nc bnc" id="L39" title="All 2 branches missed.">            for(Playlist playlist : playlists) {</span>
+<span class="nc" id="L40">                List&lt;Song&gt; songs = playlistPersistence.getAllSongsByPlaylist(playlist.getUUID());</span>
+<span class="nc" id="L41">                List&lt;Song&gt; updatedSongs = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L42" title="All 2 branches missed.">                if(songs != null) {</span>
+<span class="nc bnc" id="L43" title="All 2 branches missed.">                    for(Song song : songs) {</span>
+<span class="nc" id="L44">                        song = songPersistence.getSongByUUID(song.getUUID());</span>
+<span class="nc" id="L45">                        updatedSongs.add(song);</span>
+<span class="nc" id="L46">                    }</span>
+                }
+<span class="nc" id="L48">                playlist.setSongs(updatedSongs);</span>
+<span class="nc" id="L49">            }</span>
+        }
+
+<span class="nc" id="L52">        return playlists;</span>
+    }
+
+
+    public boolean insertPlaylist(Playlist playlist) throws ArrayStoreException, IllegalArgumentException {
+<span class="nc bnc" id="L57" title="All 2 branches missed.">        if(playlist == null)</span>
+<span class="nc" id="L58">            throw new IllegalArgumentException();</span>
+<span class="nc" id="L59">        return playlistPersistence.storePlaylist(playlist);</span>
+    }
+
+    public boolean insertSongForPlaylist(Playlist playlist, Song song) throws IllegalArgumentException {
+<span class="nc bnc" id="L63" title="All 6 branches missed.">        if(playlist == null || song == null || !songPersistence.songExists(song))</span>
+<span class="nc" id="L64">            throw new IllegalArgumentException();</span>
+<span class="nc" id="L65">        return playlistPersistence.storeSongForPlaylist(playlist, song);</span>
+    }
+
+    public boolean updatePlaylist(Playlist playlist, String newName) throws  IllegalArgumentException {
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        if(playlist == null)</span>
+<span class="nc" id="L70">            throw new IllegalArgumentException();</span>
+<span class="nc" id="L71">        return playlistPersistence.updatePlaylist(playlist, newName);</span>
+    }
+
+    public boolean deletePlaylist(Playlist playlist) throws IllegalArgumentException {
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        if(playlist == null)</span>
+<span class="nc" id="L76">            throw new IllegalArgumentException();</span>
+<span class="nc" id="L77">        return playlistPersistence.deletePlaylist(playlist.getUUID());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

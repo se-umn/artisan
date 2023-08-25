@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CalendarRuleProvider.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker.sql</a> &gt; <span class="el_source">CalendarRuleProvider.java</span></div><h1>CalendarRuleProvider.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker.sql;
+
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+
+import com.prismaqf.callblocker.rules.CalendarRule;
+
+import java.util.ArrayList;
+
+
+/**
+ * @author ConteDiMonteCristo
+ */
+<span class="nc" id="L15">public class CalendarRuleProvider {</span>
+<span class="fc" id="L16">    private static final String TAG = CalendarRuleProvider.class.getCanonicalName();</span>
+
+
+    public static CalendarRule deserialize(Cursor c) {
+<span class="fc" id="L20">        String name = c.getString(c.getColumnIndexOrThrow(DbContract.CalendarRules.COLUMN_NAME_RULENAME));</span>
+<span class="fc" id="L21">        int dayMask = c.getInt(c.getColumnIndexOrThrow(DbContract.CalendarRules.COLUMN_NAME_DAYMASK));</span>
+<span class="fc" id="L22">        String fromTime = c.getString(c.getColumnIndexOrThrow(DbContract.CalendarRules.COLUMN_NAME_FROM));</span>
+<span class="fc" id="L23">        String toTime = c.getString(c.getColumnIndexOrThrow(DbContract.CalendarRules.COLUMN_NAME_TO));</span>
+
+<span class="fc" id="L25">        return CalendarRule.makeRule(name,dayMask,fromTime,toTime);</span>
+    }
+
+    public static void serialize(SQLiteDatabase db, CalendarRule cr) {
+<span class="nc" id="L29">        InsertRow(db,cr);</span>
+<span class="nc" id="L30">    }</span>
+
+    /**
+     * Insert a row in the calendarrule table
+     * @param db the SQLite connection
+     * @param rule the calendar rule
+     * @return the new calendar rule id
+     */
+    public static synchronized long InsertRow(SQLiteDatabase db, CalendarRule rule) {
+<span class="fc" id="L39">        ContentValues vals = new ContentValues();</span>
+<span class="fc" id="L40">        int binMask = rule.getBinaryMask();</span>
+<span class="fc" id="L41">        String fromTime = rule.getBareStartTime();</span>
+<span class="fc" id="L42">        String toTime = rule.getBareEndTime();</span>
+<span class="fc" id="L43">        vals.put(DbContract.CalendarRules.COLUMN_NAME_RULENAME,rule.getName());</span>
+<span class="fc" id="L44">        vals.put(DbContract.CalendarRules.COLUMN_NAME_DAYMASK, binMask);</span>
+<span class="fc" id="L45">        vals.put(DbContract.CalendarRules.COLUMN_NAME_FROM, fromTime);</span>
+<span class="fc" id="L46">        vals.put(DbContract.CalendarRules.COLUMN_NAME_TO, toTime);</span>
+<span class="fc" id="L47">        vals.put(DbContract.CalendarRules.COLUMN_NAME_FORMAT, makeRuleFormat(binMask, fromTime, toTime));</span>
+<span class="fc" id="L48">        return db.insert(DbContract.CalendarRules.TABLE_NAME, null, vals);</span>
+    }
+
+
+
+    /**
+     * Get the latest calendar rules in a given order
+     * @param db the SQLite connection
+     * @param maxRecords the total number of records returned
+     * @param descending a flag to inicate the sorting order, descending when the flag is true
+     * @return a cursor
+     */
+    public static synchronized Cursor LatestCalendarRules(SQLiteDatabase db, int maxRecords, boolean descending) {
+        String orderby;
+<span class="nc bnc" id="L62" title="All 2 branches missed.">        if (descending)</span>
+<span class="nc" id="L63">            orderby= String.format(&quot;%s desc&quot;,DbContract.CalendarRules._ID);</span>
+        else
+<span class="nc" id="L65">            orderby= String.format(&quot;%s asc&quot;,DbContract.CalendarRules._ID);</span>
+<span class="nc" id="L66">        String limit = null;</span>
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        if (maxRecords &gt; 0)</span>
+<span class="nc" id="L68">            limit = String.valueOf(maxRecords);</span>
+<span class="nc" id="L69">        return db.query(DbContract.CalendarRules.TABLE_NAME, null, null, null, null, null, orderby, limit);</span>
+    }
+
+    /**
+     * Return all the calendar rules
+     * @param db the SQLite connection
+     * @return a cursor
+     */
+    public static Cursor AllCalendarRules(SQLiteDatabase db) {
+<span class="nc" id="L78">        return LatestCalendarRules(db, -1, false);</span>
+    }
+
+    /**
+     * Return all names of the rule to prevent re-inserting a rule with a given name
+     * @param db the SQLite connection
+     * @return a list of names
+     */
+    public static ArrayList&lt;String&gt; AllRuleNames(SQLiteDatabase db) {
+<span class="nc" id="L87">        Cursor c = AllCalendarRules(db);</span>
+<span class="nc" id="L88">        ArrayList&lt;String&gt; names = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        while (c.moveToNext()) {</span>
+<span class="nc" id="L90">            String name = c.getString(c.getColumnIndexOrThrow(DbContract.CalendarRules.COLUMN_NAME_RULENAME));</span>
+<span class="nc" id="L91">            names.add(name);</span>
+<span class="nc" id="L92">        }</span>
+
+<span class="nc" id="L94">        return names;</span>
+    }
+
+    public static synchronized void UpdateCalendarRule(SQLiteDatabase db, long ruleId, CalendarRule cr) {
+<span class="fc" id="L98">        ContentValues vals = new ContentValues();</span>
+<span class="fc" id="L99">        int binMask = cr.getBinaryMask();</span>
+<span class="fc" id="L100">        String fromTime = cr.getBareStartTime();</span>
+<span class="fc" id="L101">        String toTime = cr.getBareEndTime();</span>
+<span class="fc" id="L102">        vals.put(DbContract.CalendarRules.COLUMN_NAME_DAYMASK, binMask);</span>
+<span class="fc" id="L103">        vals.put(DbContract.CalendarRules.COLUMN_NAME_FROM, fromTime);</span>
+<span class="fc" id="L104">        vals.put(DbContract.CalendarRules.COLUMN_NAME_TO, toTime);</span>
+<span class="fc" id="L105">        vals.put(DbContract.CalendarRules.COLUMN_NAME_FORMAT, makeRuleFormat(binMask,fromTime,toTime));</span>
+<span class="fc" id="L106">        String selection = DbContract.CalendarRules._ID + &quot; = ?&quot;;</span>
+<span class="fc" id="L107">        String[] selectionArgs = { String.valueOf(ruleId) };</span>
+<span class="fc" id="L108">        db.update(DbContract.CalendarRules.TABLE_NAME,vals,selection,selectionArgs);</span>
+<span class="fc" id="L109">    }</span>
+
+    /**
+     * Delete a rule by id
+     * @param db the SQlite connection
+     * @param ruleid the rule id
+     */
+    public static synchronized void DeleteCalendarRule(SQLiteDatabase db, long ruleid) {
+<span class="nc" id="L117">        String where = DbContract.CalendarRules._ID + &quot; = ?&quot;;</span>
+<span class="nc" id="L118">        String[] args = {String.valueOf(ruleid)};</span>
+<span class="nc" id="L119">        db.delete(DbContract.CalendarRules.TABLE_NAME, where, args);</span>
+<span class="nc" id="L120">    }</span>
+
+    /**
+     * Delete a rule by name
+     * @param db the SQlite connection
+     * @param name the rule name
+     */
+    public static synchronized void DeleteCalendarRule(SQLiteDatabase db, String name) {
+<span class="fc" id="L128">        String where = DbContract.CalendarRules.COLUMN_NAME_RULENAME + &quot; = ?&quot;;</span>
+<span class="fc" id="L129">        String[] args = {name};</span>
+<span class="fc" id="L130">        db.delete(DbContract.CalendarRules.TABLE_NAME, where, args);</span>
+<span class="fc" id="L131">    }</span>
+
+    public static synchronized CalendarRule FindCalendarRule(SQLiteDatabase db, long ruleid) {
+<span class="nc" id="L134">        String selection = DbContract.CalendarRules._ID + &quot; = ?&quot;;</span>
+<span class="nc" id="L135">        String[] selectionArgs = { String.valueOf(ruleid) };</span>
+<span class="nc" id="L136">        Cursor c = db.query(DbContract.CalendarRules.TABLE_NAME,null,selection,selectionArgs,null,null,null,null);</span>
+<span class="nc bnc" id="L137" title="All 2 branches missed.">        if (c.getCount() &gt;0) {</span>
+<span class="nc" id="L138">            c.moveToFirst();</span>
+<span class="nc" id="L139">            return deserialize(c);</span>
+        }
+<span class="nc" id="L141">        return null;</span>
+    }
+
+    public static synchronized CalendarRule FindCalendarRule(SQLiteDatabase db, String ruleName) {
+<span class="fc" id="L145">        String selection = DbContract.CalendarRules.COLUMN_NAME_RULENAME + &quot; = ?&quot;;</span>
+<span class="fc" id="L146">        String[] selectionArgs = { ruleName };</span>
+<span class="fc" id="L147">        Cursor c = db.query(DbContract.CalendarRules.TABLE_NAME,null,selection,selectionArgs,null,null,null,null);</span>
+<span class="pc bpc" id="L148" title="1 of 2 branches missed.">        if (c.getCount() &gt;0) {</span>
+<span class="fc" id="L149">            c.moveToLast(); //get the last occurrency (should be only one entry</span>
+<span class="fc" id="L150">            return deserialize(c);</span>
+        }
+<span class="nc" id="L152">        return null;</span>
+    }
+
+    public static synchronized long FindCalendarRuleId(SQLiteDatabase db, String ruleName) {
+<span class="fc" id="L156">        String selection = DbContract.CalendarRules.COLUMN_NAME_RULENAME + &quot; = ?&quot;;</span>
+<span class="fc" id="L157">        String[] selectionArgs = { ruleName };</span>
+<span class="fc" id="L158">        Cursor c = db.query(DbContract.CalendarRules.TABLE_NAME,null,selection,selectionArgs,null,null,null,null);</span>
+<span class="pc bpc" id="L159" title="1 of 2 branches missed.">        if (c.getCount() &gt;0) {</span>
+<span class="fc" id="L160">            c.moveToLast(); //get the last occurrency (should be only one entry</span>
+<span class="fc" id="L161">            return c.getLong(c.getColumnIndexOrThrow(DbContract.CalendarRules._ID));</span>
+        }
+<span class="nc" id="L163">        c.close();</span>
+<span class="nc" id="L164">        return 0;</span>
+    }
+
+    public static synchronized String FindCalendarRule(SQLiteDatabase db, CalendarRule cr) {
+<span class="nc" id="L168">        String selection = DbContract.CalendarRules.COLUMN_NAME_DAYMASK + &quot; = ? AND &quot; +</span>
+                           DbContract.CalendarRules.COLUMN_NAME_FROM + &quot; = ? AND &quot; +
+                           DbContract.CalendarRules.COLUMN_NAME_TO + &quot; = ?&quot;;
+<span class="nc" id="L171">        String[] selectionArgs = { String.valueOf(cr.getBinaryMask()), cr.getBareStartTime(), cr.getBareEndTime() };</span>
+<span class="nc" id="L172">        Cursor c = db.query(DbContract.CalendarRules.TABLE_NAME,null,selection,selectionArgs,null,null,null,null);</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">        if (c.getCount() &gt;0) {</span>
+<span class="nc" id="L174">            c.moveToLast(); //get the last occurrency (should be only one entry</span>
+<span class="nc" id="L175">            return c.getString(c.getColumnIndexOrThrow(DbContract.CalendarRules.COLUMN_NAME_RULENAME));</span>
+        }
+<span class="nc" id="L177">        c.close();</span>
+<span class="nc" id="L178">        return null;</span>
+    }
+
+    private static String makeRuleFormat(int daymask, String from, String to) {
+<span class="fc" id="L182">        StringBuilder buffer = new StringBuilder(&quot;Days &quot;);</span>
+<span class="pc bpc" id="L183" title="1 of 2 branches missed.">        if ((daymask &amp; 1) == 1) buffer.append('M');</span>
+<span class="nc" id="L184">        else buffer.append('-');</span>
+<span class="pc bpc" id="L185" title="1 of 2 branches missed.">        if ((daymask &amp; 2) == 2) buffer.append('T');</span>
+<span class="fc" id="L186">        else buffer.append('-');</span>
+<span class="pc bpc" id="L187" title="1 of 2 branches missed.">        if ((daymask &amp; 4) == 4) buffer.append('W');</span>
+<span class="fc" id="L188">        else buffer.append('-');</span>
+<span class="pc bpc" id="L189" title="1 of 2 branches missed.">        if ((daymask &amp; 8) == 8) buffer.append('T');</span>
+<span class="nc" id="L190">        else buffer.append('-');</span>
+<span class="pc bpc" id="L191" title="1 of 2 branches missed.">        if ((daymask &amp; 16) == 16) buffer.append('F');</span>
+<span class="fc" id="L192">        else buffer.append('-');</span>
+<span class="pc bpc" id="L193" title="1 of 2 branches missed.">        if ((daymask &amp; 32) == 32) buffer.append('S');</span>
+<span class="fc" id="L194">        else buffer.append('-');</span>
+<span class="fc bfc" id="L195" title="All 2 branches covered.">        if ((daymask &amp; 64) == 64) buffer.append('S');</span>
+<span class="fc" id="L196">        else buffer.append('-');</span>
+<span class="fc" id="L197">        buffer.append(String.format(&quot; from %s to %s&quot;,from,to));</span>
+<span class="fc" id="L198">        return buffer.toString();</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

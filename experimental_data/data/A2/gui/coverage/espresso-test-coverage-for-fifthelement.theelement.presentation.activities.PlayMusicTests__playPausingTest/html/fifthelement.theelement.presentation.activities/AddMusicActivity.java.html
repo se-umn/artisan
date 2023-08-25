@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AddMusicActivity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.presentation.activities</a> &gt; <span class="el_source">AddMusicActivity.java</span></div><h1>AddMusicActivity.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.presentation.activities;
+
+import android.Manifest;
+import android.content.ActivityNotFoundException;
+import android.content.ContentResolver;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.media.MediaMetadataRetriever;
+import android.net.Uri;
+import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
+import android.text.TextUtils;
+import android.util.Log;
+import android.webkit.MimeTypeMap;
+
+import java.net.URISyntaxException;
+
+import fifthelement.theelement.application.Helpers;
+import fifthelement.theelement.application.Services;
+import fifthelement.theelement.business.exceptions.SongAlreadyExistsException;
+import fifthelement.theelement.business.services.AlbumService;
+import fifthelement.theelement.business.services.AuthorService;
+import fifthelement.theelement.business.services.SongListService;
+import fifthelement.theelement.business.services.SongService;
+import fifthelement.theelement.business.util.SongMetaUtil;
+import fifthelement.theelement.persistence.hsqldb.PersistenceException;
+import fifthelement.theelement.presentation.util.PathUtil;
+
+
+<span class="nc" id="L30">public class AddMusicActivity extends AppCompatActivity {</span>
+
+    private static final int CHOOSE_FILE_REQUESTCODE = 8777;
+    private static final int PICKFILE_RESULT_CODE = 8778;
+    private static final int PICKFILE_REQUEST_CODE = 1;
+    private static final String LOG_TAG = &quot;AddMusicActivity&quot;;
+
+    SongService songService;
+    SongListService songListService;
+    AlbumService albumService;
+    AuthorService authorService;
+
+    MediaMetadataRetriever metaRetriver;
+
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+<span class="nc" id="L47">        super.onCreate(savedInstanceState);</span>
+<span class="nc" id="L48">        songService = Services.getSongService();</span>
+<span class="nc" id="L49">        songListService = Services.getSongListService();</span>
+<span class="nc" id="L50">        authorService = Services.getAuthorService();</span>
+<span class="nc" id="L51">        albumService = Services.getAlbumService();</span>
+
+<span class="nc bnc" id="L53" title="All 2 branches missed.">        if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {</span>
+<span class="nc" id="L54">            requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, PICKFILE_REQUEST_CODE);</span>
+        } else {
+<span class="nc" id="L56">            openFileExplorer();</span>
+        }
+<span class="nc" id="L58">    }</span>
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+<span class="nc bnc" id="L63" title="All 2 branches missed.">        switch (requestCode) {</span>
+            case PICKFILE_REQUEST_CODE : {
+                // If request is cancelled, the result arrays are empty.
+<span class="nc bnc" id="L66" title="All 4 branches missed.">                if (grantResults.length &gt; 0</span>
+                        &amp;&amp; grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+<span class="nc" id="L69">                    openFileExplorer();</span>
+<span class="nc" id="L70">                    Helpers.getToastHelper(getApplicationContext()).sendToast(&quot;Permission Granted&quot;);</span>
+
+                } else {
+<span class="nc" id="L73">                    Intent intent = new Intent(AddMusicActivity.this, MainActivity.class);</span>
+<span class="nc" id="L74">                    AddMusicActivity.this.startActivity(intent);</span>
+<span class="nc" id="L75">                    Helpers.getToastHelper(getApplicationContext()).sendToast(&quot;Permission Denied&quot;, &quot;RED&quot;);</span>
+                }
+<span class="nc" id="L77">                return;</span>
+            }
+        }
+<span class="nc" id="L80">    }</span>
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        switch (requestCode) {</span>
+            case PICKFILE_RESULT_CODE:
+<span class="nc bnc" id="L86" title="All 2 branches missed.">                if (resultCode == RESULT_OK) {</span>
+<span class="nc" id="L87">                    setupSong(data.getData());</span>
+                }
+        }
+<span class="nc" id="L90">        songListService.setCurrentSongsList(songService.getSongs()); //Reset song list</span>
+<span class="nc" id="L91">        songListService.setAllSongsList(songService.getSongs()); //Reset song list</span>
+<span class="nc" id="L92">        Intent intent = new Intent(AddMusicActivity.this, MainActivity.class);</span>
+<span class="nc" id="L93">        AddMusicActivity.this.startActivity(intent);</span>
+<span class="nc" id="L94">    }</span>
+
+    private void openFileExplorer() {
+<span class="nc" id="L97">        Intent fileintent = new Intent(Intent.ACTION_GET_CONTENT);</span>
+<span class="nc" id="L98">        fileintent.setType(&quot;*/*&quot;);</span>
+        try {
+<span class="nc" id="L100">            startActivityForResult(fileintent, PICKFILE_RESULT_CODE);</span>
+<span class="nc" id="L101">        } catch (ActivityNotFoundException e) {</span>
+<span class="nc" id="L102">            Log.e(LOG_TAG, &quot;No activity can handle picking a file. Showing alternatives.&quot;);</span>
+<span class="nc" id="L103">        }</span>
+<span class="nc" id="L104">    }</span>
+
+
+    private void setupSong(Uri path) {
+        // This must be done here because getContentResolver requires context, which SongUtil doesn't have
+<span class="nc" id="L109">        ContentResolver cR = getContentResolver();</span>
+<span class="nc" id="L110">        MimeTypeMap mime = MimeTypeMap.getSingleton();</span>
+
+        // get actual file type from uri
+<span class="nc" id="L113">        String type = mime.getExtensionFromMimeType(cR.getType(path));</span>
+
+        // Just in case uri returns no file type
+<span class="nc" id="L116">        String stringPath = path.getPath();</span>
+<span class="nc" id="L117">        String typeBackup = SongMetaUtil.getExtension(stringPath);</span>
+
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        if (TextUtils.isEmpty(type))</span>
+<span class="nc" id="L120">            type = typeBackup;</span>
+
+        // Check if file type is supported
+<span class="nc" id="L123">        boolean result = SongMetaUtil.supportedAudioFileExtension(type);</span>
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        if ( result){</span>
+<span class="nc" id="L125">            metaRetriver = new MediaMetadataRetriever();</span>
+<span class="nc" id="L126">            metaRetriver.setDataSource(getApplication(), path);</span>
+
+<span class="nc" id="L128">            String songName = &quot;&quot;;</span>
+<span class="nc" id="L129">            String songArtist = &quot;&quot;;</span>
+<span class="nc" id="L130">            String songAlbum = &quot;&quot;;</span>
+<span class="nc" id="L131">            String songGenre = &quot;&quot;;</span>
+
+            try {
+<span class="nc" id="L134">                songName = metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE);</span>
+<span class="nc bnc" id="L135" title="All 2 branches missed.">                if(songName == null)</span>
+<span class="nc" id="L136">                    songName = PathUtil.getFileName(getContentResolver(), path); // Use the filename if no metadata</span>
+<span class="nc" id="L137">                songAlbum = metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM);</span>
+<span class="nc" id="L138">                songArtist = metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST);</span>
+<span class="nc" id="L139">                songGenre = metaRetriver.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE);</span>
+<span class="nc" id="L140">            } catch (Exception e) {</span>
+<span class="nc" id="L141">                Log.e(LOG_TAG, e.getMessage());</span>
+<span class="nc" id="L142">            }</span>
+
+<span class="nc" id="L144">            createSong(path, songName, songArtist, songAlbum, songGenre);</span>
+<span class="nc" id="L145">        } else {</span>
+<span class="nc" id="L146">            Helpers.getToastHelper(getApplicationContext()).sendToast(&quot;That isn't a song, nice try!&quot;, &quot;RED&quot;);</span>
+        }
+<span class="nc" id="L148">    }</span>
+
+    private void createSong(Uri path, String songName, String songArtist, String songAlbum, String songGenre) {
+        try {
+<span class="nc" id="L152">            String realPath = PathUtil.getPath(getApplicationContext(), path);</span>
+<span class="nc" id="L153">            songService.createSong(realPath, songName, songArtist, songAlbum, songGenre);</span>
+<span class="nc" id="L154">            Helpers.getToastHelper(getApplicationContext()).sendToast(&quot;Added &quot; + songName, &quot;GREEN&quot;);</span>
+<span class="nc" id="L155">        } catch (PersistenceException p) {</span>
+<span class="nc" id="L156">            Helpers.getToastHelper(getApplicationContext()).sendToast(&quot;Error saving song!&quot;, &quot;RED&quot;);</span>
+<span class="nc" id="L157">            Log.e(LOG_TAG, p.getMessage());</span>
+<span class="nc" id="L158">        } catch (SongAlreadyExistsException s) {</span>
+<span class="nc" id="L159">            Helpers.getToastHelper(getApplicationContext()).sendToast(&quot;Song already exists!&quot;, &quot;RED&quot;);</span>
+<span class="nc" id="L160">            Log.e(LOG_TAG, s.getMessage());</span>
+<span class="nc" id="L161">        } catch (URISyntaxException e) {</span>
+<span class="nc" id="L162">            Helpers.getToastHelper(getApplicationContext()).sendToast(&quot;Could not get the songs path!&quot;, &quot;RED&quot;);</span>
+<span class="nc" id="L163">            Log.e(LOG_TAG, e.getMessage());</span>
+<span class="nc" id="L164">        }</span>
+<span class="nc" id="L165">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

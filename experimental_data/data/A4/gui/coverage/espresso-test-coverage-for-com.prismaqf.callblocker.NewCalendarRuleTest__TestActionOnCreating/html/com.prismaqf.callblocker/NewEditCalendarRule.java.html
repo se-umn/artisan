@@ -1,0 +1,532 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NewEditCalendarRule.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker</a> &gt; <span class="el_source">NewEditCalendarRule.java</span></div><h1>NewEditCalendarRule.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker;
+
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.app.TimePickerDialog;
+import android.app.backup.BackupManager;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.database.sqlite.SQLiteDatabase;
+import android.os.AsyncTask;
+import android.os.Build;
+import android.os.Bundle;
+import android.text.format.DateFormat;
+import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
+import android.webkit.WebView;
+import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.EditText;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.TimePicker;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.fragment.app.DialogFragment;
+import com.prismaqf.callblocker.rules.CalendarRule;
+import com.prismaqf.callblocker.sql.CalendarRuleProvider;
+import com.prismaqf.callblocker.sql.DbHelper;
+import com.prismaqf.callblocker.sql.FilterProvider;
+
+import java.util.ArrayList;
+import java.util.EnumSet;
+
+/**
+ * Activity to create or edit a calendar rule
+ * @author ConteDiMonteCristo
+ */
+<span class="fc" id="L42">public class NewEditCalendarRule extends NewEditActivity {</span>
+
+
+    @SuppressLint(&quot;ValidFragment&quot;)
+    public static class TimePickerFragment extends DialogFragment implements TimePickerDialog.OnTimeSetListener {
+
+        final CalendarRule rule;
+        final String startEnd;
+        final NewEditCalendarRule parent;
+
+
+<span class="nc" id="L53">        public TimePickerFragment(CalendarRule rule, String startEnd, NewEditCalendarRule parent) {</span>
+<span class="nc" id="L54">            this.rule = rule;</span>
+<span class="nc" id="L55">            this.startEnd = startEnd;</span>
+<span class="nc" id="L56">            this.parent = parent;</span>
+<span class="nc" id="L57">        }</span>
+
+        @NonNull
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            int hour, minute;
+
+<span class="nc bnc" id="L64" title="All 4 branches missed.">            if (rule != null &amp;&amp; startEnd!=null) {</span>
+<span class="nc bnc" id="L65" title="All 2 branches missed.">                if (startEnd.toLowerCase().equals(&quot;start&quot;)) {</span>
+<span class="nc" id="L66">                    hour = rule.getStartHour();</span>
+<span class="nc" id="L67">                    minute = rule.getStartMin();</span>
+                } else {
+<span class="nc" id="L69">                    hour = rule.getEndHour();</span>
+<span class="nc" id="L70">                    minute = rule.getEndMin();</span>
+                }
+<span class="nc" id="L72">                return new TimePickerDialog(getActivity(), this, hour, minute,</span>
+<span class="nc" id="L73">                        DateFormat.is24HourFormat(getActivity()));</span>
+            }
+<span class="nc" id="L75">            Log.e(TAG,&quot;Can't initialise a TimePicker&quot;);</span>
+<span class="nc" id="L76">            return new TimePickerDialog(getActivity(),this,0,0,DateFormat.is24HourFormat(getActivity()));</span>
+        }
+
+
+        @SuppressWarnings(&quot;deprecation&quot;)
+        @Override
+        public void onTimeSet(TimePicker timePicker, int i, int i1) {
+<span class="nc bnc" id="L83" title="All 4 branches missed.">            if (rule != null &amp;&amp; startEnd != null)</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">                if (startEnd.toLowerCase().equals(&quot;start&quot;)) {</span>
+<span class="nc bnc" id="L85" title="All 2 branches missed.">                    if (Build.VERSION.SDK_INT &gt;= 23 ) {</span>
+<span class="nc" id="L86">                        rule.setStartHour(timePicker.getHour());</span>
+<span class="nc" id="L87">                        rule.setStartMin(timePicker.getMinute());</span>
+                    }
+                    else {
+<span class="nc" id="L90">                        rule.setStartHour(timePicker.getCurrentHour());</span>
+<span class="nc" id="L91">                        rule.setStartMin(timePicker.getCurrentMinute());</span>
+                    }
+                } else {
+<span class="nc bnc" id="L94" title="All 2 branches missed.">                    if (Build.VERSION.SDK_INT &gt;= 23 ) {</span>
+<span class="nc" id="L95">                        rule.setEndHour(timePicker.getHour());</span>
+<span class="nc" id="L96">                        rule.setEndMin(timePicker.getMinute());</span>
+                    }
+                    else {
+<span class="nc" id="L99">                        rule.setEndHour(timePicker.getCurrentHour());</span>
+<span class="nc" id="L100">                        rule.setEndMin(timePicker.getCurrentMinute());</span>
+                    }
+
+
+                }
+<span class="nc" id="L105">            else Log.e(TAG, &quot;Can't set time from TimePicker&quot;);</span>
+
+<span class="nc" id="L107">            parent.refreshWidgets(true);</span>
+<span class="nc" id="L108">        }</span>
+    }
+
+    private class DbOperation extends AsyncTask&lt;CalendarRule, Void, CalendarRule&gt; {
+
+        private final String action;
+        private final long ruleid;
+<span class="nc" id="L115">        private boolean cantDelete = false;</span>
+
+<span class="nc" id="L117">        DbOperation(String action, long ruleid) {</span>
+<span class="nc" id="L118">            this.action = action;</span>
+<span class="nc" id="L119">            this.ruleid = ruleid;</span>
+<span class="nc" id="L120">        }</span>
+        @Override
+        protected CalendarRule doInBackground(CalendarRule... rules) {
+<span class="nc" id="L123">            SQLiteDatabase db = new DbHelper(NewEditCalendarRule.this).getWritableDatabase();</span>
+<span class="nc" id="L124">            CalendarRule rule = rules[0];</span>
+            try {
+<span class="nc bnc" id="L126" title="All 3 branches missed.">                switch (action) {</span>
+                    case NewEditActivity.ACTION_CREATE:
+<span class="nc" id="L128">                        CalendarRuleProvider.InsertRow(db, rule);</span>
+<span class="nc" id="L129">                        break;</span>
+                    case NewEditActivity.ACTION_EDIT:
+<span class="nc" id="L131">                        CalendarRuleProvider.UpdateCalendarRule(db, ruleid, rule);</span>
+<span class="nc bnc" id="L132" title="All 4 branches missed.">                        if (CallHelper.IsRunning() &amp;&amp; FilterProvider.HasCalendarRule(db,rule.getName()))</span>
+<span class="nc" id="L133">                            CallHelper.GetHelper().loadFilters(NewEditCalendarRule.this);</span>
+                        break;
+                    default:
+                        //ACTION_DELETE
+<span class="nc bnc" id="L137" title="All 2 branches missed.">                        if (FilterProvider.HasCalendarRule(db,rule.getName())) {</span>
+<span class="nc" id="L138">                            cantDelete = true;</span>
+                        } else
+<span class="nc" id="L140">                            CalendarRuleProvider.DeleteCalendarRule(db, ruleid);</span>
+                        break;
+                }
+            }
+            finally {
+<span class="nc" id="L145">                db.close();</span>
+<span class="nc" id="L146">                BackupManager.dataChanged(NewEditCalendarRule.this.getPackageName());</span>
+            }
+<span class="nc" id="L148">            return rule;</span>
+        }
+
+        @Override
+        protected void onPostExecute (CalendarRule rule) {
+<span class="nc bnc" id="L153" title="All 2 branches missed.">            if (cantDelete) {</span>
+<span class="nc" id="L154">                Toast.makeText(getBaseContext(), getString(R.string.msg_can_not_delete_rule), Toast.LENGTH_LONG).show();</span>
+            }
+<span class="nc bnc" id="L156" title="All 2 branches missed.">            else if (myContext.equals(CONTEXT_PICK)) {</span>
+<span class="nc" id="L157">                Intent resultIntent = new Intent();</span>
+<span class="nc" id="L158">                resultIntent.putExtra(KEY_RULENAME,rule.getName());</span>
+<span class="nc" id="L159">                setResult(Activity.RESULT_OK,resultIntent);</span>
+<span class="nc" id="L160">                finish();</span>
+<span class="nc" id="L161">            }</span>
+<span class="nc bnc" id="L162" title="All 2 branches missed.">            else if (myContext.equals(CONTEXT_EDIT)) {</span>
+<span class="nc" id="L163">                Intent resultIntent = new Intent();</span>
+<span class="nc" id="L164">                setResult(Activity.RESULT_OK,resultIntent);</span>
+<span class="nc" id="L165">                finish();</span>
+<span class="nc" id="L166">            } else {</span>
+<span class="nc" id="L167">                Intent intent = new Intent(NewEditCalendarRule.this, EditCalendarRules.class);</span>
+<span class="nc" id="L168">                startActivity(intent);</span>
+            }
+<span class="nc" id="L170">        }</span>
+    }
+
+<span class="fc" id="L173">    private static final String TAG = NewEditCalendarRule.class.getCanonicalName();</span>
+    private CheckBox cb_Monday, cb_Tuesday, cb_Wednesday, cb_Thursday, cb_Friday, cb_Saturday, cb_Sunday;
+    private EditText ed_name;
+    private TextView tx_validation;
+    private Button bn_from, bn_to, bn_alldays, bn_nodays, bn_workdays, bn_we;
+    private CalendarRule myNewRule, myOrigRule, ptRule;  //ptRule is an alias to the active rule
+    private ArrayList&lt;String&gt; myRuleNames;
+    private String myAction, myContext;
+<span class="fc" id="L181">    private long myRuleId=0;</span>
+<span class="fc" id="L182">    private boolean isNameValid = true;</span>
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+<span class="fc" id="L186">        super.onCreate(savedInstanceState);</span>
+<span class="fc" id="L187">        setContentView(R.layout.calendar_rule_edit);</span>
+
+<span class="fc" id="L189">        cb_Monday = (CheckBox) findViewById(R.id.cb_Monday);</span>
+<span class="fc" id="L190">        cb_Tuesday = (CheckBox) findViewById(R.id.cb_Tuesday);</span>
+<span class="fc" id="L191">        cb_Wednesday = (CheckBox) findViewById(R.id.cb_Wednesday);</span>
+<span class="fc" id="L192">        cb_Thursday = (CheckBox) findViewById(R.id.cb_Thursday);</span>
+<span class="fc" id="L193">        cb_Friday = (CheckBox) findViewById(R.id.cb_Friday);</span>
+<span class="fc" id="L194">        cb_Saturday = (CheckBox) findViewById(R.id.cb_Saturday);</span>
+<span class="fc" id="L195">        cb_Sunday = (CheckBox) findViewById(R.id.cb_Sunday);</span>
+<span class="fc" id="L196">        ed_name = (EditText) findViewById(R.id.edit_calendar_rule_name);</span>
+<span class="pc bpc" id="L197" title="1 of 2 branches missed.">        if (ed_name != null) ed_name.clearFocus();</span>
+<span class="fc" id="L198">        bn_from = (Button) findViewById(R.id.bt_from_time);</span>
+<span class="fc" id="L199">        bn_to = (Button) findViewById(R.id.bt_to_time);</span>
+<span class="fc" id="L200">        bn_alldays = (Button) findViewById(R.id.bt_all_days);</span>
+<span class="fc" id="L201">        bn_nodays = (Button) findViewById(R.id.bt_no_days);</span>
+<span class="fc" id="L202">        bn_workdays = (Button) findViewById(R.id.bt_working_days);</span>
+<span class="fc" id="L203">        bn_we = (Button) findViewById(R.id.bt_week_end);</span>
+<span class="fc" id="L204">        tx_validation = (TextView)findViewById(R.id.tx_calendar_rule_validation);</span>
+
+
+<span class="fc" id="L207">        Intent intent = getIntent();</span>
+<span class="fc" id="L208">        myRuleNames = intent.getStringArrayListExtra(NewEditActivity.KEY_RULENAMES);</span>
+
+        //ACTION_UPDATE
+<span class="pc bpc" id="L211" title="1 of 2 branches missed.">        if (intent.hasExtra(NewEditActivity.KEY_ACTION) &amp;&amp;</span>
+<span class="pc bpc" id="L212" title="1 of 2 branches missed.">            intent.getStringExtra(NewEditActivity.KEY_ACTION).equals(NewEditActivity.ACTION_UPDATE)) {</span>
+<span class="nc" id="L213">            myOrigRule = intent.getParcelableExtra(NewEditActivity.KEY_ORIG);</span>
+            try {
+<span class="nc" id="L215">                myNewRule  = (CalendarRule)myOrigRule.clone();</span>
+<span class="nc" id="L216">            } catch (CloneNotSupportedException e) {</span>
+<span class="nc" id="L217">                Log.e(TAG, &quot;Could not clone original rule&quot;);</span>
+<span class="nc" id="L218">                myNewRule =  intent.getParcelableExtra(NewEditActivity.KEY_ORIG);</span>
+<span class="nc" id="L219">            }</span>
+<span class="nc" id="L220">            myRuleId = intent.getLongExtra(NewEditActivity.KEY_RULEID,0);</span>
+<span class="nc" id="L221">            ptRule = myOrigRule;</span>
+<span class="nc" id="L222">            myAction = NewEditActivity.ACTION_UPDATE;</span>
+
+<span class="nc" id="L224">            enableWidgets(false,false);</span>
+
+        }
+        //ACTION_EDIT
+<span class="pc bpc" id="L228" title="2 of 4 branches missed.">        else if (intent.hasExtra(NewEditActivity.KEY_ACTION) &amp;&amp; intent.getStringExtra(NewEditActivity.KEY_ACTION).equals(NewEditActivity.ACTION_EDIT)) {</span>
+<span class="nc" id="L229">            myOrigRule = intent.getParcelableExtra(NewEditActivity.KEY_ORIG);</span>
+<span class="nc" id="L230">            myNewRule = intent.getParcelableExtra(NewEditActivity.KEY_NEW);</span>
+<span class="nc" id="L231">            myRuleId = intent.getLongExtra(NewEditActivity.KEY_RULEID,0);</span>
+<span class="nc" id="L232">            ptRule = myNewRule;</span>
+<span class="nc" id="L233">            myAction = NewEditActivity.ACTION_EDIT;</span>
+
+<span class="nc" id="L235">            enableWidgets(false,true);</span>
+        }
+        //ACTION_CREATE
+        else {
+<span class="fc" id="L239">            myNewRule = new CalendarRule(); //always active by default (all days of week and full day)</span>
+<span class="fc" id="L240">            myOrigRule = null;</span>
+<span class="fc" id="L241">            ptRule = myNewRule;</span>
+<span class="fc" id="L242">            myAction = NewEditActivity.ACTION_CREATE;</span>
+
+<span class="fc" id="L244">            enableWidgets(true,true);</span>
+        }
+
+<span class="pc bpc" id="L247" title="1 of 2 branches missed.">        myContext = intent.hasExtra(KEY_CONTEXT)? intent.getStringExtra(KEY_CONTEXT): &quot;none&quot;;</span>
+
+<span class="pc bpc" id="L249" title="1 of 2 branches missed.">        if (getSupportActionBar()!=null)</span>
+<span class="fc" id="L250">            getSupportActionBar().setDisplayHomeAsUpEnabled(true);</span>
+<span class="fc" id="L251">    }</span>
+
+    @Override
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+<span class="nc" id="L255">        savedInstanceState.putParcelable(NewEditActivity.KEY_NEW, myNewRule);</span>
+<span class="nc" id="L256">        savedInstanceState.putParcelable(NewEditActivity.KEY_ORIG, myOrigRule);</span>
+<span class="nc" id="L257">        savedInstanceState.putString(NewEditActivity.KEY_ACTION, myAction);</span>
+<span class="nc" id="L258">        savedInstanceState.putBoolean(NewEditActivity.KEY_ISNAMEVALID, isNameValid);</span>
+<span class="nc" id="L259">        savedInstanceState.putStringArrayList(NewEditActivity.KEY_RULENAMES, myRuleNames);</span>
+<span class="nc bnc" id="L260" title="All 2 branches missed.">        savedInstanceState.putString(NewEditActivity.KEY_PTRULE, ptRule == myOrigRule ? &quot;Original&quot; : &quot;New&quot;);</span>
+
+<span class="nc" id="L262">        super.onSaveInstanceState(savedInstanceState);</span>
+<span class="nc" id="L263">    }</span>
+
+    @Override
+    public void onRestoreInstanceState(Bundle savedInstanceState) {
+<span class="nc" id="L267">        super.onRestoreInstanceState(savedInstanceState);</span>
+<span class="nc" id="L268">        myNewRule = savedInstanceState.getParcelable(NewEditActivity.KEY_NEW);</span>
+<span class="nc" id="L269">        myOrigRule = savedInstanceState.getParcelable(NewEditActivity.KEY_ORIG);</span>
+<span class="nc" id="L270">        myAction = savedInstanceState.getString(NewEditActivity.KEY_ACTION);</span>
+<span class="nc" id="L271">        isNameValid = savedInstanceState.getBoolean(NewEditActivity.KEY_ISNAMEVALID);</span>
+<span class="nc" id="L272">        myRuleNames = savedInstanceState.getStringArrayList(NewEditActivity.KEY_RULENAMES);</span>
+<span class="nc" id="L273">        String rule = savedInstanceState.getString(NewEditActivity.KEY_PTRULE,&quot;&quot;);</span>
+<span class="nc bnc" id="L274" title="All 2 branches missed.">        if (rule.equals(&quot;Original&quot;))</span>
+<span class="nc" id="L275">            ptRule = myOrigRule;</span>
+        else
+<span class="nc" id="L277">            ptRule = myNewRule;</span>
+<span class="nc" id="L278">    }</span>
+
+    public void onAllDays(View view) {
+<span class="nc" id="L281">        ptRule.setDayMask(EnumSet.allOf(CalendarRule.DayOfWeek.class));</span>
+<span class="nc" id="L282">        refreshWidgets(true);</span>
+<span class="nc" id="L283">    }</span>
+
+    public void onNoDays(View view) {
+<span class="nc" id="L286">        ptRule.setDayMask(EnumSet.noneOf(CalendarRule.DayOfWeek.class));</span>
+<span class="nc" id="L287">        refreshWidgets(true);</span>
+<span class="nc" id="L288">    }</span>
+
+    public void onWorkingDays(View view) {
+<span class="nc" id="L291">        ptRule.getDayMask().addAll(EnumSet.of(CalendarRule.DayOfWeek.MONDAY,</span>
+                CalendarRule.DayOfWeek.TUESDAY,
+                CalendarRule.DayOfWeek.WEDNESDAY,
+                CalendarRule.DayOfWeek.THURSDAY,
+                CalendarRule.DayOfWeek.FRIDAY));
+<span class="nc" id="L296">        refreshWidgets(true);</span>
+<span class="nc" id="L297">    }</span>
+
+    public void onWeekEnd(View view) {
+<span class="nc" id="L300">        ptRule.getDayMask().addAll(EnumSet.of(CalendarRule.DayOfWeek.SATURDAY,</span>
+                                                 CalendarRule.DayOfWeek.SUNDAY));
+<span class="nc" id="L302">        refreshWidgets(true);</span>
+<span class="nc" id="L303">    }</span>
+
+    public void onFromTime(final View view) {
+<span class="nc" id="L306">        DialogFragment newFragment = new TimePickerFragment(ptRule,&quot;Start&quot;,this);</span>
+<span class="nc" id="L307">        newFragment.show(getSupportFragmentManager(), &quot;From Time&quot;);</span>
+<span class="nc" id="L308">    }</span>
+
+    public void onToTime(View view) {
+<span class="nc" id="L311">        DialogFragment newFragment = new TimePickerFragment(ptRule,&quot;End&quot;,this);</span>
+<span class="nc" id="L312">        newFragment.show(getSupportFragmentManager(), &quot;To Time&quot;);</span>
+<span class="nc" id="L313">    }</span>
+
+    public void onCheckDay(View view) {
+<span class="nc bnc" id="L316" title="All 8 branches missed.">        switch (view.getId()) {</span>
+            case R.id.cb_Monday:
+<span class="nc bnc" id="L318" title="All 2 branches missed.">                if (cb_Monday.isChecked())</span>
+<span class="nc" id="L319">                    ptRule.getDayMask().add(CalendarRule.DayOfWeek.MONDAY);</span>
+                else
+<span class="nc" id="L321">                    ptRule.getDayMask().remove(CalendarRule.DayOfWeek.MONDAY);</span>
+<span class="nc" id="L322">                break;</span>
+            case R.id.cb_Tuesday:
+<span class="nc bnc" id="L324" title="All 2 branches missed.">                if (cb_Tuesday.isChecked())</span>
+<span class="nc" id="L325">                    ptRule.getDayMask().add(CalendarRule.DayOfWeek.TUESDAY);</span>
+                else
+<span class="nc" id="L327">                    ptRule.getDayMask().remove(CalendarRule.DayOfWeek.TUESDAY);</span>
+<span class="nc" id="L328">                break;</span>
+            case R.id.cb_Wednesday:
+<span class="nc bnc" id="L330" title="All 2 branches missed.">                if (cb_Wednesday.isChecked())</span>
+<span class="nc" id="L331">                    ptRule.getDayMask().add(CalendarRule.DayOfWeek.WEDNESDAY);</span>
+                else
+<span class="nc" id="L333">                    ptRule.getDayMask().remove(CalendarRule.DayOfWeek.WEDNESDAY);</span>
+<span class="nc" id="L334">                break;</span>
+            case R.id.cb_Thursday:
+<span class="nc bnc" id="L336" title="All 2 branches missed.">                if (cb_Thursday.isChecked())</span>
+<span class="nc" id="L337">                    ptRule.getDayMask().add(CalendarRule.DayOfWeek.THURSDAY);</span>
+                else
+<span class="nc" id="L339">                    ptRule.getDayMask().remove(CalendarRule.DayOfWeek.THURSDAY);</span>
+<span class="nc" id="L340">                break;</span>
+            case R.id.cb_Friday:
+<span class="nc bnc" id="L342" title="All 2 branches missed.">                if (cb_Friday.isChecked())</span>
+<span class="nc" id="L343">                    ptRule.getDayMask().add(CalendarRule.DayOfWeek.FRIDAY);</span>
+                else
+<span class="nc" id="L345">                    ptRule.getDayMask().remove(CalendarRule.DayOfWeek.FRIDAY);</span>
+<span class="nc" id="L346">                break;</span>
+            case R.id.cb_Saturday:
+<span class="nc bnc" id="L348" title="All 2 branches missed.">            if (cb_Saturday.isChecked())</span>
+<span class="nc" id="L349">                ptRule.getDayMask().add(CalendarRule.DayOfWeek.SATURDAY);</span>
+            else
+<span class="nc" id="L351">                ptRule.getDayMask().remove(CalendarRule.DayOfWeek.SATURDAY);</span>
+<span class="nc" id="L352">            break;</span>
+            case R.id.cb_Sunday:
+<span class="nc bnc" id="L354" title="All 2 branches missed.">                if (cb_Sunday.isChecked())</span>
+<span class="nc" id="L355">                    ptRule.getDayMask().add(CalendarRule.DayOfWeek.SUNDAY);</span>
+                else
+<span class="nc" id="L357">                    ptRule.getDayMask().remove(CalendarRule.DayOfWeek.SUNDAY);</span>
+        }
+<span class="nc" id="L359">        validateActions();</span>
+<span class="nc" id="L360">    }</span>
+
+
+    @Override
+    void refreshWidgets(boolean validate) {
+<span class="fc" id="L365">        ed_name.setText(ptRule.getName());</span>
+<span class="fc" id="L366">        cb_Monday.setChecked(ptRule.getDayMask().contains(CalendarRule.DayOfWeek.MONDAY));</span>
+<span class="fc" id="L367">        cb_Tuesday.setChecked(ptRule.getDayMask().contains(CalendarRule.DayOfWeek.TUESDAY));</span>
+<span class="fc" id="L368">        cb_Wednesday.setChecked(ptRule.getDayMask().contains(CalendarRule.DayOfWeek.WEDNESDAY));</span>
+<span class="fc" id="L369">        cb_Thursday.setChecked(ptRule.getDayMask().contains(CalendarRule.DayOfWeek.THURSDAY));</span>
+<span class="fc" id="L370">        cb_Friday.setChecked(ptRule.getDayMask().contains(CalendarRule.DayOfWeek.FRIDAY));</span>
+<span class="fc" id="L371">        cb_Saturday.setChecked(ptRule.getDayMask().contains(CalendarRule.DayOfWeek.SATURDAY));</span>
+<span class="fc" id="L372">        cb_Sunday.setChecked(ptRule.getDayMask().contains(CalendarRule.DayOfWeek.SUNDAY));</span>
+<span class="fc" id="L373">        bn_from.setText(ptRule.getStartTime());</span>
+<span class="fc" id="L374">        bn_to.setText(ptRule.getEndTime());</span>
+<span class="fc" id="L375">        super.refreshWidgets(validate);</span>
+<span class="fc" id="L376">    }</span>
+
+    @Override
+    protected RuleNameValidator getRuleNameValidator() {
+<span class="fc" id="L380">        return new RuleNameValidator(ed_name, tx_validation, myRuleNames) {</span>
+            @Override
+            public void validate(TextView source, TextView target, ArrayList&lt;String&gt; names, String text) {
+<span class="fc" id="L383">                ptRule.setName(text);</span>
+<span class="pc bpc" id="L384" title="1 of 2 branches missed.">                if (source.getText().toString().equals(&quot;&quot;)) {</span>
+<span class="nc" id="L385">                    target.setText(R.string.tx_validation_rule_name_empty);</span>
+<span class="nc" id="L386">                    mi_save.setVisible(false);</span>
+<span class="nc" id="L387">                    isNameValid = false;</span>
+<span class="nc" id="L388">                    return;</span>
+                }
+<span class="pc bpc" id="L390" title="2 of 4 branches missed.">                if (names!= null &amp;&amp; names.contains(source.getText().toString())) {</span>
+<span class="nc" id="L391">                    target.setText(R.string.tx_validation_rule_name_used);</span>
+<span class="nc" id="L392">                    mi_save.setVisible(false);</span>
+<span class="nc" id="L393">                    isNameValid = false;</span>
+<span class="nc" id="L394">                    return;</span>
+                }
+<span class="fc" id="L396">                mi_save.setVisible(true);</span>
+<span class="fc" id="L397">                target.setText(R.string.tx_validation_rule_valid);</span>
+<span class="fc" id="L398">                isNameValid = true;</span>
+<span class="fc" id="L399">            }</span>
+        };
+    }
+
+    @Override
+    protected EditText getNameEditField() {
+<span class="fc" id="L405">        return ed_name;</span>
+    }
+
+    @Override
+    protected String getAction() {
+<span class="fc" id="L410">        return myAction;</span>
+    }
+
+    @Override
+    protected void validateActions() {
+<span class="pc bpc" id="L415" title="4 of 8 branches missed.">        if (mi_save==null || mi_delete ==null || mi_change == null || mi_undo == null) return;</span>
+        //Save only valie in EDIT or CREATE mode, when the data has change and the name is valid
+<span class="pc bpc" id="L417" title="1 of 2 branches missed.">        mi_save.setVisible((myAction.equals(NewEditActivity.ACTION_EDIT) ||</span>
+<span class="pc bpc" id="L418" title="1 of 2 branches missed.">                           myAction.equals(NewEditActivity.ACTION_CREATE)) &amp;&amp;</span>
+<span class="pc bpc" id="L419" title="2 of 4 branches missed.">                           !myNewRule.equals(myOrigRule) &amp;&amp; isNameValid);</span>
+
+        //Delete only valid in UPDATE mode
+<span class="pc bpc" id="L422" title="3 of 4 branches missed.">        mi_delete.setVisible(myAction.equals(NewEditActivity.ACTION_UPDATE) &amp;&amp;</span>
+                             ptRule == myOrigRule &amp;&amp;
+<span class="pc bnc" id="L424" title="All 2 branches missed.">                             !myContext.equals(NewEditActivity.CONTEXT_EDIT));</span>
+        //Change only valid in UPDATE mode
+<span class="pc bpc" id="L426" title="3 of 4 branches missed.">        mi_change.setVisible(myAction.equals(NewEditActivity.ACTION_UPDATE) &amp;&amp; ptRule == myOrigRule);</span>
+        //Undo only valid in EDIT mode where there have been changes
+<span class="pc bpc" id="L428" title="3 of 4 branches missed.">        mi_undo.setVisible(myAction.equals(NewEditActivity.ACTION_EDIT) &amp;&amp;</span>
+                ptRule == myNewRule &amp;&amp;
+<span class="pc bnc" id="L430" title="All 4 branches missed.">                !myNewRule.equals(myOrigRule) &amp;&amp;</span>
+                isNameValid);
+<span class="pc bpc" id="L432" title="1 of 2 branches missed.">        if (myAction.equals(NewEditActivity.ACTION_EDIT)) {</span>
+<span class="nc bnc" id="L433" title="All 2 branches missed.">            if (myNewRule.equals(myOrigRule))</span>
+<span class="nc" id="L434">                tx_validation.setText(R.string.tx_validation_rule_no_changes);</span>
+            else
+<span class="nc" id="L436">                tx_validation.setText(R.string.tx_validation_rule_has_changed);</span>
+        }
+
+<span class="fc" id="L439">    }</span>
+
+    @Override
+    protected void enableWidgets(boolean nameFlag, boolean widgetFlag) {
+<span class="fc" id="L443">        ed_name.setEnabled(nameFlag);</span>
+<span class="fc" id="L444">        cb_Monday.setEnabled(widgetFlag);</span>
+<span class="fc" id="L445">        cb_Tuesday.setEnabled(widgetFlag);</span>
+<span class="fc" id="L446">        cb_Wednesday.setEnabled(widgetFlag);</span>
+<span class="fc" id="L447">        cb_Thursday.setEnabled(widgetFlag);</span>
+<span class="fc" id="L448">        cb_Friday.setEnabled(widgetFlag);</span>
+<span class="fc" id="L449">        cb_Saturday.setEnabled(widgetFlag);</span>
+<span class="fc" id="L450">        cb_Sunday.setEnabled(widgetFlag);</span>
+<span class="fc" id="L451">        bn_from.setEnabled(widgetFlag);</span>
+<span class="fc" id="L452">        bn_to.setEnabled(widgetFlag);</span>
+<span class="fc" id="L453">        bn_alldays.setEnabled(widgetFlag);</span>
+<span class="fc" id="L454">        bn_nodays.setEnabled(widgetFlag);</span>
+<span class="fc" id="L455">        bn_workdays.setEnabled(widgetFlag);</span>
+<span class="fc" id="L456">        bn_we.setEnabled(widgetFlag);</span>
+<span class="fc" id="L457">        tx_validation.setEnabled(widgetFlag);</span>
+<span class="fc" id="L458">    }</span>
+
+    @Override
+    protected void save() {
+<span class="nc" id="L462">        new DbOperation(myAction,myRuleId).execute(ptRule);</span>
+<span class="nc" id="L463">    }</span>
+
+    @Override
+    protected void change() {
+<span class="nc" id="L467">        myAction = NewEditActivity.ACTION_EDIT;</span>
+<span class="nc" id="L468">        ptRule = myNewRule;</span>
+<span class="nc" id="L469">        enableWidgets(false,true);</span>
+<span class="nc" id="L470">        validateActions();</span>
+<span class="nc" id="L471">    }</span>
+
+    @Override
+    protected void undo() {
+<span class="nc" id="L475">        myAction = NewEditActivity.ACTION_UPDATE;</span>
+<span class="nc" id="L476">        ptRule = myOrigRule;</span>
+        try {
+<span class="nc" id="L478">            myNewRule  = (CalendarRule)myOrigRule.clone();</span>
+<span class="nc" id="L479">        } catch (CloneNotSupportedException e) {</span>
+<span class="nc" id="L480">            Log.e(TAG, &quot;Could not clone original rule&quot;);</span>
+<span class="nc" id="L481">        }</span>
+<span class="nc" id="L482">        refreshWidgets(true);</span>
+<span class="nc" id="L483">        enableWidgets(false, false);</span>
+<span class="nc" id="L484">    }</span>
+
+    @Override
+    protected void delete() {
+<span class="nc" id="L488">        new AlertDialog.Builder(this)</span>
+<span class="nc" id="L489">                .setMessage(R.string.tx_rule_delete_confirm)</span>
+<span class="nc" id="L490">                .setCancelable(false)</span>
+<span class="nc" id="L491">                .setPositiveButton(R.string.bt_yes_delete, new DialogInterface.OnClickListener() {</span>
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+<span class="nc" id="L494">                        new DbOperation(NewEditActivity.ACTION_DELETE, myRuleId).execute(ptRule);</span>
+<span class="nc" id="L495">                    }</span>
+                })
+<span class="nc" id="L497">                .setNegativeButton(R.string.bt_no_keep,null)</span>
+<span class="nc" id="L498">                .show();</span>
+<span class="nc" id="L499">    }</span>
+
+    @Override
+    protected void help() {
+<span class="nc" id="L503">        AlertDialog.Builder alert = new AlertDialog.Builder(this);</span>
+<span class="nc" id="L504">        alert.setTitle(R.string.tx_calendar_rule_help_title);</span>
+
+<span class="nc" id="L506">        WebView wv = new WebView(this);</span>
+<span class="nc" id="L507">        wv.loadUrl(&quot;file:///android_asset/html/calendar_rule_edit.html&quot;);</span>
+<span class="nc" id="L508">        ScrollView scroll = new ScrollView(this);</span>
+<span class="nc" id="L509">        scroll.setVerticalScrollBarEnabled(true);</span>
+<span class="nc" id="L510">        scroll.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,</span>
+                                                          ViewGroup.LayoutParams.MATCH_PARENT));
+<span class="nc" id="L512">        scroll.addView(wv);</span>
+
+<span class="nc" id="L514">        alert.setView(scroll);</span>
+<span class="nc" id="L515">        alert.setNegativeButton(&quot;Close&quot;, new DialogInterface.OnClickListener() {</span>
+            @Override
+            public void onClick(DialogInterface dialog, int id) {
+<span class="nc" id="L518">                dialog.dismiss();</span>
+<span class="nc" id="L519">            }</span>
+        });
+<span class="nc" id="L521">        alert.show();</span>
+<span class="nc" id="L522">    }</span>
+
+    @Override
+    protected boolean hasChanged() {
+<span class="nc bnc" id="L526" title="All 4 branches missed.">        return ptRule!=null &amp;&amp; !ptRule.equals(myOrigRule);</span>
+    }
+
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

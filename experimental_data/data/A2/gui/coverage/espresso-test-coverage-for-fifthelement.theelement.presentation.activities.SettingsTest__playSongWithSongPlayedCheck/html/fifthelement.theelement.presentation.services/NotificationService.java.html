@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NotificationService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">fifthelement.theelement.presentation.services</a> &gt; <span class="el_source">NotificationService.java</span></div><h1>NotificationService.java</h1><pre class="source lang-java linenums">package fifthelement.theelement.presentation.services;
+
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.Service;
+import android.content.Intent;
+import android.os.Build;
+import android.os.IBinder;
+import android.widget.RemoteViews;
+
+import fifthelement.theelement.R;
+import fifthelement.theelement.application.Services;
+import fifthelement.theelement.presentation.activities.MainActivity;
+import fifthelement.theelement.presentation.constants.NotificationConstants;
+import fifthelement.theelement.presentation.util.SongUtil;
+
+<span class="fc" id="L19">public class NotificationService extends Service {</span>
+
+    Notification status;
+    MusicService musicService;
+    RemoteViews views;
+    RemoteViews bigViews;
+    NotificationManager manager;
+
+    private static final String LOG_TAG = &quot;NotificationService&quot;;
+    
+    @Override
+    public void onDestroy() {
+<span class="fc" id="L31">        stopForeground(true);</span>
+<span class="fc" id="L32">        stopSelf();</span>
+<span class="fc" id="L33">        super.onDestroy();</span>
+<span class="fc" id="L34">    }</span>
+
+    @Override
+    public IBinder onBind(Intent intent) {
+<span class="nc" id="L38">        return null;</span>
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+<span class="fc" id="L43">        musicService = Services.getMusicService();</span>
+<span class="fc" id="L44">        musicService.setNotificationPlaybackListener(new NotificationPlaybackStartStopListener());</span>
+<span class="pc bpc" id="L45" title="1 of 2 branches missed.">        if (intent.getAction().equals(NotificationConstants.STARTFOREGROUND_ACTION)) {</span>
+<span class="fc" id="L46">            buildNotification();</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        } else if (intent.getAction().equals(NotificationConstants.PREV_ACTION)) {</span>
+<span class="nc" id="L48">            musicService.prev();</span>
+<span class="nc" id="L49">            buildNotification();</span>
+<span class="nc bnc" id="L50" title="All 2 branches missed.">        } else if (intent.getAction().equals(NotificationConstants.PLAY_ACTION)) {</span>
+<span class="nc bnc" id="L51" title="All 2 branches missed.">            if (musicService.isPlaying()) {</span>
+<span class="nc" id="L52">                showPlay();</span>
+<span class="nc" id="L53">                musicService.pause();</span>
+            } else {
+<span class="nc" id="L55">                showPause();</span>
+<span class="nc" id="L56">                musicService.start();</span>
+            }
+<span class="nc bnc" id="L58" title="All 2 branches missed.">        } else if (intent.getAction().equals(NotificationConstants.NEXT_ACTION)) {</span>
+<span class="nc" id="L59">            musicService.skip();</span>
+<span class="nc" id="L60">            buildNotification();</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">        } else if (intent.getAction().equals(NotificationConstants.STOPFOREGROUND_ACTION)) {</span>
+<span class="nc" id="L62">            Services.getMusicService().pause();</span>
+<span class="nc" id="L63">            stopForeground(true);</span>
+<span class="nc" id="L64">            stopSelf();</span>
+        }
+<span class="fc" id="L66">        return START_STICKY;</span>
+    }
+
+    private void buildNotification() {
+<span class="fc" id="L70">        musicService = Services.getMusicService();</span>
+        // Using RemoteViews to bind custom layouts into Notification
+<span class="fc" id="L72">        views = new RemoteViews(getPackageName(),</span>
+                R.layout.status_bar);
+<span class="fc" id="L74">        bigViews = new RemoteViews(getPackageName(),</span>
+                R.layout.status_bar_expanded);
+
+        // showing album image
+<span class="fc" id="L78">        views.setImageViewBitmap(R.id.status_bar_album_art, SongUtil.getSongAlbumArt(this, musicService.getCurrentSongPlaying()));</span>
+<span class="fc" id="L79">        bigViews.setImageViewBitmap(R.id.status_bar_album_art, SongUtil.getSongAlbumArt(this, musicService.getCurrentSongPlaying()));</span>
+
+<span class="fc" id="L81">        Intent notificationIntent = new Intent(this, MainActivity.class);</span>
+<span class="fc" id="L82">        notificationIntent.setAction(NotificationConstants.MAIN_ACTION + System.currentTimeMillis());</span>
+<span class="fc" id="L83">        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,</span>
+                notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+<span class="fc" id="L86">        Intent previousIntent = new Intent(this, NotificationService.class);</span>
+<span class="fc" id="L87">        previousIntent.setAction(NotificationConstants.PREV_ACTION);</span>
+<span class="fc" id="L88">        PendingIntent ppreviousIntent = PendingIntent.getService(this, 0,</span>
+                previousIntent, 0);
+
+<span class="fc" id="L91">        Intent playIntent = new Intent(this, NotificationService.class);</span>
+<span class="fc" id="L92">        playIntent.setAction(NotificationConstants.PLAY_ACTION);</span>
+<span class="fc" id="L93">        PendingIntent pplayIntent = PendingIntent.getService(this, 0,</span>
+                playIntent, 0);
+
+<span class="fc" id="L96">        Intent nextIntent = new Intent(this, NotificationService.class);</span>
+<span class="fc" id="L97">        nextIntent.setAction(NotificationConstants.NEXT_ACTION);</span>
+<span class="fc" id="L98">        PendingIntent pnextIntent = PendingIntent.getService(this, 0,</span>
+                nextIntent, 0);
+
+<span class="fc" id="L101">        Intent closeIntent = new Intent(this, NotificationService.class);</span>
+<span class="fc" id="L102">        closeIntent.setAction(NotificationConstants.STOPFOREGROUND_ACTION);</span>
+<span class="fc" id="L103">        PendingIntent pcloseIntent = PendingIntent.getService(this, 0,</span>
+                closeIntent, 0);
+
+<span class="fc" id="L106">        views.setOnClickPendingIntent(R.id.status_bar_play, pplayIntent);</span>
+<span class="fc" id="L107">        bigViews.setOnClickPendingIntent(R.id.status_bar_play, pplayIntent);</span>
+
+<span class="fc" id="L109">        views.setOnClickPendingIntent(R.id.status_bar_next, pnextIntent);</span>
+<span class="fc" id="L110">        bigViews.setOnClickPendingIntent(R.id.status_bar_next, pnextIntent);</span>
+
+<span class="fc" id="L112">        views.setOnClickPendingIntent(R.id.status_bar_prev, ppreviousIntent);</span>
+<span class="fc" id="L113">        bigViews.setOnClickPendingIntent(R.id.status_bar_prev, ppreviousIntent);</span>
+
+<span class="fc" id="L115">        views.setOnClickPendingIntent(R.id.status_bar_collapse, pcloseIntent);</span>
+<span class="fc" id="L116">        bigViews.setOnClickPendingIntent(R.id.status_bar_collapse, pcloseIntent);</span>
+
+<span class="fc" id="L118">        views.setImageViewResource(R.id.status_bar_play,</span>
+                R.drawable.ic_pause);
+<span class="fc" id="L120">        bigViews.setImageViewResource(R.id.status_bar_play,</span>
+                R.drawable.ic_pause);
+
+<span class="fc" id="L123">        createNotificationDisplay(views, bigViews);</span>
+<span class="fc" id="L124">        showNotification(views, bigViews, pendingIntent);</span>
+
+
+<span class="fc" id="L127">    }</span>
+
+    private void createNotificationDisplay(RemoteViews views, RemoteViews bigViews) {
+<span class="pc bpc" id="L130" title="1 of 2 branches missed.">        if(musicService.getCurrentSongPlaying() != null) {</span>
+<span class="fc" id="L131">            views.setTextViewText(R.id.status_bar_track_name, musicService.getCurrentSongPlaying().getName());</span>
+<span class="fc" id="L132">            bigViews.setTextViewText(R.id.status_bar_track_name, musicService.getCurrentSongPlaying().getName());</span>
+<span class="fc" id="L133">            views.setImageViewBitmap(R.id.status_bar_album_art, SongUtil.getSongAlbumArt(this, musicService.getCurrentSongPlaying()));</span>
+<span class="fc" id="L134">            bigViews.setImageViewBitmap(R.id.status_bar_album_art, SongUtil.getSongAlbumArt(this, musicService.getCurrentSongPlaying()));</span>
+
+<span class="pc bpc" id="L136" title="1 of 2 branches missed.">            if(musicService.getCurrentSongPlaying().getAuthor() != null) {</span>
+<span class="fc" id="L137">                views.setTextViewText(R.id.status_bar_artist_name, musicService.getCurrentSongPlaying().getAuthor().getName());</span>
+<span class="fc" id="L138">                bigViews.setTextViewText(R.id.status_bar_artist_name, musicService.getCurrentSongPlaying().getAuthor().getName());</span>
+            } else {
+<span class="nc" id="L140">                views.setTextViewText(R.id.status_bar_artist_name, &quot;&quot;);</span>
+<span class="nc" id="L141">                bigViews.setTextViewText(R.id.status_bar_artist_name, &quot;&quot;);</span>
+            }
+
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">            if(musicService.getCurrentSongPlaying().getAlbum() != null)</span>
+<span class="fc" id="L145">                bigViews.setTextViewText(R.id.status_bar_album_name, musicService.getCurrentSongPlaying().getAlbum().getName());</span>
+            else
+<span class="nc" id="L147">                bigViews.setTextViewText(R.id.status_bar_album_name, &quot;&quot;);</span>
+        }
+<span class="fc" id="L149">    }</span>
+
+    private void showNotification(RemoteViews views, RemoteViews bigViews, PendingIntent pendingIntent) {
+<span class="fc" id="L152">        manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);</span>
+<span class="pc bpc" id="L153" title="1 of 2 branches missed.">        if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.O) { // Make this work on Oreo</span>
+<span class="fc" id="L154">            NotificationChannel notificationChannel = new NotificationChannel(NotificationConstants.CHANNEL_ID, NotificationConstants.CHANNEL_ID, NotificationManager.IMPORTANCE_DEFAULT);</span>
+<span class="fc" id="L155">            notificationChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);</span>
+<span class="fc" id="L156">            manager.createNotificationChannel(notificationChannel);</span>
+<span class="fc" id="L157">            status = new Notification.Builder(this, NotificationConstants.CHANNEL_ID)</span>
+<span class="fc" id="L158">                    .setSmallIcon(R.drawable.ic_launcher_theelement)</span>
+<span class="fc" id="L159">                    .setContentTitle(getString(R.string.app_name)).build();</span>
+<span class="fc" id="L160">        } else {</span>
+<span class="nc" id="L161">            status = new Notification.Builder(this)</span>
+<span class="nc" id="L162">                    .setSmallIcon(R.drawable.ic_launcher_theelement).build();</span>
+        }
+<span class="fc" id="L164">        status.contentView = views;</span>
+<span class="fc" id="L165">        status.bigContentView = bigViews;</span>
+<span class="fc" id="L166">        status.flags = Notification.FLAG_ONGOING_EVENT;</span>
+<span class="fc" id="L167">        status.contentIntent = pendingIntent;</span>
+<span class="fc" id="L168">        startForeground(NotificationConstants.NOTIFICATION_ID, status);</span>
+<span class="fc" id="L169">    }</span>
+
+
+    public void showPause() {
+<span class="pc bpc" id="L173" title="2 of 4 branches missed.">        if(status != null &amp;&amp; manager != null) {</span>
+<span class="fc" id="L174">            bigViews.setImageViewResource(R.id.status_bar_play, R.drawable.ic_pause);</span>
+<span class="fc" id="L175">            views.setImageViewResource(R.id.status_bar_play, R.drawable.ic_pause);</span>
+<span class="fc" id="L176">            manager.notify(NotificationConstants.NOTIFICATION_ID, status);</span>
+        }
+<span class="fc" id="L178">    }</span>
+
+    public void showPlay() {
+<span class="pc bpc" id="L181" title="2 of 4 branches missed.">        if(status != null &amp;&amp; manager != null) {</span>
+<span class="fc" id="L182">            bigViews.setImageViewResource(R.id.status_bar_play, R.drawable.ic_play);</span>
+<span class="fc" id="L183">            views.setImageViewResource(R.id.status_bar_play, R.drawable.ic_play);</span>
+<span class="fc" id="L184">            manager.notify(NotificationConstants.NOTIFICATION_ID, status);</span>
+        }
+<span class="fc" id="L186">    }</span>
+
+    public void updateSong() {
+<span class="pc bpc" id="L189" title="2 of 4 branches missed.">        if(status != null &amp;&amp; manager != null) {</span>
+<span class="fc" id="L190">            createNotificationDisplay(views, bigViews);</span>
+<span class="fc" id="L191">            manager.notify(NotificationConstants.NOTIFICATION_ID, status);</span>
+
+        }
+<span class="fc" id="L194">    }</span>
+
+<span class="fc" id="L196">    public class NotificationPlaybackStartStopListener {</span>
+        public void onPlaybackStart(){
+<span class="fc" id="L198">            showPause();</span>
+<span class="fc" id="L199">        }</span>
+
+        public void onPlaybackStop() {
+<span class="fc" id="L202">            showPlay();</span>
+<span class="fc" id="L203">        }</span>
+
+        public void onSkip() {
+<span class="fc" id="L206">            updateSong();</span>
+<span class="fc" id="L207">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>

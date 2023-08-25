@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ShowTriggerEvents.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.prismaqf.callblocker</a> &gt; <span class="el_source">ShowTriggerEvents.java</span></div><h1>ShowTriggerEvents.java</h1><pre class="source lang-java linenums">package com.prismaqf.callblocker;
+
+import android.content.CursorLoader;
+import android.content.Loader;
+import android.database.Cursor;
+import android.os.Bundle;
+
+import com.prismaqf.callblocker.sql.LoggedCallProvider;
+import com.prismaqf.callblocker.utils.PreferenceHelper;
+
+/**
+ * Activity to show a list of recent triggered events
+ * timestamp, calling number, description
+ * and name of the action matched
+ * @author ConteDiMonteCristo
+ */
+<span class="nc" id="L17">public class ShowTriggerEvents extends ShowLoggedCalls{</span>
+
+<span class="nc" id="L19">    private final String TAG = ShowTriggerEvents.class.getCanonicalName();</span>
+    private static final int URL_LOADER = 2; // Identifies a particular Loader being used in this component
+
+    @Override
+    public void initLoader() {
+<span class="nc" id="L24">        getLoaderManager().initLoader(URL_LOADER, null, this);</span>
+<span class="nc" id="L25">    }</span>
+
+    @Override
+    public Loader&lt;Cursor&gt; onCreateLoader(int loaderID, Bundle args) {
+<span class="nc bnc" id="L29" title="All 2 branches missed.">        switch (loaderID) {</span>
+            case URL_LOADER:
+                // Returns a new CursorLoader
+<span class="nc" id="L32">                return new CursorLoader(this,   // Parent activity context</span>
+                        null,   // All the following params
+                        null,   // are null
+                        null,   // because the Cursor is created
+                        null,   // below
+                        null)
+<span class="nc" id="L38">                {</span>
+                    @Override
+                    public Cursor loadInBackground() {
+<span class="nc" id="L41">                        int limit = PreferenceHelper.GetSqlQueryLimit(getContext());</span>
+<span class="nc" id="L42">                        return LoggedCallProvider.LatestTriggered(myDbConnection, limit, true);</span>
+                    }
+                };
+            default:
+<span class="nc" id="L46">                return null;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.6.202009150832</span></div></body></html>
